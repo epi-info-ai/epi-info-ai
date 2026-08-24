@@ -1,0 +1,3 @@
+[submodule "wasm/source/Epi-Info-Community-Edition"]
+	path = wasm/source/Epi-Info-Community-Edition
+	url = https://github.com/Epi-Info/Epi-Info-Community-Edition.git

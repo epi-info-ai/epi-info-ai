@@ -1,0 +1,20 @@
+# Local credentials and environment files
+**/.secrets/
+**/.env
+**/.env.*
+
+# Temporary and generated files
+**/tmp/
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/coverage/
+
+# IDE and operating-system files
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
