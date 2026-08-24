@@ -1,0 +1,15 @@
+stages:
+  - deploy
+
+pages:
+  stage: deploy
+  image: alpine:3.20
+  script:
+    - test -f wasm/demo/index.html
+    - mkdir -p public
+    - cp -R wasm/demo/. public/
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'

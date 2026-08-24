@@ -1,0 +1,4 @@
+case_id,onset_date,ill,exposure,age,latitude,longitude
+C-001,2026-08-18,Yes,Well 3,34,33.7490,-84.3880
+C-002,2026-08-19,No,Other water source,27,33.7545,-84.3912
+C-003,2026-08-20,Yes,"Community meal, chicken",51,33.7441,-84.3826

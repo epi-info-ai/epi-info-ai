@@ -1,0 +1,2602 @@
+﻿[
+    {
+        "id":  0,
+        "input":  {
+                      "exposedCases":  21,
+                      "exposedNonCases":  27,
+                      "unexposedCases":  27,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.6679918639,
+                         "chiSquareP":  0.4137526119,
+                         "mantelHaenszel":  0.6613119453,
+                         "mantelHaenszelP":  0.416097159,
+                         "yates":  0.3806731797,
+                         "yatesP":  0.537243182,
+                         "oddsRatio":  0.7201646091,
+                         "oddsRatioLower":  0.3274571019,
+                         "oddsRatioUpper":  1.5838320841,
+                         "riskRatio":  0.8425925926,
+                         "riskRatioLower":  0.5570202614,
+                         "riskRatioUpper":  1.2745717281,
+                         "fisherOneTailed":  0.2687632153,
+                         "fisherTwoTailed":  0.4309532597
+                     }
+    },
+    {
+        "id":  1,
+        "input":  {
+                      "exposedCases":  29,
+                      "exposedNonCases":  17,
+                      "unexposedCases":  28,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.2693888787,
+                         "chiSquareP":  0.2598813571,
+                         "mantelHaenszel":  1.2566949899,
+                         "mantelHaenszelP":  0.2622776123,
+                         "yates":  0.8538366476,
+                         "yatesP":  0.3554692297,
+                         "oddsRatio":  1.5840336134,
+                         "oddsRatioLower":  0.7102541006,
+                         "oddsRatioUpper":  3.5327673385,
+                         "riskRatio":  1.2158385093,
+                         "riskRatioLower":  0.8661486963,
+                         "riskRatioUpper":  1.7067084289,
+                         "fisherOneTailed":  0.1778153951,
+                         "fisherTwoTailed":  0.3129707188
+                     }
+    },
+    {
+        "id":  2,
+        "input":  {
+                      "exposedCases":  24,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  24,
+                      "unexposedNonCases":  30,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.5945745076,
+                         "chiSquareP":  0.4406556169,
+                         "mantelHaenszel":  0.5886287625,
+                         "mantelHaenszelP":  0.4429498581,
+                         "yates":  0.3252224493,
+                         "yatesP":  0.5684859183,
+                         "oddsRatio":  1.3636363636,
+                         "oddsRatioLower":  0.6193960253,
+                         "oddsRatioUpper":  3.0021247413,
+                         "riskRatio":  1.1739130435,
+                         "riskRatioLower":  0.7815769643,
+                         "riskRatioUpper":  1.7631940251,
+                         "fisherOneTailed":  0.2843172436,
+                         "fisherTwoTailed":  0.5473441391
+                     }
+    },
+    {
+        "id":  3,
+        "input":  {
+                      "exposedCases":  20,
+                      "exposedNonCases":  26,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.2180784719,
+                         "chiSquareP":  0.6405079428,
+                         "mantelHaenszel":  0.2158976872,
+                         "mantelHaenszelP":  0.6421836115,
+                         "yates":  0.0705967467,
+                         "yatesP":  0.7904698913,
+                         "oddsRatio":  0.8284023669,
+                         "oddsRatioLower":  0.375808003,
+                         "oddsRatioUpper":  1.8260667042,
+                         "riskRatio":  0.9030100334,
+                         "riskRatioLower":  0.5872296922,
+                         "riskRatioUpper":  1.3885999488,
+                         "fisherOneTailed":  0.3954814497,
+                         "fisherTwoTailed":  0.6902888242
+                     }
+    },
+    {
+        "id":  4,
+        "input":  {
+                      "exposedCases":  22,
+                      "exposedNonCases":  33,
+                      "unexposedCases":  20,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.2006933041,
+                         "chiSquareP":  0.6541618119,
+                         "mantelHaenszel":  0.1986863711,
+                         "mantelHaenszelP":  0.6557832652,
+                         "yates":  0.0597104045,
+                         "yatesP":  0.8069542447,
+                         "oddsRatio":  0.8333333333,
+                         "oddsRatioLower":  0.3752029174,
+                         "oddsRatioUpper":  1.8508503327,
+                         "riskRatio":  0.9,
+                         "riskRatioLower":  0.5682329571,
+                         "riskRatioUpper":  1.4254717012,
+                         "fisherOneTailed":  0.4031662438,
+                         "fisherTwoTailed":  0.6878426752
+                     }
+    },
+    {
+        "id":  5,
+        "input":  {
+                      "exposedCases":  29,
+                      "exposedNonCases":  26,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1459169526,
+                         "chiSquareP":  0.7024682068,
+                         "mantelHaenszel":  0.1444577831,
+                         "mantelHaenszelP":  0.7038889836,
+                         "yates":  0.0327403689,
+                         "yatesP":  0.8564123176,
+                         "oddsRatio":  1.1660839161,
+                         "oddsRatioLower":  0.5299779122,
+                         "oddsRatioUpper":  2.565676169,
+                         "riskRatio":  1.0785123967,
+                         "riskRatioLower":  0.730433972,
+                         "riskRatioUpper":  1.5924628842,
+                         "fisherOneTailed":  0.4282186106,
+                         "fisherTwoTailed":  0.8408325713
+                     }
+    },
+    {
+        "id":  6,
+        "input":  {
+                      "exposedCases":  21,
+                      "exposedNonCases":  32,
+                      "unexposedCases":  19,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0066907534,
+                         "chiSquareP":  0.9348081215,
+                         "mantelHaenszel":  0.0066238458,
+                         "mantelHaenszelP":  0.9351341772,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9671052632,
+                         "oddsRatioLower":  0.4339114322,
+                         "oddsRatioUpper":  2.1554919291,
+                         "riskRatio":  0.9801390268,
+                         "riskRatioLower":  0.606181193,
+                         "riskRatioUpper":  1.5847943204,
+                         "fisherOneTailed":  0.5484506926,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  7,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.3511661075,
+                         "chiSquareP":  0.5534537661,
+                         "mantelHaenszel":  0.3476544464,
+                         "mantelHaenszelP":  0.5554439036,
+                         "yates":  0.1539718451,
+                         "yatesP":  0.694768254,
+                         "oddsRatio":  1.268115942,
+                         "oddsRatioLower":  0.5777838048,
+                         "oddsRatioUpper":  2.7832521939,
+                         "riskRatio":  1.1237458194,
+                         "riskRatioLower":  0.7625927451,
+                         "riskRatioUpper":  1.6559358513,
+                         "fisherOneTailed":  0.3474791351,
+                         "fisherTwoTailed":  0.6890969604
+                     }
+    },
+    {
+        "id":  8,
+        "input":  {
+                      "exposedCases":  19,
+                      "exposedNonCases":  30,
+                      "unexposedCases":  28,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  2.6089761477,
+                         "chiSquareP":  0.106260347,
+                         "mantelHaenszel":  2.5828863862,
+                         "mantelHaenszelP":  0.1080245197,
+                         "yates":  2.0017481099,
+                         "yatesP":  0.1571179125,
+                         "oddsRatio":  0.5202380952,
+                         "oddsRatioLower":  0.2345727235,
+                         "oddsRatioUpper":  1.1537900556,
+                         "riskRatio":  0.7062682216,
+                         "riskRatioLower":  0.459029998,
+                         "riskRatioUpper":  1.0866714658,
+                         "fisherOneTailed":  0.0783826887,
+                         "fisherTwoTailed":  0.1147345394
+                     }
+    },
+    {
+        "id":  9,
+        "input":  {
+                      "exposedCases":  30,
+                      "exposedNonCases":  18,
+                      "unexposedCases":  31,
+                      "unexposedNonCases":  21,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0873023572,
+                         "chiSquareP":  0.767635078,
+                         "mantelHaenszel":  0.0864293336,
+                         "mantelHaenszelP":  0.7687665669,
+                         "yates":  0.0081509145,
+                         "yatesP":  0.9280627936,
+                         "oddsRatio":  1.1290322581,
+                         "oddsRatioLower":  0.5046880927,
+                         "oddsRatioUpper":  2.5257458183,
+                         "riskRatio":  1.0483870968,
+                         "riskRatioLower":  0.7665190499,
+                         "riskRatioUpper":  1.4339050084,
+                         "fisherOneTailed":  0.4643112469,
+                         "fisherTwoTailed":  0.8386706136
+                     }
+    },
+    {
+        "id":  10,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  28,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0311377369,
+                         "chiSquareP":  0.8599334495,
+                         "mantelHaenszel":  0.0308263595,
+                         "mantelHaenszelP":  0.8606283391,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9316770186,
+                         "oddsRatioLower":  0.424494224,
+                         "oddsRatioUpper":  2.0448383465,
+                         "riskRatio":  0.96390484,
+                         "riskRatioLower":  0.6409757471,
+                         "riskRatioUpper":  1.4495283868,
+                         "fisherOneTailed":  0.5095249163,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  11,
+        "input":  {
+                      "exposedCases":  23,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  38,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  4.1274971411,
+                         "chiSquareP":  0.0421917086,
+                         "mantelHaenszel":  4.0862221697,
+                         "mantelHaenszelP":  0.0432341737,
+                         "yates":  3.3372838406,
+                         "yatesP":  0.067726322,
+                         "oddsRatio":  2.3121693122,
+                         "oddsRatioLower":  1.0233145859,
+                         "oddsRatioUpper":  5.2243239779,
+                         "riskRatio":  1.6262626263,
+                         "riskRatioLower":  1.0125151963,
+                         "riskRatioUpper":  2.6120399371,
+                         "fisherOneTailed":  0.0338151802,
+                         "fisherTwoTailed":  0.0647046442
+                     }
+    },
+    {
+        "id":  12,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  20,
+                      "unexposedNonCases":  31,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  3.2176973353,
+                         "chiSquareP":  0.0728460362,
+                         "mantelHaenszel":  3.185520362,
+                         "mantelHaenszelP":  0.0742933396,
+                         "yates":  2.5395414576,
+                         "yatesP":  0.1110270259,
+                         "oddsRatio":  2.0666666667,
+                         "oddsRatioLower":  0.9308755997,
+                         "oddsRatioUpper":  4.5882727108,
+                         "riskRatio":  1.4571428571,
+                         "riskRatioLower":  0.9583837714,
+                         "riskRatioUpper":  2.2154645868,
+                         "fisherOneTailed":  0.0553009738,
+                         "fisherTwoTailed":  0.1088069199
+                     }
+    },
+    {
+        "id":  13,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  26,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0401445203,
+                         "chiSquareP":  0.8411982781,
+                         "mantelHaenszel":  0.0397430751,
+                         "mantelHaenszelP":  0.8419837658,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0836120401,
+                         "oddsRatioLower":  0.493979815,
+                         "oddsRatioUpper":  2.3770506765,
+                         "riskRatio":  1.0410172272,
+                         "riskRatioLower":  0.7021508269,
+                         "riskRatioUpper":  1.5434246119,
+                         "fisherOneTailed":  0.4999999997,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  14,
+        "input":  {
+                      "exposedCases":  22,
+                      "exposedNonCases":  28,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  27,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0404040404,
+                         "chiSquareP":  0.8406926603,
+                         "mantelHaenszel":  0.04,
+                         "mantelHaenszelP":  0.8414805811,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9223602484,
+                         "oddsRatioLower":  0.4194041606,
+                         "oddsRatioUpper":  2.0284692139,
+                         "riskRatio":  0.9565217391,
+                         "riskRatioLower":  0.6200155569,
+                         "riskRatioUpper":  1.4756627108,
+                         "fisherOneTailed":  0.4999999998,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  15,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  28,
+                      "unexposedCases":  29,
+                      "unexposedNonCases":  16,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  2.367834186,
+                         "chiSquareP":  0.123858784,
+                         "mantelHaenszel":  2.3441558442,
+                         "mantelHaenszelP":  0.125753667,
+                         "yates":  1.7857142857,
+                         "yatesP":  0.1814492077,
+                         "oddsRatio":  0.5320197044,
+                         "oddsRatioLower":  0.2372700534,
+                         "oddsRatioUpper":  1.1929232614,
+                         "riskRatio":  0.7617554859,
+                         "riskRatioLower":  0.5390965407,
+                         "riskRatioUpper":  1.0763775622,
+                         "fisherOneTailed":  0.0904763616,
+                         "fisherTwoTailed":  0.1574277525
+                     }
+    },
+    {
+        "id":  16,
+        "input":  {
+                      "exposedCases":  18,
+                      "exposedNonCases":  32,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  32,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0,
+                         "chiSquareP":  1,
+                         "mantelHaenszel":  1.388395E-28,
+                         "mantelHaenszelP":  1,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1,
+                         "oddsRatioLower":  0.441908841,
+                         "oddsRatioUpper":  2.2629101461,
+                         "riskRatio":  1,
+                         "riskRatioLower":  0.5929429665,
+                         "riskRatioUpper":  1.6865028452,
+                         "fisherOneTailed":  0.582421897,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  17,
+        "input":  {
+                      "exposedCases":  21,
+                      "exposedNonCases":  26,
+                      "unexposedCases":  33,
+                      "unexposedNonCases":  20,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  3.1004369353,
+                         "chiSquareP":  0.0782712841,
+                         "mantelHaenszel":  3.0694325659,
+                         "mantelHaenszelP":  0.0797773135,
+                         "yates":  2.4329777214,
+                         "yatesP":  0.1188070241,
+                         "oddsRatio":  0.4895104895,
+                         "oddsRatioLower":  0.2200673604,
+                         "oddsRatioUpper":  1.0888507905,
+                         "riskRatio":  0.7176015474,
+                         "riskRatioLower":  0.4902752918,
+                         "riskRatioUpper":  1.0503323122,
+                         "fisherOneTailed":  0.0592394941,
+                         "fisherTwoTailed":  0.1077686964
+                     }
+    },
+    {
+        "id":  18,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  34,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  22,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0270562771,
+                         "chiSquareP":  0.8693470527,
+                         "mantelHaenszel":  0.0267857143,
+                         "mantelHaenszelP":  0.8699961176,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9346405229,
+                         "oddsRatioLower":  0.4176761778,
+                         "oddsRatioUpper":  2.0914597322,
+                         "riskRatio":  0.962962963,
+                         "riskRatioLower":  0.614968448,
+                         "riskRatioUpper":  1.5078784466,
+                         "fisherOneTailed":  0.5157169309,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  19,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  25,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1602564103,
+                         "chiSquareP":  0.6889205558,
+                         "mantelHaenszel":  0.1586538462,
+                         "mantelHaenszelP":  0.6903989237,
+                         "yates":  0.0400641026,
+                         "yatesP":  0.8413552991,
+                         "oddsRatio":  1.1739130435,
+                         "oddsRatioLower":  0.5353126097,
+                         "oddsRatioUpper":  2.5743309773,
+                         "riskRatio":  1.0836120401,
+                         "riskRatioLower":  0.730593931,
+                         "riskRatioUpper":  1.6072061424,
+                         "fisherOneTailed":  0.420745509,
+                         "fisherTwoTailed":  0.8414910179
+                     }
+    },
+    {
+        "id":  20,
+        "input":  {
+                      "exposedCases":  19,
+                      "exposedNonCases":  23,
+                      "unexposedCases":  31,
+                      "unexposedNonCases":  27,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.6568144499,
+                         "chiSquareP":  0.41768682,
+                         "mantelHaenszel":  0.6502463054,
+                         "mantelHaenszelP":  0.4200246327,
+                         "yates":  0.3694581281,
+                         "yatesP":  0.543299783,
+                         "oddsRatio":  0.7194950912,
+                         "oddsRatioLower":  0.3242232194,
+                         "oddsRatioUpper":  1.5966567327,
+                         "riskRatio":  0.846390169,
+                         "riskRatioLower":  0.5614984477,
+                         "riskRatioUpper":  1.2758295612,
+                         "fisherOneTailed":  0.2717808487,
+                         "fisherTwoTailed":  0.5435616974
+                     }
+    },
+    {
+        "id":  21,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  27,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  27,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.185770751,
+                         "chiSquareP":  0.2761843089,
+                         "mantelHaenszel":  1.1739130435,
+                         "mantelHaenszelP":  0.2785986718,
+                         "yates":  0.7872606906,
+                         "yatesP":  0.3749297198,
+                         "oddsRatio":  1.5555555556,
+                         "oddsRatioLower":  0.7010769246,
+                         "oddsRatioUpper":  3.4514801467,
+                         "riskRatio":  1.2727272727,
+                         "riskRatioLower":  0.8180127156,
+                         "riskRatioUpper":  1.9802072509,
+                         "fisherOneTailed":  0.1875589574,
+                         "fisherTwoTailed":  0.3169394826
+                     }
+    },
+    {
+        "id":  22,
+        "input":  {
+                      "exposedCases":  29,
+                      "exposedNonCases":  34,
+                      "unexposedCases":  14,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.6385297695,
+                         "chiSquareP":  0.4242436909,
+                         "mantelHaenszel":  0.6321444718,
+                         "mantelHaenszelP":  0.426569797,
+                         "yates":  0.3479786834,
+                         "yatesP":  0.5552595846,
+                         "oddsRatio":  1.4012605042,
+                         "oddsRatioLower":  0.6117712738,
+                         "oddsRatioUpper":  3.2095835235,
+                         "riskRatio":  1.216553288,
+                         "riskRatioLower":  0.7438101614,
+                         "riskRatioUpper":  1.9897575743,
+                         "fisherOneTailed":  0.2783669623,
+                         "fisherTwoTailed":  0.5310126783
+                     }
+    },
+    {
+        "id":  23,
+        "input":  {
+                      "exposedCases":  29,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  27,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1623376623,
+                         "chiSquareP":  0.6870133442,
+                         "mantelHaenszel":  0.1607142857,
+                         "mantelHaenszelP":  0.6884997411,
+                         "yates":  0.0405844156,
+                         "yatesP":  0.8403422335,
+                         "oddsRatio":  1.176366843,
+                         "oddsRatioLower":  0.5336897337,
+                         "oddsRatioUpper":  2.5929652795,
+                         "riskRatio":  1.0740740741,
+                         "riskRatioLower":  0.7584264738,
+                         "riskRatioUpper":  1.5210902525,
+                         "fisherOneTailed":  0.4202429007,
+                         "fisherTwoTailed":  0.8404858014
+                     }
+    },
+    {
+        "id":  24,
+        "input":  {
+                      "exposedCases":  35,
+                      "exposedNonCases":  29,
+                      "unexposedCases":  14,
+                      "unexposedNonCases":  22,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  2.3011982571,
+                         "chiSquareP":  0.1292742355,
+                         "mantelHaenszel":  2.2781862745,
+                         "mantelHaenszelP":  0.1312052301,
+                         "yates":  1.7124210795,
+                         "yatesP":  0.1906715489,
+                         "oddsRatio":  1.8965517241,
+                         "oddsRatioLower":  0.8258351438,
+                         "oddsRatioUpper":  4.3554799884,
+                         "riskRatio":  1.40625,
+                         "riskRatioLower":  0.8821861501,
+                         "riskRatioUpper":  2.2416346735,
+                         "fisherOneTailed":  0.0951287684,
+                         "fisherTwoTailed":  0.1487415605
+                     }
+    },
+    {
+        "id":  25,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  29,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.4315610198,
+                         "chiSquareP":  0.2315098481,
+                         "mantelHaenszel":  1.4172454096,
+                         "mantelHaenszelP":  0.2338573277,
+                         "yates":  0.9928100892,
+                         "yatesP":  0.3190565327,
+                         "oddsRatio":  1.617768595,
+                         "oddsRatioLower":  0.7342791175,
+                         "oddsRatioUpper":  3.5642784393,
+                         "riskRatio":  1.2773654917,
+                         "riskRatioLower":  0.8528760431,
+                         "riskRatioUpper":  1.9131298299,
+                         "fisherOneTailed":  0.1595443832,
+                         "fisherTwoTailed":  0.3171499291
+                     }
+    },
+    {
+        "id":  26,
+        "input":  {
+                      "exposedCases":  30,
+                      "exposedNonCases":  25,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.3172753173,
+                         "chiSquareP":  0.5732496988,
+                         "mantelHaenszel":  0.3141025641,
+                         "mantelHaenszelP":  0.5751735319,
+                         "yates":  0.1311188811,
+                         "yatesP":  0.7172747539,
+                         "oddsRatio":  1.2545454545,
+                         "oddsRatioLower":  0.5696434193,
+                         "oddsRatioUpper":  2.7629289554,
+                         "riskRatio":  1.1157024793,
+                         "riskRatioLower":  0.759946024,
+                         "riskRatioUpper":  1.6380005726,
+                         "fisherOneTailed":  0.3586598681,
+                         "fisherTwoTailed":  0.6879004138
+                     }
+    },
+    {
+        "id":  27,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  24,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.16,
+                         "chiSquareP":  0.6891565168,
+                         "mantelHaenszel":  0.1584,
+                         "mantelHaenszelP":  0.6906338899,
+                         "yates":  0.04,
+                         "yatesP":  0.8414805811,
+                         "oddsRatio":  1.1736111111,
+                         "oddsRatioLower":  0.535514067,
+                         "oddsRatioUpper":  2.572038953,
+                         "riskRatio":  1.0833333333,
+                         "riskRatioLower":  0.7315587259,
+                         "riskRatioUpper":  1.6042609698,
+                         "fisherOneTailed":  0.4208076694,
+                         "fisherTwoTailed":  0.8416153387
+                     }
+    },
+    {
+        "id":  28,
+        "input":  {
+                      "exposedCases":  22,
+                      "exposedNonCases":  28,
+                      "unexposedCases":  20,
+                      "unexposedNonCases":  30,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1642036125,
+                         "chiSquareP":  0.6853154749,
+                         "mantelHaenszel":  0.1625615764,
+                         "mantelHaenszelP":  0.6868090028,
+                         "yates":  0.0410509031,
+                         "yatesP":  0.8394396977,
+                         "oddsRatio":  1.1785714286,
+                         "oddsRatioLower":  0.5322531148,
+                         "oddsRatioUpper":  2.6097181464,
+                         "riskRatio":  1.1,
+                         "riskRatioLower":  0.6933380447,
+                         "riskRatioUpper":  1.7451804487,
+                         "fisherOneTailed":  0.4197951864,
+                         "fisherTwoTailed":  0.8395903728
+                     }
+    },
+    {
+        "id":  29,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  25,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  27,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.3704045721,
+                         "chiSquareP":  0.5427838243,
+                         "mantelHaenszel":  0.3667005264,
+                         "mantelHaenszelP":  0.54480828,
+                         "yates":  0.1667974882,
+                         "yatesP":  0.6829738072,
+                         "oddsRatio":  1.2763636364,
+                         "oddsRatioLower":  0.5814082482,
+                         "oddsRatioUpper":  2.8019969399,
+                         "riskRatio":  1.1354723708,
+                         "riskRatioLower":  0.7530605276,
+                         "riskRatioUpper":  1.7120768617,
+                         "fisherOneTailed":  0.3416178252,
+                         "fisherTwoTailed":  0.5556474937
+                     }
+    },
+    {
+        "id":  30,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  28,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  22,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0404040404,
+                         "chiSquareP":  0.8406926603,
+                         "mantelHaenszel":  0.04,
+                         "mantelHaenszelP":  0.8414805811,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9223602484,
+                         "oddsRatioLower":  0.4194041606,
+                         "oddsRatioUpper":  2.0284692139,
+                         "riskRatio":  0.9604743083,
+                         "riskRatioLower":  0.6486476541,
+                         "riskRatioUpper":  1.4222064799,
+                         "fisherOneTailed":  0.4999999998,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  31,
+        "input":  {
+                      "exposedCases":  21,
+                      "exposedNonCases":  34,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  27,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0343918377,
+                         "chiSquareP":  0.8528758083,
+                         "mantelHaenszel":  0.0340479193,
+                         "mantelHaenszelP":  0.8536049247,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9264705882,
+                         "oddsRatioLower":  0.4132959973,
+                         "oddsRatioUpper":  2.0768353832,
+                         "riskRatio":  0.9545454545,
+                         "riskRatioLower":  0.5841657879,
+                         "riskRatioUpper":  1.5597575956,
+                         "fisherOneTailed":  0.5075979271,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  32,
+        "input":  {
+                      "exposedCases":  23,
+                      "exposedNonCases":  23,
+                      "unexposedCases":  21,
+                      "unexposedNonCases":  33,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.2445887446,
+                         "chiSquareP":  0.2645885201,
+                         "mantelHaenszel":  1.2321428571,
+                         "mantelHaenszelP":  0.2669907078,
+                         "yates":  0.8344966225,
+                         "yatesP":  0.3609754981,
+                         "oddsRatio":  1.5714285714,
+                         "oddsRatioLower":  0.7090260068,
+                         "oddsRatioUpper":  3.4827886869,
+                         "riskRatio":  1.2857142857,
+                         "riskRatioLower":  0.8264536662,
+                         "riskRatioUpper":  2.0001862079,
+                         "fisherOneTailed":  0.1805086191,
+                         "fisherTwoTailed":  0.3144779836
+                     }
+    },
+    {
+        "id":  33,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  32,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0399673669,
+                         "chiSquareP":  0.8415443993,
+                         "mantelHaenszel":  0.0395676933,
+                         "mantelHaenszelP":  0.842328221,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0850694444,
+                         "oddsRatioLower":  0.4873165904,
+                         "oddsRatioUpper":  2.4160386134,
+                         "riskRatio":  1.0477582846,
+                         "riskRatioLower":  0.6623387393,
+                         "riskRatioUpper":  1.6574561593,
+                         "fisherOneTailed":  0.502166561,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  34,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  18,
+                      "unexposedCases":  25,
+                      "unexposedNonCases":  32,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.9991840065,
+                         "chiSquareP":  0.1573839142,
+                         "mantelHaenszel":  1.9791921665,
+                         "mantelHaenszelP":  0.1594755362,
+                         "yates":  1.4687882497,
+                         "yatesP":  0.2255369779,
+                         "oddsRatio":  1.7777777778,
+                         "oddsRatioLower":  0.7984195016,
+                         "oddsRatioUpper":  3.9584376642,
+                         "riskRatio":  1.3255813953,
+                         "riskRatioLower":  0.899241603,
+                         "riskRatioUpper":  1.9540533154,
+                         "fisherOneTailed":  0.1126853002,
+                         "fisherTwoTailed":  0.2253706004
+                     }
+    },
+    {
+        "id":  35,
+        "input":  {
+                      "exposedCases":  30,
+                      "exposedNonCases":  23,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  21,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.016683437,
+                         "chiSquareP":  0.8972275809,
+                         "mantelHaenszel":  0.0165166026,
+                         "mantelHaenszelP":  0.897739897,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0535117057,
+                         "oddsRatioLower":  0.4776340118,
+                         "oddsRatioUpper":  2.3237183422,
+                         "riskRatio":  1.023222061,
+                         "riskRatioLower":  0.7219988333,
+                         "riskRatioUpper":  1.4501178363,
+                         "fisherOneTailed":  0.5287371543,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  36,
+        "input":  {
+                      "exposedCases":  33,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  17,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0669424988,
+                         "chiSquareP":  0.7958416534,
+                         "mantelHaenszel":  0.0662730738,
+                         "mantelHaenszelP":  0.7968425454,
+                         "yates":  0.0028504113,
+                         "yatesP":  0.9574217759,
+                         "oddsRatio":  0.8990384615,
+                         "oddsRatioLower":  0.4014107381,
+                         "oddsRatioUpper":  2.0135738252,
+                         "riskRatio":  0.9574898785,
+                         "riskRatioLower":  0.6899065149,
+                         "riskRatioUpper":  1.3288566605,
+                         "fisherOneTailed":  0.4794309213,
+                         "fisherTwoTailed":  0.8394192793
+                     }
+    },
+    {
+        "id":  37,
+        "input":  {
+                      "exposedCases":  24,
+                      "exposedNonCases":  30,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1143550608,
+                         "chiSquareP":  0.735239414,
+                         "mantelHaenszel":  0.1132115102,
+                         "mantelHaenszelP":  0.7365170877,
+                         "yates":  0.0187350411,
+                         "yatesP":  0.8911288044,
+                         "oddsRatio":  0.8727272727,
+                         "oddsRatioLower":  0.3964134562,
+                         "oddsRatioUpper":  1.9213598344,
+                         "riskRatio":  0.9292929293,
+                         "riskRatioLower":  0.6079733968,
+                         "riskRatioUpper":  1.4204327902,
+                         "fisherOneTailed":  0.4454451059,
+                         "fisherTwoTailed":  0.8409265556
+                     }
+    },
+    {
+        "id":  38,
+        "input":  {
+                      "exposedCases":  21,
+                      "exposedNonCases":  27,
+                      "unexposedCases":  24,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0582750583,
+                         "chiSquareP":  0.8092433499,
+                         "mantelHaenszel":  0.0576923077,
+                         "mantelHaenszelP":  0.8101812364,
+                         "yates":  0.0016187516,
+                         "yatesP":  0.9679068007,
+                         "oddsRatio":  0.9074074074,
+                         "oddsRatioLower":  0.4122504578,
+                         "oddsRatioUpper":  1.9973008821,
+                         "riskRatio":  0.9479166667,
+                         "riskRatioLower":  0.6136532808,
+                         "riskRatioUpper":  1.4642568289,
+                         "fisherOneTailed":  0.4840768878,
+                         "fisherTwoTailed":  0.8427367559
+                     }
+    },
+    {
+        "id":  39,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  22,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0010322474,
+                         "chiSquareP":  0.9743694898,
+                         "mantelHaenszel":  0.0010219249,
+                         "mantelHaenszelP":  0.9744979205,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9871794872,
+                         "oddsRatioLower":  0.449301886,
+                         "oddsRatioUpper":  2.1689722884,
+                         "riskRatio":  0.9940828402,
+                         "riskRatioLower":  0.6921673502,
+                         "riskRatioUpper":  1.4276904176,
+                         "fisherOneTailed":  0.5669975074,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  40,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  25,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0433506736,
+                         "chiSquareP":  0.8350663705,
+                         "mantelHaenszel":  0.0429171669,
+                         "mantelHaenszelP":  0.8358813214,
+                         "yates":  6.41282E-05,
+                         "yatesP":  0.9936106012,
+                         "oddsRatio":  0.92,
+                         "oddsRatioLower":  0.4196434543,
+                         "oddsRatioUpper":  2.0169503211,
+                         "riskRatio":  0.9607843137,
+                         "riskRatioLower":  0.6593253323,
+                         "riskRatioUpper":  1.4000774007,
+                         "fisherOneTailed":  0.4968298201,
+                         "fisherTwoTailed":  0.8443089553
+                     }
+    },
+    {
+        "id":  41,
+        "input":  {
+                      "exposedCases":  23,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  27,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0404040404,
+                         "chiSquareP":  0.8406926603,
+                         "mantelHaenszel":  0.04,
+                         "mantelHaenszelP":  0.8414805811,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0841750842,
+                         "oddsRatioLower":  0.4929825866,
+                         "oddsRatioUpper":  2.3843349542,
+                         "riskRatio":  1.0411522634,
+                         "riskRatioLower":  0.7031327828,
+                         "riskRatioUpper":  1.5416690303,
+                         "fisherOneTailed":  0.4999999998,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  42,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0001445781,
+                         "chiSquareP":  0.9904064165,
+                         "mantelHaenszel":  0.0001431323,
+                         "mantelHaenszelP":  0.9904545026,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9951923077,
+                         "oddsRatioLower":  0.4536724343,
+                         "oddsRatioUpper":  2.1830899442,
+                         "riskRatio":  0.9977375566,
+                         "riskRatioLower":  0.6897267018,
+                         "riskRatioUpper":  1.4432966407,
+                         "fisherOneTailed":  0.5746753425,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  43,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  25,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0369378521,
+                         "chiSquareP":  0.8475916345,
+                         "mantelHaenszel":  0.0365684735,
+                         "mantelHaenszelP":  0.8483463007,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.08,
+                         "oddsRatioLower":  0.492662256,
+                         "oddsRatioUpper":  2.3675448766,
+                         "riskRatio":  1.0376470588,
+                         "riskRatioLower":  0.7116578559,
+                         "riskRatioUpper":  1.5129621767,
+                         "fisherOneTailed":  0.5031701799,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  44,
+        "input":  {
+                      "exposedCases":  20,
+                      "exposedNonCases":  16,
+                      "unexposedCases":  27,
+                      "unexposedNonCases":  37,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.652894866,
+                         "chiSquareP":  0.1985653819,
+                         "mantelHaenszel":  1.6363659173,
+                         "mantelHaenszelP":  0.2008248088,
+                         "yates":  1.159800281,
+                         "yatesP":  0.2815069642,
+                         "oddsRatio":  1.712962963,
+                         "oddsRatioLower":  0.7517563609,
+                         "oddsRatioUpper":  3.9031822877,
+                         "riskRatio":  1.316872428,
+                         "riskRatioLower":  0.8744556517,
+                         "riskRatioUpper":  1.9831228585,
+                         "fisherOneTailed":  0.1407678287,
+                         "fisherTwoTailed":  0.2170713207
+                     }
+    },
+    {
+        "id":  45,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  26,
+                      "unexposedCases":  25,
+                      "unexposedNonCases":  21,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0621238067,
+                         "chiSquareP":  0.8031701294,
+                         "mantelHaenszel":  0.0615025687,
+                         "mantelHaenszelP":  0.8041366396,
+                         "yates":  0.0023272186,
+                         "yatesP":  0.9615239727,
+                         "oddsRatio":  0.9046153846,
+                         "oddsRatioLower":  0.4112244526,
+                         "oddsRatioUpper":  1.9899813569,
+                         "riskRatio":  0.9540740741,
+                         "riskRatioLower":  0.6596315449,
+                         "riskRatioUpper":  1.3799481632,
+                         "fisherOneTailed":  0.4809097808,
+                         "fisherTwoTailed":  0.8426672582
+                     }
+    },
+    {
+        "id":  46,
+        "input":  {
+                      "exposedCases":  20,
+                      "exposedNonCases":  30,
+                      "unexposedCases":  25,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.0101010101,
+                         "chiSquareP":  0.3148786413,
+                         "mantelHaenszel":  1,
+                         "mantelHaenszelP":  0.3173105079,
+                         "yates":  0.6464646465,
+                         "yatesP":  0.4213795037,
+                         "oddsRatio":  0.6666666667,
+                         "oddsRatioLower":  0.3019254574,
+                         "oddsRatioUpper":  1.4720336878,
+                         "riskRatio":  0.8,
+                         "riskRatioLower":  0.5161257603,
+                         "riskRatioUpper":  1.2400078608,
+                         "fisherOneTailed":  0.2107758862,
+                         "fisherTwoTailed":  0.4215517724
+                     }
+    },
+    {
+        "id":  47,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  29,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0036495018,
+                         "chiSquareP":  0.9518282127,
+                         "mantelHaenszel":  0.0036130068,
+                         "mantelHaenszelP":  0.9520693855,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0246305419,
+                         "oddsRatioLower":  0.4652883233,
+                         "oddsRatioUpper":  2.2563810324,
+                         "riskRatio":  1.0110051357,
+                         "riskRatioLower":  0.7089159213,
+                         "riskRatioUpper":  1.4418231467,
+                         "fisherOneTailed":  0.5561558747,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  48,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  30,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  22,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.3172753173,
+                         "chiSquareP":  0.5732496988,
+                         "mantelHaenszel":  0.3141025641,
+                         "mantelHaenszelP":  0.5751735319,
+                         "yates":  0.1311188811,
+                         "yatesP":  0.7172747539,
+                         "oddsRatio":  0.7971014493,
+                         "oddsRatioLower":  0.3619347497,
+                         "oddsRatioUpper":  1.7554841609,
+                         "riskRatio":  0.8893280632,
+                         "riskRatioLower":  0.5921078537,
+                         "riskRatioUpper":  1.3357438162,
+                         "fisherOneTailed":  0.3586598681,
+                         "fisherTwoTailed":  0.6879004138
+                     }
+    },
+    {
+        "id":  49,
+        "input":  {
+                      "exposedCases":  24,
+                      "exposedNonCases":  23,
+                      "unexposedCases":  20,
+                      "unexposedNonCases":  33,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.7958155855,
+                         "chiSquareP":  0.1802191945,
+                         "mantelHaenszel":  1.7778574296,
+                         "mantelHaenszelP":  0.182412642,
+                         "yates":  1.2956383239,
+                         "yatesP":  0.2550114736,
+                         "oddsRatio":  1.7217391304,
+                         "oddsRatioLower":  0.7757800657,
+                         "oddsRatioUpper":  3.8211675761,
+                         "riskRatio":  1.3531914894,
+                         "riskRatioLower":  0.8672600827,
+                         "riskRatioUpper":  2.111393391,
+                         "fisherOneTailed":  0.1274868921,
+                         "fisherTwoTailed":  0.2269618061
+                     }
+    },
+    {
+        "id":  50,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  19,
+                      "unexposedCases":  30,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1049455595,
+                         "chiSquareP":  0.745973602,
+                         "mantelHaenszel":  0.1038961039,
+                         "mantelHaenszelP":  0.7472033251,
+                         "yates":  0.0147579693,
+                         "yatesP":  0.9033089679,
+                         "oddsRatio":  1.1403508772,
+                         "oddsRatioLower":  0.515086613,
+                         "oddsRatioUpper":  2.5246241899,
+                         "riskRatio":  1.0606060606,
+                         "riskRatioLower":  0.7439008206,
+                         "riskRatioUpper":  1.5121440716,
+                         "fisherOneTailed":  0.4520225201,
+                         "fisherTwoTailed":  0.840243231
+                     }
+    },
+    {
+        "id":  51,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  27,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1914721178,
+                         "chiSquareP":  0.6616942007,
+                         "mantelHaenszel":  0.1895573966,
+                         "mantelHaenszelP":  0.663285248,
+                         "yates":  0.0560991871,
+                         "yatesP":  0.8127710894,
+                         "oddsRatio":  1.1922398589,
+                         "oddsRatioLower":  0.5422591817,
+                         "oddsRatioUpper":  2.6213219236,
+                         "riskRatio":  1.085894405,
+                         "riskRatioLower":  0.7511712258,
+                         "riskRatioUpper":  1.5697708037,
+                         "fisherOneTailed":  0.4065554926,
+                         "fisherTwoTailed":  0.6923068146
+                     }
+    },
+    {
+        "id":  52,
+        "input":  {
+                      "exposedCases":  29,
+                      "exposedNonCases":  20,
+                      "unexposedCases":  25,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.0393207202,
+                         "chiSquareP":  0.307979507,
+                         "mantelHaenszel":  1.028927513,
+                         "mantelHaenszelP":  0.3104106972,
+                         "yates":  0.6704130928,
+                         "yatesP":  0.4129076212,
+                         "oddsRatio":  1.508,
+                         "oddsRatioLower":  0.6836003359,
+                         "oddsRatioUpper":  3.3265987167,
+                         "riskRatio":  1.2073469388,
+                         "riskRatioLower":  0.8390824096,
+                         "riskRatioUpper":  1.7372389338,
+                         "fisherOneTailed":  0.2065451966,
+                         "fisherTwoTailed":  0.3238933537
+                     }
+    },
+    {
+        "id":  53,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  27,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.050437987,
+                         "chiSquareP":  0.8223028889,
+                         "mantelHaenszel":  0.0499336071,
+                         "mantelHaenszelP":  0.8231788425,
+                         "yates":  0.0005790075,
+                         "yatesP":  0.9808026957,
+                         "oddsRatio":  1.0942760943,
+                         "oddsRatioLower":  0.4984638616,
+                         "oddsRatioUpper":  2.402260751,
+                         "riskRatio":  1.048951049,
+                         "riskRatioLower":  0.6908860955,
+                         "riskRatioUpper":  1.5925900235,
+                         "fisherOneTailed":  0.4904750837,
+                         "fisherTwoTailed":  0.8436280907
+                     }
+    },
+    {
+        "id":  54,
+        "input":  {
+                      "exposedCases":  33,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  27,
+                      "unexposedNonCases":  18,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0,
+                         "chiSquareP":  1,
+                         "mantelHaenszel":  0,
+                         "mantelHaenszelP":  1,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1,
+                         "oddsRatioLower":  0.4474533629,
+                         "oddsRatioUpper":  2.234869783,
+                         "riskRatio":  1,
+                         "riskRatioLower":  0.7249350709,
+                         "riskRatioUpper":  1.3794338833,
+                         "fisherOneTailed":  0.5806689621,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  55,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  20,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  29,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.9864355999,
+                         "chiSquareP":  0.1587140682,
+                         "mantelHaenszel":  1.9665712439,
+                         "mantelHaenszelP":  0.1608122759,
+                         "yates":  1.4621874391,
+                         "yatesP":  0.2265823968,
+                         "oddsRatio":  1.7652173913,
+                         "oddsRatioLower":  0.7987838048,
+                         "oddsRatioUpper":  3.9009208999,
+                         "riskRatio":  1.3188405797,
+                         "riskRatioLower":  0.8949873189,
+                         "riskRatioUpper":  1.9434247144,
+                         "fisherOneTailed":  0.1132101283,
+                         "fisherTwoTailed":  0.1685111021
+                     }
+    },
+    {
+        "id":  56,
+        "input":  {
+                      "exposedCases":  33,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  27,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  3.9615846339,
+                         "chiSquareP":  0.0465498631,
+                         "mantelHaenszel":  3.9219687875,
+                         "mantelHaenszelP":  0.0476590357,
+                         "yates":  3.2016847143,
+                         "yatesP":  0.073562456,
+                         "oddsRatio":  2.25,
+                         "oddsRatioLower":  1.0067700665,
+                         "oddsRatioUpper":  5.0284570118,
+                         "riskRatio":  1.5,
+                         "riskRatioLower":  0.9876759534,
+                         "riskRatioUpper":  2.2780751038,
+                         "fisherOneTailed":  0.0365366051,
+                         "fisherTwoTailed":  0.0698989049
+                     }
+    },
+    {
+        "id":  57,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  28,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1511483758,
+                         "chiSquareP":  0.697440336,
+                         "mantelHaenszel":  0.1496368921,
+                         "mantelHaenszelP":  0.6988825989,
+                         "yates":  0.0354858925,
+                         "yatesP":  0.8505811317,
+                         "oddsRatio":  0.8556547619,
+                         "oddsRatioLower":  0.3898566744,
+                         "oddsRatioUpper":  1.8779852176,
+                         "riskRatio":  0.9293002915,
+                         "riskRatioLower":  0.6416972137,
+                         "riskRatioUpper":  1.3458045529,
+                         "fisherOneTailed":  0.4253246573,
+                         "fisherTwoTailed":  0.8413148969
+                     }
+    },
+    {
+        "id":  58,
+        "input":  {
+                      "exposedCases":  33,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  20,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  3.1004369353,
+                         "chiSquareP":  0.0782712841,
+                         "mantelHaenszel":  3.0694325659,
+                         "mantelHaenszelP":  0.0797773135,
+                         "yates":  2.4329777214,
+                         "yatesP":  0.1188070241,
+                         "oddsRatio":  2.0428571429,
+                         "oddsRatioLower":  0.9183994802,
+                         "oddsRatioUpper":  4.5440632276,
+                         "riskRatio":  1.4055555556,
+                         "riskRatioLower":  0.9495354058,
+                         "riskRatioUpper":  2.0805821539,
+                         "fisherOneTailed":  0.0592394941,
+                         "fisherTwoTailed":  0.1077686964
+                     }
+    },
+    {
+        "id":  59,
+        "input":  {
+                      "exposedCases":  30,
+                      "exposedNonCases":  20,
+                      "unexposedCases":  25,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.0101010101,
+                         "chiSquareP":  0.3148786413,
+                         "mantelHaenszel":  1,
+                         "mantelHaenszelP":  0.3173105079,
+                         "yates":  0.6464646465,
+                         "yatesP":  0.4213795037,
+                         "oddsRatio":  1.5,
+                         "oddsRatioLower":  0.6793322791,
+                         "oddsRatioUpper":  3.3120757974,
+                         "riskRatio":  1.2,
+                         "riskRatioLower":  0.8390229055,
+                         "riskRatioUpper":  1.7162821069,
+                         "fisherOneTailed":  0.2107758862,
+                         "fisherTwoTailed":  0.4215517724
+                     }
+    },
+    {
+        "id":  60,
+        "input":  {
+                      "exposedCases":  18,
+                      "exposedNonCases":  25,
+                      "unexposedCases":  29,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.7999585943,
+                         "chiSquareP":  0.3711057494,
+                         "mantelHaenszel":  0.7919590084,
+                         "mantelHaenszelP":  0.373508421,
+                         "yates":  0.4789334628,
+                         "yatesP":  0.4889058117,
+                         "oddsRatio":  0.6951724138,
+                         "oddsRatioLower":  0.3130006101,
+                         "oddsRatioUpper":  1.5439736195,
+                         "riskRatio":  0.8227746592,
+                         "riskRatioLower":  0.5325999781,
+                         "riskRatioUpper":  1.2710442502,
+                         "fisherOneTailed":  0.244667059,
+                         "fisherTwoTailed":  0.4217111902
+                     }
+    },
+    {
+        "id":  61,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  17,
+                      "unexposedCases":  28,
+                      "unexposedNonCases":  30,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.2372290657,
+                         "chiSquareP":  0.2660057495,
+                         "mantelHaenszel":  1.224856775,
+                         "mantelHaenszelP":  0.2684096096,
+                         "yates":  0.8268848314,
+                         "yatesP":  0.363174862,
+                         "oddsRatio":  1.5756302521,
+                         "oddsRatioLower":  0.705828708,
+                         "oddsRatioUpper":  3.5172991168,
+                         "riskRatio":  1.2329931973,
+                         "riskRatioLower":  0.8560183711,
+                         "riskRatioUpper":  1.7759808386,
+                         "fisherOneTailed":  0.1816753147,
+                         "fisherTwoTailed":  0.3129340051
+                     }
+    },
+    {
+        "id":  62,
+        "input":  {
+                      "exposedCases":  22,
+                      "exposedNonCases":  23,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  33,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.7936507937,
+                         "chiSquareP":  0.3729984836,
+                         "mantelHaenszel":  0.7857142857,
+                         "mantelHaenszelP":  0.3753991856,
+                         "yates":  0.4738947921,
+                         "yatesP":  0.4912008177,
+                         "oddsRatio":  1.4347826087,
+                         "oddsRatioLower":  0.6476657916,
+                         "oddsRatioUpper":  3.1784929219,
+                         "riskRatio":  1.2222222222,
+                         "riskRatioLower":  0.7867864186,
+                         "riskRatioUpper":  1.8986438061,
+                         "fisherOneTailed":  0.2455807387,
+                         "fisherTwoTailed":  0.4214897846
+                     }
+    },
+    {
+        "id":  63,
+        "input":  {
+                      "exposedCases":  32,
+                      "exposedNonCases":  25,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.9991840065,
+                         "chiSquareP":  0.1573839142,
+                         "mantelHaenszel":  1.9791921665,
+                         "mantelHaenszelP":  0.1594755362,
+                         "yates":  1.4687882497,
+                         "yatesP":  0.2255369779,
+                         "oddsRatio":  1.7777777778,
+                         "oddsRatioLower":  0.7984195016,
+                         "oddsRatioUpper":  3.9584376642,
+                         "riskRatio":  1.3411306043,
+                         "riskRatioLower":  0.8808399613,
+                         "riskRatioUpper":  2.0419501575,
+                         "fisherOneTailed":  0.1126853002,
+                         "fisherTwoTailed":  0.2253706004
+                     }
+    },
+    {
+        "id":  64,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  19,
+                      "unexposedNonCases":  29,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  2.0383637505,
+                         "chiSquareP":  0.1533745494,
+                         "mantelHaenszel":  2.017980113,
+                         "mantelHaenszelP":  0.1554457994,
+                         "yates":  1.5059985177,
+                         "yatesP":  0.2197506938,
+                         "oddsRatio":  1.7807017544,
+                         "oddsRatioLower":  0.8041937685,
+                         "oddsRatioUpper":  3.9429536291,
+                         "riskRatio":  1.3603238866,
+                         "riskRatioLower":  0.8843147349,
+                         "riskRatioUpper":  2.092559361,
+                         "fisherOneTailed":  0.1097747687,
+                         "fisherTwoTailed":  0.1666226096
+                     }
+    },
+    {
+        "id":  65,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.0004001601,
+                         "chiSquareP":  0.3172137002,
+                         "mantelHaenszel":  0.9903961585,
+                         "mantelHaenszelP":  0.3196455692,
+                         "yates":  0.6402561024,
+                         "yatesP":  0.423618074,
+                         "oddsRatio":  1.4940711462,
+                         "oddsRatioLower":  0.6793654171,
+                         "oddsRatioUpper":  3.2857848424,
+                         "riskRatio":  1.2218278616,
+                         "riskRatioLower":  0.82358896,
+                         "riskRatioUpper":  1.8126315381,
+                         "fisherOneTailed":  0.2118929906,
+                         "fisherTwoTailed":  0.4237859812
+                     }
+    },
+    {
+        "id":  66,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  35,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  21,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1203714318,
+                         "chiSquareP":  0.7286319904,
+                         "mantelHaenszel":  0.1191677175,
+                         "mantelHaenszelP":  0.7299389257,
+                         "yates":  0.0197207164,
+                         "yatesP":  0.8883198861,
+                         "oddsRatio":  0.8666666667,
+                         "oddsRatioLower":  0.3860810721,
+                         "oddsRatioUpper":  1.9454750967,
+                         "riskRatio":  0.9234972678,
+                         "riskRatioLower":  0.5906962698,
+                         "riskRatioUpper":  1.4437998802,
+                         "fisherOneTailed":  0.4435055552,
+                         "fisherTwoTailed":  0.8368557808
+                     }
+    },
+    {
+        "id":  67,
+        "input":  {
+                      "exposedCases":  19,
+                      "exposedNonCases":  28,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  31,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0120981212,
+                         "chiSquareP":  0.9124161479,
+                         "mantelHaenszel":  0.01197714,
+                         "mantelHaenszelP":  0.9128534131,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9561688312,
+                         "oddsRatioLower":  0.4301972504,
+                         "oddsRatioUpper":  2.1252084544,
+                         "riskRatio":  0.9738878143,
+                         "riskRatioLower":  0.6075970797,
+                         "riskRatioUpper":  1.5609974217,
+                         "fisherOneTailed":  0.5375804519,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  68,
+        "input":  {
+                      "exposedCases":  18,
+                      "exposedNonCases":  34,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.3087606838,
+                         "chiSquareP":  0.2526191629,
+                         "mantelHaenszel":  1.2956730769,
+                         "mantelHaenszelP":  0.2550051011,
+                         "yates":  0.883079594,
+                         "yatesP":  0.3473595886,
+                         "oddsRatio":  0.6256684492,
+                         "oddsRatioLower":  0.2796014083,
+                         "oddsRatioUpper":  1.4000680852,
+                         "riskRatio":  0.7552447552,
+                         "riskRatioLower":  0.4655319812,
+                         "riskRatioUpper":  1.2252533947,
+                         "fisherOneTailed":  0.1737061098,
+                         "fisherTwoTailed":  0.3086281678
+                     }
+    },
+    {
+        "id":  69,
+        "input":  {
+                      "exposedCases":  36,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  29,
+                      "unexposedNonCases":  14,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1977214952,
+                         "chiSquareP":  0.6565663096,
+                         "mantelHaenszel":  0.1957442802,
+                         "mantelHaenszelP":  0.6581780943,
+                         "yates":  0.0542501154,
+                         "yatesP":  0.8158262132,
+                         "oddsRatio":  0.8275862069,
+                         "oddsRatioLower":  0.3592271167,
+                         "oddsRatioUpper":  1.9065902825,
+                         "riskRatio":  0.9364791289,
+                         "riskRatioLower":  0.7027504086,
+                         "riskRatioUpper":  1.2479440042,
+                         "fisherOneTailed":  0.4091381154,
+                         "fisherTwoTailed":  0.6782734866
+                     }
+    },
+    {
+        "id":  70,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  17,
+                      "unexposedCases":  36,
+                      "unexposedNonCases":  22,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0663302529,
+                         "chiSquareP":  0.796756844,
+                         "mantelHaenszel":  0.0656669503,
+                         "mantelHaenszelP":  0.797753452,
+                         "yates":  0.0024847962,
+                         "yatesP":  0.9602437312,
+                         "oddsRatio":  0.8986928105,
+                         "oddsRatioLower":  0.3985989383,
+                         "oddsRatioUpper":  2.0262190637,
+                         "riskRatio":  0.958994709,
+                         "riskRatioLower":  0.6960793527,
+                         "riskRatioUpper":  1.3212155313,
+                         "fisherOneTailed":  0.4791597856,
+                         "fisherTwoTailed":  0.8374562736
+                     }
+    },
+    {
+        "id":  71,
+        "input":  {
+                      "exposedCases":  19,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  27,
+                      "unexposedNonCases":  30,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0999296353,
+                         "chiSquareP":  0.7519140907,
+                         "mantelHaenszel":  0.098930339,
+                         "mantelHaenszelP":  0.7531170646,
+                         "yates":  0.0128771917,
+                         "yatesP":  0.9096518303,
+                         "oddsRatio":  0.8796296296,
+                         "oddsRatioLower":  0.3970887039,
+                         "oddsRatioUpper":  1.9485527482,
+                         "riskRatio":  0.9328165375,
+                         "riskRatioLower":  0.6048210422,
+                         "riskRatioUpper":  1.438684556,
+                         "fisherOneTailed":  0.455170937,
+                         "fisherTwoTailed":  0.8402229187
+                     }
+    },
+    {
+        "id":  72,
+        "input":  {
+                      "exposedCases":  24,
+                      "exposedNonCases":  26,
+                      "unexposedCases":  31,
+                      "unexposedNonCases":  19,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.9797979798,
+                         "chiSquareP":  0.1594116908,
+                         "mantelHaenszel":  1.96,
+                         "mantelHaenszelP":  0.1615133185,
+                         "yates":  1.4545454545,
+                         "yatesP":  0.227799994,
+                         "oddsRatio":  0.5657568238,
+                         "oddsRatioLower":  0.2551828003,
+                         "oddsRatioUpper":  1.2543195829,
+                         "riskRatio":  0.7741935484,
+                         "riskRatioLower":  0.5395970492,
+                         "riskRatioUpper":  1.1107837808,
+                         "fisherOneTailed":  0.1138225824,
+                         "fisherTwoTailed":  0.2276451647
+                     }
+    },
+    {
+        "id":  73,
+        "input":  {
+                      "exposedCases":  32,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  16,
+                      "unexposedNonCases":  31,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  6.9213270337,
+                         "chiSquareP":  0.0085173747,
+                         "mantelHaenszel":  6.8521137634,
+                         "mantelHaenszelP":  0.0088536463,
+                         "yates":  5.9064555477,
+                         "yatesP":  0.0150854951,
+                         "oddsRatio":  2.9523809524,
+                         "oddsRatioLower":  1.3046341469,
+                         "oddsRatioUpper":  6.6812242412,
+                         "riskRatio":  1.7735849057,
+                         "riskRatioLower":  1.1266123458,
+                         "riskRatioUpper":  2.7920903133,
+                         "fisherOneTailed":  0.0073153696,
+                         "fisherTwoTailed":  0.0098836073
+                     }
+    },
+    {
+        "id":  74,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  31,
+                      "unexposedCases":  18,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1343484102,
+                         "chiSquareP":  0.7139653879,
+                         "mantelHaenszel":  0.1330049261,
+                         "mantelHaenszelP":  0.7153365499,
+                         "yates":  0.0265379576,
+                         "yatesP":  0.8705934308,
+                         "oddsRatio":  1.1612903226,
+                         "oddsRatioLower":  0.5219092062,
+                         "oddsRatioUpper":  2.583965175,
+                         "riskRatio":  1.0862068966,
+                         "riskRatioLower":  0.6960909952,
+                         "riskRatioUpper":  1.694958605,
+                         "fisherOneTailed":  0.4357844357,
+                         "fisherTwoTailed":  0.8389506795
+                     }
+    },
+    {
+        "id":  75,
+        "input":  {
+                      "exposedCases":  21,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  29,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0036495018,
+                         "chiSquareP":  0.9518282127,
+                         "mantelHaenszel":  0.0036130068,
+                         "mantelHaenszelP":  0.9520693855,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9759615385,
+                         "oddsRatioLower":  0.4431875581,
+                         "oddsRatioUpper":  2.1492050195,
+                         "riskRatio":  0.9871794872,
+                         "riskRatioLower":  0.6493468181,
+                         "riskRatioUpper":  1.5007747982,
+                         "fisherOneTailed":  0.5561558747,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  76,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  26,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0340877092,
+                         "chiSquareP":  0.8535203749,
+                         "mantelHaenszel":  0.0337468321,
+                         "mantelHaenszelP":  0.8542463702,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0769230769,
+                         "oddsRatioLower":  0.4903445719,
+                         "oddsRatioUpper":  2.3652006775,
+                         "riskRatio":  1.037037037,
+                         "riskRatioLower":  0.7044266743,
+                         "riskRatioUpper":  1.5266966108,
+                         "fisherOneTailed":  0.5063553485,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  77,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  20,
+                      "unexposedCases":  24,
+                      "unexposedNonCases":  31,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.4070274574,
+                         "chiSquareP":  0.2355504796,
+                         "mantelHaenszel":  1.3929571829,
+                         "mantelHaenszelP":  0.2379063364,
+                         "yates":  0.9704892058,
+                         "yatesP":  0.3245582027,
+                         "oddsRatio":  1.6145833333,
+                         "oddsRatioLower":  0.7301788098,
+                         "oddsRatioUpper":  3.5701930886,
+                         "riskRatio":  1.2731481481,
+                         "riskRatioLower":  0.8550128377,
+                         "riskRatioUpper":  1.8957682689,
+                         "fisherOneTailed":  0.1622992342,
+                         "fisherTwoTailed":  0.3149031381
+                     }
+    },
+    {
+        "id":  78,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  19,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  27,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.1093721617,
+                         "chiSquareP":  0.2922184674,
+                         "mantelHaenszel":  1.0982784401,
+                         "mantelHaenszelP":  0.2946442254,
+                         "yates":  0.7263507726,
+                         "yatesP":  0.3940686086,
+                         "oddsRatio":  1.5303643725,
+                         "oddsRatioLower":  0.6922261764,
+                         "oddsRatioUpper":  3.3833090864,
+                         "riskRatio":  1.2144026187,
+                         "riskRatioLower":  0.8459343268,
+                         "riskRatioUpper":  1.7433666817,
+                         "fisherOneTailed":  0.1971315801,
+                         "fisherTwoTailed":  0.3205729833
+                     }
+    },
+    {
+        "id":  79,
+        "input":  {
+                      "exposedCases":  18,
+                      "exposedNonCases":  26,
+                      "unexposedCases":  21,
+                      "unexposedNonCases":  35,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1203714318,
+                         "chiSquareP":  0.7286319904,
+                         "mantelHaenszel":  0.1191677175,
+                         "mantelHaenszelP":  0.7299389257,
+                         "yates":  0.0197207164,
+                         "yatesP":  0.8883198861,
+                         "oddsRatio":  1.1538461538,
+                         "oddsRatioLower":  0.5140132617,
+                         "oddsRatioUpper":  2.5901295667,
+                         "riskRatio":  1.0909090909,
+                         "riskRatioLower":  0.6680895747,
+                         "riskRatioUpper":  1.7813219809,
+                         "fisherOneTailed":  0.4435055552,
+                         "fisherTwoTailed":  0.8368557808
+                     }
+    },
+    {
+        "id":  80,
+        "input":  {
+                      "exposedCases":  23,
+                      "exposedNonCases":  31,
+                      "unexposedCases":  23,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.548696845,
+                         "chiSquareP":  0.4588506519,
+                         "mantelHaenszel":  0.5432098765,
+                         "mantelHaenszelP":  0.4611054855,
+                         "yates":  0.2910089954,
+                         "yatesP":  0.5895746667,
+                         "oddsRatio":  0.7419354839,
+                         "oddsRatioLower":  0.3365365866,
+                         "oddsRatioUpper":  1.6356862349,
+                         "riskRatio":  0.8518518519,
+                         "riskRatioLower":  0.5577249619,
+                         "riskRatioUpper":  1.3010921638,
+                         "fisherOneTailed":  0.2948073746,
+                         "fisherTwoTailed":  0.5469815349
+                     }
+    },
+    {
+        "id":  81,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  23,
+                      "unexposedCases":  28,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0311377369,
+                         "chiSquareP":  0.8599334495,
+                         "mantelHaenszel":  0.0308263595,
+                         "mantelHaenszelP":  0.8606283391,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9316770186,
+                         "oddsRatioLower":  0.424494224,
+                         "oddsRatioUpper":  2.0448383465,
+                         "riskRatio":  0.9672619048,
+                         "riskRatioLower":  0.6680770306,
+                         "riskRatioUpper":  1.4004307131,
+                         "fisherOneTailed":  0.5095249163,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  82,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  27,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.1914721178,
+                         "chiSquareP":  0.6616942007,
+                         "mantelHaenszel":  0.1895573966,
+                         "mantelHaenszelP":  0.663285248,
+                         "yates":  0.0560991871,
+                         "yatesP":  0.8127710894,
+                         "oddsRatio":  1.1922398589,
+                         "oddsRatioLower":  0.5422591817,
+                         "oddsRatioUpper":  2.6213219236,
+                         "riskRatio":  1.085894405,
+                         "riskRatioLower":  0.7511712258,
+                         "riskRatioUpper":  1.5697708037,
+                         "fisherOneTailed":  0.4065554926,
+                         "fisherTwoTailed":  0.6923068146
+                     }
+    },
+    {
+        "id":  83,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  29,
+                      "unexposedNonCases":  19,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.4396426367,
+                         "chiSquareP":  0.5072949898,
+                         "mantelHaenszel":  0.4352462103,
+                         "mantelHaenszelP":  0.5094258769,
+                         "yates":  0.2124329159,
+                         "yatesP":  0.6448671559,
+                         "oddsRatio":  0.7643678161,
+                         "oddsRatioLower":  0.3452008923,
+                         "oddsRatioUpper":  1.6925163616,
+                         "riskRatio":  0.8912466844,
+                         "riskRatioLower":  0.6342189157,
+                         "riskRatioUpper":  1.2524392331,
+                         "fisherOneTailed":  0.3226717312,
+                         "fisherTwoTailed":  0.5487494781
+                     }
+    },
+    {
+        "id":  84,
+        "input":  {
+                      "exposedCases":  23,
+                      "exposedNonCases":  32,
+                      "unexposedCases":  19,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0016586223,
+                         "chiSquareP":  0.9675141843,
+                         "mantelHaenszel":  0.0016420361,
+                         "mantelHaenszelP":  0.9676769322,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9835526316,
+                         "oddsRatioLower":  0.4427701832,
+                         "oddsRatioUpper":  2.184825934,
+                         "riskRatio":  0.990430622,
+                         "riskRatioLower":  0.6236240046,
+                         "riskRatioUpper":  1.5729875852,
+                         "fisherOneTailed":  0.5642155643,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  85,
+        "input":  {
+                      "exposedCases":  19,
+                      "exposedNonCases":  23,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  32,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0016586223,
+                         "chiSquareP":  0.9675141843,
+                         "mantelHaenszel":  0.0016420361,
+                         "mantelHaenszelP":  0.9676769322,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.016722408,
+                         "oddsRatioLower":  0.4577023663,
+                         "oddsRatioUpper":  2.2585079979,
+                         "riskRatio":  1.0091575092,
+                         "riskRatioLower":  0.6509448171,
+                         "riskRatioUpper":  1.5644934126,
+                         "fisherOneTailed":  0.5642155643,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  86,
+        "input":  {
+                      "exposedCases":  19,
+                      "exposedNonCases":  27,
+                      "unexposedCases":  30,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  2.0187785259,
+                         "chiSquareP":  0.1553640752,
+                         "mantelHaenszel":  1.9985907406,
+                         "mantelHaenszelP":  0.1574455329,
+                         "yates":  1.4887758646,
+                         "yatesP":  0.2224064885,
+                         "oddsRatio":  0.562962963,
+                         "oddsRatioLower":  0.2541367705,
+                         "oddsRatioUpper":  1.2470737589,
+                         "riskRatio":  0.7434782609,
+                         "riskRatioLower":  0.4889761854,
+                         "riskRatioUpper":  1.1304434468,
+                         "fisherOneTailed":  0.1111106018,
+                         "fisherTwoTailed":  0.1668880526
+                     }
+    },
+    {
+        "id":  87,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  29,
+                      "unexposedCases":  21,
+                      "unexposedNonCases":  24,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0036495018,
+                         "chiSquareP":  0.9518282127,
+                         "mantelHaenszel":  0.0036130068,
+                         "mantelHaenszelP":  0.9520693855,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0246305419,
+                         "oddsRatioLower":  0.4652883233,
+                         "oddsRatioUpper":  2.2563810324,
+                         "riskRatio":  1.012987013,
+                         "riskRatioLower":  0.6663224897,
+                         "riskRatioUpper":  1.5400090863,
+                         "fisherOneTailed":  0.5561558747,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  88,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  28,
+                      "unexposedCases":  22,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0013053818,
+                         "chiSquareP":  0.971178647,
+                         "mantelHaenszel":  0.001292328,
+                         "mantelHaenszelP":  0.9713230534,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0146103896,
+                         "oddsRatioLower":  0.4619312167,
+                         "oddsRatioUpper":  2.2285444359,
+                         "riskRatio":  1.0077186964,
+                         "riskRatioLower":  0.6639742926,
+                         "riskRatioUpper":  1.5294221213,
+                         "fisherOneTailed":  0.5654032903,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  89,
+        "input":  {
+                      "exposedCases":  24,
+                      "exposedNonCases":  16,
+                      "unexposedCases":  35,
+                      "unexposedNonCases":  25,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0275595976,
+                         "chiSquareP":  0.8681484227,
+                         "mantelHaenszel":  0.0272840017,
+                         "mantelHaenszelP":  0.868803333,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  1.0714285714,
+                         "oddsRatioLower":  0.4744481664,
+                         "oddsRatioUpper":  2.4195671204,
+                         "riskRatio":  1.0285714286,
+                         "riskRatioLower":  0.7385078827,
+                         "riskRatioUpper":  1.4325631567,
+                         "fisherOneTailed":  0.5175411223,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  90,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  25,
+                      "unexposedCases":  25,
+                      "unexposedNonCases":  23,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0002568212,
+                         "chiSquareP":  0.9872139357,
+                         "mantelHaenszel":  0.000254253,
+                         "mantelHaenszelP":  0.9872780212,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9936,
+                         "oddsRatioLower":  0.4530885928,
+                         "oddsRatioUpper":  2.1789137392,
+                         "riskRatio":  0.9969230769,
+                         "riskRatioLower":  0.6838953632,
+                         "riskRatioUpper":  1.4532276059,
+                         "fisherOneTailed":  0.5730866584,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  91,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  32,
+                      "unexposedCases":  24,
+                      "unexposedNonCases":  17,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.5794825578,
+                         "chiSquareP":  0.2088352426,
+                         "mantelHaenszel":  1.5636877322,
+                         "mantelHaenszelP":  0.2111260812,
+                         "yates":  1.1096790928,
+                         "yatesP":  0.2921517173,
+                         "oddsRatio":  0.59765625,
+                         "oddsRatioLower":  0.2671508357,
+                         "oddsRatioUpper":  1.3370461379,
+                         "riskRatio":  0.781779661,
+                         "riskRatioLower":  0.5352397908,
+                         "riskRatioUpper":  1.141879675,
+                         "fisherOneTailed":  0.1460620788,
+                         "fisherTwoTailed":  0.2286570892
+                     }
+    },
+    {
+        "id":  92,
+        "input":  {
+                      "exposedCases":  28,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  24,
+                      "unexposedNonCases":  26,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.641025641,
+                         "chiSquareP":  0.4233396416,
+                         "mantelHaenszel":  0.6346153846,
+                         "mantelHaenszelP":  0.4256673973,
+                         "yates":  0.3605769231,
+                         "yatesP":  0.5481860017,
+                         "oddsRatio":  1.3787878788,
+                         "oddsRatioLower":  0.6275373449,
+                         "oddsRatioUpper":  3.0293910474,
+                         "riskRatio":  1.1666666667,
+                         "riskRatioLower":  0.7986825017,
+                         "riskRatioUpper":  1.7041954823,
+                         "fisherOneTailed":  0.2742127612,
+                         "fisherTwoTailed":  0.5484255225
+                     }
+    },
+    {
+        "id":  93,
+        "input":  {
+                      "exposedCases":  25,
+                      "exposedNonCases":  21,
+                      "unexposedCases":  26,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.3820529822,
+                         "chiSquareP":  0.5365065578,
+                         "mantelHaenszel":  0.3782324524,
+                         "mantelHaenszelP":  0.5385507192,
+                         "yates":  0.1742403886,
+                         "yatesP":  0.6763704119,
+                         "oddsRatio":  1.2820512821,
+                         "oddsRatioLower":  0.5828010949,
+                         "oddsRatioUpper":  2.8202683629,
+                         "riskRatio":  1.1287625418,
+                         "riskRatioLower":  0.7695348765,
+                         "riskRatioUpper":  1.6556817821,
+                         "fisherOneTailed":  0.3383358273,
+                         "fisherTwoTailed":  0.5541482487
+                     }
+    },
+    {
+        "id":  94,
+        "input":  {
+                      "exposedCases":  27,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  29,
+                      "unexposedNonCases":  22,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0314411479,
+                         "chiSquareP":  0.8592597762,
+                         "mantelHaenszel":  0.0311267364,
+                         "mantelHaenszelP":  0.8599579377,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9310344828,
+                         "oddsRatioLower":  0.4225815611,
+                         "oddsRatioUpper":  2.0512613135,
+                         "riskRatio":  0.9690358902,
+                         "riskRatioLower":  0.6843172518,
+                         "riskRatioUpper":  1.3722152322,
+                         "fisherOneTailed":  0.5095708521,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  95,
+        "input":  {
+                      "exposedCases":  29,
+                      "exposedNonCases":  23,
+                      "unexposedCases":  21,
+                      "unexposedNonCases":  27,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  1.4423076923,
+                         "chiSquareP":  0.2297662705,
+                         "mantelHaenszel":  1.4278846154,
+                         "mantelHaenszelP":  0.2321099808,
+                         "yates":  1.0016025641,
+                         "yatesP":  0.3169230447,
+                         "oddsRatio":  1.6211180124,
+                         "oddsRatioLower":  0.7354627899,
+                         "oddsRatioUpper":  3.5732924173,
+                         "riskRatio":  1.2747252747,
+                         "riskRatioLower":  0.85289174,
+                         "riskRatioUpper":  1.9051943521,
+                         "fisherOneTailed":  0.1584760443,
+                         "fisherTwoTailed":  0.3169520885
+                     }
+    },
+    {
+        "id":  96,
+        "input":  {
+                      "exposedCases":  21,
+                      "exposedNonCases":  24,
+                      "unexposedCases":  24,
+                      "unexposedNonCases":  31,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0918273646,
+                         "chiSquareP":  0.7618667682,
+                         "mantelHaenszel":  0.0909090909,
+                         "mantelHaenszelP":  0.7630246006,
+                         "yates":  0.0102030405,
+                         "yatesP":  0.9195424417,
+                         "oddsRatio":  1.1302083333,
+                         "oddsRatioLower":  0.5120105777,
+                         "oddsRatioUpper":  2.4948134517,
+                         "riskRatio":  1.0694444444,
+                         "riskRatioLower":  0.693368926,
+                         "riskRatioUpper":  1.6494991005,
+                         "fisherOneTailed":  0.459540697,
+                         "fisherTwoTailed":  0.8408137909
+                     }
+    },
+    {
+        "id":  97,
+        "input":  {
+                      "exposedCases":  26,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  20,
+                      "unexposedNonCases":  32,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  2.4784260292,
+                         "chiSquareP":  0.1154177033,
+                         "mantelHaenszel":  2.4536417689,
+                         "mantelHaenszelP":  0.1172525528,
+                         "yates":  1.8864966555,
+                         "yatesP":  0.1695975939,
+                         "oddsRatio":  1.8909090909,
+                         "oddsRatioLower":  0.8525836044,
+                         "oddsRatioUpper":  4.1937672408,
+                         "riskRatio":  1.4083333333,
+                         "riskRatioLower":  0.9150526425,
+                         "riskRatioUpper":  2.1675286052,
+                         "fisherOneTailed":  0.0846779864,
+                         "fisherTwoTailed":  0.1597210921
+                     }
+    },
+    {
+        "id":  98,
+        "input":  {
+                      "exposedCases":  22,
+                      "exposedNonCases":  25,
+                      "unexposedCases":  25,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  0.0013053818,
+                         "chiSquareP":  0.971178647,
+                         "mantelHaenszel":  0.001292328,
+                         "mantelHaenszelP":  0.9713230534,
+                         "yates":  0,
+                         "yatesP":  1,
+                         "oddsRatio":  0.9856,
+                         "oddsRatioLower":  0.4487233837,
+                         "oddsRatioUpper":  2.1648244671,
+                         "riskRatio":  0.9923404255,
+                         "riskRatioLower":  0.6538417263,
+                         "riskRatioUpper":  1.5060824059,
+                         "fisherOneTailed":  0.5654032903,
+                         "fisherTwoTailed":  1
+                     }
+    },
+    {
+        "id":  99,
+        "input":  {
+                      "exposedCases":  31,
+                      "exposedNonCases":  22,
+                      "unexposedCases":  19,
+                      "unexposedNonCases":  28,
+                      "confidenceLevel":  0.95
+                  },
+        "expected":  {
+                         "chiSquare":  3.2517061421,
+                         "chiSquareP":  0.0713491536,
+                         "mantelHaenszel":  3.2191890807,
+                         "mantelHaenszelP":  0.0727796763,
+                         "yates":  2.5692492975,
+                         "yatesP":  0.1089594278,
+                         "oddsRatio":  2.0765550239,
+                         "oddsRatioLower":  0.9342787932,
+                         "oddsRatioUpper":  4.6154111585,
+                         "riskRatio":  1.4468718967,
+                         "riskRatioLower":  0.9558176635,
+                         "riskRatioUpper":  2.1902067366,
+                         "fisherOneTailed":  0.0542538743,
+                         "fisherTwoTailed":  0.1085077486
+                     }
+    }
+]
