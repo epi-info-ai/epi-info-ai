@@ -118,6 +118,11 @@ flowchart LR
     APP --> UI
 ```
 
+The production build compiles maintained modules from `demo/` into `dist/` with
+external source maps; GitLab Pages publishes `dist/`. During the incremental
+transition, esbuild accepts either a `.ts` or legacy `.js` source for each module,
+so modules can move independently without a flag-day rewrite.
+
 The browser loads `app.js` as an ES module. It imports `engine.js`, which loads
 `epi2x2.wasm` before accepting a calculation. All computation is local; the demo
 does not send table data to a server.
@@ -182,6 +187,9 @@ wasm/
 |-- migration-plan.md               Phased execution and acceptance gates
 |-- project.md                      Product and system direction
 |-- feasibility-analysis.md         Port feasibility findings
+|-- app/contracts/                  Strict shared TypeScript contracts
+|-- scripts/                        Production build and preview tooling
+|-- dist/                           Generated, ignored Pages artifact
 |-- docs/
 |   |-- design/                     UI compatibility decisions
 |   `-- reference/                  Epi Info user documentation

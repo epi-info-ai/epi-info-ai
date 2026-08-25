@@ -52,10 +52,13 @@ delivery work needed to make those migrations safe.
 
 ## Current baseline
 
-The current slice is a static HTML/CSS application with ES-module JavaScript,
+The current slice is a static HTML/CSS application with transitional ES-module JavaScript,
 a small dependency-free Rust WASM artifact, vendored Leaflet, browser-local form
 and record state, CSV import/export, maps, and single-user Supabase snapshot sync.
-GitLab CI currently copies `wasm/demo` directly into the Pages artifact.
+The pinned TypeScript/esbuild foundation checks maintained source and creates
+`wasm/dist`; GitLab CI publishes that generated artifact. The source-copy Pages
+path remains available behind `EPI_PAGES_SOURCE_FALLBACK=true` for the first two
+transition deployments only.
 
 Before changing the build or module boundaries, capture a baseline checklist:
 
@@ -137,6 +140,22 @@ The current demo can be verified from a clean checkout, and failures in its core
 workflows can be detected before deployment.
 
 ## Phase 1 - TypeScript build foundation
+
+### Implementation status
+
+- [x] Pinned pnpm, TypeScript, and esbuild versions are recorded in a lockfile.
+- [x] Strict TypeScript checking is enabled for new `.ts` modules while the current
+  `.js` modules remain valid transitional inputs.
+- [x] A production build compiles maintained browser modules, emits source maps,
+  copies reviewed static/WASM assets, and records a build manifest.
+- [x] Shared project, form, field, record, storage, and map-point contracts have
+  an initial strict TypeScript definition.
+- [x] Local scripts cover type checking, baseline tests, production build, built-
+  artifact verification, and preview.
+- [x] GitLab CI separates browser checks, Rust native/WASM builds, production
+  artifact generation, and Pages deployment.
+- [ ] Confirm two successful default-branch deployments from `wasm/dist`, then
+  remove the temporary `EPI_PAGES_SOURCE_FALLBACK` path.
 
 This phase changes how the app is built, not how it behaves.
 
@@ -497,14 +516,16 @@ provenance.
 
 ## Immediate next slice
 
-The first implementation slice should complete Phase 0 and the smallest part of
-Phase 1:
+Phase 1's build foundation is implemented. The next slice should close its rollout
+gate and begin Phase 2 without changing user-visible behavior:
 
-1. Add baseline fixtures and smoke checks for the current demo.
-2. Add the pinned TypeScript build without converting feature modules.
-3. Publish the generated artifact through GitLab Pages.
-4. Convert shared contracts and one bounded module to TypeScript in a separate
-   behavior-preserving change.
+1. Record the Phase 0 manual checklist against the generated Pages artifact.
+2. Confirm two successful default-branch deployments from `wasm/dist` and remove
+   the source-copy fallback.
+3. Validate existing browser snapshots against the new shared TypeScript contracts.
+4. Convert Supabase synchronization to TypeScript as the first bounded maintained
+   feature module.
+5. Convert Maps next, before adding more mapping features.
 
-This establishes the safety net needed for every later mobile, validation, storage,
-and Rust-kernel migration.
+This keeps the safety net ahead of the feature migration and prevents additional
+JavaScript migration debt.

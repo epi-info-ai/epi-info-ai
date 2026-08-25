@@ -1,12 +1,50 @@
 stages:
   - test
+  - build
   - deploy
 
-phase0-baseline:
+browser-baseline:
   stage: test
   image: node:24.19.0-alpine
+  before_script:
+    - corepack enable
+    - corepack install
+    - pnpm install --frozen-lockfile
   script:
-    - node wasm/tests/phase0-smoke.mjs
+    - pnpm run typecheck
+    - pnpm run test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
+rust-kernel:
+  stage: test
+  image: rust:1.85.0-alpine3.20
+  script:
+    - cargo test --locked --manifest-path wasm/engine-rust/Cargo.toml
+    - rustup target add wasm32-unknown-unknown
+    - cargo build --locked --manifest-path wasm/engine-rust/Cargo.toml --release --target wasm32-unknown-unknown
+    - test -s wasm/engine-rust/target/wasm32-unknown-unknown/release/epi_info_table2x2.wasm
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
+production-build:
+  stage: build
+  image: node:24.19.0-alpine
+  needs:
+    - browser-baseline
+    - rust-kernel
+  before_script:
+    - corepack enable
+    - corepack install
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm run build
+    - pnpm run test:build
+  artifacts:
+    paths:
+      - wasm/dist
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
@@ -15,11 +53,13 @@ pages:
   stage: deploy
   image: alpine:3.20
   needs:
-    - phase0-baseline
+    - production-build
   script:
-    - test -f wasm/demo/index.html
+    - export EPI_PAGES_SOURCE_DIR=wasm/dist
+    - if [ "${EPI_PAGES_SOURCE_FALLBACK:-false}" = "true" ]; then export EPI_PAGES_SOURCE_DIR=wasm/demo; fi
+    - test -f "$EPI_PAGES_SOURCE_DIR/index.html"
     - mkdir -p public
-    - cp -R wasm/demo/. public/
+    - cp -R "$EPI_PAGES_SOURCE_DIR"/. public/
   artifacts:
     paths:
       - public

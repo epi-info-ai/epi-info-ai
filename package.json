@@ -1,0 +1,22 @@
+{
+  "name": "epi-info-ai-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=24.19.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "node wasm/tests/phase0-smoke.mjs",
+    "test:build": "node wasm/tests/build-smoke.mjs",
+    "build": "node wasm/scripts/build.mjs",
+    "preview": "node wasm/scripts/preview.mjs",
+    "check": "tsc --project tsconfig.json --noEmit && node wasm/tests/phase0-smoke.mjs && node wasm/scripts/build.mjs && node wasm/tests/build-smoke.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

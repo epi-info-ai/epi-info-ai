@@ -50,13 +50,15 @@ Current capabilities include:
 - configurable Uber H3 resolutions from 0 through 15, with mapped records aggregated into toggleable hexagon layers; and
 - deterministic 2 x 2 calculations backed by the Rust WebAssembly kernel.
 
-Run the static demo locally from the repository root:
+Install the pinned toolchain, validate the source, and create the production artifact:
 
 ```shell
-python -m http.server 8000 --directory wasm/demo
+corepack enable
+pnpm install --frozen-lockfile
+pnpm run check
 ```
 
-Then open `http://localhost:8000/`.
+Preview the generated artifact with `pnpm run preview`, then open the URL printed by the command. GitLab Pages publishes this same generated artifact rather than copying the transitional source directly.
 
 ## Updates on August 25, 2026
 
@@ -80,6 +82,7 @@ Then open `http://localhost:8000/`.
 - Complete multi-user, record-level synchronization and conflict resolution; Supabase currently synchronizes a single-user whole-project snapshot.
 - Migrate browser feature code from JavaScript to TypeScript while retaining JavaScript only for loading/glue and keeping epidemiologic algorithms in Rust/WASM.
 - Add explicit coordinate reference system detection and reprojection for imported spatial data; current case coordinates and GeoJSON are expected in WGS 84 longitude/latitude.
+- Add browser-local GeoTIFF raster layers under Maps > Add Data Layer, with CRS detection/reprojection, nodata and transparency controls, safe file/memory limits, raster styling, and placement beneath polygon, line, and point layers.
 - Add offline basemap packages, choropleths, spatial analysis, geocoding, and additional legacy map workflows.
 - Replace `localStorage` project persistence with SQLite WASM and OPFS.
 - Implement the versioned plugin runtime, capability API, permissions, and plugin catalog described in the architecture plan.
