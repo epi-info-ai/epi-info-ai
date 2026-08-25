@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=23" />
+    <link rel="stylesheet" href="styles.css?v=24" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=2" defer></script>
-    <script type="module" src="app.js?v=23"></script>
+    <script type="module" src="app.js?v=24"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -269,6 +269,7 @@
                 <div class="map-toolbar-dropdown">
                   <button id="map-add-case-cluster" type="button">Case Cluster</button>
                   <button id="map-add-geojson" type="button">GeoJSON Layer...</button>
+                  <button id="map-add-h3" type="button">H3 Hexagons...</button>
                   <button type="button" disabled>Choropleth</button>
                   <button type="button" disabled>Dot Density</button>
                 </div>
@@ -310,6 +311,7 @@
                       <label><input id="map-record-layer-toggle" type="checkbox" checked /> <span id="map-record-layer-name">Case Cluster</span> (<strong id="map-point-count">0</strong>)</label>
                       <label><input id="map-location-layer-toggle" type="checkbox" checked /> Current location</label>
                       <div id="map-geojson-layers" class="map-geojson-layers"></div>
+                      <div id="map-h3-layers" class="map-h3-layers"></div>
                     </div>
                     <p class="map-privacy-note">Coordinates stay in this browser. Street tiles are requested from OpenStreetMap when online.</p>
                   </div>
@@ -564,6 +566,28 @@
         <div class="legacy-dialog-actions">
           <button class="dialog-primary" value="plot" type="submit">OK</button>
           <button value="cancel" type="button" data-close-case-cluster>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="h3-dialog" class="legacy-dialog" aria-labelledby="h3-dialog-title">
+      <form id="h3-form" method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="h3-dialog-title">Add H3 Hexagon Layer</strong>
+          <button type="button" data-close-h3 aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p>Aggregate the current case-cluster records into Uber H3 cells.</p>
+          <label for="h3-resolution">Resolution: <output id="h3-resolution-value" for="h3-resolution">8</output></label>
+          <input id="h3-resolution" type="range" min="0" max="15" step="1" value="8" />
+          <p id="h3-resolution-detail" class="dialog-note"></p>
+          <label for="h3-layer-name">Layer name</label>
+          <input id="h3-layer-name" type="text" maxlength="80" placeholder="H3 Resolution 8" />
+          <p id="h3-dialog-status" class="dialog-note" role="status" aria-live="polite">Coordinates are indexed locally in this browser.</p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button class="dialog-primary" value="add" type="submit">Add Layer</button>
+          <button value="cancel" type="button" data-close-h3>Cancel</button>
         </div>
       </form>
     </dialog>

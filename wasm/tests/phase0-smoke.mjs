@@ -46,6 +46,11 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/vendor/leaflet/leaflet.css",
     "wasm/demo/vendor/leaflet/leaflet.js",
     "wasm/demo/vendor/leaflet/LICENSE",
+    "wasm/demo/vendor/h3-js/h3-js.es.js",
+    "wasm/demo/vendor/h3-js/h3-js.es.js.map",
+    "wasm/demo/vendor/h3-js/LICENSE",
+    "wasm/demo/vendor/h3-js/NOTICE",
+    "wasm/demo/vendor/h3-js/package.json",
     "wasm/demo/setup/supabase-schema.sql",
   ];
   await Promise.all(requiredFiles.map(assertFile));
@@ -66,6 +71,7 @@ async function checkRequiredAssetsAndUi() {
     "epi-map",
     "map-add-case-cluster",
     "map-add-geojson",
+    "map-add-h3",
     "map-fullscreen-toggle",
     "map-create-timelapse",
     "time-lapse-dialog",
@@ -75,6 +81,9 @@ async function checkRequiredAssetsAndUi() {
     "geojson-file",
     "geojson-label-field",
     "map-geojson-layers",
+    "map-h3-layers",
+    "h3-dialog",
+    "h3-resolution",
     "table-form",
     "project-storage-dialog",
     "project-storage-status",
@@ -204,9 +213,16 @@ async function checkCsvAndProjectFixtures() {
 
 async function checkMapFixture() {
   const fixture = await jsonFixture("map-points.json");
-  const { buildTimeLapseStops, extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
+  const { aggregateH3Cells, buildTimeLapseStops, extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
   const points = extractMapPoints(fixture.records, fixture.latitudeField, fixture.longitudeField);
   assert.deepEqual(points.map(({ recordIndex, latitude, longitude }) => ({ recordIndex, latitude, longitude })), fixture.expected);
+  const h3Cells = aggregateH3Cells(points, 8);
+  assert.ok(h3Cells.length > 0);
+  assert.equal(h3Cells.reduce((total, cell) => total + cell.count, 0), points.length);
+  assert.ok(h3Cells.every((cell) => typeof cell.cell === "string" && cell.cell.length > 0));
+  assert.throws(() => aggregateH3Cells(points, -1), /0 through 15/);
+  assert.throws(() => aggregateH3Cells(points, 16), /0 through 15/);
+  assert.throws(() => aggregateH3Cells(points, 8.5), /whole number/);
   assert.deepEqual(inferMapFields([
     { name: "case_number", prompt: "Case ID" },
     { name: "x_coordinate", prompt: "Longitude" },

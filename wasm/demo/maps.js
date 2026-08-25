@@ -1,3 +1,5 @@
+import { UNITS, cellToBoundary, getHexagonEdgeLengthAvg, latLngToCell } from "./vendor/h3-js/h3-js.es.js";
+
 let map = null;
 let tileLayer = null;
 let recordLayer = null;
@@ -13,11 +15,12 @@ let activeRecordLabelField = "";
 let activeRecordOpenHandler = null;
 let timeLapseState = null;
 const geoJsonLayers = new Map();
+const h3Layers = new Map();
 const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
 const MAX_GEOJSON_FEATURES = 10000;
 
 function updateLayerCount() {
-  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size;
+  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + h3Layers.size;
   document.querySelector("#map-layer-count").textContent = String(count);
 }
 
@@ -350,6 +353,11 @@ function resetMapWorkspace() {
   }
   geoJsonLayers.clear();
   renderGeoJsonLayerList();
+  for (const entry of h3Layers.values()) {
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+  }
+  h3Layers.clear();
+  renderH3LayerList();
   lastBounds = null;
   caseClusterAdded = false;
   locationAdded = false;
@@ -401,7 +409,7 @@ function geoJsonPopup(feature) {
 }
 
 function refreshMapEmptyState() {
-  document.querySelector("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0;
+  document.querySelector("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || h3Layers.size > 0;
 }
 
 function renderGeoJsonLayerList() {
@@ -445,10 +453,42 @@ function renderGeoJsonLayerList() {
   container.replaceChildren(...rows);
 }
 
+function renderH3LayerList() {
+  const container = document.querySelector("#map-h3-layers");
+  const rows = [];
+  for (const [id, entry] of h3Layers) {
+    const row = document.createElement("span");
+    row.className = "map-h3-layer";
+    const label = document.createElement("label");
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = map.hasLayer(entry.layer);
+    toggle.dataset.h3Toggle = id;
+    const name = document.createElement("span");
+    name.className = "map-h3-layer-name";
+    name.textContent = `${entry.name} (${entry.cellCount} cells)`;
+    name.title = `${entry.recordCount} records aggregated at H3 resolution ${entry.resolution}`;
+    label.append(toggle, name);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "map-layer-remove";
+    remove.dataset.h3Remove = id;
+    remove.setAttribute("aria-label", `Remove ${entry.name}`);
+    remove.title = `Remove ${entry.name}`;
+    remove.textContent = "x";
+    row.append(label, remove);
+    rows.push(row);
+  }
+  container.replaceChildren(...rows);
+}
+
 function combinedLayerBounds() {
   const bounds = L.latLngBounds([]);
   if (caseClusterAdded && map.hasLayer(recordLayer) && lastBounds?.isValid()) bounds.extend(lastBounds);
   for (const entry of geoJsonLayers.values()) {
+    if (map.hasLayer(entry.layer) && entry.bounds?.isValid()) bounds.extend(entry.bounds);
+  }
+  for (const entry of h3Layers.values()) {
     if (map.hasLayer(entry.layer) && entry.bounds?.isValid()) bounds.extend(entry.bounds);
   }
   return bounds;
@@ -553,6 +593,70 @@ export function extractMapPoints(records, latitudeField, longitudeField) {
     points.push({ record, recordIndex, latitude, longitude });
   });
   return points;
+}
+
+export function aggregateH3Cells(mappedRecords, resolution, indexer = latLngToCell) {
+  if (!Number.isInteger(resolution) || resolution < 0 || resolution > 15) {
+    throw new Error("H3 resolution must be a whole number from 0 through 15.");
+  }
+  const cells = new Map();
+  for (const point of mappedRecords) {
+    const cell = indexer(point.latitude, point.longitude, resolution);
+    const entry = cells.get(cell) || { cell, count: 0, points: [] };
+    entry.count += 1;
+    entry.points.push(point);
+    cells.set(cell, entry);
+  }
+  return [...cells.values()].sort((left, right) => right.count - left.count || left.cell.localeCompare(right.cell));
+}
+
+function h3FillColor(count, maximumCount) {
+  const ratio = maximumCount <= 1 ? 1 : count / maximumCount;
+  if (ratio > 0.75) return "#a71918";
+  if (ratio > 0.5) return "#d9472b";
+  if (ratio > 0.25) return "#ed7b36";
+  return "#f3bf5a";
+}
+
+function h3CellPopup(cell, resolution, count) {
+  const content = document.createElement("div");
+  const heading = document.createElement("strong");
+  heading.textContent = `H3 cell ${cell}`;
+  const detail = document.createElement("div");
+  detail.textContent = `Resolution ${resolution} - ${count} record${count === 1 ? "" : "s"}`;
+  content.append(heading, detail);
+  return content;
+}
+
+function addH3Layer(resolution, name) {
+  if (activeRecordPoints.length === 0) throw new Error("Add a case-cluster layer before creating an H3 layer.");
+  const cells = aggregateH3Cells(activeRecordPoints, resolution);
+  const maximumCount = Math.max(...cells.map((entry) => entry.count));
+  const layer = L.featureGroup();
+  for (const entry of cells) {
+    L.polygon(cellToBoundary(entry.cell), {
+      color: "#743116",
+      weight: 1.2,
+      fillColor: h3FillColor(entry.count, maximumCount),
+      fillOpacity: 0.58,
+    }).bindPopup(h3CellPopup(entry.cell, resolution, entry.count)).addTo(layer);
+  }
+  layer.addTo(ensureMap());
+  const bounds = layer.getBounds();
+  const id = globalThis.crypto?.randomUUID?.() || `h3-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  h3Layers.set(id, {
+    layer,
+    name,
+    resolution,
+    cellCount: cells.length,
+    recordCount: activeRecordPoints.length,
+    bounds,
+  });
+  renderH3LayerList();
+  updateLayerCount();
+  refreshMapEmptyState();
+  document.querySelector("#map-status").textContent = `Added H3 layer "${name}" with ${cells.length.toLocaleString()} cell${cells.length === 1 ? "" : "s"} from ${activeRecordPoints.length.toLocaleString()} records.`;
+  if (bounds.isValid()) map.fitBounds(bounds.pad(0.12), { maxZoom: 16 });
 }
 
 function temporalValue(value) {
@@ -757,6 +861,13 @@ function prepareCaseClusterDialog(getCurrentData, getDataSources) {
 
 export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   const caseClusterDialog = document.querySelector("#case-cluster-dialog");
+  const h3Dialog = document.querySelector("#h3-dialog");
+  const h3Form = document.querySelector("#h3-form");
+  const h3Resolution = document.querySelector("#h3-resolution");
+  const h3ResolutionValue = document.querySelector("#h3-resolution-value");
+  const h3ResolutionDetail = document.querySelector("#h3-resolution-detail");
+  const h3LayerName = document.querySelector("#h3-layer-name");
+  const h3Status = document.querySelector("#h3-dialog-status");
   const timeLapseDialog = document.querySelector("#time-lapse-dialog");
   const timeLapseField = document.querySelector("#time-lapse-field");
   const timeLapseStatus = document.querySelector("#time-lapse-dialog-status");
@@ -770,6 +881,15 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   const layerPanelToggle = document.querySelector("#map-layer-panel-toggle");
   let dialogSources = [];
   let geoJsonInspectionVersion = 0;
+  const updateH3ResolutionDescription = () => {
+    const resolution = Number(h3Resolution.value);
+    const edgeKilometers = getHexagonEdgeLengthAvg(resolution, UNITS.km);
+    h3ResolutionValue.textContent = String(resolution);
+    h3LayerName.placeholder = `H3 Resolution ${resolution}`;
+    h3ResolutionDetail.textContent = edgeKilometers >= 1
+      ? `Average hexagon edge length: ${edgeKilometers.toLocaleString(undefined, { maximumFractionDigits: 2 })} km.`
+      : `Average hexagon edge length: ${(edgeKilometers * 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} m.`;
+  };
   const updateLayerPanelToggle = () => {
     const action = layerPanel.open ? "Minimize" : "Maximize";
     layerPanelToggle.setAttribute("aria-label", `${action} map layers`);
@@ -884,6 +1004,34 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     renderTimeLapseStep(Number(event.target.value));
   });
   document.querySelector("#map-time-lapse-close").addEventListener("click", () => closeTimeLapse(true));
+  document.querySelector("#map-add-h3").addEventListener("click", () => {
+    document.querySelector("#map-add-layer-menu").open = false;
+    if (!caseClusterAdded || activeRecordPoints.length === 0) {
+      document.querySelector("#map-status").textContent = "Add a case-cluster layer before creating an H3 layer.";
+      return;
+    }
+    h3Form.reset();
+    h3Resolution.value = "8";
+    h3Status.textContent = "Coordinates are indexed locally in this browser.";
+    updateH3ResolutionDescription();
+    h3Dialog.showModal();
+  });
+  h3Resolution.addEventListener("input", updateH3ResolutionDescription);
+  for (const button of document.querySelectorAll("[data-close-h3]")) {
+    button.addEventListener("click", () => h3Dialog.close("cancel"));
+  }
+  h3Form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    try {
+      const resolution = Number(h3Resolution.value);
+      const layerName = h3LayerName.value.trim() || `H3 Resolution ${resolution}`;
+      addH3Layer(resolution, layerName);
+      h3Dialog.close("add");
+    } catch (error) {
+      h3Status.textContent = error instanceof Error ? error.message : "Unable to create the H3 layer.";
+    }
+  });
   document.querySelector("#map-add-geojson").addEventListener("click", () => {
     document.querySelector("#map-add-layer-menu").open = false;
     geoJsonForm.reset();
@@ -974,6 +1122,27 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     refreshMapEmptyState();
     document.querySelector("#map-status").textContent = `Removed GeoJSON layer “${entry.name}”.`;
   });
+  document.querySelector("#map-h3-layers").addEventListener("change", (event) => {
+    const id = event.target.dataset.h3Toggle;
+    if (!id) return;
+    const entry = h3Layers.get(id);
+    if (!entry) return;
+    if (event.target.checked) entry.layer.addTo(ensureMap());
+    else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    document.querySelector("#map-status").textContent = `${entry.name} ${event.target.checked ? "shown" : "hidden"}.`;
+  });
+  document.querySelector("#map-h3-layers").addEventListener("click", (event) => {
+    const id = event.target.dataset.h3Remove;
+    if (!id) return;
+    const entry = h3Layers.get(id);
+    if (!entry) return;
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    h3Layers.delete(id);
+    renderH3LayerList();
+    updateLayerCount();
+    refreshMapEmptyState();
+    document.querySelector("#map-status").textContent = `Removed H3 layer "${entry.name}".`;
+  });
   document.querySelector("#map-current-location").addEventListener("click", captureLocation);
   document.querySelector("#map-fullscreen-toggle").addEventListener("click", async () => {
     try {
@@ -990,7 +1159,7 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   document.querySelector("#map-fit-points").addEventListener("click", () => {
     const bounds = combinedLayerBounds();
     if (bounds.isValid()) ensureMap().fitBounds(bounds.pad(0.18), { maxZoom: 15 });
-    else document.querySelector("#map-status").textContent = "Add or show a case-cluster or GeoJSON layer before fitting the map.";
+    else document.querySelector("#map-status").textContent = "Add or show a case-cluster, H3, or GeoJSON layer before fitting the map.";
   });
   for (const radio of document.querySelectorAll('[name="map-basemap"]')) {
     radio.addEventListener("change", (event) => {

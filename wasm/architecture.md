@@ -21,7 +21,7 @@ the intended product architecture.
 | Product application | TypeScript | UI components, forms, validation, data entry, project state, CSV handling, maps, persistence adapters, synchronization, and tests |
 | Runtime glue | JavaScript | Minimal bootstrapping and WASM/module loading where plain JavaScript materially simplifies browser startup |
 | Presentation | HTML and CSS | Semantic application shell, familiar Epi Info layout, responsive styling, and accessibility structure |
-| Third-party browser libraries | Pinned vendor JavaScript | Leaflet and other reviewed dependencies that are not maintained as project source |
+| Third-party browser libraries | Pinned vendor JavaScript | Leaflet, h3-js, and other reviewed dependencies that are not maintained as project source |
 
 New product feature modules must be written in TypeScript. Handwritten JavaScript
 must remain small, dependency-free where practical, and contain no epidemiologic
@@ -166,6 +166,7 @@ and has no runtime dependencies or operating-system access.
 | Interactive map, layers, popups, and viewport control | `demo/maps.js` + Leaflet | JavaScript |
 | Browser-local GeoJSON validation, upload, rendering, and layer controls | `demo/maps.js` + Leaflet | JavaScript |
 | Cumulative case-cluster time lapse from date/time fields | `demo/maps.js` + Leaflet | JavaScript |
+| Configurable H3 indexing, record aggregation, and hexagon layers | `demo/maps.js` + h3-js + Leaflet | JavaScript |
 | One-shot browser geolocation and accuracy display | `demo/maps.js` | JavaScript |
 
 HTML in `demo/index.html` provides the semantic application structure, including
@@ -197,7 +198,7 @@ wasm/
     |-- maps.js                      Record mapping and browser geolocation
     |-- engine.js                    JS/WASM boundary and result contract
     |-- epi2x2.wasm                 Compiled Rust artifact
-    |-- vendor/leaflet/              Pinned interactive-map dependency
+    |-- vendor/                      Pinned Leaflet and h3-js map dependencies
     `-- tests/fixtures/              Future parity-test inputs and results
 ```
 
@@ -274,7 +275,7 @@ whole-project snapshot rather than normalized form and record tables. The Maps s
 launch contexts separate: Main Menu -> Create Maps opens a standalone map with a
 project/form data-source selector, while Enter Data -> Maps links the map to the
 current form and allows a mapped record to be reopened in Enter Data. Both paths
-support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers, cumulative date/time animation, and browser geolocation. The slice does not
+support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers with zoom-dependent polygon labels, configurable H3 aggregation layers, cumulative date/time animation, compact layer controls, fullscreen mapping, and browser geolocation. The slice does not
 yet provide external databases, shapefiles, satellite imagery, choropleths, spatial
 analysis, geocoding, or offline basemap packages. The slice also does
 not yet include project files, SQLite/OPFS persistence, dashboards, service-worker

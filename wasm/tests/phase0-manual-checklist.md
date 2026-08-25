@@ -59,6 +59,8 @@ system, viewport, and result in the review or release notes.
 - [ ] The fullscreen icon is visible by default, expands the complete map workspace, and exits from the icon or Escape.
 - [ ] Map Layers starts minimized, expands from its compact control, and minimizes again without changing layer visibility.
 - [ ] Create Time Lapse accepts a date/time field from the current case cluster, plays cumulatively, pauses, scrubs, and restores all points when closed.
+- [ ] Add Data Layer > H3 Hexagons opens after a case cluster is mapped, accepts resolutions 0 through 15, and displays the approximate average edge length.
+- [ ] An H3 layer aggregates all mapped records, displays cell counts in popups, and can be hidden, shown, removed, and included by Fit Layers.
 - [ ] Invalid JSON, invalid GeoJSON, and files over 10 MB produce feedback without removing existing layers.
 - [ ] Enter Data > Maps opens the current-form-linked map and automatically plots records when latitude and longitude fields are available.
 - [ ] Current Location requests browser permission only after the user activates it.

@@ -1696,17 +1696,20 @@ body.map-fullscreen-fallback {
   gap: 0.65rem 1.1rem;
 }
 
-.map-geojson-layers {
+.map-geojson-layers,
+.map-h3-layers {
   display: contents;
 }
 
-.map-geojson-layer {
+.map-geojson-layer,
+.map-h3-layer {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
 }
 
-.map-geojson-layer label {
+.map-geojson-layer label,
+.map-h3-layer label {
   min-width: 0;
 }
 
@@ -1718,7 +1721,8 @@ body.map-fullscreen-fallback {
   border-left: 1px solid #b8c3c9;
 }
 
-.map-geojson-layer-name {
+.map-geojson-layer-name,
+.map-h3-layer-name {
   overflow: hidden;
   max-width: 16rem;
   text-overflow: ellipsis;
