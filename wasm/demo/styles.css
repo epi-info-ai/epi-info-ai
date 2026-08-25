@@ -1622,6 +1622,14 @@ body.map-fullscreen-fallback {
   min-width: 0;
 }
 
+.map-geojson-layer .map-label-toggle {
+  flex: none;
+  padding-left: 0.35rem;
+  font-size: 0.68rem;
+  color: #405865;
+  border-left: 1px solid #b8c3c9;
+}
+
 .map-geojson-layer-name {
   overflow: hidden;
   max-width: 16rem;
@@ -1647,22 +1655,34 @@ body.map-fullscreen-fallback {
   border-color: #7f1d1d;
 }
 
-.leaflet-tooltip.geojson-polygon-label {
+.geojson-label-marker {
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+
+.geojson-label-marker .geojson-polygon-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  overflow: hidden;
+  max-width: 190px;
   padding: 0.15rem 0.35rem;
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.15;
   color: #14394f;
   text-align: center;
+  text-overflow: ellipsis;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(23, 79, 120, 0.45);
+  border-radius: 0.2rem;
   box-shadow: 0 1px 3px rgba(15, 55, 78, 0.16);
   pointer-events: none;
-}
-
-.leaflet-tooltip.geojson-polygon-label::before {
-  display: none;
+  transform: translate(-50%, -50%);
 }
 
 .map-empty-state {

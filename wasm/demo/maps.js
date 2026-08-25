@@ -102,6 +102,144 @@ export function listGeoJsonPolygonProperties(geojson) {
   return [...fields].sort((left, right) => left.localeCompare(right));
 }
 
+function pointInRing([x, y], ring) {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    const [xi, yi] = ring[index];
+    const [xj, yj] = ring[previous];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInPolygon(point, rings) {
+  return rings.length > 0 && pointInRing(point, rings[0]) && !rings.slice(1).some((ring) => pointInRing(point, ring));
+}
+
+function distanceToSegmentSquared([x, y], [startX, startY], [endX, endY]) {
+  const segmentX = endX - startX;
+  const segmentY = endY - startY;
+  const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+  let ratio = lengthSquared === 0 ? 0 : ((x - startX) * segmentX + (y - startY) * segmentY) / lengthSquared;
+  ratio = Math.max(0, Math.min(1, ratio));
+  const offsetX = x - (startX + segmentX * ratio);
+  const offsetY = y - (startY + segmentY * ratio);
+  return offsetX * offsetX + offsetY * offsetY;
+}
+
+function signedPolygonDistance(point, rings) {
+  let minimumSquared = Infinity;
+  for (const ring of rings) {
+    for (let index = 0; index < ring.length; index += 1) {
+      minimumSquared = Math.min(
+        minimumSquared,
+        distanceToSegmentSquared(point, ring[index], ring[(index + 1) % ring.length]),
+      );
+    }
+  }
+  const distance = Math.sqrt(minimumSquared);
+  return pointInPolygon(point, rings) ? distance : -distance;
+}
+
+function ringCentroid(ring) {
+  let areaTwice = 0;
+  let x = 0;
+  let y = 0;
+  for (let index = 0; index < ring.length; index += 1) {
+    const [x1, y1] = ring[index];
+    const [x2, y2] = ring[(index + 1) % ring.length];
+    const cross = x1 * y2 - x2 * y1;
+    areaTwice += cross;
+    x += (x1 + x2) * cross;
+    y += (y1 + y2) * cross;
+  }
+  if (Math.abs(areaTwice) < Number.EPSILON) return ring[0];
+  return [x / (3 * areaTwice), y / (3 * areaTwice)];
+}
+
+function interiorPointForPolygon(coordinates) {
+  if (!Array.isArray(coordinates?.[0]) || coordinates[0].length < 3) return null;
+  const latitudes = coordinates[0].map((position) => Number(position[1])).filter(Number.isFinite);
+  if (latitudes.length < 3) return null;
+  let minimumLatitude = Infinity;
+  let maximumLatitude = -Infinity;
+  for (const latitude of latitudes) {
+    minimumLatitude = Math.min(minimumLatitude, latitude);
+    maximumLatitude = Math.max(maximumLatitude, latitude);
+  }
+  const meanLatitude = (minimumLatitude + maximumLatitude) / 2;
+  const longitudeScale = Math.max(0.01, Math.cos(meanLatitude * Math.PI / 180));
+  const rings = coordinates.map((ring) => ring
+    .map(([longitude, latitude]) => [Number(longitude) * longitudeScale, Number(latitude)])
+    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)))
+    .filter((ring) => ring.length >= 3);
+  if (rings.length === 0) return null;
+  let minimumX = Infinity;
+  let maximumX = -Infinity;
+  let minimumY = Infinity;
+  let maximumY = -Infinity;
+  for (const [x, y] of rings[0]) {
+    minimumX = Math.min(minimumX, x);
+    maximumX = Math.max(maximumX, x);
+    minimumY = Math.min(minimumY, y);
+    maximumY = Math.max(maximumY, y);
+  }
+  const width = maximumX - minimumX;
+  const height = maximumY - minimumY;
+  if (width === 0 || height === 0) return null;
+
+  let bestPoint = ringCentroid(rings[0]);
+  let bestDistance = signedPolygonDistance(bestPoint, rings);
+  const center = [(minimumX + maximumX) / 2, (minimumY + maximumY) / 2];
+  const centerDistance = signedPolygonDistance(center, rings);
+  if (centerDistance > bestDistance) [bestPoint, bestDistance] = [center, centerDistance];
+
+  const gridSize = 10;
+  for (let xIndex = 0; xIndex < gridSize; xIndex += 1) {
+    for (let yIndex = 0; yIndex < gridSize; yIndex += 1) {
+      const candidate = [
+        minimumX + width * (xIndex + 0.5) / gridSize,
+        minimumY + height * (yIndex + 0.5) / gridSize,
+      ];
+      const distance = signedPolygonDistance(candidate, rings);
+      if (distance > bestDistance) [bestPoint, bestDistance] = [candidate, distance];
+    }
+  }
+
+  let step = Math.max(width, height) / gridSize;
+  for (let iteration = 0; iteration < 7; iteration += 1) {
+    step /= 2;
+    for (let xOffset = -2; xOffset <= 2; xOffset += 1) {
+      for (let yOffset = -2; yOffset <= 2; yOffset += 1) {
+        const candidate = [bestPoint[0] + xOffset * step, bestPoint[1] + yOffset * step];
+        const distance = signedPolygonDistance(candidate, rings);
+        if (distance > bestDistance) [bestPoint, bestDistance] = [candidate, distance];
+      }
+    }
+  }
+  if (bestDistance <= 0) return null;
+  return {
+    latitude: bestPoint[1],
+    longitude: bestPoint[0] / longitudeScale,
+    clearance: bestDistance,
+    longitudeScale,
+  };
+}
+
+export function polygonLabelAnchor(geometry) {
+  const polygons = geometry?.type === "Polygon"
+    ? [geometry.coordinates]
+    : geometry?.type === "MultiPolygon"
+      ? geometry.coordinates
+      : [];
+  let best = null;
+  for (const polygon of polygons || []) {
+    const candidate = interiorPointForPolygon(polygon);
+    if (candidate && (!best || candidate.clearance > best.clearance)) best = candidate;
+  }
+  return best;
+}
+
 function setMapHeading(data = null) {
   const heading = document.querySelector("#map-project-name");
   if (!data) {
@@ -149,6 +287,7 @@ function ensureMap() {
   recordLayer = L.layerGroup().addTo(map);
   locationLayer = L.layerGroup().addTo(map);
   L.control.scale({ imperial: true, metric: true }).addTo(map);
+  map.on("zoomend", updateGeoJsonLabelVisibility);
   return map;
 }
 
@@ -274,6 +413,16 @@ function renderGeoJsonLayerList() {
     name.textContent = `${entry.name} (${entry.featureCount})${entry.labelField ? ` - labels: ${entry.labelField}` : ""}`;
     name.title = entry.labelField ? `${entry.name}; polygon labels: ${entry.labelField}` : entry.name;
     label.append(toggle, name);
+    if (entry.labelField) {
+      const labelToggleLabel = document.createElement("label");
+      labelToggleLabel.className = "map-label-toggle";
+      const labelToggle = document.createElement("input");
+      labelToggle.type = "checkbox";
+      labelToggle.checked = entry.labelsEnabled;
+      labelToggle.dataset.geojsonLabelToggle = id;
+      labelToggleLabel.append(labelToggle, document.createTextNode("Labels"));
+      row.append(labelToggleLabel);
+    }
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "map-layer-remove";
@@ -281,7 +430,8 @@ function renderGeoJsonLayerList() {
     remove.setAttribute("aria-label", `Remove ${entry.name}`);
     remove.title = `Remove ${entry.name}`;
     remove.textContent = "x";
-    row.append(label, remove);
+    row.prepend(label);
+    row.append(remove);
     rows.push(row);
   }
   container.replaceChildren(...rows);
@@ -296,9 +446,37 @@ function combinedLayerBounds() {
   return bounds;
 }
 
+function labelClearanceInPixels(label) {
+  const zoom = map.getZoom();
+  const center = map.project([label.anchor.latitude, label.anchor.longitude], zoom);
+  const horizontalEdge = map.project([
+    label.anchor.latitude,
+    label.anchor.longitude + label.anchor.clearance / label.anchor.longitudeScale,
+  ], zoom);
+  const verticalEdge = map.project([
+    label.anchor.latitude + label.anchor.clearance,
+    label.anchor.longitude,
+  ], zoom);
+  return Math.min(Math.abs(horizontalEdge.x - center.x), Math.abs(verticalEdge.y - center.y));
+}
+
+function updateGeoJsonLabelVisibility() {
+  if (!map) return;
+  for (const entry of geoJsonLayers.values()) {
+    const layerVisible = map.hasLayer(entry.layer);
+    for (const label of entry.labels || []) {
+      const shouldShow = layerVisible && entry.labelsEnabled && labelClearanceInPixels(label) >= label.requiredRadius;
+      if (shouldShow && !label.labelLayer.hasLayer(label.marker)) label.marker.addTo(label.labelLayer);
+      else if (!shouldShow && label.labelLayer.hasLayer(label.marker)) label.labelLayer.removeLayer(label.marker);
+    }
+  }
+}
+
 function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
   const currentMap = ensureMap();
-  const layer = L.geoJSON(geojson, {
+  const labelLayer = L.layerGroup();
+  const labels = [];
+  const geometryLayer = L.geoJSON(geojson, {
     style: { color: "#2563a5", weight: 2, fillColor: "#4f9dc7", fillOpacity: 0.22 },
     pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
       radius: 6,
@@ -313,21 +491,38 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
       if (labelField && ["Polygon", "MultiPolygon"].includes(feature?.geometry?.type)) {
         const labelValue = feature.properties?.[labelField];
         if (labelValue !== null && labelValue !== undefined && typeof labelValue !== "object") {
+          const anchor = polygonLabelAnchor(feature.geometry);
+          if (!anchor) return;
+          const text = String(labelValue);
           const label = document.createElement("span");
-          label.textContent = String(labelValue);
-          featureLayer.bindTooltip(label, {
-            permanent: true,
-            direction: "center",
-            className: "geojson-polygon-label",
+          label.className = "geojson-polygon-label";
+          label.textContent = text;
+          const marker = L.marker([anchor.latitude, anchor.longitude], {
+            interactive: false,
+            keyboard: false,
+            icon: L.divIcon({
+              className: "geojson-label-marker",
+              html: label,
+              iconSize: [0, 0],
+              iconAnchor: [0, 0],
+            }),
+          });
+          const estimatedWidth = Math.min(190, Math.max(28, Array.from(text).length * 7 + 12));
+          labels.push({
+            anchor,
+            labelLayer,
+            marker,
+            requiredRadius: Math.hypot(estimatedWidth / 2, 11),
           });
         }
       }
     },
   });
+  const layer = L.layerGroup([geometryLayer, labelLayer]);
   layer.addTo(currentMap);
-  const bounds = layer.getBounds();
+  const bounds = geometryLayer.getBounds();
   const id = globalThis.crypto?.randomUUID?.() || `geojson-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  geoJsonLayers.set(id, { layer, name, featureCount, bounds, labelField });
+  geoJsonLayers.set(id, { layer, name, featureCount, bounds, labelField, labels, labelsEnabled: true });
   renderGeoJsonLayerList();
   updateLayerCount();
   refreshMapEmptyState();
@@ -335,6 +530,7 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
   const labelMessage = labelField ? ` Polygon labels use “${labelField}”.` : "";
   document.querySelector("#map-status").textContent = `Added GeoJSON layer “${name}” with ${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}.${labelMessage}`;
   if (bounds.isValid()) currentMap.fitBounds(bounds.pad(0.12), { maxZoom: 16 });
+  updateGeoJsonLabelVisibility();
 }
 
 export function extractMapPoints(records, latitudeField, longitudeField) {
@@ -566,12 +762,22 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     }
   });
   document.querySelector("#map-geojson-layers").addEventListener("change", (event) => {
+    const labelToggleId = event.target.dataset.geojsonLabelToggle;
+    if (labelToggleId) {
+      const entry = geoJsonLayers.get(labelToggleId);
+      if (!entry) return;
+      entry.labelsEnabled = event.target.checked;
+      updateGeoJsonLabelVisibility();
+      document.querySelector("#map-status").textContent = `${entry.name} labels ${entry.labelsEnabled ? "enabled" : "hidden"}.`;
+      return;
+    }
     const id = event.target.dataset.geojsonToggle;
     if (!id) return;
     const entry = geoJsonLayers.get(id);
     if (!entry) return;
     if (event.target.checked) entry.layer.addTo(ensureMap());
     else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    updateGeoJsonLabelVisibility();
     document.querySelector("#map-status").textContent = `${entry.name} ${event.target.checked ? "shown" : "hidden"}.`;
   });
   document.querySelector("#map-geojson-layers").addEventListener("click", (event) => {

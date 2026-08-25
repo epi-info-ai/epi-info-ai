@@ -54,7 +54,8 @@ system, viewport, and result in the review or release notes.
 - [ ] Valid points render and invalid/blank coordinates are skipped.
 - [ ] Add Data Layer > GeoJSON Layer accepts a `.geojson` or `.json` file and renders its points, lines, and polygons.
 - [ ] An uploaded GeoJSON layer can be hidden, shown, removed, and included by Fit Layers.
-- [ ] GeoJSON polygon properties populate the Polygon label field selector, and the selected field renders as a permanent polygon label.
+- [ ] GeoJSON polygon properties populate the Polygon label field selector, and the selected field renders at an interior point only when the polygon has enough room at the current zoom.
+- [ ] Each labeled GeoJSON layer provides a Labels checkbox that hides or shows labels without hiding its polygons.
 - [ ] The fullscreen icon is visible by default, expands the complete map workspace, and exits from the icon or Escape.
 - [ ] Invalid JSON, invalid GeoJSON, and files over 10 MB produce feedback without removing existing layers.
 - [ ] Enter Data > Maps opens the current-form-linked map and automatically plots records when latitude and longitude fields are available.

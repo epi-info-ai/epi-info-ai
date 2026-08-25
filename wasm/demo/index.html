@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=21" />
+    <link rel="stylesheet" href="styles.css?v=22" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=2" defer></script>
-    <script type="module" src="app.js?v=21"></script>
+    <script type="module" src="app.js?v=22"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -573,6 +573,7 @@
           <select id="geojson-label-field" disabled>
             <option value="">No polygon labels</option>
           </select>
+          <p class="dialog-note">Labels appear automatically as you zoom in and only when they fit inside their polygons.</p>
           <p id="geojson-dialog-status" class="dialog-note" role="status" aria-live="polite">Files are read locally and are not uploaded to a server. Maximum size: 10 MB.</p>
         </div>
         <div class="legacy-dialog-actions">

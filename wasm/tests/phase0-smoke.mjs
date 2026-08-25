@@ -200,7 +200,7 @@ async function checkCsvAndProjectFixtures() {
 
 async function checkMapFixture() {
   const fixture = await jsonFixture("map-points.json");
-  const { extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, parseGeoJson } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
+  const { extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
   const points = extractMapPoints(fixture.records, fixture.latitudeField, fixture.longitudeField);
   assert.deepEqual(points.map(({ recordIndex, latitude, longitude }) => ({ recordIndex, latitude, longitude })), fixture.expected);
   assert.deepEqual(inferMapFields([
@@ -213,6 +213,20 @@ async function checkMapFixture() {
   assert.equal(parsed.geojson.type, "FeatureCollection");
   assert.equal(parsed.featureCount, 3);
   assert.deepEqual(listGeoJsonPolygonProperties(parsed.geojson), ["name", "status"]);
+  const polygonAnchor = polygonLabelAnchor(parsed.geojson.features[2].geometry);
+  assert.ok(polygonAnchor.clearance > 0);
+  assert.ok(polygonAnchor.latitude > 41.63 && polygonAnchor.latitude < 41.69);
+  assert.ok(polygonAnchor.longitude > -83.57 && polygonAnchor.longitude < -83.51);
+  const polygonWithHoleAnchor = polygonLabelAnchor({
+    type: "Polygon",
+    coordinates: [
+      [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]],
+      [[3, 3], [7, 3], [7, 7], [3, 7], [3, 3]],
+    ],
+  });
+  assert.ok(polygonWithHoleAnchor.clearance > 0);
+  assert.ok(!(polygonWithHoleAnchor.longitude > 3 && polygonWithHoleAnchor.longitude < 7
+    && polygonWithHoleAnchor.latitude > 3 && polygonWithHoleAnchor.latitude < 7));
   assert.throws(() => parseGeoJson("not json"), /not valid JSON/);
   assert.throws(() => parseGeoJson('{"type":"FeatureCollection","features":[{},{}]}'), /must be a Feature/);
   assert.throws(() => parseGeoJson(geoJsonFixture, 2), /demo limit/);
