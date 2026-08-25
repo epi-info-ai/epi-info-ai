@@ -3,6 +3,7 @@ const RECORDS_KEY = "epi-info-ai.records.v1";
 const PROJECT_KEY = "epi-info-ai.project-name.v1";
 const PROJECT_STATE_KEY = "epi-info-ai.project-state.v1";
 const SNAP_KEY = "epi-info-ai.snap-to-grid.v1";
+const SUPABASE_CONFIG_KEY = "epi-info-ai.supabase-config.v1";
 const GRID_SIZE = 12;
 
 const FIELD_TYPES = ["text", "text-uppercase", "multiline", "unique-id", "number", "phone", "date", "time", "checkbox", "yes-no", "option"];
@@ -70,6 +71,45 @@ function saveText(key, value) {
   }
 }
 
+function normalizeSupabaseUrl(value) {
+  const url = new URL(String(value || "").trim());
+  if (url.protocol !== "https:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") {
+    throw new Error("Supabase connections must use HTTPS.");
+  }
+  return url.origin;
+}
+
+export async function testSupabaseConnection(urlValue, publishableKeyValue) {
+  const url = normalizeSupabaseUrl(urlValue);
+  const publishableKey = String(publishableKeyValue || "").trim();
+  if (!publishableKey) throw new Error("Enter the Supabase publishable key.");
+  const response = await fetch(`${url}/auth/v1/settings`, {
+    headers: { apikey: publishableKey },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) throw new Error("Supabase rejected the publishable key.");
+    throw new Error(`Supabase connection failed (HTTP ${response.status}).`);
+  }
+  const settings = await response.json();
+  return {
+    url,
+    publishableKey,
+    providers: {
+      email: Boolean(settings.external?.email),
+      github: Boolean(settings.external?.github),
+    },
+  };
+}
+
+function renderStorageBadge() {
+  const badge = document.querySelector("#data-storage-badge");
+  if (!badge) return;
+  badge.textContent = projectState.storage?.type === "supabase"
+    ? "Supabase connected - local working copy"
+    : "Local browser data";
+}
+
 function newFormId() {
   return globalThis.crypto?.randomUUID?.() || `form-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -114,6 +154,36 @@ export function getProjectDataSources() {
     fields: structuredClone(form.schema.fields),
     records: structuredClone(form.records || []),
   }));
+}
+
+export function getCurrentProjectSnapshot() {
+  syncCurrentForm();
+  return structuredClone(projectState);
+}
+
+export function markCurrentProjectSynced(remote) {
+  projectState.storage = { type: "supabase" };
+  projectState.remote = structuredClone(remote);
+  syncCurrentForm();
+  renderStorageBadge();
+}
+
+export function applyHostedProjectSnapshot(snapshot, remote) {
+  if (!snapshot?.forms?.length) throw new Error("The hosted project snapshot does not contain any forms.");
+  projectState = structuredClone(snapshot);
+  projectState.storage = { type: "supabase" };
+  projectState.remote = structuredClone(remote);
+  projectName = projectState.name || "Hosted Project";
+  currentFormId = projectState.currentFormId || projectState.forms[0].id;
+  const selectedForm = projectState.forms.find((form) => form.id === currentFormId) || projectState.forms[0];
+  currentFormId = selectedForm.id;
+  schema = structuredClone(selectedForm.schema);
+  records = structuredClone(selectedForm.records || []);
+  syncCurrentForm();
+  renderDesigner();
+  renderEntryForm();
+  renderRecords();
+  renderStorageBadge();
 }
 
 export function showRecordInEnter(formId, recordIndex) {
@@ -638,6 +708,7 @@ export function initializeFormDataDemo() {
   renderDesigner();
   renderEntryForm();
   renderRecords();
+  renderStorageBadge();
 
   for (const button of document.querySelectorAll("[data-module]")) {
     button.addEventListener("click", () => showModule(button.dataset.module));
@@ -730,27 +801,88 @@ export function initializeFormDataDemo() {
   });
 
   const projectDialog = document.querySelector("#project-dialog");
-  document.querySelector("#new-project").addEventListener("click", () => projectDialog.showModal());
+  const storageEngine = document.querySelector("#storage-engine");
+  const supabaseSettings = document.querySelector("#supabase-settings");
+  const supabaseUrl = document.querySelector("#supabase-url");
+  const supabasePublishableKey = document.querySelector("#supabase-publishable-key");
+  const projectDialogNote = document.querySelector("#project-dialog-note");
+
+  function updateStorageDialog() {
+    const usesSupabase = storageEngine.value === "supabase";
+    supabaseSettings.hidden = !usesSupabase;
+    supabaseUrl.required = usesSupabase;
+    supabasePublishableKey.required = usesSupabase;
+    document.querySelector("#local-storage-access").checked = !usesSupabase;
+    document.querySelector("#supabase-storage-access").disabled = !usesSupabase;
+    document.querySelector("#supabase-storage-access").checked = usesSupabase;
+    projectDialogNote.textContent = usesSupabase
+      ? "Test verifies the Supabase Data API. Records remain local until authentication, tables, and Row Level Security policies are installed."
+      : "Data remains on this device. Server synchronization is not part of this demo.";
+  }
+
+  document.querySelector("#new-project").addEventListener("click", () => {
+    const savedSupabase = loadJson(SUPABASE_CONFIG_KEY, {});
+    supabaseUrl.value = savedSupabase.url || "";
+    supabasePublishableKey.value = savedSupabase.publishableKey || "";
+    storageEngine.value = projectState.storage?.type === "supabase" ? "supabase" : "browser";
+    updateStorageDialog();
+    projectDialog.showModal();
+  });
+  storageEngine.addEventListener("change", updateStorageDialog);
   for (const closeButton of document.querySelectorAll("[data-close-project-dialog]")) {
     closeButton.addEventListener("click", () => projectDialog.close("cancel"));
   }
-  document.querySelector("#test-store").addEventListener("click", () => {
-    document.querySelector(".dialog-note").textContent = "Local browser storage is available. No server connection is required.";
+  document.querySelector("#test-store").addEventListener("click", async (event) => {
+    if (storageEngine.value === "browser") {
+      projectDialogNote.textContent = "Local browser storage is available. No server connection is required.";
+      return;
+    }
+    const button = event.currentTarget;
+    button.disabled = true;
+    projectDialogNote.textContent = "Testing the Supabase Data API connection...";
+    try {
+      const config = await testSupabaseConnection(supabaseUrl.value, supabasePublishableKey.value);
+      saveJson(SUPABASE_CONFIG_KEY, config);
+      projectDialogNote.textContent = "Connected to Supabase. The project URL and publishable key are valid.";
+    } catch (error) {
+      projectDialogNote.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
   });
-  document.querySelector("#project-dialog-form").addEventListener("submit", (event) => {
+  document.querySelector("#project-dialog-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     if (records.length > 0 && !window.confirm("Create a new project and remove the current locally saved demo records?")) return;
+    const storageType = storageEngine.value;
+    if (storageType === "supabase") {
+      projectDialogNote.textContent = "Verifying Supabase before creating the local working copy...";
+      try {
+        const config = await testSupabaseConnection(supabaseUrl.value, supabasePublishableKey.value);
+        saveJson(SUPABASE_CONFIG_KEY, config);
+      } catch (error) {
+        projectDialogNote.textContent = error.message;
+        return;
+      }
+    }
     projectName = document.querySelector("#database-name").value.trim() || "Untitled Project";
     schema = { name: "New Form", fields: [] };
     records = [];
     currentFormId = newFormId();
-    projectState = { name: projectName, currentFormId, forms: [{ id: currentFormId, schema: structuredClone(schema), records: [] }] };
+    projectState = {
+      name: projectName,
+      currentFormId,
+      storage: { type: storageType },
+      forms: [{ id: currentFormId, schema: structuredClone(schema), records: [] }],
+    };
     syncCurrentForm();
     renderDesigner();
     renderEntryForm();
     renderRecords();
+    renderStorageBadge();
     projectDialog.close("create");
-    document.querySelector("#form-status").textContent = `${projectName} created.`;
+    document.querySelector("#form-status").textContent = storageType === "supabase"
+      ? `${projectName} created with a verified Supabase connection and local working copy.`
+      : `${projectName} created.`;
   });
 
   document.querySelector("#new-form").addEventListener("click", () => {

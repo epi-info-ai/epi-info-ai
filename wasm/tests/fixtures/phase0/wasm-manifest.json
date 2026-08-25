@@ -1,0 +1,21 @@
+{
+  "file": "wasm/demo/epi2x2.wasm",
+  "sha256": "79463deae8e2a154a576e027415003d8591d747ff3cc0873f52ce8be0270a7d6",
+  "size": 786,
+  "engine": {
+    "id": "rust-wasm-spike",
+    "version": "0.1.0",
+    "operation": "epi.table2x2",
+    "schemaVersion": "0.1.0"
+  },
+  "requiredExports": [
+    "risk_exposed",
+    "risk_unexposed",
+    "risk_ratio",
+    "odds_ratio",
+    "risk_difference",
+    "pearson_chi_square",
+    "mantel_haenszel_chi_square",
+    "yates_chi_square"
+  ]
+}

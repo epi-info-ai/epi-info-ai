@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=14" />
+    <link rel="stylesheet" href="styles.css?v=18" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=2" defer></script>
-    <script type="module" src="app.js?v=14"></script>
+    <script type="module" src="app.js?v=18"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -117,6 +117,7 @@
             </nav>
             <div class="designer-toolbar" aria-label="Form Designer toolbar">
               <button id="new-project" type="button">New Project</button>
+              <button id="project-storage" type="button">Project Storage</button>
               <button id="new-form" type="button">New Form</button>
               <label class="toolbar-file-button" for="form-csv-import">Create from CSV</label>
               <input id="form-csv-import" class="sr-only" type="file" accept=".csv,text/csv" />
@@ -207,7 +208,7 @@
               <h1 id="data-title">Outbreak Case Report Form</h1>
               <p>Enter records manually or exchange them as CSV.</p>
             </div>
-            <span class="local-data-badge">Local browser data</span>
+            <span id="data-storage-badge" class="local-data-badge">Local browser data</span>
           </div>
 
           <div class="data-entry-grid">
@@ -498,20 +499,26 @@
           <label for="storage-engine">Storage location</label>
           <select id="storage-engine">
             <option value="browser">This browser - local demo storage</option>
-            <option value="sql-server" disabled>Organization SQL Server - future connector</option>
+            <option value="supabase">Supabase - secure online project</option>
+            <option value="organization-api" disabled>Organization server - future secure connector</option>
           </select>
 
           <label for="database-name">Database name</label>
           <input id="database-name" name="databaseName" type="text" value="Outbreak Project" required maxlength="80" />
 
+          <div id="supabase-settings" class="dialog-conditional-fields" hidden>
+            <label for="supabase-url">Supabase project URL</label>
+            <input id="supabase-url" name="supabaseUrl" type="url" placeholder="https://your-project.supabase.co" autocomplete="url" spellcheck="false" />
+            <label for="supabase-publishable-key">Publishable key</label>
+            <input id="supabase-publishable-key" name="supabasePublishableKey" type="password" placeholder="sb_publishable_..." autocomplete="off" spellcheck="false" />
+          </div>
+
           <fieldset>
             <legend>Access</legend>
-            <label><input type="radio" name="access" value="local" checked /> Use local browser storage</label>
-            <label class="disabled-option"><input type="radio" name="access" value="organization" disabled /> Use organization authentication</label>
-            <label class="indented-dialog-field">Login <input type="text" disabled /></label>
-            <label class="indented-dialog-field">Password <input type="password" disabled /></label>
+            <label><input id="local-storage-access" type="radio" name="access" value="local" checked /> Use local browser storage</label>
+            <label><input id="supabase-storage-access" type="radio" name="access" value="supabase" disabled /> Connect through Supabase Data API</label>
           </fieldset>
-          <p class="dialog-note">Data remains on this device. Server synchronization is not part of this demo.</p>
+          <p id="project-dialog-note" class="dialog-note" role="status">Data remains on this device. Server synchronization is not part of this demo.</p>
         </div>
         <div class="legacy-dialog-actions">
           <button id="test-store" type="button">Test</button>
@@ -542,6 +549,65 @@
         <div class="legacy-dialog-actions">
           <button class="dialog-primary" value="plot" type="submit">OK</button>
           <button value="cancel" type="button" data-close-case-cluster>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="project-storage-dialog" class="legacy-dialog project-storage-dialog" aria-labelledby="project-storage-dialog-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="project-storage-dialog-title">Project Storage</strong>
+          <button type="button" data-close-project-storage aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p>Connect and synchronize the current project: <strong id="storage-current-project"></strong></p>
+
+          <fieldset>
+            <legend>Supabase connection</legend>
+            <label for="storage-supabase-url">Project URL</label>
+            <input id="storage-supabase-url" type="url" placeholder="https://your-project.supabase.co" autocomplete="url" spellcheck="false" />
+            <label for="storage-supabase-key">Publishable key</label>
+            <input id="storage-supabase-key" type="password" placeholder="sb_publishable_..." autocomplete="off" spellcheck="false" />
+            <div class="dialog-inline-actions">
+              <button id="storage-test-connection" type="button">Test Connection</button>
+              <button id="storage-copy-schema" type="button">Copy Setup SQL</button>
+            </div>
+            <p id="project-storage-status" class="dialog-note connection-feedback" role="status" aria-live="polite">Not connected.</p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Supabase account</legend>
+            <div class="oauth-sign-in">
+              <button id="storage-sign-in-github" type="button" disabled>Sign in with GitHub</button>
+              <span id="storage-github-status">Test the connection to check whether GitHub sign-in is enabled.</span>
+            </div>
+            <div class="auth-divider"><span>or use an Epi Info AI account</span></div>
+            <label for="storage-auth-email">Email</label>
+            <input id="storage-auth-email" type="email" autocomplete="username" />
+            <label for="storage-auth-password">Password</label>
+            <input id="storage-auth-password" type="password" autocomplete="current-password" minlength="6" />
+            <div class="dialog-inline-actions">
+              <button id="storage-sign-in" type="button">Sign In</button>
+              <button id="storage-sign-up" type="button">Create Account</button>
+              <button id="storage-sign-out" type="button" disabled>Sign Out</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Synchronization</legend>
+            <label for="storage-hosted-project">Hosted project</label>
+            <select id="storage-hosted-project">
+              <option value="">Sign in to list hosted projects</option>
+            </select>
+            <div class="dialog-inline-actions">
+              <button id="storage-upload" type="button" disabled>Upload Current Project</button>
+              <button id="storage-download" type="button" disabled>Download Hosted Copy</button>
+            </div>
+            <p class="dialog-note">Use Upload for the initial synchronization of the current CSV-created project.</p>
+          </fieldset>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button type="button" data-close-project-storage>Close</button>
         </div>
       </form>
     </dialog>

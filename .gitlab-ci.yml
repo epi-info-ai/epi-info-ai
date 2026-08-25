@@ -1,9 +1,21 @@
 stages:
+  - test
   - deploy
+
+phase0-baseline:
+  stage: test
+  image: node:24.19.0-alpine
+  script:
+    - node wasm/tests/phase0-smoke.mjs
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
 
 pages:
   stage: deploy
   image: alpine:3.20
+  needs:
+    - phase0-baseline
   script:
     - test -f wasm/demo/index.html
     - mkdir -p public

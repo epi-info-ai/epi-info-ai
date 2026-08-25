@@ -1,11 +1,16 @@
 import { calculateTable2x2 } from "./engine.js";
 import {
+  applyHostedProjectSnapshot,
+  getCurrentProjectSnapshot,
   getCurrentProjectData,
   getProjectDataSources,
   initializeFormDataDemo,
+  markCurrentProjectSynced,
   showRecordInEnter,
-} from "./form-data.js?v=14";
-import { initializeMaps } from "./maps.js?v=3";
+  testSupabaseConnection,
+} from "./form-data.js?v=17";
+import { initializeMaps } from "./maps.js?v=4";
+import { initializeSupabaseSync } from "./supabase-sync.js?v=2";
 
 const form = document.querySelector("#table-form");
 const message = document.querySelector("#form-message");
@@ -165,6 +170,12 @@ calculate();
 try {
   initializeFormDataDemo();
   initializeMaps(getCurrentProjectData, getProjectDataSources, showRecordInEnter);
+  initializeSupabaseSync({
+    getSnapshot: getCurrentProjectSnapshot,
+    markSynced: markCurrentProjectSynced,
+    applySnapshot: applyHostedProjectSnapshot,
+    testConnection: testSupabaseConnection,
+  });
 } catch (error) {
   console.error(error);
   const status = document.querySelector("#main-menu-status");

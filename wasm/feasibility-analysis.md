@@ -8,6 +8,12 @@ The official historical [`Epi Info 7 User Guide`](docs/reference/Epi-Info-7-User
 
 ## Executive conclusion
 
+> **Decision update:** The subsequent architecture decision standardized the
+> product application on TypeScript, selected Rust/WASM for the deterministic Epi
+> kernel, and restricted JavaScript to thin runtime glue. The earlier recommendation
+> below to compare .NET and Rust is retained as historical spike context. Execution
+> now follows [`migration-plan.md`](migration-plan.md).
+
 Porting Epi Info's essential workflows to an offline browser application is **technically feasible**. Reusing a meaningful portion of its validated epidemiologic algorithms is also feasible. Compiling the existing desktop solution directly to WebAssembly is not.
 
 The recommended strategy is selective extraction:

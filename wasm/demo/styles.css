@@ -1177,10 +1177,29 @@ select {
 
 .legacy-dialog-body > input,
 .legacy-dialog-body > select,
+.dialog-conditional-fields input,
 .indented-dialog-field input {
   min-height: 2rem;
   padding: 0.3rem 0.45rem;
   border: 1px solid #9caeb8;
+}
+
+.dialog-conditional-fields {
+  display: grid;
+  gap: 0.38rem;
+  margin-top: 0.25rem;
+  padding: 0.65rem;
+  background: #f7f9fa;
+  border: 1px solid #bdc9cf;
+}
+
+.dialog-conditional-fields[hidden] {
+  display: none;
+}
+
+.dialog-conditional-fields label {
+  font-size: 0.78rem;
+  font-weight: 650;
 }
 
 .legacy-dialog-body fieldset {
@@ -1232,6 +1251,82 @@ select {
 .legacy-dialog-actions .dialog-primary {
   border-color: #1197c5;
   box-shadow: 0 0 0 1px #79d1ed inset;
+}
+
+.project-storage-dialog {
+  width: min(38rem, calc(100% - 2rem));
+}
+
+.project-storage-dialog fieldset input,
+.project-storage-dialog fieldset select {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid #9caeb8;
+}
+
+.project-storage-dialog fieldset > label {
+  font-weight: 650;
+}
+
+.dialog-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.dialog-inline-actions button {
+  min-height: 1.9rem;
+  padding: 0.28rem 0.65rem;
+  color: #243d4c;
+  background: linear-gradient(#fff, #e4e8ea);
+  border: 1px solid #8899a3;
+  border-radius: 0.2rem;
+}
+
+.connection-feedback {
+  min-height: 2rem;
+  margin: 0.15rem 0 0;
+  padding: 0.45rem 0.55rem;
+  background: #eef7fa;
+  border-left: 3px solid #1685a6;
+}
+
+.oauth-sign-in {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0.65rem;
+}
+
+.oauth-sign-in button {
+  min-width: 10.5rem;
+  min-height: 2rem;
+}
+
+.oauth-sign-in span {
+  color: #455d6b;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.65rem 0;
+  color: #607582;
+  font-size: 0.75rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  height: 1px;
+  flex: 1;
+  background: #bccbd3;
+  content: "";
 }
 
 .enter-module-toolbar {

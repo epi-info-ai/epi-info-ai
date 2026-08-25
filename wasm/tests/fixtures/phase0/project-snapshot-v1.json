@@ -1,0 +1,24 @@
+{
+  "name": "Phase 0 Synthetic Outbreak",
+  "currentFormId": "form-cases",
+  "storage": { "type": "browser" },
+  "forms": [
+    {
+      "id": "form-cases",
+      "schema": {
+        "name": "Case Report Form",
+        "fields": [
+          { "name": "case_id", "prompt": "Case ID", "type": "text", "required": true },
+          { "name": "onset_date", "prompt": "Onset date", "type": "date", "required": false },
+          { "name": "ill", "prompt": "Ill", "type": "yes-no", "required": true },
+          { "name": "latitude", "prompt": "Latitude", "type": "number", "required": false },
+          { "name": "longitude", "prompt": "Longitude", "type": "number", "required": false }
+        ]
+      },
+      "records": [
+        { "case_id": "CASE-001", "onset_date": "2026-08-20", "ill": "Yes", "latitude": "41.6528", "longitude": "-83.5379" },
+        { "case_id": "CASE-002", "onset_date": "2026-08-21", "ill": "No", "latitude": "41.6639", "longitude": "-83.5552" }
+      ]
+    }
+  ]
+}

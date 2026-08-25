@@ -21,7 +21,17 @@ function option(value, label) {
 }
 
 function likelyField(fields, patterns) {
-  return fields.find((field) => patterns.some((pattern) => pattern.test(field.name)))?.name || "";
+  return fields.find((field) => patterns.some((pattern) => (
+    pattern.test(field.name || "") || pattern.test(field.prompt || "")
+  )))?.name || "";
+}
+
+export function inferMapFields(fields) {
+  return {
+    latitude: likelyField(fields, [/^lat$/i, /latitude/i, /gps_?lat/i]),
+    longitude: likelyField(fields, [/^(lon|lng|long)$/i, /longitude/i, /gps_?(lon|lng)/i]),
+    label: likelyField(fields, [/case[\s_-]?id/i, /^id$/i, /name/i]),
+  };
 }
 
 function setMapHeading(data = null) {
@@ -39,19 +49,21 @@ function populateFieldSelectors(data) {
   const longitude = document.querySelector("#map-longitude-field");
   const label = document.querySelector("#map-label-field");
   const previous = { latitude: latitude.value, longitude: longitude.value, label: label.value };
+  const inferred = inferMapFields(data.fields);
   const fieldOptions = data.fields.map((field) => option(field.name, `${field.prompt} (${field.name})`));
   latitude.replaceChildren(option("", "Select latitude"), ...fieldOptions.map((item) => item.cloneNode(true)));
   longitude.replaceChildren(option("", "Select longitude"), ...fieldOptions.map((item) => item.cloneNode(true)));
   label.replaceChildren(option("", "No label"), ...fieldOptions.map((item) => item.cloneNode(true)));
   latitude.value = data.fields.some((field) => field.name === previous.latitude)
     ? previous.latitude
-    : likelyField(data.fields, [/^lat$/i, /latitude/i, /gps_?lat/i]);
+    : inferred.latitude;
   longitude.value = data.fields.some((field) => field.name === previous.longitude)
     ? previous.longitude
-    : likelyField(data.fields, [/^(lon|lng|long)$/i, /longitude/i, /gps_?(lon|lng)/i]);
+    : inferred.longitude;
   label.value = data.fields.some((field) => field.name === previous.label)
     ? previous.label
-    : likelyField(data.fields, [/case_?id/i, /^id$/i, /name/i]);
+    : inferred.label;
+  return { latitude: latitude.value, longitude: longitude.value, label: label.value };
 }
 
 function ensureMap() {
@@ -183,14 +195,20 @@ function captureLocation() {
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
 }
 
-function configureLaunch(context, getCurrentData) {
+function configureLaunch(context, getCurrentData, openRecord) {
   mapContext = context;
   resetMapWorkspace();
   if (context === "current-form") {
     activeData = getCurrentData();
     setMapHeading(activeData);
-    document.querySelector("#map-empty-state").textContent = "Linked to Enter Data. Select Add Data Layer > Case Cluster to map the current form.";
-    document.querySelector("#map-status").textContent = "Current form linked from Enter Data.";
+    const selectedFields = populateFieldSelectors(activeData);
+    if (selectedFields.latitude && selectedFields.longitude) {
+      plotRecords(activeData, openRecord);
+      document.querySelector("#map-layer-panel").open = caseClusterAdded;
+    } else {
+      document.querySelector("#map-empty-state").textContent = "The current form is linked, but its coordinate fields need to be selected.";
+      document.querySelector("#map-status").textContent = "Latitude and longitude fields were not identified. Use Add Data Layer > Case Cluster to select them.";
+    }
   } else {
     setMapHeading();
     document.querySelector("#map-empty-state").textContent = "Select Add Data Layer > Case Cluster, then choose a project form.";
@@ -233,7 +251,7 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
       setTimeout(() => {
         try {
           ensureMap();
-          configureLaunch(context, getCurrentData);
+          configureLaunch(context, getCurrentData, openRecord);
           map.invalidateSize();
         } catch (error) {
           document.querySelector("#map-status").textContent = error.message;

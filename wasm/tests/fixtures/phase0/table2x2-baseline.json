@@ -1,0 +1,34 @@
+{
+  "input": {
+    "exposedCases": 40,
+    "exposedNonCases": 60,
+    "unexposedCases": 10,
+    "unexposedNonCases": 90,
+    "confidenceLevel": 0.95
+  },
+  "contract": {
+    "schemaVersion": "0.1.0",
+    "operation": "epi.table2x2",
+    "engineId": "rust-wasm-spike",
+    "engineVersion": "0.1.0"
+  },
+  "expected": {
+    "totals": {
+      "exposed": 100,
+      "unexposed": 100,
+      "cases": 50,
+      "nonCases": 150,
+      "overall": 200
+    },
+    "riskExposed": 0.4,
+    "riskUnexposed": 0.1,
+    "riskRatio": 4,
+    "oddsRatio": 6,
+    "riskDifference": 0.3,
+    "pearsonChiSquare": 24,
+    "mantelHaenszelChiSquare": 23.88,
+    "yatesChiSquare": 22.426666666666666,
+    "expectedCellCounts": [25, 75, 25, 75]
+  },
+  "absoluteTolerance": 1e-12
+}
