@@ -69,6 +69,7 @@ async function checkRequiredAssetsAndUi() {
     "map-fullscreen-toggle",
     "geojson-dialog",
     "geojson-file",
+    "geojson-label-field",
     "map-geojson-layers",
     "table-form",
     "project-storage-dialog",
@@ -199,7 +200,7 @@ async function checkCsvAndProjectFixtures() {
 
 async function checkMapFixture() {
   const fixture = await jsonFixture("map-points.json");
-  const { extractMapPoints, inferMapFields, parseGeoJson } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
+  const { extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, parseGeoJson } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
   const points = extractMapPoints(fixture.records, fixture.latitudeField, fixture.longitudeField);
   assert.deepEqual(points.map(({ recordIndex, latitude, longitude }) => ({ recordIndex, latitude, longitude })), fixture.expected);
   assert.deepEqual(inferMapFields([
@@ -211,6 +212,7 @@ async function checkMapFixture() {
   const parsed = parseGeoJson(geoJsonFixture);
   assert.equal(parsed.geojson.type, "FeatureCollection");
   assert.equal(parsed.featureCount, 3);
+  assert.deepEqual(listGeoJsonPolygonProperties(parsed.geojson), ["name", "status"]);
   assert.throws(() => parseGeoJson("not json"), /not valid JSON/);
   assert.throws(() => parseGeoJson('{"type":"FeatureCollection","features":[{},{}]}'), /must be a Feature/);
   assert.throws(() => parseGeoJson(geoJsonFixture, 2), /demo limit/);

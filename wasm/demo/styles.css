@@ -1647,6 +1647,24 @@ body.map-fullscreen-fallback {
   border-color: #7f1d1d;
 }
 
+.leaflet-tooltip.geojson-polygon-label {
+  padding: 0.15rem 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #14394f;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(23, 79, 120, 0.45);
+  box-shadow: 0 1px 3px rgba(15, 55, 78, 0.16);
+  pointer-events: none;
+}
+
+.leaflet-tooltip.geojson-polygon-label::before {
+  display: none;
+}
+
 .map-empty-state {
   position: absolute;
   z-index: 500;

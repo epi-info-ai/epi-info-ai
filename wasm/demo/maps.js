@@ -86,6 +86,22 @@ export function parseGeoJson(text, maximumFeatures = MAX_GEOJSON_FEATURES) {
   return { geojson, featureCount };
 }
 
+export function listGeoJsonPolygonProperties(geojson) {
+  const features = geojson?.type === "FeatureCollection"
+    ? geojson.features
+    : geojson?.type === "Feature"
+      ? [geojson]
+      : [];
+  const fields = new Set();
+  for (const feature of features || []) {
+    if (!["Polygon", "MultiPolygon"].includes(feature?.geometry?.type)) continue;
+    for (const [key, value] of Object.entries(feature.properties || {})) {
+      if (value === null || ["string", "number", "boolean"].includes(typeof value)) fields.add(key);
+    }
+  }
+  return [...fields].sort((left, right) => left.localeCompare(right));
+}
+
 function setMapHeading(data = null) {
   const heading = document.querySelector("#map-project-name");
   if (!data) {
@@ -255,8 +271,8 @@ function renderGeoJsonLayerList() {
     toggle.dataset.geojsonToggle = id;
     const name = document.createElement("span");
     name.className = "map-geojson-layer-name";
-    name.textContent = `${entry.name} (${entry.featureCount})`;
-    name.title = entry.name;
+    name.textContent = `${entry.name} (${entry.featureCount})${entry.labelField ? ` - labels: ${entry.labelField}` : ""}`;
+    name.title = entry.labelField ? `${entry.name}; polygon labels: ${entry.labelField}` : entry.name;
     label.append(toggle, name);
     const remove = document.createElement("button");
     remove.type = "button";
@@ -280,7 +296,7 @@ function combinedLayerBounds() {
   return bounds;
 }
 
-function addGeoJsonLayer(geojson, featureCount, name) {
+function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
   const currentMap = ensureMap();
   const layer = L.geoJSON(geojson, {
     style: { color: "#2563a5", weight: 2, fillColor: "#4f9dc7", fillOpacity: 0.22 },
@@ -294,17 +310,30 @@ function addGeoJsonLayer(geojson, featureCount, name) {
     onEachFeature: (feature, featureLayer) => {
       const popup = geoJsonPopup(feature);
       if (popup) featureLayer.bindPopup(popup);
+      if (labelField && ["Polygon", "MultiPolygon"].includes(feature?.geometry?.type)) {
+        const labelValue = feature.properties?.[labelField];
+        if (labelValue !== null && labelValue !== undefined && typeof labelValue !== "object") {
+          const label = document.createElement("span");
+          label.textContent = String(labelValue);
+          featureLayer.bindTooltip(label, {
+            permanent: true,
+            direction: "center",
+            className: "geojson-polygon-label",
+          });
+        }
+      }
     },
   });
   layer.addTo(currentMap);
   const bounds = layer.getBounds();
   const id = globalThis.crypto?.randomUUID?.() || `geojson-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  geoJsonLayers.set(id, { layer, name, featureCount, bounds });
+  geoJsonLayers.set(id, { layer, name, featureCount, bounds, labelField });
   renderGeoJsonLayerList();
   updateLayerCount();
   refreshMapEmptyState();
   document.querySelector("#map-layer-panel").open = true;
-  document.querySelector("#map-status").textContent = `Added GeoJSON layer “${name}” with ${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}.`;
+  const labelMessage = labelField ? ` Polygon labels use “${labelField}”.` : "";
+  document.querySelector("#map-status").textContent = `Added GeoJSON layer “${name}” with ${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}.${labelMessage}`;
   if (bounds.isValid()) currentMap.fitBounds(bounds.pad(0.12), { maxZoom: 16 });
 }
 
@@ -440,8 +469,10 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   const geoJsonForm = document.querySelector("#geojson-form");
   const geoJsonFile = document.querySelector("#geojson-file");
   const geoJsonName = document.querySelector("#geojson-layer-name");
+  const geoJsonLabelField = document.querySelector("#geojson-label-field");
   const geoJsonStatus = document.querySelector("#geojson-dialog-status");
   let dialogSources = [];
+  let geoJsonInspectionVersion = 0;
   for (const button of document.querySelectorAll('[data-module="maps"], [data-open-module="maps"]')) {
     button.addEventListener("click", () => {
       const context = button.dataset.mapContext || "standalone";
@@ -478,12 +509,39 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   document.querySelector("#map-add-geojson").addEventListener("click", () => {
     document.querySelector("#map-add-layer-menu").open = false;
     geoJsonForm.reset();
+    geoJsonLabelField.replaceChildren(option("", "No polygon labels"));
+    geoJsonLabelField.disabled = true;
     geoJsonStatus.textContent = "Files are read locally and are not uploaded to a server. Maximum size: 10 MB.";
     geoJsonDialog.showModal();
   });
-  geoJsonFile.addEventListener("change", () => {
-    if (!geoJsonName.value.trim() && geoJsonFile.files[0]) {
-      geoJsonName.value = geoJsonFile.files[0].name.replace(/\.(?:geojson|json)$/i, "");
+  geoJsonFile.addEventListener("change", async () => {
+    const inspectionVersion = ++geoJsonInspectionVersion;
+    const file = geoJsonFile.files[0];
+    geoJsonLabelField.replaceChildren(option("", "No polygon labels"));
+    geoJsonLabelField.disabled = true;
+    if (!file) return;
+    if (!geoJsonName.value.trim()) geoJsonName.value = file.name.replace(/\.(?:geojson|json)$/i, "");
+    if (file.size > MAX_GEOJSON_BYTES) {
+      geoJsonStatus.textContent = "This file is larger than the 10 MB demo limit.";
+      return;
+    }
+    geoJsonStatus.textContent = "Inspecting GeoJSON properties...";
+    try {
+      const { geojson, featureCount } = parseGeoJson(await file.text());
+      if (inspectionVersion !== geoJsonInspectionVersion) return;
+      const fields = listGeoJsonPolygonProperties(geojson);
+      geoJsonLabelField.replaceChildren(
+        option("", "No polygon labels"),
+        ...fields.map((field) => option(field, field)),
+      );
+      geoJsonLabelField.disabled = fields.length === 0;
+      geoJsonStatus.textContent = fields.length > 0
+        ? `${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}; choose one of ${fields.length} polygon label field${fields.length === 1 ? "" : "s"}, or use no labels.`
+        : `${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}; no simple polygon properties are available for labels.`;
+    } catch (error) {
+      if (inspectionVersion === geoJsonInspectionVersion) {
+        geoJsonStatus.textContent = error instanceof Error ? error.message : "Unable to inspect this GeoJSON file.";
+      }
     }
   });
   for (const button of document.querySelectorAll("[data-close-geojson]")) {
@@ -501,7 +559,7 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     try {
       const { geojson, featureCount } = parseGeoJson(await file.text());
       const layerName = geoJsonName.value.trim() || file.name.replace(/\.(?:geojson|json)$/i, "") || "GeoJSON Layer";
-      addGeoJsonLayer(geojson, featureCount, layerName);
+      addGeoJsonLayer(geojson, featureCount, layerName, geoJsonLabelField.value);
       geoJsonDialog.close("add");
     } catch (error) {
       geoJsonStatus.textContent = error instanceof Error ? error.message : "Unable to add this GeoJSON file.";
