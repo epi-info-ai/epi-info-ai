@@ -65,6 +65,7 @@ Then open `http://localhost:8000/`.
 - Added compact/minimizable layer controls and improved Fit Layers behavior.
 - Added a cumulative case-cluster time-lapse workflow based on date/time fields.
 - Fixed fullscreen mapping so the complete map workspace remains visible after expansion.
+- Enforced the cartographic drawing hierarchy: points above lines, lines above polygons, and polygons above raster basemaps.
 - Preserved the separate legacy workflows for Main Menu > Create Maps and Enter Data > Maps.
 
 ## TODO

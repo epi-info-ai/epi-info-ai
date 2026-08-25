@@ -9,7 +9,7 @@ import {
   showRecordInEnter,
   testSupabaseConnection,
 } from "./form-data.js?v=17";
-import { initializeMaps } from "./maps.js?v=10";
+import { initializeMaps } from "./maps.js?v=11";
 import { initializeSupabaseSync } from "./supabase-sync.js?v=2";
 
 const form = document.querySelector("#table-form");

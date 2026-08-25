@@ -18,6 +18,20 @@ const geoJsonLayers = new Map();
 const h3Layers = new Map();
 const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
 const MAX_GEOJSON_FEATURES = 10000;
+export const MAP_PANE_Z_INDEX = Object.freeze({
+  raster: 200,
+  polygon: 410,
+  line: 420,
+  point: 430,
+  label: 440,
+});
+
+export function mapPaneForGeometryType(type) {
+  if (["Point", "MultiPoint"].includes(type)) return "epi-point-pane";
+  if (["LineString", "MultiLineString"].includes(type)) return "epi-line-pane";
+  if (["Polygon", "MultiPolygon"].includes(type)) return "epi-polygon-pane";
+  return "epi-polygon-pane";
+}
 
 function updateLayerCount() {
   const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + h3Layers.size;
@@ -283,8 +297,13 @@ function ensureMap() {
   if (map) return map;
   if (!globalThis.L) throw new Error("The map library could not be loaded.");
   map = L.map("epi-map", { zoomControl: true }).setView([39.8283, -98.5795], 4);
+  for (const [name, zIndex] of Object.entries(MAP_PANE_Z_INDEX)) {
+    const pane = map.createPane(`epi-${name}-pane`);
+    pane.style.zIndex = String(zIndex);
+  }
   tileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
+    pane: "epi-raster-pane",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   });
   tileLayer.on("tileerror", () => {
@@ -408,6 +427,25 @@ function geoJsonPopup(feature) {
   return content;
 }
 
+function expandGeoJsonFeatures(geojson) {
+  const sourceFeatures = geojson.type === "FeatureCollection"
+    ? geojson.features
+    : geojson.type === "Feature"
+      ? [geojson]
+      : [{ type: "Feature", properties: {}, geometry: geojson }];
+  const expanded = [];
+  const addGeometry = (geometry, properties) => {
+    if (!geometry) return;
+    if (geometry.type === "GeometryCollection") {
+      geometry.geometries.forEach((child) => addGeometry(child, properties));
+      return;
+    }
+    expanded.push({ type: "Feature", properties, geometry });
+  };
+  for (const feature of sourceFeatures) addGeometry(feature.geometry, feature.properties || {});
+  return expanded;
+}
+
 function refreshMapEmptyState() {
   document.querySelector("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || h3Layers.size > 0;
 }
@@ -524,9 +562,13 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
   const currentMap = ensureMap();
   const labelLayer = L.layerGroup();
   const labels = [];
-  const geometryLayer = L.geoJSON(geojson, {
-    style: { color: "#2563a5", weight: 2, fillColor: "#4f9dc7", fillOpacity: 0.22 },
+  const features = expandGeoJsonFeatures(geojson);
+  const layerOptions = {
+    style: (feature) => ["LineString", "MultiLineString"].includes(feature.geometry?.type)
+      ? { color: "#2563a5", weight: 2.5, opacity: 0.9 }
+      : { color: "#2563a5", weight: 2, fillColor: "#4f9dc7", fillOpacity: 0.22 },
     pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
+      pane: "epi-point-pane",
       radius: 6,
       color: "#174f78",
       weight: 2,
@@ -546,6 +588,7 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
           label.className = "geojson-polygon-label";
           label.textContent = text;
           const marker = L.marker([anchor.latitude, anchor.longitude], {
+            pane: "epi-label-pane",
             interactive: false,
             keyboard: false,
             icon: L.divIcon({
@@ -565,7 +608,16 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
         }
       }
     },
-  });
+  };
+  const geometryLayers = [
+    ["Polygon", "MultiPolygon"],
+    ["LineString", "MultiLineString"],
+    ["Point", "MultiPoint"],
+  ].map((types) => L.geoJSON({
+    type: "FeatureCollection",
+    features: features.filter((feature) => types.includes(feature.geometry?.type)),
+  }, { ...layerOptions, pane: mapPaneForGeometryType(types[0]) }));
+  const geometryLayer = L.featureGroup(geometryLayers);
   const layer = L.layerGroup([geometryLayer, labelLayer]);
   layer.addTo(currentMap);
   const bounds = geometryLayer.getBounds();
@@ -635,6 +687,7 @@ function addH3Layer(resolution, name) {
   const layer = L.featureGroup();
   for (const entry of cells) {
     L.polygon(cellToBoundary(entry.cell), {
+      pane: "epi-polygon-pane",
       color: "#743116",
       weight: 1.2,
       fillColor: h3FillColor(entry.count, maximumCount),
@@ -711,6 +764,7 @@ function renderRecordMarkers(mappedRecords) {
   recordLayer.clearLayers();
   for (const { record, recordIndex, latitude, longitude } of mappedRecords) {
     const marker = L.circleMarker([latitude, longitude], {
+      pane: "epi-point-pane",
       radius: 6,
       color: "#9f221b",
       weight: 2,
@@ -799,8 +853,8 @@ function captureLocation() {
     ensureMap();
     const { latitude, longitude, accuracy } = position.coords;
     locationLayer.clearLayers();
-    L.circle([latitude, longitude], { radius: accuracy, color: "#d97706", weight: 1, fillColor: "#f0a202", fillOpacity: 0.12 }).addTo(locationLayer);
-    L.circleMarker([latitude, longitude], { radius: 7, color: "#92400e", weight: 2, fillColor: "#f0a202", fillOpacity: 0.95 })
+    L.circle([latitude, longitude], { pane: "epi-polygon-pane", radius: accuracy, color: "#d97706", weight: 1, fillColor: "#f0a202", fillOpacity: 0.12 }).addTo(locationLayer);
+    L.circleMarker([latitude, longitude], { pane: "epi-point-pane", radius: 7, color: "#92400e", weight: 2, fillColor: "#f0a202", fillOpacity: 0.95 })
       .bindPopup(`Current location<br>Accuracy: ${Math.round(accuracy)} m`).addTo(locationLayer).openPopup();
     locationAdded = true;
     updateLayerCount();

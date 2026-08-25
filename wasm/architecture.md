@@ -163,7 +163,7 @@ and has no runtime dependencies or operating-system access.
 | Form generation and field-type inference from CSV | `demo/form-data.js` | JavaScript |
 | Supabase email/GitHub authentication, project snapshot upload/download, and revision conflict checks | `demo/supabase-sync.js` | JavaScript |
 | Coordinate-field selection and record-to-point filtering | `demo/maps.js` | JavaScript |
-| Interactive map, layers, popups, and viewport control | `demo/maps.js` + Leaflet | JavaScript |
+| Interactive map, explicit raster/polygon/line/point pane hierarchy, popups, and viewport control | `demo/maps.js` + Leaflet | JavaScript |
 | Browser-local GeoJSON validation, upload, rendering, and layer controls | `demo/maps.js` + Leaflet | JavaScript |
 | Cumulative case-cluster time lapse from date/time fields | `demo/maps.js` + Leaflet | JavaScript |
 | Configurable H3 indexing, record aggregation, and hexagon layers | `demo/maps.js` + h3-js + Leaflet | JavaScript |

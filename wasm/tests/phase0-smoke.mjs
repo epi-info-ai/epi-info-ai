@@ -213,7 +213,7 @@ async function checkCsvAndProjectFixtures() {
 
 async function checkMapFixture() {
   const fixture = await jsonFixture("map-points.json");
-  const { aggregateH3Cells, buildTimeLapseStops, extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
+  const { aggregateH3Cells, buildTimeLapseStops, extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, MAP_PANE_Z_INDEX, mapPaneForGeometryType, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
   const points = extractMapPoints(fixture.records, fixture.latitudeField, fixture.longitudeField);
   assert.deepEqual(points.map(({ recordIndex, latitude, longitude }) => ({ recordIndex, latitude, longitude })), fixture.expected);
   const h3Cells = aggregateH3Cells(points, 8);
@@ -223,6 +223,12 @@ async function checkMapFixture() {
   assert.throws(() => aggregateH3Cells(points, -1), /0 through 15/);
   assert.throws(() => aggregateH3Cells(points, 16), /0 through 15/);
   assert.throws(() => aggregateH3Cells(points, 8.5), /whole number/);
+  assert.ok(MAP_PANE_Z_INDEX.point > MAP_PANE_Z_INDEX.line);
+  assert.ok(MAP_PANE_Z_INDEX.line > MAP_PANE_Z_INDEX.polygon);
+  assert.ok(MAP_PANE_Z_INDEX.polygon > MAP_PANE_Z_INDEX.raster);
+  assert.equal(mapPaneForGeometryType("Point"), "epi-point-pane");
+  assert.equal(mapPaneForGeometryType("LineString"), "epi-line-pane");
+  assert.equal(mapPaneForGeometryType("Polygon"), "epi-polygon-pane");
   assert.deepEqual(inferMapFields([
     { name: "case_number", prompt: "Case ID" },
     { name: "x_coordinate", prompt: "Longitude" },
