@@ -70,6 +70,13 @@ Then open `http://localhost:8000/`.
 
 ## TODO
 
+- Add a Visual Dashboard data-quality and missingness assessment workflow:
+  - field-level present, missing, and completeness counts and percentages;
+  - record-level missing-field counts and configurable completeness thresholds;
+  - missingness matrix/heatmap and common missing-data patterns;
+  - filtering and stratification to explore whether missingness differs by key variables;
+  - CSV/report export with explicit treatment of blank, unknown, not applicable, and structural missing values; and
+  - later-phase MCAR diagnostics, imputation, and sensitivity analysis only after statistical validation requirements are defined.
 - Complete multi-user, record-level synchronization and conflict resolution; Supabase currently synchronizes a single-user whole-project snapshot.
 - Migrate browser feature code from JavaScript to TypeScript while retaining JavaScript only for loading/glue and keeping epidemiologic algorithms in Rust/WASM.
 - Add explicit coordinate reference system detection and reprojection for imported spatial data; current case coordinates and GeoJSON are expected in WGS 84 longitude/latitude.
