@@ -66,6 +66,7 @@ async function checkRequiredAssetsAndUi() {
     "epi-map",
     "map-add-case-cluster",
     "map-add-geojson",
+    "map-fullscreen-toggle",
     "geojson-dialog",
     "geojson-file",
     "map-geojson-layers",

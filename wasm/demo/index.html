@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=19" />
+    <link rel="stylesheet" href="styles.css?v=20" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=2" defer></script>
-    <script type="module" src="app.js?v=19"></script>
+    <script type="module" src="app.js?v=20"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -284,6 +284,7 @@
             <div class="map-workspace">
               <div class="map-canvas-wrap">
                 <div id="epi-map" class="epi-map" aria-label="Interactive map of current form records"></div>
+                <button id="map-fullscreen-toggle" class="map-fullscreen-toggle" type="button" aria-label="Enter map fullscreen" aria-pressed="false" title="Enter map fullscreen"><span aria-hidden="true">&#x26F6;</span></button>
                 <fieldset class="map-basemap-picker" aria-label="Map background">
                   <label title="Satellite imagery requires a configured imagery provider"><input type="radio" name="map-basemap" value="satellite" disabled /> Satellite</label>
                   <label><input type="radio" name="map-basemap" value="street" checked /> Street</label>

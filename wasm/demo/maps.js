@@ -7,6 +7,7 @@ let caseClusterAdded = false;
 let locationAdded = false;
 let mapContext = "standalone";
 let activeData = null;
+let fallbackFullscreen = false;
 const geoJsonLayers = new Map();
 const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
 const MAX_GEOJSON_FEATURES = 10000;
@@ -133,6 +134,51 @@ function ensureMap() {
   locationLayer = L.layerGroup().addTo(map);
   L.control.scale({ imperial: true, metric: true }).addTo(map);
   return map;
+}
+
+function mapWindowElement() {
+  return document.querySelector("[data-module-view='maps'] .map-window");
+}
+
+function updateFullscreenControl() {
+  const target = mapWindowElement();
+  const button = document.querySelector("#map-fullscreen-toggle");
+  const active = document.fullscreenElement === target || fallbackFullscreen;
+  button.setAttribute("aria-pressed", String(active));
+  button.setAttribute("aria-label", active ? "Exit map fullscreen" : "Enter map fullscreen");
+  button.title = active ? "Exit map fullscreen" : "Enter map fullscreen";
+  setTimeout(() => map?.invalidateSize(), 0);
+}
+
+function setFallbackFullscreen(active) {
+  fallbackFullscreen = active;
+  mapWindowElement().classList.toggle("map-window-maximized", active);
+  document.body.classList.toggle("map-fullscreen-fallback", active);
+  updateFullscreenControl();
+}
+
+async function toggleMapFullscreen() {
+  const target = mapWindowElement();
+  if (document.fullscreenElement === target) {
+    await document.exitFullscreen();
+    return;
+  }
+  if (fallbackFullscreen) {
+    setFallbackFullscreen(false);
+    return;
+  }
+  if (target.requestFullscreen) {
+    try {
+      await target.requestFullscreen();
+      return;
+    } catch {
+      setFallbackFullscreen(true);
+      document.querySelector("#map-status").textContent = "Map expanded to fill this browser window.";
+      return;
+    }
+  }
+  setFallbackFullscreen(true);
+  document.querySelector("#map-status").textContent = "Map expanded to fill this browser window.";
 }
 
 function resetMapWorkspace() {
@@ -483,6 +529,18 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     document.querySelector("#map-status").textContent = `Removed GeoJSON layer “${entry.name}”.`;
   });
   document.querySelector("#map-current-location").addEventListener("click", captureLocation);
+  document.querySelector("#map-fullscreen-toggle").addEventListener("click", async () => {
+    try {
+      await toggleMapFullscreen();
+    } catch (error) {
+      document.querySelector("#map-status").textContent = error instanceof Error ? error.message : "Unable to change fullscreen mode.";
+    }
+  });
+  document.addEventListener("fullscreenchange", updateFullscreenControl);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && fallbackFullscreen) setFallbackFullscreen(false);
+  });
+  updateFullscreenControl();
   document.querySelector("#map-fit-points").addEventListener("click", () => {
     const bounds = combinedLayerBounds();
     if (bounds.isValid()) ensureMap().fitBounds(bounds.pad(0.18), { maxZoom: 15 });

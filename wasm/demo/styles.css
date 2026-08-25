@@ -1470,6 +1470,71 @@ select {
   background: #d9e5e9;
 }
 
+.map-fullscreen-toggle {
+  position: absolute;
+  z-index: 600;
+  top: 3.45rem;
+  right: 0.8rem;
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #243f4e;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #839aa6;
+  border-radius: 0.3rem;
+  box-shadow: 0 2px 6px rgba(19, 45, 58, 0.22);
+  cursor: pointer;
+}
+
+.map-fullscreen-toggle:hover,
+.map-fullscreen-toggle:focus-visible {
+  color: #fff;
+  background: #176a9a;
+}
+
+.map-fullscreen-toggle[aria-pressed="true"] {
+  font-size: 1.05rem;
+}
+
+.map-window:fullscreen,
+.map-window.map-window-maximized {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  flex-direction: column;
+  background: #e8edef;
+  border: 0;
+  border-radius: 0;
+}
+
+.map-window.map-window-maximized {
+  position: fixed;
+  z-index: 5000;
+  inset: 0;
+}
+
+body.map-fullscreen-fallback {
+  overflow: hidden;
+}
+
+.map-window:fullscreen .map-workspace,
+.map-window:fullscreen .map-canvas-wrap,
+.map-window.map-window-maximized .map-workspace,
+.map-window.map-window-maximized .map-canvas-wrap {
+  min-height: 0;
+  flex: 1;
+}
+
+.map-window:fullscreen .epi-map,
+.map-window.map-window-maximized .epi-map {
+  height: 100%;
+  min-height: 0;
+}
+
 .epi-map {
   width: 100%;
   min-height: 39rem;
@@ -1975,6 +2040,11 @@ select {
 
   .map-basemap-picker {
     top: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .map-fullscreen-toggle {
+    top: 3.15rem;
     right: 0.5rem;
   }
 
