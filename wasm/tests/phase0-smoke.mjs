@@ -67,6 +67,10 @@ async function checkRequiredAssetsAndUi() {
     "map-add-case-cluster",
     "map-add-geojson",
     "map-fullscreen-toggle",
+    "map-create-timelapse",
+    "time-lapse-dialog",
+    "time-lapse-field",
+    "map-time-lapse-controls",
     "geojson-dialog",
     "geojson-file",
     "geojson-label-field",
@@ -200,7 +204,7 @@ async function checkCsvAndProjectFixtures() {
 
 async function checkMapFixture() {
   const fixture = await jsonFixture("map-points.json");
-  const { extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
+  const { buildTimeLapseStops, extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
   const points = extractMapPoints(fixture.records, fixture.latitudeField, fixture.longitudeField);
   assert.deepEqual(points.map(({ recordIndex, latitude, longitude }) => ({ recordIndex, latitude, longitude })), fixture.expected);
   assert.deepEqual(inferMapFields([
@@ -227,6 +231,18 @@ async function checkMapFixture() {
   assert.ok(polygonWithHoleAnchor.clearance > 0);
   assert.ok(!(polygonWithHoleAnchor.longitude > 3 && polygonWithHoleAnchor.longitude < 7
     && polygonWithHoleAnchor.latitude > 3 && polygonWithHoleAnchor.latitude < 7));
+  const timeStops = buildTimeLapseStops([
+    { record: { onset_date: "2026-01-11" }, recordIndex: 1 },
+    { record: { onset_date: "2026-01-10" }, recordIndex: 0 },
+    { record: { onset_date: "2026-01-11" }, recordIndex: 2 },
+    { record: { onset_date: "not-a-date" }, recordIndex: 3 },
+  ], "onset_date");
+  assert.equal(timeStops.length, 2);
+  assert.deepEqual(timeStops.map((stop) => stop.points.map((point) => point.recordIndex)), [[0], [1, 2]]);
+  assert.throws(() => buildTimeLapseStops([
+    { record: { time: "08:00" } },
+    { record: { time: "09:00" } },
+  ], "time", 1), /demo limit/);
   assert.throws(() => parseGeoJson("not json"), /not valid JSON/);
   assert.throws(() => parseGeoJson('{"type":"FeatureCollection","features":[{},{}]}'), /must be a Feature/);
   assert.throws(() => parseGeoJson(geoJsonFixture, 2), /demo limit/);

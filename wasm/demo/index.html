@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=22" />
+    <link rel="stylesheet" href="styles.css?v=23" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=2" defer></script>
-    <script type="module" src="app.js?v=22"></script>
+    <script type="module" src="app.js?v=23"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -274,7 +274,7 @@
                 </div>
               </details>
               <button type="button" disabled title="Planned for a later mapping slice">Add Reference Layer</button>
-              <button type="button" disabled title="Planned for a later mapping slice">Create Time Lapse</button>
+              <button id="map-create-timelapse" type="button">Create Time Lapse</button>
               <span class="map-toolbar-divider" aria-hidden="true"></span>
               <button id="map-current-location" type="button">Current Location</button>
               <button id="map-fit-points" type="button">Fit Layers</button>
@@ -291,8 +291,20 @@
                   <label><input type="radio" name="map-basemap" value="blank" /> Blank</label>
                 </fieldset>
                 <div id="map-empty-state" class="map-empty-state">Select Add Data Layer &gt; Case Cluster, then choose a data source.</div>
+                <section id="map-time-lapse-controls" class="map-time-lapse-controls" aria-label="Time lapse controls" hidden>
+                  <strong>Time Lapse</strong>
+                  <button id="map-time-lapse-play" type="button" aria-label="Play time lapse">Play</button>
+                  <label class="sr-only" for="map-time-lapse-slider">Time stop</label>
+                  <input id="map-time-lapse-slider" type="range" min="0" max="0" value="0" />
+                  <output id="map-time-lapse-date" for="map-time-lapse-slider"></output>
+                  <span id="map-time-lapse-count"></span>
+                  <button id="map-time-lapse-close" type="button" aria-label="Close time lapse">Close</button>
+                </section>
                 <details id="map-layer-panel" class="map-layer-drawer">
-                  <summary>Map Layers (<span id="map-layer-count">0</span>)</summary>
+                  <summary id="map-layer-panel-toggle" aria-label="Maximize map layers" title="Maximize map layers">
+                    <span>Map Layers (<span id="map-layer-count">0</span>)</span>
+                    <span class="map-layer-drawer-icon" aria-hidden="true"></span>
+                  </summary>
                   <div class="map-layer-drawer-body">
                     <div class="map-layer-list">
                       <label><input id="map-record-layer-toggle" type="checkbox" checked /> <span id="map-record-layer-name">Case Cluster</span> (<strong id="map-point-count">0</strong>)</label>
@@ -552,6 +564,25 @@
         <div class="legacy-dialog-actions">
           <button class="dialog-primary" value="plot" type="submit">OK</button>
           <button value="cancel" type="button" data-close-case-cluster>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="time-lapse-dialog" class="legacy-dialog" aria-labelledby="time-lapse-dialog-title">
+      <form id="time-lapse-form" method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="time-lapse-dialog-title">Create Time Lapse</strong>
+          <button type="button" data-close-time-lapse aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p>Animate the current case-cluster layer using a date or time field.</p>
+          <label for="time-lapse-field">Time field</label>
+          <select id="time-lapse-field" required></select>
+          <p id="time-lapse-dialog-status" class="dialog-note" role="status" aria-live="polite">Records with blank or invalid time values will be skipped. A maximum of 1,000 time stops is supported.</p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button class="dialog-primary" value="create" type="submit">OK</button>
+          <button value="cancel" type="button" data-close-time-lapse>Cancel</button>
         </div>
       </form>
     </dialog>

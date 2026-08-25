@@ -57,6 +57,8 @@ system, viewport, and result in the review or release notes.
 - [ ] GeoJSON polygon properties populate the Polygon label field selector, and the selected field renders at an interior point only when the polygon has enough room at the current zoom.
 - [ ] Each labeled GeoJSON layer provides a Labels checkbox that hides or shows labels without hiding its polygons.
 - [ ] The fullscreen icon is visible by default, expands the complete map workspace, and exits from the icon or Escape.
+- [ ] Map Layers starts minimized, expands from its compact control, and minimizes again without changing layer visibility.
+- [ ] Create Time Lapse accepts a date/time field from the current case cluster, plays cumulatively, pauses, scrubs, and restores all points when closed.
 - [ ] Invalid JSON, invalid GeoJSON, and files over 10 MB produce feedback without removing existing layers.
 - [ ] Enter Data > Maps opens the current-form-linked map and automatically plots records when latitude and longitude fields are available.
 - [ ] Current Location requests browser permission only after the user activates it.

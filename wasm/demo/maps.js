@@ -8,6 +8,10 @@ let locationAdded = false;
 let mapContext = "standalone";
 let activeData = null;
 let fallbackFullscreen = false;
+let activeRecordPoints = [];
+let activeRecordLabelField = "";
+let activeRecordOpenHandler = null;
+let timeLapseState = null;
 const geoJsonLayers = new Map();
 const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
 const MAX_GEOJSON_FEATURES = 10000;
@@ -302,7 +306,7 @@ function updateFullscreenControl() {
   button.setAttribute("aria-pressed", String(active));
   button.setAttribute("aria-label", active ? "Exit map fullscreen" : "Enter map fullscreen");
   button.title = active ? "Exit map fullscreen" : "Enter map fullscreen";
-  setTimeout(() => map?.invalidateSize(), 0);
+  requestAnimationFrame(() => requestAnimationFrame(() => map?.invalidateSize({ pan: false })));
 }
 
 function setFallbackFullscreen(active) {
@@ -338,6 +342,7 @@ async function toggleMapFullscreen() {
 
 function resetMapWorkspace() {
   ensureMap();
+  closeTimeLapse(false);
   recordLayer.clearLayers();
   locationLayer.clearLayers();
   for (const entry of geoJsonLayers.values()) {
@@ -349,6 +354,9 @@ function resetMapWorkspace() {
   caseClusterAdded = false;
   locationAdded = false;
   activeData = null;
+  activeRecordPoints = [];
+  activeRecordLabelField = "";
+  activeRecordOpenHandler = null;
   document.querySelector("#map-point-count").textContent = "0";
   document.querySelector("#map-record-layer-name").textContent = "Case Cluster";
   document.querySelector("#map-record-layer-toggle").checked = true;
@@ -526,7 +534,6 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
   renderGeoJsonLayerList();
   updateLayerCount();
   refreshMapEmptyState();
-  document.querySelector("#map-layer-panel").open = true;
   const labelMessage = labelField ? ` Polygon labels use “${labelField}”.` : "";
   document.querySelector("#map-status").textContent = `Added GeoJSON layer “${name}” with ${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}.${labelMessage}`;
   if (bounds.isValid()) currentMap.fitBounds(bounds.pad(0.12), { maxZoom: 16 });
@@ -548,6 +555,105 @@ export function extractMapPoints(records, latitudeField, longitudeField) {
   return points;
 }
 
+function temporalValue(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const text = String(value).trim();
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  if (dateOnly) {
+    const year = Number(dateOnly[1]);
+    const month = Number(dateOnly[2]) - 1;
+    const day = Number(dateOnly[3]);
+    const date = new Date(year, month, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+    return { timestamp: date.getTime(), kind: "date" };
+  }
+  const timeOnly = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(text);
+  if (timeOnly) {
+    const hours = Number(timeOnly[1]);
+    const minutes = Number(timeOnly[2]);
+    const seconds = Number(timeOnly[3] || 0);
+    if (hours > 23 || minutes > 59 || seconds > 59) return null;
+    return { timestamp: new Date(1970, 0, 1, hours, minutes, seconds).getTime(), kind: "time" };
+  }
+  const timestamp = Date.parse(text);
+  return Number.isFinite(timestamp) ? { timestamp, kind: "datetime" } : null;
+}
+
+function formatTimeStop(timestamp, kind) {
+  const date = new Date(timestamp);
+  if (kind === "time") return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (kind === "date") return date.toLocaleDateString();
+  return date.toLocaleString();
+}
+
+export function buildTimeLapseStops(mappedRecords, timeField, maximumStops = 1000) {
+  const grouped = new Map();
+  for (const point of mappedRecords) {
+    const temporal = temporalValue(point.record?.[timeField]);
+    if (!temporal) continue;
+    const existing = grouped.get(temporal.timestamp) || { ...temporal, points: [] };
+    existing.points.push(point);
+    grouped.set(temporal.timestamp, existing);
+  }
+  if (grouped.size > maximumStops) {
+    throw new Error(`The selected field creates ${grouped.size.toLocaleString()} time stops; the demo limit is ${maximumStops.toLocaleString()}.`);
+  }
+  return [...grouped.values()]
+    .sort((left, right) => left.timestamp - right.timestamp)
+    .map((stop) => ({ ...stop, label: formatTimeStop(stop.timestamp, stop.kind) }));
+}
+
+function renderRecordMarkers(mappedRecords) {
+  recordLayer.clearLayers();
+  for (const { record, recordIndex, latitude, longitude } of mappedRecords) {
+    const marker = L.circleMarker([latitude, longitude], {
+      radius: 6,
+      color: "#9f221b",
+      weight: 2,
+      fillColor: "#df291e",
+      fillOpacity: 0.84,
+    }).bindPopup(markerPopup(record, activeRecordLabelField, latitude, longitude));
+    if (mapContext === "current-form" && activeRecordOpenHandler) {
+      marker.on("dblclick", () => activeRecordOpenHandler(activeData.formId, recordIndex));
+    }
+    marker.addTo(recordLayer);
+  }
+}
+
+function pauseTimeLapse() {
+  if (!timeLapseState) return;
+  if (timeLapseState.timer) clearInterval(timeLapseState.timer);
+  timeLapseState.timer = null;
+  const button = document.querySelector("#map-time-lapse-play");
+  button.textContent = "Play";
+  button.setAttribute("aria-label", "Play time lapse");
+}
+
+function renderTimeLapseStep(index) {
+  if (!timeLapseState) return;
+  const boundedIndex = Math.max(0, Math.min(index, timeLapseState.stops.length - 1));
+  timeLapseState.index = boundedIndex;
+  const visiblePoints = timeLapseState.stops.slice(0, boundedIndex + 1).flatMap((stop) => stop.points);
+  renderRecordMarkers(visiblePoints);
+  document.querySelector("#map-time-lapse-slider").value = String(boundedIndex);
+  document.querySelector("#map-time-lapse-date").textContent = timeLapseState.stops[boundedIndex].label;
+  document.querySelector("#map-time-lapse-count").textContent = `${visiblePoints.length} of ${timeLapseState.totalPoints}`;
+  document.querySelector("#map-point-count").textContent = String(visiblePoints.length);
+  document.querySelector("#map-status").textContent = `Time lapse: ${timeLapseState.stops[boundedIndex].label} - ${visiblePoints.length} mapped record${visiblePoints.length === 1 ? "" : "s"}.`;
+}
+
+function closeTimeLapse(restoreRecords = true) {
+  pauseTimeLapse();
+  timeLapseState = null;
+  document.querySelector("#map-time-lapse-controls").hidden = true;
+  document.querySelector(".map-canvas-wrap").classList.remove("time-lapse-active");
+  if (restoreRecords && activeRecordPoints.length > 0) {
+    renderRecordMarkers(activeRecordPoints);
+    document.querySelector("#map-point-count").textContent = String(activeRecordPoints.length);
+    document.querySelector("#map-status").textContent = `Time lapse closed; showing all ${activeRecordPoints.length} mapped records.`;
+  }
+}
+
 function plotRecords(data, openRecord) {
   const latitudeField = document.querySelector("#map-latitude-field").value;
   const longitudeField = document.querySelector("#map-longitude-field").value;
@@ -558,23 +664,14 @@ function plotRecords(data, openRecord) {
   }
 
   ensureMap();
-  recordLayer.clearLayers();
+  closeTimeLapse(false);
   const mappedRecords = extractMapPoints(data.records, latitudeField, longitudeField);
-  const points = [];
-  for (const { record, recordIndex, latitude, longitude } of mappedRecords) {
-    const marker = L.circleMarker([latitude, longitude], {
-      radius: 6,
-      color: "#9f221b",
-      weight: 2,
-      fillColor: "#df291e",
-      fillOpacity: 0.84,
-    }).bindPopup(markerPopup(record, labelField, latitude, longitude));
-    if (mapContext === "current-form") marker.on("dblclick", () => openRecord(data.formId, recordIndex));
-    marker.addTo(recordLayer);
-    points.push([latitude, longitude]);
-  }
-
   activeData = data;
+  activeRecordPoints = mappedRecords;
+  activeRecordLabelField = labelField;
+  activeRecordOpenHandler = openRecord;
+  renderRecordMarkers(mappedRecords);
+  const points = mappedRecords.map(({ latitude, longitude }) => [latitude, longitude]);
   setMapHeading(data);
   document.querySelector("#map-record-layer-name").textContent = `Case Cluster: ${data.formName}`;
   document.querySelector("#map-point-count").textContent = String(points.length);
@@ -621,7 +718,6 @@ function configureLaunch(context, getCurrentData, openRecord) {
     const selectedFields = populateFieldSelectors(activeData);
     if (selectedFields.latitude && selectedFields.longitude) {
       plotRecords(activeData, openRecord);
-      document.querySelector("#map-layer-panel").open = caseClusterAdded;
     } else {
       document.querySelector("#map-empty-state").textContent = "The current form is linked, but its coordinate fields need to be selected.";
       document.querySelector("#map-status").textContent = "Latitude and longitude fields were not identified. Use Add Data Layer > Case Cluster to select them.";
@@ -661,14 +757,27 @@ function prepareCaseClusterDialog(getCurrentData, getDataSources) {
 
 export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   const caseClusterDialog = document.querySelector("#case-cluster-dialog");
+  const timeLapseDialog = document.querySelector("#time-lapse-dialog");
+  const timeLapseField = document.querySelector("#time-lapse-field");
+  const timeLapseStatus = document.querySelector("#time-lapse-dialog-status");
   const geoJsonDialog = document.querySelector("#geojson-dialog");
   const geoJsonForm = document.querySelector("#geojson-form");
   const geoJsonFile = document.querySelector("#geojson-file");
   const geoJsonName = document.querySelector("#geojson-layer-name");
   const geoJsonLabelField = document.querySelector("#geojson-label-field");
   const geoJsonStatus = document.querySelector("#geojson-dialog-status");
+  const layerPanel = document.querySelector("#map-layer-panel");
+  const layerPanelToggle = document.querySelector("#map-layer-panel-toggle");
   let dialogSources = [];
   let geoJsonInspectionVersion = 0;
+  const updateLayerPanelToggle = () => {
+    const action = layerPanel.open ? "Minimize" : "Maximize";
+    layerPanelToggle.setAttribute("aria-label", `${action} map layers`);
+    layerPanelToggle.setAttribute("aria-expanded", String(layerPanel.open));
+    layerPanelToggle.title = `${action} map layers`;
+  };
+  layerPanel.addEventListener("toggle", updateLayerPanelToggle);
+  updateLayerPanelToggle();
   for (const button of document.querySelectorAll('[data-module="maps"], [data-open-module="maps"]')) {
     button.addEventListener("click", () => {
       const context = button.dataset.mapContext || "standalone";
@@ -700,8 +809,81 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     if (!event.currentTarget.reportValidity()) return;
     plotRecords(activeData, openRecord);
     caseClusterDialog.close("plot");
-    document.querySelector("#map-layer-panel").open = true;
   });
+  document.querySelector("#map-create-timelapse").addEventListener("click", () => {
+    if (!caseClusterAdded || !activeData || activeRecordPoints.length === 0) {
+      document.querySelector("#map-status").textContent = "Add a case-cluster layer before creating a time lapse.";
+      return;
+    }
+    const temporalFields = activeData.fields.filter((field) => (
+      ["date", "time", "datetime", "date-time"].includes(field.type)
+      || /(date|time)/i.test(`${field.name} ${field.prompt || ""}`)
+    ));
+    if (temporalFields.length === 0) {
+      document.querySelector("#map-status").textContent = "The current case cluster has no date or time fields.";
+      return;
+    }
+    timeLapseField.replaceChildren(
+      option("", "Select a time field"),
+      ...temporalFields.map((field) => option(field.name, `${field.prompt} (${field.name})`)),
+    );
+    timeLapseStatus.textContent = "Records with blank or invalid time values will be skipped. A maximum of 1,000 time stops is supported.";
+    timeLapseDialog.showModal();
+  });
+  for (const button of document.querySelectorAll("[data-close-time-lapse]")) {
+    button.addEventListener("click", () => timeLapseDialog.close("cancel"));
+  }
+  document.querySelector("#time-lapse-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    try {
+      const stops = buildTimeLapseStops(activeRecordPoints, timeLapseField.value);
+      if (stops.length === 0) {
+        timeLapseStatus.textContent = "No mapped records contain a valid value in the selected time field.";
+        return;
+      }
+      closeTimeLapse(false);
+      timeLapseState = {
+        field: timeLapseField.value,
+        index: 0,
+        stops,
+        timer: null,
+        totalPoints: stops.reduce((total, stop) => total + stop.points.length, 0),
+      };
+      const slider = document.querySelector("#map-time-lapse-slider");
+      slider.max = String(stops.length - 1);
+      slider.value = "0";
+      document.querySelector("#map-time-lapse-controls").hidden = false;
+      document.querySelector(".map-canvas-wrap").classList.add("time-lapse-active");
+      renderTimeLapseStep(0);
+      timeLapseDialog.close("create");
+    } catch (error) {
+      timeLapseStatus.textContent = error instanceof Error ? error.message : "Unable to create the time lapse.";
+    }
+  });
+  document.querySelector("#map-time-lapse-play").addEventListener("click", () => {
+    if (!timeLapseState) return;
+    if (timeLapseState.timer) {
+      pauseTimeLapse();
+      return;
+    }
+    if (timeLapseState.index >= timeLapseState.stops.length - 1) renderTimeLapseStep(0);
+    const button = document.querySelector("#map-time-lapse-play");
+    button.textContent = "Pause";
+    button.setAttribute("aria-label", "Pause time lapse");
+    timeLapseState.timer = setInterval(() => {
+      if (!timeLapseState || timeLapseState.index >= timeLapseState.stops.length - 1) {
+        pauseTimeLapse();
+        return;
+      }
+      renderTimeLapseStep(timeLapseState.index + 1);
+    }, 900);
+  });
+  document.querySelector("#map-time-lapse-slider").addEventListener("input", (event) => {
+    pauseTimeLapse();
+    renderTimeLapseStep(Number(event.target.value));
+  });
+  document.querySelector("#map-time-lapse-close").addEventListener("click", () => closeTimeLapse(true));
   document.querySelector("#map-add-geojson").addEventListener("click", () => {
     document.querySelector("#map-add-layer-menu").open = false;
     geoJsonForm.reset();
