@@ -7,9 +7,12 @@ let caseClusterAdded = false;
 let locationAdded = false;
 let mapContext = "standalone";
 let activeData = null;
+const geoJsonLayers = new Map();
+const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
+const MAX_GEOJSON_FEATURES = 10000;
 
 function updateLayerCount() {
-  const count = Number(caseClusterAdded) + Number(locationAdded);
+  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size;
   document.querySelector("#map-layer-count").textContent = String(count);
 }
 
@@ -32,6 +35,54 @@ export function inferMapFields(fields) {
     longitude: likelyField(fields, [/^(lon|lng|long)$/i, /longitude/i, /gps_?(lon|lng)/i]),
     label: likelyField(fields, [/case[\s_-]?id/i, /^id$/i, /name/i]),
   };
+}
+
+export function parseGeoJson(text, maximumFeatures = MAX_GEOJSON_FEATURES) {
+  let geojson;
+  try {
+    geojson = JSON.parse(text);
+  } catch {
+    throw new Error("This file is not valid JSON.");
+  }
+  if (!geojson || typeof geojson !== "object" || Array.isArray(geojson)) {
+    throw new Error("The file must contain a GeoJSON object.");
+  }
+  const geometryTypes = new Set([
+    "Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon", "GeometryCollection",
+  ]);
+  const validateGeometry = (geometry) => {
+    if (geometry === null) return;
+    if (!geometry || typeof geometry !== "object" || !geometryTypes.has(geometry.type)) {
+      throw new Error("A GeoJSON feature contains an invalid geometry.");
+    }
+    if (geometry.type === "GeometryCollection") {
+      if (!Array.isArray(geometry.geometries)) throw new Error("A GeometryCollection must contain a geometries array.");
+      geometry.geometries.forEach(validateGeometry);
+    } else if (!Array.isArray(geometry.coordinates)) {
+      throw new Error(`A ${geometry.type} geometry must contain coordinates.`);
+    }
+  };
+  const validateFeature = (feature) => {
+    if (!feature || feature.type !== "Feature") throw new Error("Every item in a GeoJSON FeatureCollection must be a Feature.");
+    if (!("geometry" in feature)) throw new Error("A GeoJSON Feature is missing its geometry.");
+    validateGeometry(feature.geometry);
+  };
+  let featureCount = 1;
+  if (geojson.type === "FeatureCollection") {
+    if (!Array.isArray(geojson.features)) throw new Error("A GeoJSON FeatureCollection must contain a features array.");
+    featureCount = geojson.features.length;
+    geojson.features.forEach(validateFeature);
+  } else if (geojson.type === "Feature") {
+    validateFeature(geojson);
+  } else if (!geometryTypes.has(geojson.type)) {
+    throw new Error("Use a GeoJSON FeatureCollection, Feature, or geometry object.");
+  } else {
+    validateGeometry(geojson);
+  }
+  if (featureCount > maximumFeatures) {
+    throw new Error(`This file has ${featureCount.toLocaleString()} features; the demo limit is ${maximumFeatures.toLocaleString()}.`);
+  }
+  return { geojson, featureCount };
 }
 
 function setMapHeading(data = null) {
@@ -88,6 +139,11 @@ function resetMapWorkspace() {
   ensureMap();
   recordLayer.clearLayers();
   locationLayer.clearLayers();
+  for (const entry of geoJsonLayers.values()) {
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+  }
+  geoJsonLayers.clear();
+  renderGeoJsonLayerList();
   lastBounds = null;
   caseClusterAdded = false;
   locationAdded = false;
@@ -115,6 +171,95 @@ function markerPopup(record, labelField, latitude, longitude) {
     content.append(hint);
   }
   return content;
+}
+
+function geoJsonPopup(feature) {
+  const properties = feature?.properties && typeof feature.properties === "object" ? feature.properties : {};
+  const entries = Object.entries(properties)
+    .filter(([, value]) => value === null || ["string", "number", "boolean"].includes(typeof value))
+    .slice(0, 8);
+  if (entries.length === 0) return null;
+  const content = document.createElement("div");
+  content.className = "geojson-popup";
+  for (const [key, value] of entries) {
+    const row = document.createElement("div");
+    const label = document.createElement("strong");
+    label.textContent = `${key}: `;
+    row.append(label, document.createTextNode(value === null ? "" : String(value)));
+    content.append(row);
+  }
+  return content;
+}
+
+function refreshMapEmptyState() {
+  document.querySelector("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0;
+}
+
+function renderGeoJsonLayerList() {
+  const container = document.querySelector("#map-geojson-layers");
+  const rows = [];
+  for (const [id, entry] of geoJsonLayers) {
+    const row = document.createElement("span");
+    row.className = "map-geojson-layer";
+    row.dataset.geojsonLayerId = id;
+    const label = document.createElement("label");
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = map.hasLayer(entry.layer);
+    toggle.dataset.geojsonToggle = id;
+    const name = document.createElement("span");
+    name.className = "map-geojson-layer-name";
+    name.textContent = `${entry.name} (${entry.featureCount})`;
+    name.title = entry.name;
+    label.append(toggle, name);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "map-layer-remove";
+    remove.dataset.geojsonRemove = id;
+    remove.setAttribute("aria-label", `Remove ${entry.name}`);
+    remove.title = `Remove ${entry.name}`;
+    remove.textContent = "x";
+    row.append(label, remove);
+    rows.push(row);
+  }
+  container.replaceChildren(...rows);
+}
+
+function combinedLayerBounds() {
+  const bounds = L.latLngBounds([]);
+  if (caseClusterAdded && map.hasLayer(recordLayer) && lastBounds?.isValid()) bounds.extend(lastBounds);
+  for (const entry of geoJsonLayers.values()) {
+    if (map.hasLayer(entry.layer) && entry.bounds?.isValid()) bounds.extend(entry.bounds);
+  }
+  return bounds;
+}
+
+function addGeoJsonLayer(geojson, featureCount, name) {
+  const currentMap = ensureMap();
+  const layer = L.geoJSON(geojson, {
+    style: { color: "#2563a5", weight: 2, fillColor: "#4f9dc7", fillOpacity: 0.22 },
+    pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
+      radius: 6,
+      color: "#174f78",
+      weight: 2,
+      fillColor: "#66b5d4",
+      fillOpacity: 0.9,
+    }),
+    onEachFeature: (feature, featureLayer) => {
+      const popup = geoJsonPopup(feature);
+      if (popup) featureLayer.bindPopup(popup);
+    },
+  });
+  layer.addTo(currentMap);
+  const bounds = layer.getBounds();
+  const id = globalThis.crypto?.randomUUID?.() || `geojson-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  geoJsonLayers.set(id, { layer, name, featureCount, bounds });
+  renderGeoJsonLayerList();
+  updateLayerCount();
+  refreshMapEmptyState();
+  document.querySelector("#map-layer-panel").open = true;
+  document.querySelector("#map-status").textContent = `Added GeoJSON layer “${name}” with ${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}.`;
+  if (bounds.isValid()) currentMap.fitBounds(bounds.pad(0.12), { maxZoom: 16 });
 }
 
 export function extractMapPoints(records, latitudeField, longitudeField) {
@@ -162,8 +307,8 @@ function plotRecords(data, openRecord) {
   setMapHeading(data);
   document.querySelector("#map-record-layer-name").textContent = `Case Cluster: ${data.formName}`;
   document.querySelector("#map-point-count").textContent = String(points.length);
-  document.querySelector("#map-empty-state").hidden = points.length > 0;
   caseClusterAdded = points.length > 0;
+  refreshMapEmptyState();
   updateLayerCount();
   document.querySelector("#map-status").textContent = points.length > 0
     ? `Mapped ${points.length} valid record${points.length === 1 ? "" : "s"}.`
@@ -187,6 +332,7 @@ function captureLocation() {
       .bindPopup(`Current location<br>Accuracy: ${Math.round(accuracy)} m`).addTo(locationLayer).openPopup();
     locationAdded = true;
     updateLayerCount();
+    refreshMapEmptyState();
     map.setView([latitude, longitude], 15);
     document.querySelector("#map-status").textContent = `Location captured with ${Math.round(accuracy)} m accuracy.`;
   }, (error) => {
@@ -244,6 +390,11 @@ function prepareCaseClusterDialog(getCurrentData, getDataSources) {
 
 export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   const caseClusterDialog = document.querySelector("#case-cluster-dialog");
+  const geoJsonDialog = document.querySelector("#geojson-dialog");
+  const geoJsonForm = document.querySelector("#geojson-form");
+  const geoJsonFile = document.querySelector("#geojson-file");
+  const geoJsonName = document.querySelector("#geojson-layer-name");
+  const geoJsonStatus = document.querySelector("#geojson-dialog-status");
   let dialogSources = [];
   for (const button of document.querySelectorAll('[data-module="maps"], [data-open-module="maps"]')) {
     button.addEventListener("click", () => {
@@ -278,10 +429,64 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     caseClusterDialog.close("plot");
     document.querySelector("#map-layer-panel").open = true;
   });
+  document.querySelector("#map-add-geojson").addEventListener("click", () => {
+    document.querySelector("#map-add-layer-menu").open = false;
+    geoJsonForm.reset();
+    geoJsonStatus.textContent = "Files are read locally and are not uploaded to a server. Maximum size: 10 MB.";
+    geoJsonDialog.showModal();
+  });
+  geoJsonFile.addEventListener("change", () => {
+    if (!geoJsonName.value.trim() && geoJsonFile.files[0]) {
+      geoJsonName.value = geoJsonFile.files[0].name.replace(/\.(?:geojson|json)$/i, "");
+    }
+  });
+  for (const button of document.querySelectorAll("[data-close-geojson]")) {
+    button.addEventListener("click", () => geoJsonDialog.close("cancel"));
+  }
+  geoJsonForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const file = geoJsonFile.files[0];
+    if (file.size > MAX_GEOJSON_BYTES) {
+      geoJsonStatus.textContent = "This file is larger than the 10 MB demo limit.";
+      return;
+    }
+    geoJsonStatus.textContent = "Reading GeoJSON...";
+    try {
+      const { geojson, featureCount } = parseGeoJson(await file.text());
+      const layerName = geoJsonName.value.trim() || file.name.replace(/\.(?:geojson|json)$/i, "") || "GeoJSON Layer";
+      addGeoJsonLayer(geojson, featureCount, layerName);
+      geoJsonDialog.close("add");
+    } catch (error) {
+      geoJsonStatus.textContent = error instanceof Error ? error.message : "Unable to add this GeoJSON file.";
+    }
+  });
+  document.querySelector("#map-geojson-layers").addEventListener("change", (event) => {
+    const id = event.target.dataset.geojsonToggle;
+    if (!id) return;
+    const entry = geoJsonLayers.get(id);
+    if (!entry) return;
+    if (event.target.checked) entry.layer.addTo(ensureMap());
+    else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    document.querySelector("#map-status").textContent = `${entry.name} ${event.target.checked ? "shown" : "hidden"}.`;
+  });
+  document.querySelector("#map-geojson-layers").addEventListener("click", (event) => {
+    const id = event.target.dataset.geojsonRemove;
+    if (!id) return;
+    const entry = geoJsonLayers.get(id);
+    if (!entry) return;
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    geoJsonLayers.delete(id);
+    renderGeoJsonLayerList();
+    updateLayerCount();
+    refreshMapEmptyState();
+    document.querySelector("#map-status").textContent = `Removed GeoJSON layer “${entry.name}”.`;
+  });
   document.querySelector("#map-current-location").addEventListener("click", captureLocation);
   document.querySelector("#map-fit-points").addEventListener("click", () => {
-    if (lastBounds?.isValid()) ensureMap().fitBounds(lastBounds.pad(0.18), { maxZoom: 15 });
-    else document.querySelector("#map-status").textContent = "Add a case-cluster layer before fitting the map.";
+    const bounds = combinedLayerBounds();
+    if (bounds.isValid()) ensureMap().fitBounds(bounds.pad(0.18), { maxZoom: 15 });
+    else document.querySelector("#map-status").textContent = "Add or show a case-cluster or GeoJSON layer before fitting the map.";
   });
   for (const radio of document.querySelectorAll('[name="map-basemap"]')) {
     radio.addEventListener("change", (event) => {

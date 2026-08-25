@@ -52,6 +52,9 @@ system, viewport, and result in the review or release notes.
 - [ ] Standalone Create Maps requests a project/form data source.
 - [ ] Add Data Layer > Case Cluster accepts latitude and longitude fields.
 - [ ] Valid points render and invalid/blank coordinates are skipped.
+- [ ] Add Data Layer > GeoJSON Layer accepts a `.geojson` or `.json` file and renders its points, lines, and polygons.
+- [ ] An uploaded GeoJSON layer can be hidden, shown, removed, and included by Fit Layers.
+- [ ] Invalid JSON, invalid GeoJSON, and files over 10 MB produce feedback without removing existing layers.
 - [ ] Enter Data > Maps opens the current-form-linked map and automatically plots records when latitude and longitude fields are available.
 - [ ] Current Location requests browser permission only after the user activates it.
 - [ ] If online tiles fail, the app reports the basemap failure without losing local points.

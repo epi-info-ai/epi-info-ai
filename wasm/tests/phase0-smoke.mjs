@@ -42,6 +42,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/supabase-sync.js",
     "wasm/demo/epi2x2.wasm",
     "wasm/demo/sample-case-data.csv",
+    "wasm/demo/sample-map-layer.geojson",
     "wasm/demo/vendor/leaflet/leaflet.css",
     "wasm/demo/vendor/leaflet/leaflet.js",
     "wasm/demo/vendor/leaflet/LICENSE",
@@ -64,6 +65,10 @@ async function checkRequiredAssetsAndUi() {
     "enter-open-maps",
     "epi-map",
     "map-add-case-cluster",
+    "map-add-geojson",
+    "geojson-dialog",
+    "geojson-file",
+    "map-geojson-layers",
     "table-form",
     "project-storage-dialog",
     "project-storage-status",
@@ -193,7 +198,7 @@ async function checkCsvAndProjectFixtures() {
 
 async function checkMapFixture() {
   const fixture = await jsonFixture("map-points.json");
-  const { extractMapPoints, inferMapFields } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
+  const { extractMapPoints, inferMapFields, parseGeoJson } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
   const points = extractMapPoints(fixture.records, fixture.latitudeField, fixture.longitudeField);
   assert.deepEqual(points.map(({ recordIndex, latitude, longitude }) => ({ recordIndex, latitude, longitude })), fixture.expected);
   assert.deepEqual(inferMapFields([
@@ -201,6 +206,13 @@ async function checkMapFixture() {
     { name: "x_coordinate", prompt: "Longitude" },
     { name: "y_coordinate", prompt: "Latitude" },
   ]), { latitude: "y_coordinate", longitude: "x_coordinate", label: "case_number" });
+  const geoJsonFixture = await readFile(join(fixturesDirectory, "geojson-layer.json"), "utf8");
+  const parsed = parseGeoJson(geoJsonFixture);
+  assert.equal(parsed.geojson.type, "FeatureCollection");
+  assert.equal(parsed.featureCount, 3);
+  assert.throws(() => parseGeoJson("not json"), /not valid JSON/);
+  assert.throws(() => parseGeoJson('{"type":"FeatureCollection","features":[{},{}]}'), /must be a Feature/);
+  assert.throws(() => parseGeoJson(geoJsonFixture, 2), /demo limit/);
 }
 
 async function checkSupabaseSetupContract() {

@@ -1543,6 +1543,45 @@ select {
   gap: 0.65rem 1.1rem;
 }
 
+.map-geojson-layers {
+  display: contents;
+}
+
+.map-geojson-layer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.map-geojson-layer label {
+  min-width: 0;
+}
+
+.map-geojson-layer-name {
+  overflow: hidden;
+  max-width: 16rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-layer-remove {
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  padding: 0;
+  line-height: 1;
+  color: #7f1d1d;
+  background: #fff;
+  border: 1px solid #b8c3c9;
+  border-radius: 0.2rem;
+  cursor: pointer;
+}
+
+.map-layer-remove:hover {
+  color: #fff;
+  background: #a52820;
+  border-color: #7f1d1d;
+}
+
 .map-empty-state {
   position: absolute;
   z-index: 500;

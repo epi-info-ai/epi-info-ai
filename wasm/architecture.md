@@ -164,6 +164,7 @@ and has no runtime dependencies or operating-system access.
 | Supabase email/GitHub authentication, project snapshot upload/download, and revision conflict checks | `demo/supabase-sync.js` | JavaScript |
 | Coordinate-field selection and record-to-point filtering | `demo/maps.js` | JavaScript |
 | Interactive map, layers, popups, and viewport control | `demo/maps.js` + Leaflet | JavaScript |
+| Browser-local GeoJSON validation, upload, rendering, and layer controls | `demo/maps.js` + Leaflet | JavaScript |
 | One-shot browser geolocation and accuracy display | `demo/maps.js` | JavaScript |
 
 HTML in `demo/index.html` provides the semantic application structure, including
@@ -272,8 +273,8 @@ whole-project snapshot rather than normalized form and record tables. The Maps s
 launch contexts separate: Main Menu -> Create Maps opens a standalone map with a
 project/form data-source selector, while Enter Data -> Maps links the map to the
 current form and allows a mapped record to be reopened in Enter Data. Both paths
-support Add Data Layer -> Case Cluster and browser geolocation. The slice does not
-yet provide external files/databases, satellite imagery, choropleths, spatial
+support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers, and browser geolocation. The slice does not
+yet provide external databases, shapefiles, satellite imagery, choropleths, spatial
 analysis, geocoding, or offline basemap packages. The slice also does
 not yet include project files, SQLite/OPFS persistence, dashboards, service-worker
 offline installation, a plugin runtime/catalog, AI tool orchestration, or remote services. Those are

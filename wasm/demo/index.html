@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=18" />
+    <link rel="stylesheet" href="styles.css?v=19" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=2" defer></script>
-    <script type="module" src="app.js?v=18"></script>
+    <script type="module" src="app.js?v=19"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -268,6 +268,7 @@
                 <summary>Add Data Layer</summary>
                 <div class="map-toolbar-dropdown">
                   <button id="map-add-case-cluster" type="button">Case Cluster</button>
+                  <button id="map-add-geojson" type="button">GeoJSON Layer...</button>
                   <button type="button" disabled>Choropleth</button>
                   <button type="button" disabled>Dot Density</button>
                 </div>
@@ -276,7 +277,7 @@
               <button type="button" disabled title="Planned for a later mapping slice">Create Time Lapse</button>
               <span class="map-toolbar-divider" aria-hidden="true"></span>
               <button id="map-current-location" type="button">Current Location</button>
-              <button id="map-fit-points" type="button">Fit Points</button>
+              <button id="map-fit-points" type="button">Fit Layers</button>
               <span id="map-status" role="status">Map ready</span>
             </div>
 
@@ -295,6 +296,7 @@
                     <div class="map-layer-list">
                       <label><input id="map-record-layer-toggle" type="checkbox" checked /> <span id="map-record-layer-name">Case Cluster</span> (<strong id="map-point-count">0</strong>)</label>
                       <label><input id="map-location-layer-toggle" type="checkbox" checked /> Current location</label>
+                      <div id="map-geojson-layers" class="map-geojson-layers"></div>
                     </div>
                     <p class="map-privacy-note">Coordinates stay in this browser. Street tiles are requested from OpenStreetMap when online.</p>
                   </div>
@@ -549,6 +551,28 @@
         <div class="legacy-dialog-actions">
           <button class="dialog-primary" value="plot" type="submit">OK</button>
           <button value="cancel" type="button" data-close-case-cluster>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="geojson-dialog" class="legacy-dialog" aria-labelledby="geojson-dialog-title">
+      <form id="geojson-form" method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="geojson-dialog-title">Add GeoJSON Layer</strong>
+          <button type="button" data-close-geojson aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p>Choose a GeoJSON file containing points, lines, or polygons.</p>
+          <p><a class="text-button" href="sample-map-layer.geojson" download>Download sample GeoJSON</a></p>
+          <label for="geojson-file">GeoJSON file</label>
+          <input id="geojson-file" type="file" accept=".geojson,.json,application/geo+json,application/json" required />
+          <label for="geojson-layer-name">Layer name</label>
+          <input id="geojson-layer-name" type="text" maxlength="80" placeholder="Uses the file name when blank" />
+          <p id="geojson-dialog-status" class="dialog-note" role="status" aria-live="polite">Files are read locally and are not uploaded to a server. Maximum size: 10 MB.</p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button class="dialog-primary" value="add" type="submit">Add Layer</button>
+          <button value="cancel" type="button" data-close-geojson>Cancel</button>
         </div>
       </form>
     </dialog>
