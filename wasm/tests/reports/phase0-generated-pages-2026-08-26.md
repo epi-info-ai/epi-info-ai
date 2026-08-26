@@ -10,12 +10,16 @@
 | Build environment | GitLab CI: Node 24.19 Alpine and Rust 1.85 Alpine |
 | Deployment | `https://epi-info-ai-2859c9.gitpages.cdc.gov/` |
 | Generated deployment pipelines | 293728 and 293878 |
+| Fallback-free confirmation pipeline | 293879 |
 | Result | Pass with documented limitations |
 
 ## Evidence
 
 - Pipeline 293878 completed `browser-baseline`, `rust-kernel`,
   `production-build`, and `pages` successfully.
+- Pipeline 293879 repeated all four jobs successfully after the source-copy
+  fallback was removed. Its Pages job copied `wasm/dist` directly and uploaded
+  35 artifact files and directories.
 - The downloaded `production-build` artifact was inspected. It contains the
   generated `wasm/dist` application, source maps, build manifest, and WASM file.
 - The build manifest reports schema version 1, application version 0.1.0, five

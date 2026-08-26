@@ -157,7 +157,7 @@ workflows can be detected before deployment.
   artifact generation, and Pages deployment.
 - [x] Two successful default-branch deployments from `wasm/dist` were confirmed
   (pipelines 293728 and 293878), and the temporary source-copy fallback was
-  removed.
+  removed. Pipeline 293879 then confirmed the fallback-free Pages job.
 
 This phase changes how the app is built, not how it behaves.
 
