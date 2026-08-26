@@ -55,11 +55,9 @@ pages:
   needs:
     - production-build
   script:
-    - export EPI_PAGES_SOURCE_DIR=wasm/dist
-    - if [ "${EPI_PAGES_SOURCE_FALLBACK:-false}" = "true" ]; then export EPI_PAGES_SOURCE_DIR=wasm/demo; fi
-    - test -f "$EPI_PAGES_SOURCE_DIR/index.html"
+    - test -f wasm/dist/index.html
     - mkdir -p public
-    - cp -R "$EPI_PAGES_SOURCE_DIR"/. public/
+    - cp -R wasm/dist/. public/
   artifacts:
     paths:
       - public

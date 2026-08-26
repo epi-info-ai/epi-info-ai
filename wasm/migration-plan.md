@@ -56,9 +56,9 @@ The current slice is a static HTML/CSS application with transitional ES-module J
 a small dependency-free Rust WASM artifact, vendored Leaflet, browser-local form
 and record state, CSV import/export, maps, and single-user Supabase snapshot sync.
 The pinned TypeScript/esbuild foundation checks maintained source and creates
-`wasm/dist`; GitLab CI publishes that generated artifact. The source-copy Pages
-path remains available behind `EPI_PAGES_SOURCE_FALLBACK=true` for the first two
-transition deployments only.
+`wasm/dist`; GitLab CI publishes only that generated artifact. The temporary
+source-copy Pages fallback was removed after two successful generated-artifact
+deployments.
 
 Before changing the build or module boundaries, capture a baseline checklist:
 
@@ -122,8 +122,9 @@ large mechanical relocations should happen only after imports and tests are stab
 - [x] GitLab CI runs the automated baseline before Pages deployment.
 - [x] A repeatable manual browser checklist covers visible workflows, responsive
   behavior, accessibility observations, authentication, and RLS isolation.
-- [ ] Complete and record the manual checklist for each migration that changes a
-  visible workflow, storage, authentication, maps, or deployment behavior.
+- [x] The Phase 0 release record was completed against the generated artifact.
+  Browser-authenticated checks that could not be repeated are identified as
+  limitations rather than silently treated as passes.
 
 ### Deliverables
 
@@ -154,8 +155,9 @@ workflows can be detected before deployment.
   artifact verification, and preview.
 - [x] GitLab CI separates browser checks, Rust native/WASM builds, production
   artifact generation, and Pages deployment.
-- [ ] Confirm two successful default-branch deployments from `wasm/dist`, then
-  remove the temporary `EPI_PAGES_SOURCE_FALLBACK` path.
+- [x] Two successful default-branch deployments from `wasm/dist` were confirmed
+  (pipelines 293728 and 293878), and the temporary source-copy fallback was
+  removed.
 
 This phase changes how the app is built, not how it behaves.
 
@@ -190,9 +192,8 @@ can reproduce it without committed generated JavaScript.
 
 ### Rollback
 
-Retain the existing copy-only Pages job for one transition merge so it can be
-restored if the new artifact path fails. Remove that fallback after two successful
-default-branch deployments.
+The transition fallback has been retired. Roll back by redeploying the last
+known-good generated artifact; do not publish untested source files directly.
 
 ## Phase 2 - TypeScript feature migration
 
@@ -516,16 +517,12 @@ provenance.
 
 ## Immediate next slice
 
-Phase 1's build foundation is implemented. The next slice should close its rollout
-gate and begin Phase 2 without changing user-visible behavior:
+Phases 0 and 1 are closed. Begin Phase 2 without changing user-visible behavior:
 
-1. Record the Phase 0 manual checklist against the generated Pages artifact.
-2. Confirm two successful default-branch deployments from `wasm/dist` and remove
-   the source-copy fallback.
-3. Validate existing browser snapshots against the new shared TypeScript contracts.
-4. Convert Supabase synchronization to TypeScript as the first bounded maintained
+1. Validate existing browser snapshots against the new shared TypeScript contracts.
+2. Convert Supabase synchronization to TypeScript as the first bounded maintained
    feature module.
-5. Convert Maps next, before adding more mapping features.
+3. Convert Maps next, before adding more mapping features.
 
 This keeps the safety net ahead of the feature migration and prevents additional
 JavaScript migration debt.
