@@ -10,9 +10,9 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=24" />
+    <link rel="stylesheet" href="styles.css?v=26" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
-    <script src="shell.js?v=2" defer></script>
+    <script src="shell.js?v=4" defer></script>
     <script type="module" src="app.js?v=26"></script>
   </head>
   <body>
@@ -31,11 +31,41 @@
     </header>
 
     <nav class="legacy-menubar" aria-label="Application menu">
-      <button type="button" data-menu-message="Project file commands will be added in a later slice.">File</button>
-      <button type="button" data-menu-message="Display preferences will be added in a later slice.">View</button>
-      <button type="button" data-menu-message="Project tools will be added in a later slice.">Tools</button>
+      <details id="file-menu" class="legacy-menu">
+        <summary aria-haspopup="menu">File</summary>
+        <div class="legacy-menu-popup" role="menu" aria-label="File">
+          <button id="file-exit" type="button" role="menuitem">Exit</button>
+        </div>
+      </details>
+      <details id="view-menu" class="legacy-menu">
+        <summary aria-haspopup="menu">View</summary>
+        <div class="legacy-menu-popup" role="menu" aria-label="View">
+          <button id="view-status-bar" type="button" role="menuitemcheckbox" aria-checked="true">&#10003; Status Bar</button>
+          <button type="button" role="menuitem" disabled title="Not yet implemented">Epi Info Logs</button>
+        </div>
+      </details>
+      <details id="tools-menu" class="legacy-menu">
+        <summary aria-haspopup="menu">Tools</summary>
+        <div class="legacy-menu-popup" role="menu" aria-label="Tools">
+          <button type="button" role="menuitem" data-open-module="forms">Create Forms</button>
+          <button type="button" role="menuitem" data-open-module="data">Enter Data</button>
+          <div class="legacy-menu-heading" role="presentation">Analyze Data</div>
+          <button type="button" role="menuitem" disabled title="Planned for a later phase">Classic</button>
+          <button type="button" role="menuitem" disabled title="Planned for a later phase">Visual Dashboard</button>
+          <button type="button" role="menuitem" data-open-module="maps" data-map-context="standalone">Create Maps</button>
+          <button type="button" role="menuitem" disabled title="Not yet implemented">Options...</button>
+        </div>
+      </details>
       <button type="button" data-open-module="statcalc">StatCalc</button>
-      <button type="button" data-menu-message="The Epi Info AI help center is not included in this demo.">Help</button>
+      <details id="help-menu" class="legacy-menu legacy-menu-right">
+        <summary aria-haspopup="menu">Help</summary>
+        <div class="legacy-menu-popup" role="menu" aria-label="Help">
+          <button type="button" role="menuitem" disabled title="Not yet included in the browser demo">User Guide</button>
+          <button type="button" role="menuitem" disabled title="Not yet implemented">Help Videos</button>
+          <button type="button" role="menuitem" disabled title="Not yet implemented">Discussion Forum</button>
+          <button type="button" role="menuitem" disabled title="Not yet implemented">Contact Help Desk</button>
+        </div>
+      </details>
     </nav>
 
     <main id="main-menu" class="main-menu-screen">
@@ -111,7 +141,15 @@
               <span>Saved in this browser</span>
             </div>
             <nav class="designer-menu" aria-label="Form Designer menu">
-              <button type="button">File</button><button type="button">Edit</button><button type="button">View</button>
+              <details id="designer-file-menu" class="legacy-menu compact-legacy-menu">
+                <summary aria-haspopup="menu">File</summary>
+                <div class="legacy-menu-popup" role="menu" aria-label="Form Designer File">
+                  <button id="designer-new-project" type="button" role="menuitem">New Project...</button>
+                  <button type="button" role="menuitem" disabled title="Multi-project history is not yet implemented">Recent Projects</button>
+                  <button id="designer-project-storage" class="legacy-menu-new-branch" type="button" role="menuitem">Project Storage...</button>
+                </div>
+              </details>
+              <button type="button">Edit</button><button type="button">View</button>
               <button type="button">Insert</button><button type="button">Format</button><button type="button">Tools</button>
               <button type="button">Help</button>
             </nav>

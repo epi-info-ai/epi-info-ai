@@ -98,7 +98,8 @@ summary:focus-visible {
   box-shadow: 0 2px 5px rgba(8, 59, 92, 0.09);
 }
 
-.legacy-menubar button {
+.legacy-menubar > button,
+.legacy-menu > summary {
   align-self: stretch;
   padding: 0 0.8rem;
   color: #213b4b;
@@ -106,9 +107,87 @@ summary:focus-visible {
   border: 0;
 }
 
-.legacy-menubar button:hover,
-.legacy-menubar button:focus-visible {
+.legacy-menubar > button:hover,
+.legacy-menubar > button:focus-visible,
+.legacy-menu > summary:hover,
+.legacy-menu > summary:focus-visible,
+.legacy-menu[open] > summary {
   background: #dce9ef;
+}
+
+.legacy-menu {
+  position: relative;
+  align-self: stretch;
+}
+
+.legacy-menu > summary {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  cursor: default;
+  list-style: none;
+}
+
+.legacy-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.legacy-menu-popup {
+  position: absolute;
+  z-index: 30;
+  top: 100%;
+  left: 0;
+  min-width: 14.5rem;
+  padding: 0.25rem;
+  background: #f7f9fa;
+  border: 1px solid #7e929e;
+  box-shadow: 0 0.35rem 0.8rem rgba(8, 45, 65, 0.25);
+}
+
+.legacy-menu-popup button {
+  display: block;
+  width: 100%;
+  padding: 0.48rem 0.65rem;
+  color: #17394d;
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+
+.legacy-menu-popup button:hover,
+.legacy-menu-popup button:focus-visible {
+  color: #fff;
+  background: #0879ad;
+}
+
+.legacy-menu-popup button:disabled {
+  color: #7b8991;
+  cursor: not-allowed;
+}
+
+.legacy-menu-popup button:disabled:hover {
+  color: #7b8991;
+  background: transparent;
+}
+
+.legacy-menu-heading {
+  margin: 0.2rem 0.4rem;
+  padding: 0.35rem 0.25rem 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #526976;
+  border-top: 1px solid #c4cfd5;
+}
+
+.legacy-menu-popup .legacy-menu-new-branch {
+  margin-top: 0.2rem;
+  padding-top: 0.62rem;
+  border-top: 1px solid #c4cfd5;
+}
+
+.legacy-menu-right .legacy-menu-popup {
+  right: 0;
+  left: auto;
 }
 
 .main-menu-screen {
@@ -887,6 +966,20 @@ select {
 .toolbar-file-button:hover {
   background: #e4edf2;
   border-color: #b2c2cb;
+}
+
+.designer-menu .compact-legacy-menu {
+  align-self: stretch;
+}
+
+.designer-menu .compact-legacy-menu > summary {
+  padding: 0.32rem 0.55rem;
+  font-size: 0.72rem;
+  color: #273f4e;
+}
+
+.designer-menu .legacy-menu-popup {
+  min-width: 12rem;
 }
 
 .designer-toolbar {

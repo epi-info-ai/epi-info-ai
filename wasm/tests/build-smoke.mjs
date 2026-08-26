@@ -41,6 +41,11 @@ await Promise.all(requiredFiles.map(requireFile));
 const html = await requireFile("index.html");
 assert.match(html, /src=["']app\.js\?v=26["']/);
 assert.match(html, /id=["']main-menu["']/);
+assert.match(html, /id=["']file-menu["']/);
+assert.match(html, /id=["']file-exit["']/);
+assert.match(html, /id=["']tools-menu["']/);
+assert.match(html, /id=["']designer-file-menu["']/);
+assert.match(html, /id=["']designer-project-storage["']/);
 assert.match(html, /id=["']epi-map["']/);
 
 const app = await requireFile("app.js");

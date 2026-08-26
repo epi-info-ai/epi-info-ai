@@ -60,6 +60,15 @@ async function checkRequiredAssetsAndUi() {
   const requiredIds = [
     "main-menu",
     "main-menu-button",
+    "file-menu",
+    "file-exit",
+    "view-menu",
+    "view-status-bar",
+    "tools-menu",
+    "help-menu",
+    "designer-file-menu",
+    "designer-new-project",
+    "designer-project-storage",
     "new-project",
     "project-storage",
     "form-csv-import",
@@ -96,6 +105,11 @@ async function checkRequiredAssetsAndUi() {
   for (const label of ["Create Forms", "Enter Data", "Classic", "Visual Dashboard", "Create Maps", "StatCalc"]) {
     assert.ok(html.includes(label), `main application must retain the familiar ${label} label`);
   }
+
+  const shell = await readFile(join(demoDirectory, "shell.js"), "utf8");
+  assert.match(shell, /designer-new-project[\s\S]*#new-project/);
+  assert.match(shell, /designer-project-storage[\s\S]*#project-storage/);
+  assert.match(shell, /view-status-bar[\s\S]*main-menu-status/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])

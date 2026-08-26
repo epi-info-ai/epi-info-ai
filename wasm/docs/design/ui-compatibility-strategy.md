@@ -51,6 +51,20 @@ Where practical, preserve the order and language of familiar operations:
 
 Legacy keyboard shortcuts should be retained when they do not conflict with browser or accessibility conventions.
 
+### Menu contract
+
+The Epi Info 7 User Guide is authoritative for default menu names, grouping, and workflow placement. The browser shell currently follows this main-menu structure:
+
+- **File** contains **Exit**; project commands are not added to this application-level menu;
+- **View** contains **Status Bar** and **Epi Info Logs**;
+- **Tools** launches **Create Forms**, **Enter Data**, **Classic**, **Visual Dashboard**, **Create Maps**, and **Options**;
+- **StatCalc** remains a top-level command;
+- **Help** retains the User Guide, videos, discussion forum, and help-desk paths.
+
+Within Form Designer, **File** owns **New Project** and **Recent Projects**, matching the legacy workflow. **Project Storage** is an additive browser-era branch in that same project-oriented menu and opens the local/Supabase synchronization panel. Browser-specific actions must not replace a familiar command whose behavior is materially different. Commands that are planned but unavailable should remain recognizable and disabled rather than being moved or renamed.
+
+Think of this as extending the old menu tree: preserve its trunk, familiar branches, names, and ordering, then attach new browser, cloud, mobile, plug-in, and AI branches at the closest familiar point. New branches should be visually separated where useful and must not silently redefine an old command.
+
 ## What should be modernized
 
 - Native HTML controls and accessible component primitives replace WinForms/WPF widgets.
@@ -147,4 +161,3 @@ Build a non-functional but navigable shell containing:
 5. desktop, narrow-laptop, and tablet layouts.
 
 Review that shell with experienced Epi Info users before implementing deep module behavior. This will validate the product's visual and navigational continuity early, while changes are inexpensive.
-
