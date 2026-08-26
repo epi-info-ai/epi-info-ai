@@ -8,6 +8,8 @@ Project materials currently live in [`wasm/`](wasm/):
 
 - [`project.md`](wasm/project.md) - original project concept;
 - [`feasibility-analysis.md`](wasm/feasibility-analysis.md) - source and WASM feasibility assessment;
+- [`docs/research/rust-epidemiology-landscape.md`](wasm/docs/research/rust-epidemiology-landscape.md) - assessed Rust algorithm and crate candidates;
+- [`docs/validation/algorithm-validation-standard.md`](wasm/docs/validation/algorithm-validation-standard.md) - mandatory evidence and release gates for every algorithm;
 - [`docs/design/ui-compatibility-strategy.md`](wasm/docs/design/ui-compatibility-strategy.md) - familiar-but-modern UI strategy;
 - [`docs/reference/`](wasm/docs/reference/) - official historical reference material.
 
@@ -86,5 +88,5 @@ Preview the generated artifact with `pnpm run preview`, then open the URL printe
 - Add offline basemap packages, choropleths, spatial analysis, geocoding, and additional legacy map workflows.
 - Replace `localStorage` project persistence with SQLite WASM and OPFS.
 - Implement the versioned plugin runtime, capability API, permissions, and plugin catalog described in the architecture plan.
-- Build validation/parity fixtures against trusted Epi Info outputs before expanding the Rust epidemiology kernel.
+- Execute the algorithm validation standard: import and classify the legacy 2 x 2 corpus, add independent/pathological fixtures, and complete native/WASM parity and review gates before expanding the Rust epidemiology kernel.
 - Continue mobile-first adaptation without removing familiar desktop visual landmarks and workflows.

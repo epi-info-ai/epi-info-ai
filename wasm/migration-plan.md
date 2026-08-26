@@ -328,6 +328,12 @@ consistently, and destructive actions are auditable and recoverable.
 The Rust kernel owns deterministic epidemiologic computation, not DOM, storage,
 authentication, formatting, or AI interpretation.
 
+All work in this phase must pass the repository's
+[algorithm validation standard](docs/validation/algorithm-validation-standard.md).
+Candidate Rust crates are implementation options behind the owned `epi-core`
+facade, not trusted result sources. See the
+[Rust epidemiology landscape assessment](docs/research/rust-epidemiology-landscape.md).
+
 ### Migration order
 
 1. Confidence intervals and chi-square p-values.
@@ -338,6 +344,8 @@ authentication, formatting, or AI interpretation.
 
 ### Required work for every operation
 
+- Complete validation gates G0 through G6, including independent statistical and
+  implementation review.
 - Define a versioned request/result schema.
 - Capture legacy fixtures and independent edge cases before translation.
 - Preserve method identity, warnings, undefined states, convergence failures, and

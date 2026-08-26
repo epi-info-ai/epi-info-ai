@@ -41,6 +41,23 @@ The first proof of concept should be a complete 2×2 table calculation exposed a
 | Maps and charts | High | Low | Use browser-native visualization libraries behind deterministic data contracts |
 | Whole desktop solution | Low | Very low | Windows UI, native libraries, WCF, COM/ADO, filesystem, and process dependencies block it |
 
+### Rust ecosystem assessment
+
+No mature Rust equivalent of the complete Epi Info/OpenEpi/`epiR` analytic surface
+was identified. The reusable opportunity is at the crate and algorithm level, not
+an application that should be forked. Small recent rsomics crates cover relative
+risk, odds ratio, and stratified CMH calculations and report differential testing
+against SciPy or statsmodels. Linfa and SmartCore are plausible browser-WASM
+regression candidates. `ndarray-glm` has a useful GLM surface but a material
+`ndarray-linalg`/BLAS browser caveat. EpiRust and Jivanu concern epidemic modeling,
+not the core field-analysis workflow.
+
+The recommendation is therefore an owned, versioned `epi-core` facade that may
+wrap, fork, or replace selected implementations only after the project's robust
+validation gates. Details and current candidate status are recorded in the
+[Rust epidemiology landscape assessment](docs/research/rust-epidemiology-landscape.md)
+and [algorithm validation standard](docs/validation/algorithm-validation-standard.md).
+
 ## What was found in the source
 
 ### Solution shape

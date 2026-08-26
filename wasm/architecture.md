@@ -37,6 +37,14 @@ Shared operation and result contracts must be versioned. TypeScript types descri
 the browser-facing contract, while Rust serialization and parity fixtures enforce
 the same contract at the WASM boundary.
 
+Every algorithm and third-party numerical dependency is governed by the
+[algorithm validation standard](docs/validation/algorithm-validation-standard.md).
+The current [Rust epidemiology landscape assessment](docs/research/rust-epidemiology-landscape.md)
+supports an Epi Info-owned `epi-core` facade: candidate crates may implement a
+method behind that facade only after independent evidence, native/WASM parity,
+source/dependency review, and statistical approval. Upstream claims of SciPy, R,
+or statsmodels parity seed our review but do not confer validated status.
+
 ## Python role and trust boundary
 
 Python is a supporting scientific and interoperability language. The production

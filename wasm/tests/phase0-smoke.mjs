@@ -53,6 +53,9 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/vendor/h3-js/NOTICE",
     "wasm/demo/vendor/h3-js/package.json",
     "wasm/demo/setup/supabase-schema.sql",
+    "wasm/docs/research/rust-epidemiology-landscape.md",
+    "wasm/docs/validation/algorithm-validation-standard.md",
+    "wasm/tests/fixtures/algorithm-validation/registry.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -313,6 +316,35 @@ async function checkSupabaseSetupContract() {
   }
 }
 
+async function checkAlgorithmValidationRegistry() {
+  const registry = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/registry.json"), "utf8"));
+  const allowedStates = new Set(["experimental", "candidate", "validated", "restricted", "retired"]);
+  const allowedGateStates = new Set(["not-started", "partial", "passed", "failed", "not-applicable"]);
+  const requiredGates = ["G0", "G1", "G2", "G3", "G4", "G5", "G6"];
+  assert.equal(registry.schemaVersion, "1.0.0");
+  assert.ok(Array.isArray(registry.algorithms) && registry.algorithms.length > 0);
+  assert.equal(new Set(registry.algorithms.map((algorithm) => algorithm.operation)).size, registry.algorithms.length,
+    "algorithm operation IDs must be unique");
+
+  for (const algorithm of registry.algorithms) {
+    assert.match(algorithm.operation, /^epi\.[A-Za-z0-9.]+$/);
+    assert.ok(allowedStates.has(algorithm.state), `${algorithm.operation} has an invalid validation state`);
+    assert.ok(algorithm.resultSchemaVersion && algorithm.implementation?.engineId && algorithm.implementation?.source);
+    assert.ok(Array.isArray(algorithm.evidence) && Array.isArray(algorithm.knownGaps));
+    await assertFile(algorithm.implementation.source);
+    await Promise.all(algorithm.evidence.map(assertFile));
+    for (const gate of requiredGates) {
+      assert.ok(allowedGateStates.has(algorithm.gates?.[gate]), `${algorithm.operation} must record ${gate}`);
+    }
+    if (["validated", "restricted"].includes(algorithm.state)) {
+      assert.ok(requiredGates.every((gate) => ["passed", "not-applicable"].includes(algorithm.gates[gate])),
+        `${algorithm.operation} cannot be ${algorithm.state} with incomplete gates`);
+      assert.ok(algorithm.approvals?.statistical && algorithm.approvals?.implementation,
+        `${algorithm.operation} requires statistical and implementation approvals`);
+    }
+  }
+}
+
 async function run() {
   const checks = [
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
@@ -322,6 +354,7 @@ async function run() {
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],
     ["map coordinate filtering", checkMapFixture],
     ["Supabase RLS setup contract", checkSupabaseSetupContract],
+    ["algorithm validation registry", checkAlgorithmValidationRegistry],
   ];
 
   for (const [name, check] of checks) {

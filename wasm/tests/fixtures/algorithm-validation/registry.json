@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "algorithms": [
+    {
+      "operation": "epi.table2x2",
+      "resultSchemaVersion": "0.1.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "rust-wasm-spike",
+        "engineVersion": "0.1.0",
+        "source": "wasm/engine-rust/src/lib.rs"
+      },
+      "gates": {
+        "G0": "partial",
+        "G1": "partial",
+        "G2": "partial",
+        "G3": "partial",
+        "G4": "not-started",
+        "G5": "not-started",
+        "G6": "not-started"
+      },
+      "approvals": {
+        "statistical": null,
+        "implementation": null
+      },
+      "evidence": [
+        "wasm/tests/fixtures/phase0/table2x2-baseline.json",
+        "wasm/tests/fixtures/phase0/wasm-manifest.json"
+      ],
+      "knownGaps": [
+        "Import and classify the legacy 100-case TwoBy2Stats.csv corpus.",
+        "Implement and validate confidence intervals and exact tests in Rust/WASM.",
+        "Define reviewed edge semantics for zero, invalid, and extreme inputs.",
+        "Complete independent statistical and implementation review."
+      ]
+    }
+  ]
+}
