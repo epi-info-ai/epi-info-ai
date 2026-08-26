@@ -60,3 +60,20 @@ test("JupyterLite validation lab V0.1 is part of the Pages artifact", async ({ p
   expect(notebook.nbformat).toBe(4);
   expect(JSON.stringify(notebook)).toContain("Rust/WASM vs SciPy");
 });
+
+test("integrated outbreak and Toledo map examples are downloadable", async ({ request }) => {
+  const csvResponse = await request.get("/examples/foodborne-outbreak-investigation.csv");
+  expect(csvResponse.ok()).toBe(true);
+  const csv = await csvResponse.text();
+  const rows = csv.trim().split(/\r?\n/);
+  expect(rows).toHaveLength(97);
+  expect(rows[0]).toContain("Latitude,Longitude,Household Neighborhood");
+
+  const geoJsonResponse = await request.get("/examples/city-of-toledo-neighborhoods.geojson");
+  expect(geoJsonResponse.ok()).toBe(true);
+  const geoJson = await geoJsonResponse.json();
+  expect(geoJson.type).toBe("FeatureCollection");
+  expect(geoJson.features).toHaveLength(87);
+  expect(geoJson.features.every((feature) => feature.geometry?.type === "MultiPolygon")).toBe(true);
+  expect(geoJson.features.every((feature) => typeof feature.properties?.name === "string")).toBe(true);
+});

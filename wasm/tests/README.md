@@ -25,6 +25,12 @@ The fixtures under `fixtures/phase0` are synthetic. If the WASM artifact changes
 do not update its checksum automatically. First review the Rust source, run numerical
 parity tests, and record why the artifact changed.
 
+The larger browser workflow examples under `../demo/examples` are also included in
+the production artifact. They combine CSV-created forms and records with a public
+GeoJSON neighborhood layer. Their README records provenance, checksums, intended
+use, and the end-to-end manual workflow. Automated smoke tests enforce their basic
+schema, record/feature counts, coordinate ranges, geometry type, and label field.
+
 ## Phase 0 manual baseline
 
 Complete [`phase0-manual-checklist.md`](phase0-manual-checklist.md) before a migration

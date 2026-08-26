@@ -69,6 +69,14 @@ a transparent validation demonstration and does not replace the algorithm gates 
 appear in the Epi Info workflow menus. Its current Pyodide runtime and scientific
 packages are fetched on demand, so the first notebook run requires network access.
 
+## Integrated browser test examples
+
+The production demo includes a 96-record synthetic foodborne-outbreak CSV and an
+87-feature City of Toledo neighborhood GeoJSON layer. Download links appear beside
+the CSV import and GeoJSON upload controls. Their provenance, checksums, expected
+schema, and combined testing workflow are documented in
+[`wasm/demo/examples/README.md`](wasm/demo/examples/README.md).
+
 ## Updates on August 25, 2026
 
 - Added configurable H3 case aggregation layers with cell-count popups.

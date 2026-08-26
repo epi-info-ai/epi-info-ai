@@ -275,6 +275,7 @@
                 </div>
                 <div class="csv-actions">
                   <a class="text-button sample-link" href="sample-case-data.csv" download>Sample CSV</a>
+                  <a class="text-button sample-link" href="examples/foodborne-outbreak-investigation.csv" download>Outbreak test CSV</a>
                   <label class="secondary-button file-button" for="csv-import">Import CSV</label>
                   <input id="csv-import" class="sr-only" type="file" accept=".csv,text/csv" />
                   <button id="csv-export" class="secondary-button" type="button">Export CSV</button>
@@ -657,7 +658,11 @@
         </div>
         <div class="legacy-dialog-body">
           <p>Choose a GeoJSON file containing points, lines, or polygons.</p>
-          <p><a class="text-button" href="sample-map-layer.geojson" download>Download sample GeoJSON</a></p>
+          <p>
+            <a class="text-button" href="sample-map-layer.geojson" download>Download sample GeoJSON</a>
+            <span aria-hidden="true"> | </span>
+            <a class="text-button" href="examples/city-of-toledo-neighborhoods.geojson" download>Toledo neighborhoods test layer</a>
+          </p>
           <label for="geojson-file">GeoJSON file</label>
           <input id="geojson-file" type="file" accept=".geojson,.json,application/geo+json,application/json" required />
           <label for="geojson-layer-name">Layer name</label>

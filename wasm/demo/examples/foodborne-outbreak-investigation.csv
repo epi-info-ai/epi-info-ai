@@ -1,0 +1,97 @@
+ID,Age,Sex,Case Status,Onset Date,Onset Time,Hospitalization Date,Specimen Date,Interview Date,Diarrhea,Vomiting,Nausea,Abdominal Cramps,Fever,Bloody Stool,Potato Salad,Grilled Chicken,Coleslaw,Hamburger,Hot Dog,Fruit Salad,Cake,Lemonade,Iced Tea,Latitude,Longitude,Household Neighborhood
+P001,34,Female,Confirmed,2026-01-10,22:00,2026-01-12,2026-01-11,2026-01-12,Yes,No,No,Yes,Yes,No,Yes,Yes,No,Yes,No,Yes,Yes,Yes,No,41.6723,-83.6145,Old Orchard
+P002,28,Male,Confirmed,2026-01-11,02:00,2026-01-12,2026-01-11,2026-01-12,Yes,Yes,No,No,Yes,No,Yes,No,Yes,No,Yes,No,Yes,Yes,Yes,41.6652,-83.5822,BUMA
+P003,67,Male,Confirmed,2026-01-11,06:00,2026-01-09,2026-01-11,2026-01-12,Yes,No,No,Yes,No,Yes,Yes,Yes,Yes,Yes,No,Yes,No,Yes,No,41.6534,-83.5356,Downtown
+P004,45,Female,Probable,2026-01-11,08:00,,2026-01-11,2026-01-12,Yes,No,Yes,Yes,No,No,Yes,Yes,No,No,No,Yes,Yes,No,Yes,41.6891,-83.6278,Franklin Park
+P005,52,Male,Confirmed,2026-01-11,10:00,2026-01-13,2026-01-11,2026-01-12,Yes,Yes,No,No,Yes,No,Yes,No,No,Yes,Yes,No,Yes,Yes,No,41.6445,-83.5512,Junction
+P006,8,Female,Probable,2026-01-11,04:00,,2026-01-11,2026-01-12,Yes,Yes,,Yes,,No,Yes,Yes,,No,Yes,,Yes,Yes,No,41.6778,-83.6034,Ottawa
+P007,41,Male,Confirmed,2026-01-11,12:00,2026-01-13,2026-01-11,2026-01-12,Yes,No,No,No,Yes,No,Yes,Yes,No,Yes,No,No,No,Yes,Yes,41.6312,-83.5689,Walbridge
+P008,36,Female,Confirmed,2026-01-11,14:00,2026-01-13,2026-01-11,2026-01-12,Yes,No,Yes,Yes,Yes,No,Yes,No,Yes,No,No,Yes,Yes,No,No,41.6623,-83.6189,Campus
+P009,29,Male,Probable,2026-01-11,16:00,,2026-01-12,2026-01-13,Yes,No,No,Yes,No,No,Yes,Yes,No,Yes,Yes,No,Yes,Yes,Yes,41.6956,-83.5467,Industrial North
+P010,55,Female,Confirmed,2026-01-11,18:00,2026-01-13,2026-01-12,2026-01-13,Yes,Yes,No,No,Yes,No,Yes,No,No,No,No,Yes,No,Yes,No,41.6489,-83.5934,Scott Park
+P011,72,Female,Confirmed,2026-01-11,20:00,2026-01-12,2026-01-12,2026-01-13,Yes,No,No,Yes,Yes,Yes,Yes,Yes,Yes,Yes,No,Yes,Yes,Yes,Yes,41.6834,-83.5623,Overland
+P012,19,Male,Probable,2026-01-11,22:00,,2026-01-12,2026-01-13,Yes,No,Yes,No,No,No,Yes,No,Yes,No,Yes,No,Yes,No,No,41.6567,-83.6312,Dorr-Richards
+P013,38,Female,Confirmed,2026-01-12,00:00,2026-01-13,2026-01-12,2026-01-13,Yes,No,No,Yes,Yes,No,Yes,Yes,No,Yes,No,Yes,No,Yes,Yes,41.6401,-83.5178,Starr
+P014,61,Male,Probable,2026-01-12,06:00,,2026-01-12,2026-01-13,Yes,Yes,No,,No,No,Yes,,No,No,,No,Yes,,No,41.6712,-83.5845,Ottawa
+P015,5,Male,Confirmed,2026-01-11,03:00,2026-01-12,2026-01-11,2026-01-12,Yes,Yes,No,No,Yes,No,Yes,No,No,Yes,No,Yes,Yes,Yes,No,41.6678,-83.6078,Ottawa
+P016,48,Female,Probable,2026-01-11,11:00,,2026-01-11,2026-01-12,Yes,No,No,Yes,No,No,Yes,Yes,Yes,No,Yes,Yes,Yes,No,Yes,41.6523,-83.5589,Junction
+P017,33,Male,Confirmed,2026-01-11,15:00,2026-01-13,2026-01-12,2026-01-13,Yes,No,Yes,No,Yes,No,Yes,Yes,No,Yes,No,No,No,Yes,No,41.6867,-83.5734,Willys
+P018,59,Female,Probable,2026-01-12,02:00,,2026-01-12,2026-01-13,Yes,Yes,No,Yes,No,No,Yes,No,Yes,No,No,Yes,Yes,Yes,Yes,41.6345,-83.6023,Burroughs
+P019,25,Male,Not a case,,,,,,No,No,No,No,No,No,Yes,Yes,No,Yes,Yes,No,Yes,Yes,Yes,41.6612,-83.5456,Warren-Sherman
+P020,31,Female,Not a case,,,,,,No,No,No,No,No,No,Yes,Yes,Yes,No,No,Yes,No,No,No,41.6789,-83.5912,Ottawa
+P021,44,Male,Not a case,,,,,,No,No,No,No,No,No,Yes,No,No,Yes,No,Yes,Yes,Yes,No,41.6456,-83.6234,Secor Gardens
+P022,27,Female,Not a case,,,,,,No,No,No,No,No,No,Yes,Yes,Yes,No,Yes,No,Yes,Yes,Yes,41.6934,-83.5678,Library Village
+P023,39,Male,Not a case,,,,,,No,No,No,No,No,No,Yes,No,No,Yes,No,Yes,No,Yes,No,41.6378,-83.5523,Old South End
+P024,56,Female,Not a case,,,,,,No,No,No,No,No,No,Yes,Yes,Yes,No,Yes,No,Yes,No,Yes,41.6701,-83.6156,Old Orchard
+P025,42,Male,Suspected,2026-01-11,19:00,,,2026-01-13,No,No,Yes,Yes,No,No,No,Yes,Yes,Yes,No,Yes,Yes,Yes,No,41.6534,-83.5867,Clinton Park
+P026,63,Female,Suspected,2026-01-12,08:00,,,2026-01-13,Yes,No,No,No,No,No,No,Yes,No,No,Yes,No,Yes,Yes,Yes,41.6845,-83.5389,Polish Village
+P027,15,Male,Probable,2026-01-11,23:00,,2026-01-12,2026-01-13,Yes,,Yes,No,,,No,No,,Yes,No,Yes,,No,,41.6423,-83.6089,Secor Gardens
+P028,37,Female,Suspected,2026-01-12,04:00,,,2026-01-13,No,No,Yes,Yes,No,No,No,Yes,Yes,No,Yes,No,No,Yes,Yes,41.6689,-83.5534,Olde Towne
+P029,50,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,Yes,Yes,Yes,Yes,Yes,No,41.6567,-83.5712,Englewood
+P030,22,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,No,No,No,Yes,No,Yes,41.6912,-83.6045,Hampton Park
+P031,35,Male,Not a case,,,,,,No,No,No,No,No,No,No,No,No,Yes,No,Yes,Yes,Yes,No,41.6345,-83.5278,Navarre
+P032,68,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,No,Yes,Yes,No,Yes,Yes,41.6756,-83.5956,Ottawa
+P033,12,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,Yes,Yes,No,Yes,Yes,No,41.6478,-83.6178,Secor Gardens
+P034,46,Female,Not a case,,,,,,No,No,No,No,No,No,No,No,Yes,No,No,Yes,Yes,No,Yes,41.6623,-83.5423,Warren-Sherman
+P035,30,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,Yes,Yes,No,No,Yes,No,41.6889,-83.5789,Willys
+P036,58,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,No,No,Yes,Yes,Yes,Yes,41.6412,-83.5634,Junction
+P037,24,Male,Not a case,,,,,,No,No,No,No,No,No,No,No,No,Yes,Yes,Yes,Yes,No,No,41.6734,-83.6267,Old Orchard
+P038,71,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,No,No,No,Yes,Yes,Yes,41.6501,-83.5145,Garfield
+P039,40,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,Yes,Yes,Yes,No,Yes,No,41.6856,-83.5512,Joe E. Brown Park
+P040,17,Female,Not a case,,,,,,No,No,No,No,No,No,No,No,Yes,No,No,Yes,Yes,Yes,Yes,41.6389,-83.5978,Scott Park
+P041,53,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,Yes,Yes,No,Yes,No,No,41.6678,-83.5334,Sherman
+P042,26,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,No,No,Yes,Yes,Yes,Yes,41.6945,-83.6123,DeVeaux
+P043,64,Male,Not a case,,,,,,No,No,No,No,No,No,No,No,Yes,Yes,Yes,Yes,No,Yes,No,41.6312,-83.5856,Highland Heights
+P044,32,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,No,No,No,Yes,Yes,Yes,41.6589,-83.6034,Bancroft Hills
+P045,47,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,Yes,Yes,Yes,Yes,No,No,41.6801,-83.5467,Joe E. Brown Park
+P046,20,Female,Not a case,,,,,,No,No,No,No,No,No,No,No,No,No,Yes,Yes,Yes,Yes,Yes,41.6456,-83.5723,Junction
+P047,43,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,Yes,No,No,No,Yes,No,41.6723,-83.5189,Sherman
+P048,75,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,No,Yes,Yes,Yes,Yes,Yes,41.6634,-83.5945,Ottawa
+P049,31,Male,Confirmed,2026-01-11,01:00,2026-01-12,2026-01-11,2026-01-12,y,n,No,Yes,Yes,No,Yes,Yes,No,No,Yes,Yes,No,Yes,No,41.6598,-83.5723,Englewood
+P050,54,Female,Confirmed,2026-01-11,05:00,2026-01-12,2026-01-11,2026-01-12,Yes,Yes,No,No,Yes,No,Yes,No,Yes,Yes,No,No,Yes,No,Yes,41.6745,-83.6012,Ottawa
+P051,23,Male,Probable,2026-01-11,07:00,,2026-01-11,2026-01-12,Yes,n,Yes,Yes,No,No,Yes,Yes,No,Yes,Yes,No,Yes,Yes,No,41.6423,-83.5534,Junction
+P052,66,Female,Confirmed,2026-01-11,09:00,2026-01-13,2026-01-11,2026-01-12,Yes,No,No,Yes,Yes,Yes,Yes,No,Yes,No,No,Yes,No,Yes,Yes,41.6812,-83.5878,DeVilbiss
+P053,42,Male,Confirmed,2026-01-11,13:00,2026-01-13,2026-01-12,2026-01-13,y,y,n,No,Yes,No,Yes,Yes,No,Yes,No,Yes,Yes,No,No,41.6534,-83.6145,Campus
+P054,11,Female,Probable,2026-01-11,17:00,,2026-01-12,2026-01-13,Yes,Yes,,Yes,,No,Yes,No,No,No,Yes,,Yes,Yes,No,41.6689,-83.5623,Old West End
+P055,38,Male,Confirmed,2026-01-11,19:00,2026-01-13,2026-01-12,2026-01-13,Yes,No,Yes,No,Yes,No,Yes,Yes,Yes,Yes,No,No,No,Yes,Yes,41.6456,-83.5389,Warehouse District
+P056,49,Female,Probable,2026-01-11,21:00,,2026-01-12,2026-01-13,y,No,No,y,No,No,Yes,No,No,No,Yes,Yes,Yes,No,Yes,41.6778,-83.6234,Lincolnshire
+P057,27,Male,Confirmed,2026-01-11,23:00,2026-01-13,2026-01-12,2026-01-13,Yes,Yes,No,No,Yes,No,Yes,Yes,Yes,Yes,Yes,No,Yes,Yes,No,41.6345,-83.5712,Walbridge
+P058,73,Female,Confirmed,2026-01-12,01:00,2026-01-12,2026-01-12,2026-01-13,Yes,No,No,Yes,Yes,Yes,Yes,No,No,No,No,Yes,No,Yes,Yes,41.6901,-83.5956,Hampton Park
+P059,35,Male,Probable,2026-01-12,03:00,,2026-01-12,2026-01-13,Yes,n,y,No,No,No,Yes,Yes,Yes,Yes,No,Yes,Yes,No,No,41.6567,-83.6078,Campus
+P060,58,Female,Confirmed,2026-01-12,05:00,2026-01-13,2026-01-12,2026-01-13,Yes,Yes,No,Yes,Yes,No,Yes,No,No,No,Yes,No,Yes,Yes,Yes,41.6623,-83.5467,Warren-Sherman
+P061,16,Male,Probable,2026-01-11,10:30,,2026-01-11,2026-01-12,y,y,,Yes,,n,Yes,Yes,,Yes,Yes,,Yes,Yes,No,41.6489,-83.5823,Junction
+P062,44,Female,Confirmed,2026-01-11,14:30,2026-01-13,2026-01-12,2026-01-13,Yes,No,Yes,No,Yes,No,Yes,No,Yes,No,No,Yes,No,No,Yes,41.6734,-83.6189,Old Orchard
+P063,62,Male,Confirmed,2026-01-11,16:30,2026-01-13,2026-01-12,2026-01-13,Yes,No,No,Yes,Yes,No,Yes,Yes,No,Yes,No,No,Yes,Yes,No,41.6401,-83.5534,Old South End
+P064,7,Female,Probable,2026-01-11,18:30,,2026-01-12,2026-01-13,Yes,Yes,,,No,No,Yes,No,,No,Yes,Yes,Yes,Yes,,41.6856,-83.5678,Overland
+P065,51,Male,Confirmed,2026-01-11,20:30,2026-01-13,2026-01-12,2026-01-13,Yes,Yes,No,No,Yes,No,Yes,Yes,Yes,Yes,No,Yes,No,No,Yes,41.6512,-83.6023,Scott Park
+P066,39,Female,Probable,2026-01-12,04:00,,2026-01-12,2026-01-13,y,n,y,Yes,n,n,Yes,No,No,No,Yes,No,Yes,Yes,No,41.6678,-83.5756,Auburndale
+P067,29,Male,Not a case,,,,,,No,No,No,No,No,No,Yes,Yes,Yes,No,Yes,Yes,No,Yes,Yes,41.6423,-83.5912,Scott Park
+P068,33,Female,Not a case,,,,,,n,n,n,n,n,n,Yes,No,No,Yes,No,No,Yes,No,No,41.6789,-83.6134,Old Orchard
+P069,47,Male,Not a case,,,,,,No,No,No,No,No,No,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes,No,41.6534,-83.5478,Uptown
+P070,21,Female,Not a case,,,,,,No,No,No,No,No,No,Yes,No,No,No,Yes,Yes,No,Yes,Yes,41.6867,-83.5823,Willys
+P071,55,Male,Not a case,,,,,,n,n,n,n,n,n,Yes,Yes,Yes,Yes,No,No,Yes,No,Yes,41.6612,-83.6267,Ottawa Hills
+P072,37,Female,Not a case,,,,,,No,No,No,No,No,No,Yes,No,No,Yes,Yes,Yes,Yes,Yes,No,41.6456,-83.5589,Junction
+P073,46,Male,Suspected,2026-01-11,20:00,,,2026-01-13,n,n,y,y,n,n,No,Yes,No,Yes,Yes,No,Yes,Yes,Yes,41.6723,-83.5678,Overland
+P074,69,Female,Suspected,2026-01-12,06:00,,,2026-01-13,Yes,No,No,No,No,No,No,No,Yes,No,Yes,Yes,No,No,Yes,41.6389,-83.6045,Scott Park
+P075,18,Male,Probable,2026-01-11,22:00,,2026-01-12,2026-01-13,y,,y,n,,,No,Yes,,Yes,No,No,,Yes,,41.6801,-83.5312,Polish Village
+P076,41,Female,Suspected,2026-01-12,02:00,,,2026-01-13,No,No,Yes,Yes,No,No,No,Yes,Yes,No,No,Yes,Yes,Yes,No,41.6545,-83.5934,Westmoreland
+P077,52,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,Yes,No,Yes,No,Yes,Yes,41.6634,-83.5789,Clinton Park
+P078,19,Female,Not a case,,,,,,n,n,n,n,n,n,No,No,No,No,Yes,Yes,Yes,No,Yes,41.6489,-83.6123,Secor Gardens
+P079,34,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,No,Yes,No,Yes,Yes,No,41.6756,-83.5456,Bronson-Birckhead
+P080,65,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,Yes,No,Yes,Yes,Yes,Yes,41.6378,-83.5867,Burroughs
+P081,14,Male,Not a case,,,,,,No,No,No,No,No,No,No,No,Yes,Yes,Yes,No,Yes,No,No,41.6845,-83.6034,Hampton Park
+P082,48,Female,Not a case,,,,,,n,n,n,n,n,n,No,Yes,No,No,No,Yes,No,Yes,Yes,41.6512,-83.5623,Junction
+P083,28,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,Yes,Yes,Yes,Yes,Yes,No,41.6689,-83.5178,Vistula
+P084,57,Female,Not a case,,,,,,No,No,No,No,No,No,No,No,No,No,Yes,No,Yes,No,Yes,41.6423,-83.6189,Secor Gardens
+P085,23,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,Yes,No,Yes,No,Yes,Yes,41.6778,-83.5534,Olde Towne
+P086,70,Female,Not a case,,,,,,n,n,n,n,n,n,No,Yes,No,No,Yes,Yes,Yes,Yes,No,41.6567,-83.5978,Bancroft Hills
+P087,42,Male,Not a case,,,,,,No,No,No,No,No,No,No,No,Yes,Yes,No,No,Yes,No,Yes,41.6834,-83.5712,Willys
+P088,31,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,No,Yes,Yes,No,Yes,Yes,41.6401,-83.6267,Sleepy Hollow
+P089,59,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,Yes,Yes,No,Yes,Yes,No,41.6712,-83.5389,Sherman
+P090,16,Female,Not a case,,,,,,n,n,n,n,n,n,No,No,No,No,No,Yes,Yes,No,Yes,41.6589,-83.5823,Clinton Park
+P091,45,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,Yes,Yes,No,Yes,Yes,Yes,No,41.6456,-83.6078,Secor Gardens
+P092,26,Female,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,No,Yes,No,No,Yes,Yes,41.6823,-83.5467,Joe E. Brown Park
+P093,63,Male,Not a case,,,,,,No,No,No,No,No,No,No,No,Yes,Yes,Yes,Yes,Yes,No,No,41.6345,-83.5956,Burroughs
+P094,38,Female,Not a case,,,,,,n,n,n,n,n,n,No,Yes,Yes,No,No,No,Yes,Yes,Yes,41.6701,-83.6145,Old Orchard
+P095,49,Male,Not a case,,,,,,No,No,No,No,No,No,No,Yes,No,Yes,Yes,Yes,No,Yes,No,41.6534,-83.5623,Englewood
+P096,74,Female,Not a case,,,,,,No,No,No,No,No,No,No,No,Yes,No,Yes,Yes,Yes,Yes,Yes,41.6867,-83.5278,Polish Village

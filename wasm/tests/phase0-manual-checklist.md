@@ -53,6 +53,7 @@ system, viewport, and result in the review or release notes.
 - [ ] Add Data Layer > Case Cluster accepts latitude and longitude fields.
 - [ ] Valid points render and invalid/blank coordinates are skipped.
 - [ ] Add Data Layer > GeoJSON Layer accepts a `.geojson` or `.json` file and renders its points, lines, and polygons.
+- [ ] The integrated outbreak example imports 96 records, plots their coordinates, and accepts the 87-feature Toledo neighborhoods example with `name` selected as its polygon-label field.
 - [ ] An uploaded GeoJSON layer can be hidden, shown, removed, and included by Fit Layers.
 - [ ] GeoJSON polygon properties populate the Polygon label field selector, and the selected field renders at an interior point only when the polygon has enough room at the current zoom.
 - [ ] Each labeled GeoJSON layer provides a Labels checkbox that hides or shows labels without hiding its polygons.

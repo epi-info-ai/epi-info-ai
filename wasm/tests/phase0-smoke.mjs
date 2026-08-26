@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const testsDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testsDirectory, "../..");
 const demoDirectory = join(repositoryRoot, "wasm/demo");
+const examplesDirectory = join(demoDirectory, "examples");
 const fixturesDirectory = join(testsDirectory, "fixtures/phase0");
 
 function repositoryPath(relativePath) {
@@ -44,6 +45,9 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/epi2x2.wasm",
     "wasm/demo/sample-case-data.csv",
     "wasm/demo/sample-map-layer.geojson",
+    "wasm/demo/examples/README.md",
+    "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "wasm/demo/examples/city-of-toledo-neighborhoods.geojson",
     "wasm/demo/vendor/leaflet/leaflet.css",
     "wasm/demo/vendor/leaflet/leaflet.js",
     "wasm/demo/vendor/leaflet/LICENSE",
@@ -220,6 +224,20 @@ async function checkCsvAndProjectFixtures() {
 
   const serializedRows = module.parseCsv(module.serializeCsv(inferred.schema, inferred.records));
   assert.deepEqual(serializedRows, rows);
+
+  const outbreakCsv = await readFile(join(examplesDirectory, "foodborne-outbreak-investigation.csv"), "utf8");
+  const outbreakRows = module.parseCsv(outbreakCsv);
+  assert.equal(outbreakRows.length, 97);
+  assert.equal(outbreakRows[0].length, 27);
+  assert.equal(outbreakRows[0][0], "ID");
+  assert.equal(outbreakRows[0][24], "Latitude");
+  assert.equal(outbreakRows[0][25], "Longitude");
+  assert.equal(outbreakRows[0][26], "Household Neighborhood");
+  const outbreak = module.inferSchemaFromCsv("foodborne-outbreak-investigation.csv", outbreakRows);
+  assert.equal(outbreak.records.length, 96);
+  assert.equal(new Set(outbreak.records.map((record) => record.id)).size, 96);
+  assert.ok(outbreak.records.every((record) => Number(record.latitude) >= 41.6 && Number(record.latitude) <= 41.8));
+  assert.ok(outbreak.records.every((record) => Number(record.longitude) >= -83.7 && Number(record.longitude) <= -83.4));
   assert.equal(module.alignToGrid(19, 12), 24);
   assert.equal(module.alignToGrid(5, 12), 0);
 
@@ -275,6 +293,13 @@ async function checkMapFixture() {
   assert.equal(parsed.geojson.type, "FeatureCollection");
   assert.equal(parsed.featureCount, 3);
   assert.deepEqual(listGeoJsonPolygonProperties(parsed.geojson), ["name", "status"]);
+  const toledoText = await readFile(join(examplesDirectory, "city-of-toledo-neighborhoods.geojson"), "utf8");
+  const toledo = parseGeoJson(toledoText);
+  assert.equal(toledo.geojson.type, "FeatureCollection");
+  assert.equal(toledo.featureCount, 87);
+  assert.ok(toledo.geojson.features.every((feature) => feature.geometry?.type === "MultiPolygon"));
+  assert.ok(toledo.geojson.features.every((feature) => typeof feature.properties?.name === "string" && feature.properties.name.length > 0));
+  assert.ok(listGeoJsonPolygonProperties(toledo.geojson).includes("name"));
   const polygonAnchor = polygonLabelAnchor(parsed.geojson.features[2].geometry);
   assert.ok(polygonAnchor.clearance > 0);
   assert.ok(polygonAnchor.latitude > 41.63 && polygonAnchor.latitude < 41.69);
