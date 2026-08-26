@@ -8,7 +8,9 @@ components. Deterministic epidemiologic calculations belong in a WebAssembly
 (WASM) engine. TypeScript is the default language for application features, while
 a deliberately small JavaScript layer loads the application and connects the WASM
 artifact to the browser. AI is a future, optional orchestration layer and must not
-calculate epidemiologic results itself.
+calculate epidemiologic results itself. Python supports scientific validation,
+test-data generation, agent research, and optional exploratory analysis; it is not
+the primary browser application language or a second trusted statistics engine.
 
 This document distinguishes the code that exists in the current 2 x 2 spike from
 the intended product architecture.
@@ -19,6 +21,9 @@ the intended product architecture.
 |---|---|---|
 | Epi kernel | Rust compiled to WASM | Deterministic epidemiologic calculations, numerical algorithms, and parity-tested result primitives |
 | Product application | TypeScript | UI components, forms, validation, data entry, project state, CSV handling, maps, persistence adapters, synchronization, and tests |
+| Scientific development tooling | Python | Independent statistical comparison, synthetic fixture generation, agent evaluation, and research notebooks outside the production browser path |
+| Optional exploratory workspace | Python on Pyodide | User-visible, sandboxed advanced analysis loaded on demand in a Web Worker; never presented as a validated Epi Info result |
+| Optional service integration | Python or Rust | Future report, interoperability, aggregation, or AI-gateway services selected per service requirements |
 | Runtime glue | JavaScript | Minimal bootstrapping and WASM/module loading where plain JavaScript materially simplifies browser startup |
 | Presentation | HTML and CSS | Semantic application shell, familiar Epi Info layout, responsive styling, and accessibility structure |
 | Third-party browser libraries | Pinned vendor JavaScript | Leaflet, h3-js, and other reviewed dependencies that are not maintained as project source |
@@ -31,6 +36,75 @@ not execute TypeScript directly.
 Shared operation and result contracts must be versioned. TypeScript types describe
 the browser-facing contract, while Rust serialization and parity fixtures enforce
 the same contract at the WASM boundary.
+
+## Python role and trust boundary
+
+Python is a supporting scientific and interoperability language. The production
+application remains TypeScript, and validated epidemiologic operations remain in
+the canonical Rust kernel. This prevents the browser, notebook, command-line, and
+future service paths from developing different implementations of the same Epi
+Info method.
+
+```mermaid
+flowchart TD
+    UI["TypeScript product and agent"] -->|preferred| TOOLS["Versioned epi.* tools"]
+    TOOLS --> CORE["Rust epi-core<br/>validated computation"]
+    UI -->|only when no validated tool fits| PY["Optional Python workspace<br/>Pyodide in a Worker"]
+    PY --> EXP["Exploratory output<br/>clearly labeled"]
+    REF["Python scientific validation<br/>SciPy / statsmodels / pandas"] --> FIX["Reviewed fixtures<br/>method + version + tolerance"]
+    FIX --> CORE
+    CORE -. "future bindings" .-> NATIVE["Python package / CLI / services"]
+```
+
+### Development and validation
+
+Python is well suited to generating synthetic edge cases and comparing Rust results
+with independent scientific libraries. Candidate uses include sparse and zero-cell
+tables, missing values, extreme sample sizes, weights, many strata, regression
+convergence cases, agent tool-selection evaluations, and performance datasets.
+
+Python output is not accepted as ground truth merely because a library produced it.
+Every promoted fixture records the reference package and version, statistical
+method and options, expected result, tolerance, and reviewer decision. Rust native
+tests and browser WASM tests consume the same reviewed, data-only fixtures. Python
+is development tooling and is not required to build, start, or use the core browser
+application.
+
+### Optional browser notebook or Advanced Analysis
+
+A later, separately gated feature may load Pyodide for advanced local analysis.
+It must:
+
+- be optional and lazy-loaded so ordinary Epi Info workflows do not pay its
+  download, startup, or memory cost;
+- run in a dedicated Web Worker with time, memory, output-size, and cancellation
+  controls;
+- receive only an explicit, mediated dataset view and no authentication tokens,
+  unrestricted project storage, host DOM access, or ambient network capability;
+- label code, charts, tables, and narratives as exploratory rather than validated
+  Epi Info results;
+- require an explicit reviewed action before generated code can change project
+  records; and
+- preserve code, inputs, package/runtime versions, outputs, warnings, and execution
+  status as provenance when a user saves an analysis.
+
+The agent must prefer versioned `epi.*` operations backed by Rust. It may propose
+the Python sandbox only when no suitable validated operation exists, and it must
+make that change in trust level visible to the user. Pyodide is not part of the
+initial offline shell because low-resource device budgets must be measured first.
+
+### Python bindings and optional services
+
+Future Python bindings should call the same native Rust `epi-core` library used to
+produce browser WASM rather than translating algorithms into Python. This can make
+validated Epi Info operations available to Jupyter, research pipelines, command-line
+tools, and optional services while retaining one canonical engine and result
+contract.
+
+Python may also be selected for future APIs, report generation, FHIR or DHIS2
+adapters, surveillance aggregation, and model evaluation. Those services remain
+optional boundaries: privileged credentials never enter browser or Pyodide code,
+and a Python service does not silently replace local validated computation.
 
 ## Mobile-first, familiarity-preserving UI
 
@@ -197,6 +271,8 @@ wasm/
 |   |-- Cargo.toml                  Rust WASM crate definition
 |   |-- README.md                   Local build instructions
 |   `-- src/lib.rs                  Rust-implemented 2 x 2 primitives
+|-- research/                       Future Python validation and agent-evaluation tooling
+|-- python-bindings/                Future bindings to the canonical native Rust kernel
 `-- demo/
     |-- index.html                   Familiar browser UI structure
     |-- styles.css                   Visual design and responsive layout
@@ -225,6 +301,10 @@ wasm/
    deterministic engine or silently alter its output.
 6. Plugins use only the versioned capability API. They do not import application
    internals, bypass validation/RLS, or become required for core workflows.
+7. Python reference tooling produces review candidates, not unquestioned expected
+   results. Promoted fixtures record method, package version, tolerance, and review.
+8. Optional Python execution is sandboxed and visibly exploratory. It cannot claim
+   the provenance of a validated Rust-backed `epi.*` operation.
 
 ## Migration plan
 
@@ -287,5 +367,6 @@ support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers w
 yet provide external databases, shapefiles, satellite imagery, choropleths, spatial
 analysis, geocoding, or offline basemap packages. The slice also does
 not yet include project files, SQLite/OPFS persistence, dashboards, service-worker
-offline installation, a plugin runtime/catalog, AI tool orchestration, or remote services. Those are
+offline installation, a plugin runtime/catalog, AI tool orchestration, a Pyodide
+Advanced Analysis workspace, Python bindings, or remote services. Those are
 target-architecture components and should not be inferred from this demo.
