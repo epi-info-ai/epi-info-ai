@@ -8,9 +8,9 @@ import {
   markCurrentProjectSynced,
   showRecordInEnter,
   testSupabaseConnection,
-} from "./form-data.js?v=17";
+} from "./form-data.js?v=18";
 import { initializeMaps } from "./maps.js?v=11";
-import { initializeSupabaseSync } from "./supabase-sync.js?v=2";
+import { initializeSupabaseSync } from "./supabase-sync.js?v=3";
 
 const form = document.querySelector("#table-form");
 const message = document.querySelector("#form-message");

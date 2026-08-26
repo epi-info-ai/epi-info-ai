@@ -1,0 +1,63 @@
+[
+  {
+    "name": "unsupported snapshot version",
+    "errorPattern": "project.version",
+    "snapshot": {
+      "version": 2,
+      "name": "Future Project",
+      "currentFormId": "form-1",
+      "forms": []
+    }
+  },
+  {
+    "name": "current form does not exist",
+    "errorPattern": "currentFormId",
+    "snapshot": {
+      "name": "Broken Selection",
+      "currentFormId": "form-missing",
+      "forms": [
+        {
+          "id": "form-1",
+          "schema": { "name": "Cases", "fields": [] },
+          "records": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate field names",
+    "errorPattern": "duplicate field name",
+    "snapshot": {
+      "name": "Duplicate Fields",
+      "currentFormId": "form-1",
+      "forms": [
+        {
+          "id": "form-1",
+          "schema": {
+            "name": "Cases",
+            "fields": [
+              { "name": "case_id", "prompt": "Case ID", "type": "text", "required": true },
+              { "name": "case_id", "prompt": "Case Number", "type": "text", "required": false }
+            ]
+          },
+          "records": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "non-finite-compatible record value",
+    "errorPattern": "records\\[0\\]\\.details",
+    "snapshot": {
+      "name": "Invalid Record",
+      "currentFormId": "form-1",
+      "forms": [
+        {
+          "id": "form-1",
+          "schema": { "name": "Cases", "fields": [] },
+          "records": [{ "details": { "nested": "not supported" } }]
+        }
+      ]
+    }
+  }
+]

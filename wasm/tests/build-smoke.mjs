@@ -39,12 +39,14 @@ const requiredFiles = [
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=25["']/);
+assert.match(html, /src=["']app\.js\?v=26["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']epi-map["']/);
 
 const app = await requireFile("app.js");
 assert.match(app, /\.\/maps\.js\?v=11/);
+assert.match(app, /\.\/form-data\.js\?v=18/);
+assert.match(app, /\.\/supabase-sync\.js\?v=3/);
 const maps = await requireFile("maps.js");
 assert.match(maps, /MAP_PANE_Z_INDEX/);
 assert.match(maps, /aggregateH3Cells/);
@@ -52,6 +54,7 @@ assert.match(maps, /aggregateH3Cells/);
 const manifest = JSON.parse(await requireFile("build-manifest.json"));
 assert.equal(manifest.schemaVersion, 1);
 assert.ok(manifest.sourceModules.includes("wasm/demo/app.js"));
+assert.ok(manifest.sourceModules.includes("wasm/demo/supabase-sync.ts"));
 assert.ok(manifest.outputs.includes("wasm/dist/app.js"));
 
 const outputListing = JSON.stringify(manifest);

@@ -200,6 +200,18 @@ known-good generated artifact; do not publish untested source files directly.
 Migrate one module per reviewable change. Do not combine a module conversion with
 new user-visible functionality.
 
+### Implementation status
+
+- [x] Shared project contracts now include runtime validation for local and hosted
+  snapshots, including version, form/field uniqueness, record values, storage, and
+  synchronization metadata.
+- [x] Unreadable local project JSON is preserved under a recovery key before the
+  application falls back to compatible legacy form and record storage.
+- [x] Supabase synchronization is TypeScript, with typed configuration, sessions,
+  hosted rows, API errors, and validated upload/download boundaries.
+- [ ] Migrate Maps, the application controller, forms/data entry, and the engine
+  adapter in the order below.
+
 ### Module order
 
 1. **Contracts and utilities:** project, form, field, record, map, storage, sync,
@@ -519,10 +531,10 @@ provenance.
 
 Phases 0 and 1 are closed. Begin Phase 2 without changing user-visible behavior:
 
-1. Validate existing browser snapshots against the new shared TypeScript contracts.
-2. Convert Supabase synchronization to TypeScript as the first bounded maintained
-   feature module.
-3. Convert Maps next, before adding more mapping features.
+1. Convert Maps to TypeScript before adding more mapping features.
+2. Convert the application controller.
+3. Split forms and data entry into schema, designer, entry, CSV, persistence, and
+   project-state modules before converting them.
 
 This keeps the safety net ahead of the feature migration and prevents additional
 JavaScript migration debt.

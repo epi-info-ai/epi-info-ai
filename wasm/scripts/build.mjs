@@ -1,5 +1,5 @@
 import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
@@ -8,6 +8,7 @@ const wasmDirectory = resolve(scriptsDirectory, "..");
 const sourceDirectory = join(wasmDirectory, "demo");
 const outputDirectory = join(wasmDirectory, "dist");
 const maintainedModules = ["app", "engine", "form-data", "maps", "supabase-sync"];
+const bundledModules = new Set(["form-data", "supabase-sync"]);
 
 async function existingSource(baseName) {
   for (const extension of [".ts", ".js"]) {
@@ -25,15 +26,16 @@ await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(outputDirectory, { recursive: true });
 await cp(sourceDirectory, outputDirectory, {
   recursive: true,
-  filter: (source) => !relative(sourceDirectory, source).split(/[\\/]/).includes(".secrets"),
+  filter: (source) => (
+    !relative(sourceDirectory, source).split(/[\\/]/).includes(".secrets")
+    && !source.endsWith(".ts")
+  ),
 });
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));
-const result = await build({
-  entryPoints,
+const commonOptions = {
   outbase: sourceDirectory,
   outdir: outputDirectory,
-  bundle: false,
   format: "esm",
   platform: "browser",
   target: "es2022",
@@ -42,7 +44,13 @@ const result = await build({
   logLevel: "info",
   metafile: true,
   outExtension: { ".js": ".js" },
-});
+};
+const unbundledEntries = entryPoints.filter((source) => !bundledModules.has(basename(source, extname(source))));
+const bundledEntries = entryPoints.filter((source) => !unbundledEntries.includes(source));
+const results = await Promise.all([
+  build({ ...commonOptions, entryPoints: unbundledEntries, bundle: false }),
+  build({ ...commonOptions, entryPoints: bundledEntries, bundle: true }),
+]);
 
 for (const source of entryPoints) {
   if (source.endsWith(".ts")) {
@@ -55,7 +63,7 @@ const manifest = {
   schemaVersion: 1,
   applicationVersion: packageManifest.version,
   sourceModules: entryPoints.map((source) => relative(resolve(wasmDirectory, ".."), source).replaceAll("\\", "/")),
-  outputs: Object.keys(result.metafile.outputs)
+  outputs: results.flatMap((result) => Object.keys(result.metafile.outputs))
     .map((output) => relative(resolve(wasmDirectory, ".."), resolve(output)).replaceAll("\\", "/"))
     .sort(),
 };

@@ -1,7 +1,10 @@
+import { parseProjectSnapshotJson, validateProjectSnapshot } from "../app/contracts/core.ts";
+
 const SCHEMA_KEY = "epi-info-ai.form-schema.v1";
 const RECORDS_KEY = "epi-info-ai.records.v1";
 const PROJECT_KEY = "epi-info-ai.project-name.v1";
 const PROJECT_STATE_KEY = "epi-info-ai.project-state.v1";
+const PROJECT_RECOVERY_KEY = "epi-info-ai.project-state-unreadable.v1";
 const SNAP_KEY = "epi-info-ai.snap-to-grid.v1";
 const SUPABASE_CONFIG_KEY = "epi-info-ai.supabase-config.v1";
 const GRID_SIZE = 12;
@@ -22,8 +25,10 @@ let schema = loadJson(SCHEMA_KEY, DEFAULT_SCHEMA);
 let records = loadJson(RECORDS_KEY, []);
 let projectName = loadText(PROJECT_KEY, "Browser Project");
 let snapToGrid = loadText(SNAP_KEY, "true") !== "false";
-let projectState = loadJson(PROJECT_STATE_KEY, null);
-if (!projectState?.forms?.length) {
+const loadedProject = loadProjectSnapshot();
+let projectLoadWarning = loadedProject.warning;
+let projectState = loadedProject.snapshot;
+if (!projectState) {
   projectState = {
     name: projectName,
     currentFormId: "form-default",
@@ -35,6 +40,35 @@ let currentFormId = projectState.currentFormId || projectState.forms[0].id;
 const initialForm = projectState.forms.find((form) => form.id === currentFormId) || projectState.forms[0];
 schema = structuredClone(initialForm.schema);
 records = structuredClone(initialForm.records || []);
+
+function loadProjectSnapshot() {
+  let raw;
+  try {
+    raw = localStorage.getItem(PROJECT_STATE_KEY);
+  } catch {
+    return { snapshot: null, warning: "Browser project storage is unavailable; this working copy will not persist." };
+  }
+  if (!raw) return { snapshot: null, warning: "" };
+  try {
+    return { snapshot: parseProjectSnapshotJson(raw), warning: "" };
+  } catch (error) {
+    let preserved = false;
+    try {
+      localStorage.setItem(PROJECT_RECOVERY_KEY, raw);
+      preserved = true;
+    } catch {
+      // The original value remains untouched until a later explicit save attempt.
+    }
+    const detail = error instanceof Error ? error.message : "unknown validation error";
+    const recovery = preserved
+      ? `Its original JSON was preserved under ${PROJECT_RECOVERY_KEY}`
+      : "Its original storage value remains in place, but a separate recovery copy could not be created";
+    return {
+      snapshot: null,
+      warning: `The saved project could not be opened (${detail}). ${recovery}; legacy form data was loaded instead.`,
+    };
+  }
+}
 
 function loadJson(key, fallback) {
   try {
@@ -169,8 +203,7 @@ export function markCurrentProjectSynced(remote) {
 }
 
 export function applyHostedProjectSnapshot(snapshot, remote) {
-  if (!snapshot?.forms?.length) throw new Error("The hosted project snapshot does not contain any forms.");
-  projectState = structuredClone(snapshot);
+  projectState = validateProjectSnapshot(snapshot);
   projectState.storage = { type: "supabase" };
   projectState.remote = structuredClone(remote);
   projectName = projectState.name || "Hosted Project";
@@ -709,6 +742,11 @@ export function initializeFormDataDemo() {
   renderEntryForm();
   renderRecords();
   renderStorageBadge();
+  if (projectLoadWarning) {
+    document.querySelector("#main-menu-status").textContent = projectLoadWarning;
+    document.querySelector("#form-status").textContent = projectLoadWarning;
+    projectLoadWarning = "";
+  }
 
   for (const button of document.querySelectorAll("[data-module]")) {
     button.addEventListener("click", () => showModule(button.dataset.module));

@@ -16,7 +16,8 @@ contact Supabase, open a browser, or use sensitive data. It checks:
 - the recorded WASM checksum, header, and required exports;
 - the versioned `epi.table2x2` result contract and representative edge cases;
 - CSV quoting, Unicode, type inference, and round-trip behavior;
-- form snapshot structure and snap-to-grid arithmetic;
+- valid and malformed project snapshot contracts, unreadable-local-state recovery,
+  form snapshot structure, and snap-to-grid arithmetic;
 - map coordinate filtering; and
 - the required Supabase table/RLS statements.
 

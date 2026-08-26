@@ -181,7 +181,7 @@ flowchart LR
     UI --> DATA["Forms, data entry, CSV<br/>form-data.js"]
     DATA <--> STORE["Browser localStorage"]
     DATA <--> CSV["CSV files"]
-    DATA <--> SYNC["Authenticated project snapshots<br/>supabase-sync.js"]
+    DATA <--> SYNC["Authenticated project snapshots<br/>supabase-sync.ts"]
     SYNC <--> SUPABASE["Supabase Data API<br/>Postgres + RLS"]
     UI --> MAPS["Record mapping and geolocation<br/>maps.js + Leaflet"]
     MAPS -. "online basemap tiles" .-> OSM["OpenStreetMap"]
@@ -195,7 +195,9 @@ flowchart LR
 The production build compiles maintained modules from `demo/` into `dist/` with
 external source maps; GitLab Pages publishes `dist/`. During the incremental
 transition, esbuild accepts either a `.ts` or legacy `.js` source for each module,
-so modules can move independently without a flag-day rewrite.
+so modules can move independently without a flag-day rewrite. Modules that consume
+TypeScript runtime contracts are bundled at that boundary; raw TypeScript source is
+not copied into the published artifact.
 
 The browser loads `app.js` as an ES module. It imports `engine.js`, which loads
 `epi2x2.wasm` before accepting a calculation. All computation is local; the demo
@@ -240,7 +242,7 @@ and has no runtime dependencies or operating-system access.
 | Form schema and record persistence in `localStorage` | `demo/form-data.js` | JavaScript |
 | CSV parsing, import mapping, quoting, and export download | `demo/form-data.js` | JavaScript |
 | Form generation and field-type inference from CSV | `demo/form-data.js` | JavaScript |
-| Supabase email/GitHub authentication, project snapshot upload/download, and revision conflict checks | `demo/supabase-sync.js` | JavaScript |
+| Supabase email/GitHub authentication, typed API responses, validated project snapshot upload/download, and revision conflict checks | `demo/supabase-sync.ts` | TypeScript |
 | Coordinate-field selection and record-to-point filtering | `demo/maps.js` | JavaScript |
 | Interactive map, explicit raster/polygon/line/point pane hierarchy, popups, and viewport control | `demo/maps.js` + Leaflet | JavaScript |
 | Browser-local GeoJSON validation, upload, rendering, and layer controls | `demo/maps.js` + Leaflet | JavaScript |
@@ -261,7 +263,7 @@ wasm/
 |-- migration-plan.md               Phased execution and acceptance gates
 |-- project.md                      Product and system direction
 |-- feasibility-analysis.md         Port feasibility findings
-|-- app/contracts/                  Strict shared TypeScript contracts
+|-- app/contracts/                  Strict shared TypeScript contracts and runtime snapshot validation
 |-- scripts/                        Production build and preview tooling
 |-- dist/                           Generated, ignored Pages artifact
 |-- docs/
@@ -278,7 +280,7 @@ wasm/
     |-- styles.css                   Visual design and responsive layout
     |-- app.js                       Browser interaction and rendering
     |-- form-data.js                 Forms, entry, local storage, and CSV
-    |-- supabase-sync.js             Authenticated Supabase snapshot synchronization
+    |-- supabase-sync.ts             Typed authenticated Supabase snapshot synchronization
     |-- maps.js                      Record mapping and browser geolocation
     |-- engine.js                    JS/WASM boundary and result contract
     |-- epi2x2.wasm                 Compiled Rust artifact
@@ -327,15 +329,16 @@ tools.
 
 ### TypeScript migration
 
-1. Add a pinned TypeScript build and type-check step to the GitLab Pages pipeline.
-2. Migrate `app.js`, `form-data.js`, `maps.js`, and `supabase-sync.js` to typed
-   modules without changing their user-visible behavior.
-3. Define shared types for projects, forms, fields, records, synchronization
-   metadata, map layers, and versioned epidemiologic results.
-4. Reduce `engine.js` and `shell.js` to the smallest practical JavaScript loading
+1. Continue migrating `maps.js`, `app.js`, and the decomposed responsibilities in
+   `form-data.js` without changing their user-visible behavior. Supabase
+   synchronization is now TypeScript.
+2. Extend the initial shared contracts beyond project snapshots to validation,
+   map layers, and versioned epidemiologic results.
+3. Reduce `engine.js` and `shell.js` to the smallest practical JavaScript loading
    boundary; move validation, formatting, and result assembly into TypeScript or
    Rust according to ownership.
-5. Disallow new feature logic in JavaScript after the build is established.
+4. Disallow new feature logic in JavaScript; existing JavaScript remains migration
+   source only.
 
 ## TODO
 

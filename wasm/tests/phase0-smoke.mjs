@@ -39,7 +39,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/form-data.js",
     "wasm/demo/maps.js",
     "wasm/demo/shell.js",
-    "wasm/demo/supabase-sync.js",
+    "wasm/demo/supabase-sync.ts",
+    "wasm/app/contracts/core.ts",
     "wasm/demo/epi2x2.wasm",
     "wasm/demo/sample-case-data.csv",
     "wasm/demo/sample-map-layer.geojson",
@@ -106,7 +107,7 @@ async function checkRequiredAssetsAndUi() {
 }
 
 async function checkJavaScriptSyntax() {
-  const maintainedScripts = ["app.js", "engine.js", "form-data.js", "maps.js", "shell.js", "supabase-sync.js"];
+  const maintainedScripts = ["app.js", "engine.js", "form-data.js", "maps.js", "shell.js"];
   for (const script of maintainedScripts) {
     execFileSync(process.execPath, ["--check", join(demoDirectory, script)], { stdio: "pipe" });
   }
@@ -181,7 +182,10 @@ async function checkCsvAndProjectFixtures() {
     removeItem: (key) => memory.delete(key),
     clear: () => memory.clear(),
   };
+  const unreadableProject = JSON.stringify({ name: "Damaged project", currentFormId: "missing", forms: [] });
+  memory.set("epi-info-ai.project-state.v1", unreadableProject);
   const module = await import(`${pathToFileURL(join(demoDirectory, "form-data.js")).href}?phase0=${Date.now()}`);
+  assert.equal(memory.get("epi-info-ai.project-state-unreadable.v1"), unreadableProject);
   const csv = await readFile(join(fixturesDirectory, "csv-roundtrip.csv"), "utf8");
   const rows = module.parseCsv(csv);
   assert.equal(rows.length, 4);
@@ -200,10 +204,22 @@ async function checkCsvAndProjectFixtures() {
   assert.equal(module.alignToGrid(5, 12), 0);
 
   const snapshot = await jsonFixture("project-snapshot-v1.json");
-  assert.ok(snapshot.name);
-  assert.ok(snapshot.forms.length > 0);
-  assert.ok(snapshot.forms.some((form) => form.id === snapshot.currentFormId));
-  for (const form of snapshot.forms) {
+  const contracts = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/core.ts")).href}?phase0=${Date.now()}`);
+  const validated = contracts.validateProjectSnapshot(snapshot);
+  assert.deepEqual(validated, snapshot);
+  assert.equal(contracts.isProjectSnapshot(snapshot), true);
+  assert.equal(contracts.isProjectSnapshot({ ...snapshot, version: 2 }), false);
+  for (const invalid of await jsonFixture("project-snapshot-invalid.json")) {
+    assert.throws(
+      () => contracts.validateProjectSnapshot(invalid.snapshot),
+      new RegExp(invalid.errorPattern, "i"),
+      invalid.name,
+    );
+  }
+  assert.ok(validated.name);
+  assert.ok(validated.forms.length > 0);
+  assert.ok(validated.forms.some((form) => form.id === validated.currentFormId));
+  for (const form of validated.forms) {
     const names = form.schema.fields.map((field) => field.name);
     assert.equal(new Set(names).size, names.length, `${form.id} field names must be unique`);
     assert.ok(form.schema.fields.every((field) => field.name && field.prompt && field.type));
