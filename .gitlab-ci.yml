@@ -1,6 +1,7 @@
 stages:
   - test
   - build
+  - browser-test
   - deploy
 
 browser-baseline:
@@ -49,11 +50,36 @@ production-build:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
 
+browser-e2e:
+  stage: browser-test
+  image: mcr.microsoft.com/playwright:v1.62.0-noble
+  needs:
+    - job: production-build
+      artifacts: true
+  before_script:
+    - corepack enable
+    - corepack install
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm run test:browser
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - playwright-report
+      - test-results
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
 pages:
   stage: deploy
   image: alpine:3.20
   needs:
-    - production-build
+    - job: production-build
+      artifacts: true
+    - job: browser-e2e
+      artifacts: false
   script:
     - test -f wasm/dist/index.html
     - mkdir -p public

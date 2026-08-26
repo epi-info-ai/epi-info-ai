@@ -11,11 +11,13 @@
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "node wasm/tests/phase0-smoke.mjs",
     "test:build": "node wasm/tests/build-smoke.mjs",
+    "test:browser": "playwright test",
     "build": "node wasm/scripts/build.mjs",
     "preview": "node wasm/scripts/preview.mjs",
     "check": "tsc --project tsconfig.json --noEmit && node wasm/tests/phase0-smoke.mjs && node wasm/scripts/build.mjs && node wasm/tests/build-smoke.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.0",
     "esbuild": "0.28.2",
     "typescript": "7.0.2"
   }

@@ -10,6 +10,8 @@
 **/node_modules/
 **/dist/
 **/coverage/
+playwright-report/
+test-results/
 
 # IDE and operating-system files
 .vs/
@@ -17,4 +19,3 @@
 .idea/
 .DS_Store
 Thumbs.db
-

@@ -31,3 +31,17 @@ Complete [`phase0-manual-checklist.md`](phase0-manual-checklist.md) before a mig
 changes visible workflows, browser storage, authentication, mapping, or deployment.
 The manual checklist complements the automated suite; it is not replaced by static
 asset checks.
+
+## Browser end-to-end smoke tests
+
+The Playwright suite exercises the production build in Chromium:
+
+```text
+pnpm run build
+pnpm run test:browser
+```
+
+It verifies the manual-aligned application menus, Form Designer project commands,
+the additive Project Storage workflow, and Leaflet map initialization. GitLab CI
+runs it after `production-build` and before Pages deployment. On failure, the job
+retains its HTML report, trace, screenshot, and video artifacts for 14 days.
