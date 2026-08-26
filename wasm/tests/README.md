@@ -42,6 +42,7 @@ pnpm run test:browser
 ```
 
 It verifies the manual-aligned application menus, Form Designer project commands,
-the additive Project Storage workflow, and Leaflet map initialization. GitLab CI
+the additive Project Storage workflow, Leaflet map initialization, and the generated
+JupyterLite validation lab. GitLab CI
 runs it after `production-build` and before Pages deployment. On failure, the job
 retains its HTML report, trace, screenshot, and video artifacts for 14 days.

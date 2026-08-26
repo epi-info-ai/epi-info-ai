@@ -37,6 +37,24 @@ Shared operation and result contracts must be versioned. TypeScript types descri
 the browser-facing contract, while Rust serialization and parity fixtures enforce
 the same contract at the WASM boundary.
 
+The runtime choice is therefore based on the role, not on a claim that only one
+language can run in a browser:
+
+| Need | Selected runtime | Reason |
+|---|---|---|
+| Familiar Epi Info product workflows | TypeScript | Direct browser platform access, accessible components, and the smallest ordinary application path |
+| Official, versioned Epi calculations | Rust/WASM | A purpose-built, strongly typed kernel with explicit errors and one implementation shared by browser and future native bindings |
+| Transparent cross-implementation validation | CPython on Pyodide | Runs scientific Python in the browser and can call the deployed Rust/WASM artifact from the same notebook |
+| Custom or experimental analysis | Optional CPython on Pyodide | Broad scientific ecosystem and rapid iteration, with an explicitly lower exploratory trust level |
+
+CPython in the browser is technically viable through
+[Pyodide](https://pyodide.org/en/stable/), a WebAssembly distribution of Python.
+It was not rejected as incapable. It remains outside the ordinary product path
+because embedding a general-purpose Python runtime and scientific packages has a
+different download, startup, memory, package-compatibility, and governance profile
+from loading a focused Epi kernel. These budgets must be measured on supported
+low-resource devices before an Advanced Analysis workspace is promoted.
+
 Every algorithm and third-party numerical dependency is governed by the
 [algorithm validation standard](docs/validation/algorithm-validation-standard.md).
 The current [Rust epidemiology landscape assessment](docs/research/rust-epidemiology-landscape.md)
@@ -78,10 +96,18 @@ tests and browser WASM tests consume the same reviewed, data-only fixtures. Pyth
 is development tooling and is not required to build, start, or use the core browser
 application.
 
-### Optional browser notebook or Advanced Analysis
+### Browser validation notebook and optional Advanced Analysis
 
-A later, separately gated feature may load Pyodide for advanced local analysis.
-It must:
+The V0.1 JupyterLite validation lab already uses one Pyodide Python kernel in a
+Web Worker. The notebook calls the deployed Rust/WASM module through Pyodide's
+JavaScript bridge and compares its result with an independent Python reference.
+It is a validation demonstration, not a second product statistics engine. The
+[JupyterLite kernel documentation](https://jupyterlite.readthedocs.io/en/stable/howto/configure/kernels.html)
+confirms that its Pyodide kernel executes in a worker, which keeps notebook
+computation off the application UI thread.
+
+A later, separately gated Advanced Analysis feature may use the same class of
+runtime for user-authored local analysis. It must:
 
 - be optional and lazy-loaded so ordinary Epi Info workflows do not pay its
   download, startup, or memory cost;
@@ -99,7 +125,14 @@ It must:
 The agent must prefer versioned `epi.*` operations backed by Rust. It may propose
 the Python sandbox only when no suitable validated operation exists, and it must
 make that change in trust level visible to the user. Pyodide is not part of the
-initial offline shell because low-resource device budgets must be measured first.
+initial offline application shell because low-resource device budgets must be
+measured first.
+
+The current validation lab fetches Pyodide and scientific packages on demand from
+the configured distribution/CDN. It therefore requires a network connection on
+first use and must not be described as offline-capable. A self-hosted, pinned
+Pyodide distribution and an offline cache/update policy are release gates for an
+offline validation lab or Advanced Analysis workspace.
 
 ### Python bindings and optional services
 

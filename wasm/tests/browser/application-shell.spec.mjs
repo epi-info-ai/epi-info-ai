@@ -48,3 +48,15 @@ test("production artifact opens Maps and initializes Leaflet", async ({ page }) 
   await expect(page.getByRole("button", { name: "Enter map fullscreen" })).toBeVisible();
   await expect(page.getByText("Add Data Layer", { exact: true })).toBeVisible();
 });
+
+test("JupyterLite validation lab V0.1 is part of the Pages artifact", async ({ page, request }) => {
+  const response = await page.goto("/validation-lab/lab/index.html?path=validate-table2x2.ipynb");
+  expect(response?.ok()).toBe(true);
+  await expect(page).toHaveTitle(/Epi Info AI Validation Lab|JupyterLite/, { timeout: 30_000 });
+
+  const notebookResponse = await request.get("/validation-lab/files/validate-table2x2.ipynb");
+  expect(notebookResponse.ok()).toBe(true);
+  const notebook = await notebookResponse.json();
+  expect(notebook.nbformat).toBe(4);
+  expect(JSON.stringify(notebook)).toContain("Rust/WASM vs SciPy");
+});

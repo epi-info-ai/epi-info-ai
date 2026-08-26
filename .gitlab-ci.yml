@@ -1,6 +1,7 @@
 stages:
   - test
   - build
+  - validation-build
   - browser-test
   - deploy
 
@@ -50,11 +51,38 @@ production-build:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
 
+validation-lab-build:
+  stage: validation-build
+  image: python:3.12-slim
+  needs:
+    - job: production-build
+      artifacts: true
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  cache:
+    key:
+      files:
+        - wasm/validation-lab/requirements.txt
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install --requirement wasm/validation-lab/requirements.txt
+  script:
+    - jupyter lite build --lite-dir wasm/validation-lab --contents content --output-dir wasm/dist/validation-lab
+    - test -f wasm/dist/validation-lab/lab/index.html
+    - test -f wasm/dist/validation-lab/files/validate-table2x2.ipynb
+  artifacts:
+    paths:
+      - wasm/dist
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
 browser-e2e:
   stage: browser-test
   image: mcr.microsoft.com/playwright:v1.62.0-noble
   needs:
-    - job: production-build
+    - job: validation-lab-build
       artifacts: true
   before_script:
     - corepack enable
@@ -76,7 +104,7 @@ pages:
   stage: deploy
   image: alpine:3.20
   needs:
-    - job: production-build
+    - job: validation-lab-build
       artifacts: true
     - job: browser-e2e
       artifacts: false

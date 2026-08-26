@@ -34,6 +34,7 @@ const requiredFiles = [
   "vendor/leaflet/leaflet.js",
   "vendor/h3-js/h3-js.es.js",
   "setup/supabase-schema.sql",
+  "validation-fixtures/table2x2-baseline.json",
   "build-manifest.json",
 ];
 await Promise.all(requiredFiles.map(requireFile));

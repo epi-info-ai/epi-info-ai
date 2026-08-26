@@ -12,6 +12,7 @@
 **/coverage/
 playwright-report/
 test-results/
+/.jupyterlite.doit.db
 
 # IDE and operating-system files
 .vs/

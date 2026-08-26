@@ -211,6 +211,30 @@ Every result records the operation version and engine build. A replacement remai
 available beside the last validated version for comparison during one release when
 practical. A failed validation blocks promotion but does not erase prior evidence.
 
+## JupyterLite validation laboratory
+
+JupyterLite notebooks may demonstrate the evidence transparently in the browser.
+Each notebook uses one Pyodide Python kernel and loads the deployed Rust/WASM engine
+as a JavaScript-accessible library. This allows Rust results, Python scientific
+references, fixtures, tolerances, discrepancies, and provenance to appear together
+without treating Python as a second production engine.
+
+Notebook demonstrations are informative, not approval gates. They must:
+
+- load the same versioned fixtures and release WASM artifact used by CI;
+- show unrounded values, per-output comparison rules, warnings, method identity,
+  engine/package versions, and the WASM checksum;
+- use synthetic or approved public data;
+- label candidate, restricted, experimental, and exploratory results accurately;
+- preserve discovered discrepancies rather than hiding or rounding them away; and
+- keep authoritative pass/fail decisions in immutable fixtures and automated CI.
+
+The V0.1 lab is built from
+[`validation-lab/content/validate-table2x2.ipynb`](../../validation-lab/content/validate-table2x2.ipynb)
+and deployed under `/validation-lab/` on the same GitLab Pages origin as the app.
+It compares the Rust/WASM risk ratio with the current fixture and SciPy. V0.2 will
+add the classified legacy 100-case corpus.
+
 ## Initial execution order
 
 1. Apply this standard to `epi.table2x2`; import and classify the existing legacy

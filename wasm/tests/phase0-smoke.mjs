@@ -55,6 +55,9 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/setup/supabase-schema.sql",
     "wasm/docs/research/rust-epidemiology-landscape.md",
     "wasm/docs/validation/algorithm-validation-standard.md",
+    "wasm/validation-lab/content/validate-table2x2.ipynb",
+    "wasm/validation-lab/jupyter-lite.json",
+    "wasm/validation-lab/requirements.txt",
     "wasm/tests/fixtures/algorithm-validation/registry.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
@@ -345,6 +348,23 @@ async function checkAlgorithmValidationRegistry() {
   }
 }
 
+async function checkValidationLabSource() {
+  const notebook = JSON.parse(await readFile(repositoryPath("wasm/validation-lab/content/validate-table2x2.ipynb"), "utf8"));
+  assert.equal(notebook.nbformat, 4);
+  assert.equal(notebook.metadata?.kernelspec?.name, "python");
+  const source = notebook.cells.flatMap((cell) => cell.source || []).join("");
+  for (const requiredText of [
+    "candidate operation",
+    "WebAssembly.instantiate",
+    "scipy.stats.contingency",
+    "absoluteTolerance",
+    "wasm_sha256",
+    "GitLab CI",
+  ]) {
+    assert.ok(source.includes(requiredText), `validation notebook must retain ${requiredText}`);
+  }
+}
+
 async function run() {
   const checks = [
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
@@ -355,6 +375,7 @@ async function run() {
     ["map coordinate filtering", checkMapFixture],
     ["Supabase RLS setup contract", checkSupabaseSetupContract],
     ["algorithm validation registry", checkAlgorithmValidationRegistry],
+    ["JupyterLite validation lab source", checkValidationLabSource],
   ];
 
   for (const [name, check] of checks) {

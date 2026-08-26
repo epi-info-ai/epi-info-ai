@@ -7,6 +7,7 @@ const scriptsDirectory = dirname(fileURLToPath(import.meta.url));
 const wasmDirectory = resolve(scriptsDirectory, "..");
 const sourceDirectory = join(wasmDirectory, "demo");
 const outputDirectory = join(wasmDirectory, "dist");
+const validationFixtureDirectory = join(outputDirectory, "validation-fixtures");
 const maintainedModules = ["app", "engine", "form-data", "maps", "supabase-sync"];
 const bundledModules = new Set(["form-data", "supabase-sync"]);
 
@@ -31,6 +32,11 @@ await cp(sourceDirectory, outputDirectory, {
     && !source.endsWith(".ts")
   ),
 });
+await mkdir(validationFixtureDirectory, { recursive: true });
+await cp(
+  join(wasmDirectory, "tests/fixtures/phase0/table2x2-baseline.json"),
+  join(validationFixtureDirectory, "table2x2-baseline.json"),
+);
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));
 const commonOptions = {

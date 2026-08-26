@@ -10,7 +10,8 @@ The official historical [`Epi Info 7 User Guide`](docs/reference/Epi-Info-7-User
 
 > **Decision update:** The subsequent architecture decision standardized the
 > product application on TypeScript, selected Rust/WASM for the deterministic Epi
-> kernel, and restricted JavaScript to thin runtime glue. The earlier recommendation
+> kernel, restricted JavaScript to thin runtime glue, and assigned CPython/Pyodide
+> to browser validation and optional exploratory analysis. The earlier recommendation
 > below to compare .NET and Rust is retained as historical spike context. Execution
 > now follows [`migration-plan.md`](migration-plan.md).
 
@@ -196,6 +197,37 @@ The output should contain numeric values, explicit undefined/non-convergent stat
 .NET 10 is a strong migration candidate because it is the current active LTS release through November 2028 under the [.NET support policy](https://dotnet.microsoft.com/en-us/platform/support/policy), can reuse translated/extracted managed code, and supports browser AOT and Web Workers. It is not a product requirement. Rust is the primary comparison candidate because it produces focused WASM modules without carrying the .NET runtime and offers strong control over memory and numerical types. The spike must select between them using measured compatibility, payload, speed, memory, maintainability, and integration results.
 
 This architecture does not require the UI to share the kernel's language. A TypeScript UI can call either a .NET or Rust WASM worker through the same versioned contract. The UI framework should be selected separately based on accessibility, team skills, payload, and long-term maintenance.
+
+### Browser CPython/Pyodide alternative
+
+CPython was also a feasible browser-kernel candidate. [Pyodide](https://pyodide.org/en/stable/)
+runs a WebAssembly distribution of Python in modern browsers and provides access to
+many scientific Python packages. It would accelerate prototypes and custom analysis
+that can reuse NumPy, SciPy, pandas, or other compatible packages. Long-running
+Python should execute in a Web Worker so that synchronous computation does not block
+the product UI, as recommended by the official
+[Pyodide worker guidance](https://pyodide.org/en/stable/usage/webworker.html).
+
+The project nevertheless selected a focused Rust/WASM module for canonical Epi
+methods. The decision is about product and assurance boundaries rather than whether
+Python can run in a browser:
+
+| Criterion | CPython/Pyodide | Rust/WASM |
+|---|---|---|
+| Prototype and arbitrary scientific analysis | Strong: broad Python ecosystem and rapid iteration | More implementation work per new method |
+| Ordinary application payload | General-purpose interpreter plus requested packages | Focused compiled module containing the selected kernel |
+| Contract enforcement | Type hints, schema validation, tests, and review | Compile-time types plus schemas, tests, and review |
+| Browser package availability | Requires Pyodide-compatible packages or wheels | Requires WASM-compatible Rust dependencies |
+| Intended trust tier | Independent validation and optional exploratory work | Versioned, validated Epi operations |
+
+This results in a hybrid architecture: TypeScript owns the familiar product UI;
+Rust/WASM owns promoted `epi.*` calculations; and Pyodide supports the JupyterLite
+validation lab and may later support a clearly labeled Advanced Analysis sandbox.
+One notebook does not require two notebook kernels: its Pyodide kernel can invoke
+the release Rust/WASM artifact through the JavaScript bridge and compare both
+implementations in one provenance record. JupyterLite documents the
+[Pyodide browser kernel](https://jupyterlite.readthedocs.io/en/stable/howto/configure/kernels.html)
+and static-site deployment model used by the V0.1 lab.
 
 The UI should preserve Epi Info's recognizable module launcher, terminology, workspace arrangements, and primary task sequences so returning users can orient themselves immediately. Modern components should improve accessibility, responsiveness, validation, recovery, and progressive disclosure without unnecessarily relocating familiar actions. The detailed product decision is recorded in [`docs/design/ui-compatibility-strategy.md`](docs/design/ui-compatibility-strategy.md).
 

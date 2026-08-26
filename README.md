@@ -49,8 +49,10 @@ Current capabilities include:
 - standalone and current-form map workflows, browser geolocation, and an optional online OpenStreetMap basemap;
 - browser-local GeoJSON upload, polygon-label field selection, zoom-dependent interior labels, and label visibility controls;
 - compact map-layer controls, fullscreen mapping, and cumulative date/time animation;
-- configurable Uber H3 resolutions from 0 through 15, with mapped records aggregated into toggleable hexagon layers; and
-- deterministic 2 x 2 calculations backed by the Rust WebAssembly kernel.
+- configurable Uber H3 resolutions from 0 through 15, with mapped records aggregated into toggleable hexagon layers;
+- deterministic 2 x 2 calculations backed by the Rust WebAssembly kernel; and
+- an optional JupyterLite validation lab that compares the deployed Rust/WASM
+  calculation with independent Python references without changing the familiar UI.
 
 Install the pinned toolchain, validate the source, and create the production artifact:
 
@@ -61,6 +63,11 @@ pnpm run check
 ```
 
 Preview the generated artifact with `pnpm run preview`, then open the URL printed by the command. GitLab Pages publishes this same generated artifact rather than copying the transitional source directly.
+
+GitLab CI also builds the V0.1 JupyterLite lab into `/validation-lab/`. The lab is
+a transparent validation demonstration and does not replace the algorithm gates or
+appear in the Epi Info workflow menus. Its current Pyodide runtime and scientific
+packages are fetched on demand, so the first notebook run requires network access.
 
 ## Updates on August 25, 2026
 
@@ -89,4 +96,5 @@ Preview the generated artifact with `pnpm run preview`, then open the URL printe
 - Replace `localStorage` project persistence with SQLite WASM and OPFS.
 - Implement the versioned plugin runtime, capability API, permissions, and plugin catalog described in the architecture plan.
 - Execute the algorithm validation standard: import and classify the legacy 2 x 2 corpus, add independent/pathological fixtures, and complete native/WASM parity and review gates before expanding the Rust epidemiology kernel.
+- Evaluate and, if required, self-host a pinned Pyodide distribution and scientific wheels before claiming that the validation lab or a future Advanced Analysis workspace works offline.
 - Continue mobile-first adaptation without removing familiar desktop visual landmarks and workflows.
