@@ -27,6 +27,7 @@ rust-kernel:
   stage: kernel
   image: rust:1.85.0-alpine3.20
   script:
+    - rustup component add rustfmt
     - cargo fmt --manifest-path wasm/engine-rust/Cargo.toml -- --check
     - cargo test --locked --manifest-path wasm/engine-rust/Cargo.toml
     - rustup target add wasm32-unknown-unknown
