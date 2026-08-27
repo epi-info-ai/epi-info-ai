@@ -1,10 +1,10 @@
 {
   "file": "wasm/demo/epi2x2.wasm",
-  "sha256": "941c45b5b205e4bc33d1169a36ee7f9520bab5902a55c301f457ed2adb8af83c",
-  "size": 24377,
+  "sha256": "e8343e455cd419ab2b84893d626b08b0b023014c936dbc2cde922a5fe2bded87",
+  "size": 25828,
   "engine": {
     "id": "epi-core-wasm",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "operation": "epi.table2x2",
     "schemaVersion": "0.4.0"
   },
@@ -70,6 +70,10 @@
     "means_maximum",
     "means_mode",
     "rate_calculate",
-    "population_survey_cluster_size"
+    "population_survey_cluster_size",
+    "cohort_exposed_outcome",
+    "cohort_odds_from_risk",
+    "cohort_odds_from_outcomes",
+    "cohort_sample_size"
   ]
 }
