@@ -126,7 +126,7 @@ test("phone Enter Data keeps record entry primary and line list reachable", asyn
   );
   expect(promptOrder).toEqual(["Case ID", "Onset date", "Ill", "Primary exposure", "Age"]);
 
-  const caseId = page.getByLabel("Case ID");
+  const caseId = entryPanel.getByLabel("Case ID", { exact: true });
   await entryPanel.getByRole("button", { name: "Save record" }).click();
   expect(await caseId.evaluate((input) => input.validationMessage)).not.toBe("");
 
@@ -213,7 +213,7 @@ test("Form Designer authors a safe conditional skip and Enter follows it", async
   await expect(page.locator("#form-status")).toHaveText("Form saved.");
 
   await page.getByRole("button", { name: "Enter Data", exact: true }).last().click();
-  await page.getByLabel("Case ID").fill("SKIP-001");
+  await page.locator("#record-fields").getByLabel("Case ID", { exact: true }).fill("SKIP-001");
   const ill = page.locator('#record-fields select[name="ill"]');
   await ill.focus();
   await ill.selectOption("No");
@@ -243,19 +243,19 @@ test("Form Designer authors calculated age and a safe field-state action", async
   const sourceDate = new Date();
   sourceDate.setFullYear(sourceDate.getFullYear() - 20);
   const iso = `${sourceDate.getFullYear()}-${String(sourceDate.getMonth() + 1).padStart(2, "0")}-${String(sourceDate.getDate()).padStart(2, "0")}`;
-  await page.getByLabel("Onset date").fill(iso);
+  await page.locator("#record-fields").getByLabel("Onset date", { exact: true }).fill(iso);
   const age = page.locator('#record-fields input[name="age"]');
   await expect(age).toHaveValue("20");
   await expect(age).toHaveAttribute("readonly", "");
   const ill = page.locator('#record-fields select[name="ill"]');
   await ill.selectOption("No");
   await ill.press("Tab");
-  await expect(page.getByLabel("Primary exposure")).toBeDisabled();
+  await expect(page.locator("#record-fields").getByLabel("Primary exposure", { exact: true })).toBeDisabled();
 });
 
 test("Data Quality summarizes completeness and presents a recoverable lifecycle", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Enter Data" }).click();
-  await page.getByLabel("Case ID").fill("QUALITY-001");
+  await page.locator("#record-fields").getByLabel("Case ID", { exact: true }).fill("QUALITY-001");
   await page.locator('#record-fields select[name="ill"]').selectOption("Yes");
   await page.locator("#entry-form-panel").getByRole("button", { name: "Save record" }).click();
   await page.getByRole("button", { name: "Data Quality..." }).click();
