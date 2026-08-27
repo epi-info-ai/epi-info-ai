@@ -150,16 +150,12 @@ pub extern "C" fn cohort_odds_from_risk(unexposed_outcome: f64, risk_ratio: f64)
     {
         return f64::NAN;
     }
-    exposed_outcome * (1.0 - unexposed_outcome)
-        / (unexposed_outcome * (1.0 - exposed_outcome))
+    exposed_outcome * (1.0 - unexposed_outcome) / (unexposed_outcome * (1.0 - exposed_outcome))
 }
 
 /// Converts exposed and unexposed outcome proportions to an odds ratio.
 #[unsafe(no_mangle)]
-pub extern "C" fn cohort_odds_from_outcomes(
-    unexposed_outcome: f64,
-    exposed_outcome: f64,
-) -> f64 {
+pub extern "C" fn cohort_odds_from_outcomes(unexposed_outcome: f64, exposed_outcome: f64) -> f64 {
     if !unexposed_outcome.is_finite()
         || !exposed_outcome.is_finite()
         || unexposed_outcome <= 0.0
@@ -169,8 +165,7 @@ pub extern "C" fn cohort_odds_from_outcomes(
     {
         return f64::NAN;
     }
-    exposed_outcome * (1.0 - unexposed_outcome)
-        / (unexposed_outcome * (1.0 - exposed_outcome))
+    exposed_outcome * (1.0 - unexposed_outcome) / (unexposed_outcome * (1.0 - exposed_outcome))
 }
 
 /// Reproduces the legacy Kelsey/Fleiss cohort and cross-sectional sample sizes.
@@ -221,19 +216,16 @@ pub extern "C" fn cohort_sample_size(
     let pbar = (exposed_outcome + ratio * unexposed_outcome) / (1.0 + ratio);
     let qbar = 1.0 - pbar;
     let difference = exposed_outcome - unexposed_outcome;
-    let kelsey = (za + zb) * (za + zb) * pbar * qbar * (ratio + 1.0)
-        / (difference * difference * ratio);
+    let kelsey =
+        (za + zb) * (za + zb) * pbar * qbar * (ratio + 1.0) / (difference * difference * ratio);
     let fleiss_numerator = za * libm::sqrt((ratio + 1.0) * pbar * qbar)
-        + zb
-            * libm::sqrt(
-                ratio * exposed_outcome * (1.0 - exposed_outcome)
-                    + unexposed_outcome * (1.0 - unexposed_outcome),
-            );
-    let fleiss = fleiss_numerator * fleiss_numerator / (ratio * difference * difference);
-    let correction = 1.0
-        + libm::sqrt(
-            1.0 + 2.0 * (ratio + 1.0) / (fleiss * ratio * libm::fabs(difference)),
+        + zb * libm::sqrt(
+            ratio * exposed_outcome * (1.0 - exposed_outcome)
+                + unexposed_outcome * (1.0 - unexposed_outcome),
         );
+    let fleiss = fleiss_numerator * fleiss_numerator / (ratio * difference * difference);
+    let correction =
+        1.0 + libm::sqrt(1.0 + 2.0 * (ratio + 1.0) / (fleiss * ratio * libm::fabs(difference)));
     let corrected = fleiss * correction * correction / 4.0;
     let raw = if method == 0.0 {
         kelsey
