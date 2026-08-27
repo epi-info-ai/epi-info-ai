@@ -16,6 +16,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-stratified2x2.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
+STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -31,6 +32,22 @@ def verify_notebook() -> None:
         for cell in notebook.cells:
             if cell.cell_type == "code":
                 compile(cell.source, str(notebook_path), "exec", flags=0x2000)
+
+    stratified = nbformat.read(NOTEBOOKS[1], as_version=4)
+    source = "\n".join(cell.source for cell in stratified.cells)
+    assert "stratified-operational-v0.8.json" in source
+    assert "1,024-strata" in source
+
+
+def verify_stratified_operational_fixture() -> None:
+    fixture = json.loads(STRATIFIED_OPERATIONAL_FIXTURE.read_text(encoding="utf-8"))
+    assert fixture["operation"] == "epi.stratified2x2"
+    assert len(fixture["literalCases"]) >= 4
+    maximum = fixture["generatedCases"][0]
+    assert maximum["strata"] == fixture["reviewedLimits"]["maximumStrata"] == 1024
+    assert maximum["budget"]["ciRunnerMilliseconds"] == 5000
+    assert fixture["reviewedLimits"]["maximumSupportWidth"] == 4096
+    assert fixture["reviewedLimits"]["maximumConvolutionWork"] == 2_000_000
 
 
 def verify_foodborne_derivation() -> None:
@@ -75,4 +92,5 @@ def verify_foodborne_derivation() -> None:
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
-    print("Validation Lab source passed: notebook schemas/syntax and foodborne derivation.")
+    verify_stratified_operational_fixture()
+    print("Validation Lab source passed: notebook schemas/syntax, foodborne derivation, and V0.8 operational fixture.")

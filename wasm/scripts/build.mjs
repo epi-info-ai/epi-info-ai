@@ -8,7 +8,16 @@ const wasmDirectory = resolve(scriptsDirectory, "..");
 const sourceDirectory = join(wasmDirectory, "demo");
 const outputDirectory = join(wasmDirectory, "dist");
 const validationFixtureDirectory = join(outputDirectory, "validation-fixtures");
-const maintainedModules = ["app", "engine", "form-data", "maps", "shell", "supabase-sync"];
+const maintainedModules = [
+  "app",
+  "engine",
+  "form-data",
+  "maps",
+  "shell",
+  "stratified-worker",
+  "stratified-worker-client",
+  "supabase-sync",
+];
 const bundledModules = new Set(["form-data", "supabase-sync"]);
 
 async function existingSource(baseName) {
@@ -52,6 +61,10 @@ await cp(
 await cp(
   join(wasmDirectory, "tests/fixtures/algorithm-validation/stratified-exact-v0.8.json"),
   join(validationFixtureDirectory, "stratified-exact-v0.8.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"),
+  join(validationFixtureDirectory, "stratified-operational-v0.8.json"),
 );
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));

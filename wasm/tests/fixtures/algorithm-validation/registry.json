@@ -38,8 +38,8 @@
         "Validate Rust/WASM Fisher and mid-p exact tails across independent pathological and large-margin corpora.",
         "Complete independent pathological, boundary, and extreme-margin validation for conditional odds ratios and exact confidence limits.",
         "Define reviewed edge semantics for zero, invalid, and extreme inputs.",
-        "Complete independent statistical and implementation review."
-        ,"Complete multiple-stratifier, weight, filter, missing-value, and saved-command parity for the Classic Analysis TABLES adapter."
+        "Complete the consolidated statistical and implementation review across all candidate outputs.",
+        "Complete multiple-stratifier, weight, filter, missing-value, and saved-command parity for the Classic Analysis TABLES adapter."
       ]
     },
     {
@@ -52,29 +52,29 @@
         "source": "wasm/engine-rust/src/lib.rs"
       },
       "gates": {
-        "G0": "partial",
+        "G0": "passed",
         "G1": "partial",
         "G2": "partial",
-        "G3": "partial",
-        "G4": "not-started",
+        "G3": "passed",
+        "G4": "passed",
         "G5": "not-started",
-        "G6": "not-started"
+        "G6": "partial"
       },
       "approvals": { "statistical": null, "implementation": null },
       "evidence": [
         "wasm/tests/fixtures/algorithm-validation/stratified-two-by-two-v0.5.json",
         "wasm/tests/fixtures/algorithm-validation/stratified-homogeneity-v0.7.json",
         "wasm/tests/fixtures/algorithm-validation/stratified-exact-v0.8.json",
+        "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json",
         "wasm/docs/validation/stratified-table2x2-method-contract.md",
+        "wasm/docs/validation/stratified-v0.8-evidence.md",
         "wasm/docs/design/statcalc-compatibility-inventory.md",
         "wasm/validation-lab/content/validate-stratified2x2.ipynb"
       ],
       "knownGaps": [
-        "Add independently generated and legacy-output corpora, including foodborne stratification.",
-        "Add sparse, empty, extreme, metamorphic, native/WASM parity, and performance evidence.",
-        "Expand exact stratified evidence with reviewed legacy outputs, independent software, pathological margins, support-limit boundaries, and performance cases.",
-        "Expand OR/RR homogeneity evidence with sparse, extreme-margin, metamorphic, native/WASM parity, and reviewed legacy-output corpora.",
-        "Complete independent statistical and implementation review."
+        "Expand exact and OR/RR homogeneity evidence with broader reviewed legacy-output and independent-software corpora.",
+        "Add additional property, fuzz-regression, and differential cases before implementation approval.",
+        "Complete the consolidated statistical and implementation review across all candidate outputs."
       ]
     }
   ]

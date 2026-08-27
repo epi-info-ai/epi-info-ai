@@ -534,8 +534,10 @@ must never be translated into arbitrary JavaScript execution.
    corrected/uncorrected MH tests, fixed-margin Breslow-Day/Tarone OR tests, and
    the legacy Epi Info-labelled Woolf OR/RR homogeneity statistics, and bounded
    product-hypergeometric conditional MLE/Fisher inference. The browser supports
-   ordered manual strata. Expanded exact/homogeneity validation, performance
-   evidence, Worker isolation, and review remain open.
+   ordered manual strata. The V0.8 operational-closure slice adds pathological,
+   metamorphic, maximum-strata, performance, native/WASM, and cancellable Worker
+   evidence. Broader reviewed legacy-output corpora remain open, and G5 is deferred
+   to the consolidated review of all candidate outputs.
    **Current-form adapter complete for the next prototype slice:** the familiar
    TABLES panel selects exposure, outcome, and one stratifier from saved records,
    explicitly maps positive values, reports missing exclusions, displays the
@@ -794,8 +796,17 @@ provenance.
 
 ## Immediate next slice
 
-Phases 0 through 2 and Phase 3 implementation are closed, subject to the recorded
-experienced-user parity review. Before Phase 4 adds Form Designer and validation
-behavior, extract the remaining designer and entry rendering responsibilities
-from `form-data.ts` into their target modules. Then begin the Phase 4 typed
-validation model without narrowing the legacy Form Designer or Check Code floor.
+The Phase 5 V0.8 operational-closure slice is complete when CI confirms its
+pathological corpus, native/release-WASM parity, Worker cancellation and recovery,
+maximum-strata performance guard, JupyterLite evidence, and Pages artifact. G5 is
+intentionally batched for one consolidated statistical and implementation review
+across all candidate outputs; V0.8 remains `candidate` until that review.
+
+The next implementation slice is Phase 5 V0.9: begin migration-order item 4 with
+a familiar Classic Analysis `FREQ` vertical slice. Audit the legacy C# frequency
+engine and UI as the compatibility floor, define `epi.frequency`, derive the
+canonical foodborne Case Status frequency table, render familiar frequency,
+percent, cumulative-percent, missing-value, and confidence-limit output, expose
+the generated `FREQ` command, and extend the Validation Lab. Weight, stratified,
+and complex-sample frequency branches must remain explicitly preserved as later
+parity work rather than silently omitted.

@@ -28,6 +28,10 @@ const requiredFiles = [
   "supabase-sync.js",
   "supabase-sync.js.map",
   "shell.js",
+  "stratified-worker.js",
+  "stratified-worker.js.map",
+  "stratified-worker-client.js",
+  "stratified-worker-client.js.map",
   "epi2x2.wasm",
   "sample-case-data.csv",
   "sample-map-layer.geojson",
@@ -45,12 +49,13 @@ const requiredFiles = [
   "validation-fixtures/stratified-two-by-two-v0.5.json",
   "validation-fixtures/stratified-homogeneity-v0.7.json",
   "validation-fixtures/stratified-exact-v0.8.json",
+  "validation-fixtures/stratified-operational-v0.8.json",
   "build-manifest.json",
 ];
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=29["']/);
+assert.match(html, /src=["']app\.js\?v=30["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);
 assert.match(html, /id=["']file-exit["']/);
@@ -65,6 +70,7 @@ const app = await requireFile("app.js");
 assert.match(app, /\.\/maps\.js/);
 assert.match(app, /\.\/form-data\.js/);
 assert.match(app, /\.\/supabase-sync\.js/);
+assert.match(app, /\.\/stratified-worker-client\.js/);
 const maps = await requireFile("maps.js");
 assert.match(maps, /MAP_PANE_Z_INDEX/);
 assert.match(maps, /aggregateH3Cells/);
@@ -75,6 +81,8 @@ assert.ok(manifest.sourceModules.includes("wasm/demo/app.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/form-data.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/engine.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/shell.ts"));
+assert.ok(manifest.sourceModules.includes("wasm/demo/stratified-worker.ts"));
+assert.ok(manifest.sourceModules.includes("wasm/demo/stratified-worker-client.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/supabase-sync.ts"));
 assert.ok(manifest.outputs.includes("wasm/dist/app.js"));
 

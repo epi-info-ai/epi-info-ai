@@ -187,6 +187,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   product-hypergeometric CMLE and central Fisher limits, explicit boundary and
   unavailable states, familiar Classic Analysis output, and independent
   log-binomial/SciPy validation anchors.
+- Closed the V0.8 operational gaps with a pathological/metamorphic corpus,
+  maximum-strata CI performance guard, native/release-WASM parity, dedicated
+  cancellable Worker execution, recovery testing, and a consolidated-review
+  evidence packet. The operation remains a candidate until the batched G5 review.
 
 ## TODO
 
@@ -220,10 +224,11 @@ checksums, expected metadata, and combined testing workflow are documented in
   complete native/WASM parity and review gates before expanding the Rust kernel.
 - Evaluate and, if required, self-host a pinned Pyodide distribution and scientific wheels before claiming that the validation lab or a future Advanced Analysis workspace works offline.
 - Continue Phase 5 V0.8 validation for the candidate stratified 2 x 2
-  Mantel-Haenszel OR/RR, confidence limits, and association tests; add familiar
-  multiple-stratifier/weight/filter support and broader exact/OR/RR
-  sparse, extreme, performance, and Worker-isolation evidence without removing the direct
-  StatCalc branch.
+  Mantel-Haenszel OR/RR, confidence limits, and association tests. The automated
+  pathological, metamorphic, maximum-strata, performance, and Worker-isolation
+  evidence is now implemented; add familiar multiple-stratifier/weight/filter
+  support and broader reviewed legacy-output corpora without removing the direct
+  StatCalc branch. Complete G5 once for the consolidated set of candidate outputs.
 - Complete legacy Epi Info and independent review of the Phase 5 V0.4 confidence
   intervals, exact tails, conditional odds ratios, and exact limits; the browser now
   obtains those results from Rust/WASM, but the registry remains `candidate`.

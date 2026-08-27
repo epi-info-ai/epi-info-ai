@@ -526,6 +526,48 @@ test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ pag
   await expect(page.locator("#stratified-conditional-or-ci")).toContainText("3.75");
 });
 
+test("stratified analysis runs in a cancellable Worker and recovers after cancellation", async ({ page }) => {
+  const evidence = await page.evaluate(async () => {
+    const workerClient = await import("/stratified-worker-client.js");
+    const input = {
+      confidenceLevel: 0.95,
+      strata: Array.from({ length: 1024 }, (_, index) => ({
+        id: `cancel-${index + 1}`,
+        label: `Cancel ${index + 1}`,
+        exposedCases: 1,
+        exposedNonCases: 1,
+        unexposedCases: 1,
+        unexposedNonCases: 1,
+      })),
+    };
+    const controller = new AbortController();
+    const cancelled = workerClient.calculateStratifiedTable2x2InWorker(input, { signal: controller.signal })
+      .then(() => "completed", (error) => error.name);
+    controller.abort();
+    const cancellation = await cancelled;
+    const recovered = await workerClient.calculateStratifiedTable2x2InWorker({
+      confidenceLevel: 0.95,
+      strata: [
+        { id: "female", label: "Female", exposedCases: 18, exposedNonCases: 6, unexposedCases: 4, unexposedNonCases: 20 },
+        { id: "male", label: "Male", exposedCases: 18, exposedNonCases: 6, unexposedCases: 4, unexposedNonCases: 20 },
+      ],
+    });
+    return {
+      cancellation,
+      estimate: recovered.result.estimates.adjustedConditionalOddsRatio.estimate,
+      durationMs: recovered.durationMs,
+    };
+  });
+  expect(evidence.cancellation).toBe("AbortError");
+  expect(evidence.estimate.state).toBe("finite");
+  expect(evidence.estimate.value).toBeCloseTo(13.92417586473359, 10);
+  expect(evidence.durationMs).toBeGreaterThanOrEqual(0);
+
+  await page.getByRole("button", { name: "Classic", exact: true }).last().click();
+  await page.locator("#stratified-form").getByRole("button", { name: "Calculate adjusted results" }).click();
+  await expect(page.locator("#stratified-worker-status")).toContainText("Worker completed");
+});
+
 test("JupyterLite validation lab V0.8 is part of the Pages artifact", async ({ page, request }) => {
   const response = await page.goto("/validation-lab/lab/index.html?path=validate-table2x2.ipynb");
   expect(response?.ok()).toBe(true);
@@ -554,7 +596,14 @@ test("JupyterLite validation lab V0.8 is part of the Pages artifact", async ({ p
   expect(JSON.stringify(stratifiedNotebook)).toContain("stratified_legacy_woolf_risk_ratio");
   expect(JSON.stringify(stratifiedNotebook)).toContain("stratified_conditional_odds_ratio_fisher_lower");
   expect(JSON.stringify(stratifiedNotebook)).toContain("stratified-exact-v0.8.json");
+  expect(JSON.stringify(stratifiedNotebook)).toContain("stratified-operational-v0.8.json");
   expect(JSON.stringify(stratifiedNotebook)).toContain("scipy.stats");
+
+  const operationalResponse = await request.get("/validation-fixtures/stratified-operational-v0.8.json");
+  expect(operationalResponse.ok()).toBe(true);
+  const operational = await operationalResponse.json();
+  expect(operational.generatedCases[0].strata).toBe(1024);
+  expect(operational.reviewedLimits.maximumConvolutionWork).toBe(2_000_000);
 });
 
 test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadable", async ({ request }) => {

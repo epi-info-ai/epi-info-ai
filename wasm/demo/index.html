@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=29" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=29"></script>
+    <script type="module" src="app.js?v=30"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -614,7 +614,8 @@
               </table>
             </div>
             <div id="stratified-message" class="form-message" role="alert" hidden></div>
-            <div class="form-actions"><button id="add-stratum" class="secondary-button" type="button">Add stratum</button><button class="primary-button" type="submit">Calculate adjusted results</button></div>
+            <div class="form-actions"><button id="add-stratum" class="secondary-button" type="button">Add stratum</button><button id="calculate-stratified" class="primary-button" type="submit">Calculate adjusted results</button><button id="cancel-stratified" class="secondary-button" type="button" hidden>Cancel calculation</button></div>
+            <p id="stratified-worker-status" class="inline-feedback" role="status">Ready to calculate in an isolated Worker.</p>
           </form>
           <div class="metric-grid stratified-results" aria-live="polite">
             <article class="metric-card"><p>Adjusted OR (MH)</p><strong id="stratified-or">15.00</strong><span id="stratified-or-ci">95% CI 5.51–40.84</span></article>

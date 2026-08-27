@@ -20,9 +20,10 @@ The formulas are direct translations of `StatisticsRepository/Strat2X2.vb`:
   value, divided by the sum of the fixed-margin variance.
 
 The WASM adapter loads strata into a fixed 1,024-table scratch area and calls the
-kernel synchronously. It performs no asynchronous work between loading and
-calculation. A Worker-owned instance is required before parallel or long-running
-use.
+kernel synchronously without yielding between load and calculation. The browser
+owns that WASM instance inside a dedicated module Worker. Requests are serialized;
+cancellation terminates the Worker and its partially written scratch state, and
+the next request creates a clean instance.
 
 ## OR/RR homogeneity semantics
 
@@ -65,9 +66,10 @@ The reviewed candidate is deliberately bounded to a combined support width of
 4,096, two million convolution multiply-adds, and legacy-compatible cell counts
 no greater than 999,999. An exceeded bound or numerical failure returns
 `unavailable` with a warning; it never substitutes an asymptotic estimate.
-Because the kernel uses a shared scratch workspace, the browser adapter must
-finish all calls synchronously on one WASM instance. Worker isolation is required
-before parallel execution.
+Because the kernel uses a shared scratch workspace, the Worker finishes all calls
+synchronously on one WASM instance. The main thread never owns or shares that
+instance. Parallel execution would require separate Workers and separate WASM
+instances.
 
 The operation is not approved for production inference until validation gates
 G0 through G6 are complete.
@@ -76,7 +78,7 @@ The V0.5 fixture is derived from all 96 canonical foodborne records using Potato
 Salad as exposure, Case Status as outcome, and Sex as the stratifier. Both Female
 and Male strata independently produce `18/6/4/20`; the fixture records the source
 CSV hash and the smoke suite re-derives those cells before testing the WASM result.
-Identical stratum odds ratios provide a zero-statistic foodborne invariant. The
+Identical stratum odds ratios provide a zero-statistic foodborne invariant.
 The V0.7 non-zero fixture adds three heterogeneous positive-cell tables, direct
 legacy formula provenance, independent Python expected-cell and weighted
 log-effect calculations, and SciPy chi-square p-value anchors for all OR/RR
@@ -84,6 +86,11 @@ homogeneity results.
 The V0.8 exact fixture adds foodborne and heterogeneous conditional CMLE/Fisher
 anchors generated independently with log-binomial convolution and SciPy root
 finding, plus explicit zero/infinity boundary tests.
+The operational fixture adds empty strata, exact support rejection, maximum-strata
+work rejection, metamorphic order/label invariants, a CI performance budget, and
+browser cancellation/recovery evidence. The full gate matrix is recorded in
+[`stratified-v0.8-evidence.md`](stratified-v0.8-evidence.md). G5 remains deferred
+to the consolidated review of all candidate outputs.
 
 ## Current-form adapter semantics
 

@@ -374,9 +374,14 @@ discrepancy to its detailed evidence record.
   and uses SciPy root finding for the estimate and tail inversions.
 - Native and browser tests additionally cover zero and positive-infinity
   estimates and confidence-limit endpoints.
-- The candidate records hard support, work, and cell-count bounds. Broader legacy
-  outputs, extreme-margin cases, performance/Worker evidence, and formal review
-  remain open.
+- The operational fixture adds empty strata, support-width rejection,
+  maximum-strata work rejection, order/label metamorphism, and a five-second CI
+  runner regression budget. Browser E2E proves Worker cancellation and clean
+  recovery with a new private WASM instance.
+- The candidate records hard support, work, and cell-count bounds. Broader
+  reviewed legacy outputs and additional differential/fuzz evidence remain open.
+  G5 is intentionally deferred to one consolidated statistical and implementation
+  review across all candidate outputs.
 
 ### Later releases
 
@@ -392,8 +397,10 @@ discrepancy to its detailed evidence record.
 - `epi.table2x2` remains a candidate in the algorithm registry.
 - The legacy-derived 100-case corpus covers Fisher one- and two-tailed results,
   but it does not contain mid-p tails or all exact-method edge cases.
-- Conditional odds-ratio methods still require independently reviewed
-  extreme-margin/convergence cases and performance thresholds before promotion.
+- Conditional odds-ratio methods still require broader independently reviewed
+  extreme-margin/convergence and legacy-output cases before promotion; automated
+  performance limits and Worker cancellation are now covered.
 - The foodborne corpus anchors described here are verified derivations, not proof
   that every corresponding operation is implemented or validated.
-- Statistical and implementation approvals required by gate G5 are outstanding.
+- Statistical and implementation approvals required by gate G5 are outstanding
+  and will be completed once for the consolidated output set.

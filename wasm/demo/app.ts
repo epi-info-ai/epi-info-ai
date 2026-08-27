@@ -1,4 +1,4 @@
-import { calculateStratifiedTable2x2, calculateTable2x2, deriveStratifiedTable2x2 } from "./engine.js";
+import { calculateTable2x2, deriveStratifiedTable2x2 } from "./engine.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -10,6 +10,7 @@ import {
   testSupabaseConnection,
 } from "./form-data.js";
 import { initializeMaps } from "./maps.js";
+import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
 import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
 
@@ -211,6 +212,9 @@ calculate();
 const stratifiedForm = requiredElement<HTMLFormElement>("#stratified-form");
 const strataRows = requiredElement<HTMLTableSectionElement>("#strata-rows");
 const stratifiedMessage = requiredElement<HTMLElement>("#stratified-message");
+const stratifiedWorkerStatus = requiredElement<HTMLElement>("#stratified-worker-status");
+const stratifiedCalculateButton = requiredElement<HTMLButtonElement>("#calculate-stratified");
+const stratifiedCancelButton = requiredElement<HTMLButtonElement>("#cancel-stratified");
 const classicTablesForm = requiredElement<HTMLFormElement>("#classic-tables-form");
 const classicExposureField = requiredElement<HTMLSelectElement>("#classic-exposure-field");
 const classicOutcomeField = requiredElement<HTMLSelectElement>("#classic-outcome-field");
@@ -220,6 +224,7 @@ const classicCaseValues = requiredElement<HTMLSelectElement>("#classic-case-valu
 const classicConfidenceLevel = requiredElement<HTMLSelectElement>("#classic-confidence-level");
 const classicFeedback = requiredElement<HTMLElement>("#classic-tables-feedback");
 let nextStratumId = 3;
+let stratifiedController: AbortController | null = null;
 
 function selectedValues(select: HTMLSelectElement): string[] {
   return [...select.selectedOptions].map((option) => option.value);
@@ -321,9 +326,18 @@ function stratifiedInput(): StratifiedTable2x2Input {
   return { strata, confidenceLevel: Number(requiredElement<HTMLSelectElement>("#confidence-level").value) };
 }
 
-function calculateStratified(): void {
+async function calculateStratified(): Promise<void> {
+  stratifiedController?.abort();
+  const controller = new AbortController();
+  stratifiedController = controller;
+  stratifiedCalculateButton.disabled = true;
+  stratifiedCancelButton.hidden = false;
+  stratifiedWorkerStatus.textContent = "Calculating in an isolated Worker...";
   try {
-    const result = calculateStratifiedTable2x2(stratifiedInput());
+    const { result, durationMs } = await calculateStratifiedTable2x2InWorker(
+      stratifiedInput(),
+      { signal: controller.signal },
+    );
     requiredElement("#stratified-or").textContent = number(result.estimates.adjustedOddsRatio.estimate);
     requiredElement("#stratified-or-ci").textContent = confidenceLabel(result.input.confidenceLevel, result.estimates.adjustedOddsRatio.confidenceInterval);
     requiredElement("#stratified-rr").textContent = number(result.estimates.adjustedRiskRatio.estimate);
@@ -350,13 +364,30 @@ function calculateStratified(): void {
     warnings.textContent = result.diagnostics.warnings.join(" ");
     warnings.hidden = result.diagnostics.warnings.length === 0;
     stratifiedMessage.hidden = true;
+    stratifiedWorkerStatus.textContent = `Worker completed in ${durationMs.toFixed(1)} ms.`;
   } catch (error) {
-    stratifiedMessage.textContent = error instanceof Error ? error.message : "Unable to calculate the stratified analysis.";
-    stratifiedMessage.hidden = false;
+    if (error instanceof DOMException && error.name === "AbortError") {
+      stratifiedWorkerStatus.textContent = "Calculation cancelled. You can revise the tables and run it again.";
+      stratifiedMessage.hidden = true;
+    } else {
+      stratifiedMessage.textContent = error instanceof Error ? error.message : "Unable to calculate the stratified analysis.";
+      stratifiedMessage.hidden = false;
+      stratifiedWorkerStatus.textContent = "Worker calculation failed; the previous results remain visible.";
+    }
+  } finally {
+    if (stratifiedController === controller) {
+      stratifiedController = null;
+      stratifiedCalculateButton.disabled = false;
+      stratifiedCancelButton.hidden = true;
+    }
   }
 }
 
-stratifiedForm.addEventListener("submit", (event) => { event.preventDefault(); if (stratifiedForm.reportValidity()) calculateStratified(); });
+stratifiedForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (stratifiedForm.reportValidity()) void calculateStratified();
+});
+stratifiedCancelButton.addEventListener("click", () => stratifiedController?.abort());
 requiredElement("#add-stratum").addEventListener("click", () => {
   const id = `stratum-${nextStratumId++}`;
   const row = document.createElement("tr");
@@ -397,13 +428,13 @@ classicTablesForm.addEventListener("submit", (event) => {
     replaceStrataRows(derivation.input);
     requiredElement("#classic-generated-command").textContent = derivation.command;
     classicFeedback.textContent = `Included ${derivation.audit.includedRecords} of ${derivation.audit.sourceRecords} records; excluded ${derivation.audit.excludedMissing} with missing selected values. Reference exposure: ${derivation.audit.exposureReferenceValues.join(", ") || "none"}. Reference outcome: ${derivation.audit.outcomeReferenceValues.join(", ") || "none"}.`;
-    calculateStratified();
+    void calculateStratified();
   } catch (error) {
     classicFeedback.textContent = error instanceof Error ? error.message : "Unable to derive the selected tables.";
   }
 });
 refreshClassicTablesSelectors();
-calculateStratified();
+void calculateStratified();
 
 try {
   initializeFormDataDemo();

@@ -199,6 +199,13 @@ text is never the reference value; compare unrounded structured engine output.
 The statistical-method reviewer and primary implementer should not be the same
 person for G5. High-impact methods may require a second domain reviewer.
 
+For this migration, G5 will be conducted as one consolidated review event for
+all candidate outputs rather than as a separate meeting for each operation. This
+changes the review schedule, not the standard: every operation remains a
+candidate until the consolidated review records its own statistical-method and
+implementation approvals, disposition, and known differences. A collective
+approval without those per-operation records does not satisfy G5.
+
 ## Change control
 
 Any change to formulas, dependencies, compiler/toolchain, floating-point options,

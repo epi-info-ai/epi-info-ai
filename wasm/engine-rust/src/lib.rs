@@ -1489,4 +1489,23 @@ mod tests {
         assert!(stratified_conditional_odds_ratio_fisher_lower(2, 0.95).is_finite());
         assert!(stratified_conditional_odds_ratio_fisher_upper(2, 0.95).is_infinite());
     }
+
+    #[test]
+    fn stratified_exact_operational_limits_fail_closed() {
+        let _guard = STRATIFIED_TEST_LOCK.lock().unwrap();
+        assert_eq!(
+            stratified_set_table(0, 4_097.0, 4_097.0, 4_097.0, 4_097.0),
+            1
+        );
+        assert!(stratified_conditional_odds_ratio(1).is_nan());
+        assert!(stratified_conditional_odds_ratio_fisher_lower(1, 0.95).is_nan());
+        assert!(stratified_conditional_odds_ratio_fisher_upper(1, 0.95).is_nan());
+
+        for index in 0..MAX_STRATA {
+            assert_eq!(stratified_set_table(index as u32, 1.0, 1.0, 1.0, 1.0), 1);
+        }
+        assert_near(stratified_mh_odds_ratio(MAX_STRATA as u32), 1.0);
+        assert_near(stratified_mh_risk_ratio(MAX_STRATA as u32), 1.0);
+        assert!(stratified_conditional_odds_ratio(MAX_STRATA as u32).is_nan());
+    }
 }

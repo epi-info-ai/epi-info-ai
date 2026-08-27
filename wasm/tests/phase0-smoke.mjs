@@ -39,6 +39,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/form-data.ts",
     "wasm/demo/maps.ts",
     "wasm/demo/shell.ts",
+    "wasm/demo/stratified-worker.ts",
+    "wasm/demo/stratified-worker-client.ts",
     "wasm/demo/supabase-sync.ts",
     "wasm/app/contracts/core.ts",
     "wasm/app/contracts/project-package.ts",
@@ -75,6 +77,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/stratified-two-by-two-v0.5.json",
     "wasm/tests/fixtures/algorithm-validation/stratified-homogeneity-v0.7.json",
     "wasm/tests/fixtures/algorithm-validation/stratified-exact-v0.8.json",
+    "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -137,6 +140,9 @@ async function checkRequiredAssetsAndUi() {
     "classic-run-tables",
     "strata-rows",
     "add-stratum",
+    "calculate-stratified",
+    "cancel-stratified",
+    "stratified-worker-status",
     "project-storage-dialog",
     "project-storage-status",
   ];
@@ -174,7 +180,7 @@ async function checkSourceLanguageBoundary() {
     [],
     "handwritten application JavaScript must not return to the demo root",
   );
-  for (const moduleName of ["app", "engine", "form-data", "maps", "shell", "supabase-sync"]) {
+  for (const moduleName of ["app", "engine", "form-data", "maps", "shell", "stratified-worker", "stratified-worker-client", "supabase-sync"]) {
     assert.ok(rootSources.includes(`${moduleName}.ts`), `${moduleName} must remain a TypeScript source module`);
   }
 }
@@ -409,6 +415,71 @@ async function checkStratifiedExactContract() {
   assert.equal(infinite.estimate.state, "positive-infinity");
   assert.equal(infinite.fisherConfidenceInterval.lower.state, "finite");
   assert.equal(infinite.fisherConfidenceInterval.upper.state, "positive-infinity");
+}
+
+async function checkStratifiedOperationalContract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json",
+  ), "utf8"));
+  const exactFixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/stratified-exact-v0.8.json",
+  ), "utf8"));
+  const { calculateStratifiedTable2x2 } = await importEngineWithFileFetch();
+
+  for (const candidate of fixture.literalCases) {
+    const result = calculateStratifiedTable2x2(candidate.input);
+    const exact = result.estimates.adjustedConditionalOddsRatio;
+    assert.equal(exact.estimate.state, candidate.expected.estimateState, `${candidate.id} estimate state`);
+    assert.equal(exact.fisherConfidenceInterval.lower.state, candidate.expected.lowerState, `${candidate.id} lower state`);
+    assert.equal(exact.fisherConfidenceInterval.upper.state, candidate.expected.upperState, `${candidate.id} upper state`);
+    assert.equal(result.diagnostics.informativeStrata, candidate.expected.informativeStrata);
+    if (candidate.expected.warningIncludes) {
+      assert.ok(result.diagnostics.warnings.some((warning) => warning.includes(candidate.expected.warningIncludes)),
+        `${candidate.id} must report ${candidate.expected.warningIncludes}`);
+    }
+  }
+
+  const metamorphicInput = exactFixture.cases[1].input;
+  const original = calculateStratifiedTable2x2(metamorphicInput);
+  const reversed = calculateStratifiedTable2x2({
+    ...metamorphicInput,
+    strata: [...metamorphicInput.strata].reverse().map((stratum, index) => ({
+      ...stratum,
+      id: `renamed-${index + 1}`,
+      label: `Renamed ${index + 1}`,
+    })),
+  });
+  const stableNumbers = (value) => JSON.parse(JSON.stringify(value, (_key, candidate) => (
+    typeof candidate === "number" ? Number(candidate.toPrecision(12)) : candidate
+  )));
+  assert.deepEqual(stableNumbers(reversed.estimates), stableNumbers(original.estimates),
+    "stratum order and labels must not alter estimates beyond floating-point tolerance");
+  assert.deepEqual(stableNumbers(reversed.tests), stableNumbers(original.tests),
+    "stratum order and labels must not alter tests beyond floating-point tolerance");
+  assert.deepEqual(reversed.diagnostics, original.diagnostics, "stratum order and labels must not alter warnings");
+
+  const generated = fixture.generatedCases[0];
+  const [a, b, c, d] = generated.repeatedCells;
+  const maximumInput = {
+    confidenceLevel: 0.95,
+    strata: Array.from({ length: generated.strata }, (_, index) => ({
+      id: `maximum-${index + 1}`,
+      label: `Maximum ${index + 1}`,
+      exposedCases: a,
+      exposedNonCases: b,
+      unexposedCases: c,
+      unexposedNonCases: d,
+    })),
+  };
+  const started = performance.now();
+  const maximum = calculateStratifiedTable2x2(maximumInput);
+  const durationMs = performance.now() - started;
+  near(maximum.estimates.adjustedOddsRatio.estimate, generated.expected.adjustedOddsRatio, 1e-12, "maximum-strata OR");
+  near(maximum.estimates.adjustedRiskRatio.estimate, generated.expected.adjustedRiskRatio, 1e-12, "maximum-strata RR");
+  assert.equal(maximum.estimates.adjustedConditionalOddsRatio.estimate.state, generated.expected.exactState);
+  assert.ok(durationMs <= generated.budget.ciRunnerMilliseconds,
+    `maximum-strata calculation took ${durationMs.toFixed(1)} ms; budget is ${generated.budget.ciRunnerMilliseconds} ms`);
+  console.log(`INFO maximum-strata V0.8 calculation ${durationMs.toFixed(1)} ms`);
 }
 
 async function checkFoodborneValidationFixture() {
@@ -885,6 +956,7 @@ async function run() {
     ["stratified 2 x 2 result contract", checkStratifiedTable2x2Contract],
     ["stratified OR/RR homogeneity contract", checkStratifiedHomogeneityContract],
     ["stratified exact conditional contract", checkStratifiedExactContract],
+    ["stratified operational limits and metamorphic contract", checkStratifiedOperationalContract],
     ["foodborne 2 x 2 validation fixture", checkFoodborneValidationFixture],
     ["legacy 100-case exact 2 x 2 corpus", checkLegacyTwoByTwoCorpus],
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1.0.0",
+  "operation": "epi.stratified2x2",
+  "purpose": "Pathological, metamorphic, reviewed-limit, and performance evidence for the V0.8 candidate",
+  "provenance": {
+    "legacySources": [
+      "StatisticsRepository/Strat2X2.vb",
+      "StatisticsRepository/Single2x2.cs"
+    ],
+    "independentMethods": [
+      "fixed-margin invariants",
+      "stratum-order metamorphism",
+      "explicit conditional-support boundary states"
+    ],
+    "reviewState": "engineering-evidence-unreviewed"
+  },
+  "literalCases": [
+    {
+      "id": "zero-conditional-boundary",
+      "input": {
+        "confidenceLevel": 0.95,
+        "strata": [
+          { "id": "one", "label": "One", "exposedCases": 0, "exposedNonCases": 10, "unexposedCases": 5, "unexposedNonCases": 5 },
+          { "id": "two", "label": "Two", "exposedCases": 0, "exposedNonCases": 8, "unexposedCases": 4, "unexposedNonCases": 6 }
+        ]
+      },
+      "expected": { "estimateState": "zero", "lowerState": "zero", "upperState": "finite", "informativeStrata": 2 }
+    },
+    {
+      "id": "infinite-conditional-boundary",
+      "input": {
+        "confidenceLevel": 0.95,
+        "strata": [
+          { "id": "one", "label": "One", "exposedCases": 5, "exposedNonCases": 5, "unexposedCases": 0, "unexposedNonCases": 10 },
+          { "id": "two", "label": "Two", "exposedCases": 4, "exposedNonCases": 6, "unexposedCases": 0, "unexposedNonCases": 8 }
+        ]
+      },
+      "expected": { "estimateState": "positive-infinity", "lowerState": "finite", "upperState": "positive-infinity", "informativeStrata": 2 }
+    },
+    {
+      "id": "empty-stratum-retained",
+      "input": {
+        "confidenceLevel": 0.95,
+        "strata": [
+          { "id": "empty", "label": "Empty", "exposedCases": 0, "exposedNonCases": 0, "unexposedCases": 0, "unexposedNonCases": 0 },
+          { "id": "observed", "label": "Observed", "exposedCases": 12, "exposedNonCases": 4, "unexposedCases": 3, "unexposedNonCases": 13 }
+        ]
+      },
+      "expected": { "estimateState": "finite", "lowerState": "finite", "upperState": "finite", "informativeStrata": 1, "warningIncludes": "Empty strata" }
+    },
+    {
+      "id": "support-width-limit",
+      "input": {
+        "confidenceLevel": 0.95,
+        "strata": [
+          { "id": "wide", "label": "Wide fixed margins", "exposedCases": 4097, "exposedNonCases": 4097, "unexposedCases": 4097, "unexposedNonCases": 4097 }
+        ]
+      },
+      "expected": { "estimateState": "unavailable", "lowerState": "unavailable", "upperState": "unavailable", "informativeStrata": 1, "warningIncludes": "support or work limit" }
+    }
+  ],
+  "generatedCases": [
+    {
+      "id": "maximum-strata-work-limit",
+      "strata": 1024,
+      "repeatedCells": [1, 1, 1, 1],
+      "expected": { "adjustedOddsRatio": 1, "adjustedRiskRatio": 1, "exactState": "unavailable" },
+      "budget": { "ciRunnerMilliseconds": 5000 }
+    }
+  ],
+  "metamorphicChecks": [
+    "Reversing stratum order leaves all estimates, tests, and warnings unchanged.",
+    "Changing stratum IDs and labels leaves all numeric results unchanged."
+  ],
+  "reviewedLimits": {
+    "maximumStrata": 1024,
+    "maximumSupportWidth": 4096,
+    "maximumConvolutionWork": 2000000,
+    "maximumCell": 999999
+  }
+}
