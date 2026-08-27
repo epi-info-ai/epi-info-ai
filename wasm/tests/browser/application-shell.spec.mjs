@@ -126,7 +126,7 @@ test("phone Enter Data keeps record entry primary and line list reachable", asyn
   );
   expect(promptOrder).toEqual(["Case ID", "Onset date", "Ill", "Primary exposure", "Age"]);
 
-  const caseId = entryPanel.getByLabel("Case ID", { exact: true });
+  const caseId = entryPanel.locator('input[name="case_id"]');
   await entryPanel.getByRole("button", { name: "Save record" }).click();
   expect(await caseId.evaluate((input) => input.validationMessage)).not.toBe("");
 
