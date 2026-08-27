@@ -76,6 +76,38 @@
         "Add additional property, fuzz-regression, and differential cases before implementation approval.",
         "Complete the consolidated statistical and implementation review across all candidate outputs."
       ]
+    },
+    {
+      "operation": "epi.frequency",
+      "resultSchemaVersion": "0.9.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "epi-core-wasm",
+        "engineVersion": "0.9.0",
+        "source": "wasm/engine-rust/src/lib.rs"
+      },
+      "gates": {
+        "G0": "passed",
+        "G1": "partial",
+        "G2": "partial",
+        "G3": "passed",
+        "G4": "partial",
+        "G5": "not-started",
+        "G6": "partial"
+      },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json",
+        "wasm/docs/design/frequency-compatibility-inventory.md",
+        "wasm/docs/validation/frequency-method-contract.md",
+        "wasm/validation-lab/content/validate-frequency.ipynb"
+      ],
+      "knownGaps": [
+        "Compare against a reviewed legacy Epi Info output corpus.",
+        "Expand independent pathological, property, and typed-category evidence.",
+        "Complete multiple-variable, EXCEPT, strata, weight, OUTTABLE, filter, and saved-command compatibility.",
+        "Complete the consolidated statistical and implementation review across all candidate outputs."
+      ]
     }
   ]
 }

@@ -543,7 +543,15 @@ must never be translated into arbitrary JavaScript execution.
    explicitly maps positive values, reports missing exclusions, displays the
    generated command, and feeds auditable tables to the V0.8 kernel. Multiple
    stratifiers, weights, filters, saved PGM execution, and full output parity remain.
-4. Frequencies, means, rates, and sample-size calculations.
+4. Frequencies, means, rates, and sample-size calculations. **Candidate V0.9
+   frequency slice complete:** the browser selects one current-form variable,
+   preserves typed categories and optional missing values, shows familiar `FREQ`
+   syntax and cumulative output, and calls Rust/WASM for proportion and audited
+   legacy exact-under-300/Wilson-at-least-300 confidence limits. The canonical
+   foodborne fixture and JupyterLite notebook supply initial independent evidence.
+   Multiple variables, `* EXCEPT`, strata, weights, `OUTTABLE`, filters, saved
+   execution, broader corpora, and consolidated G5 review remain open. Means are
+   the next planned Classic Analysis operation slice.
 5. Regression, survival, and other advanced analysis modules.
 
 ### Required work for every operation

@@ -3,7 +3,9 @@ import type {
   BoundaryNumber,
   DatasetStratifiedTable2x2Derivation,
   DatasetStratifiedTable2x2Request,
+  DatasetFrequencyRequest,
   FisherExactResult,
+  FrequencyResult,
   MidPExactResult,
   StratifiedTable2x2Input,
   StratifiedTable2x2Result,
@@ -65,6 +67,9 @@ interface EpiWasmExports {
   stratified_conditional_odds_ratio_fisher_lower: WasmNumericFunction;
   stratified_conditional_odds_ratio_fisher_upper: WasmNumericFunction;
   chi_square_p_value_df: WasmNumericFunction;
+  frequency_proportion: WasmNumericFunction;
+  frequency_ci_lower: WasmNumericFunction;
+  frequency_ci_upper: WasmNumericFunction;
 }
 
 function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
@@ -112,6 +117,9 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
     "stratified_conditional_odds_ratio",
     "stratified_conditional_odds_ratio_fisher_lower",
     "stratified_conditional_odds_ratio_fisher_upper",
+    "frequency_proportion",
+    "frequency_ci_lower",
+    "frequency_ci_upper",
     "chi_square_p_value_df",
   ] as const;
   const validated = {} as EpiWasmExports;
@@ -473,5 +481,99 @@ export function deriveStratifiedTable2x2(
       outcomeReferenceValues: [...outcomeReferences].sort((a, b) => a.localeCompare(b, "en-US")),
     },
     command: `TABLES ${commandField(request.exposureField)} ${commandField(request.outcomeField)} STRATAVAR=${commandField(request.strataField)}`,
+  };
+}
+
+interface GroupedFrequencyValue {
+  key: string;
+  value: string;
+  missing: boolean;
+  rank: number;
+  numericValue: number | null;
+  frequency: number;
+}
+
+function groupedFrequencyValue(value: EpiRecord[string] | undefined): Omit<GroupedFrequencyValue, "frequency"> {
+  if (value === null || value === undefined || (typeof value === "string" && value.trim().length === 0)) {
+    return { key: "missing", value: "Missing", missing: true, rank: 3, numericValue: null };
+  }
+  if (typeof value === "number") {
+    return { key: `number:${value}`, value: String(value), missing: false, rank: 0, numericValue: value };
+  }
+  if (typeof value === "boolean") {
+    return { key: `boolean:${value}`, value: value ? "Yes" : "No", missing: false, rank: 1, numericValue: null };
+  }
+  const normalized = value.trim();
+  return { key: `string:${normalized}`, value: normalized, missing: false, rank: 2, numericValue: null };
+}
+
+export function deriveFrequency(
+  records: readonly EpiRecord[],
+  request: DatasetFrequencyRequest,
+): FrequencyResult {
+  if (request.field.trim().length === 0) throw new RangeError("Select a frequency variable.");
+  const groups = new Map<string, GroupedFrequencyValue>();
+  let missingRecords = 0;
+  for (const record of records) {
+    const candidate = groupedFrequencyValue(record[request.field]);
+    if (candidate.missing) missingRecords += 1;
+    if (candidate.missing && !request.includeMissing) continue;
+    const existing = groups.get(candidate.key);
+    if (existing) existing.frequency += 1;
+    else groups.set(candidate.key, { ...candidate, frequency: 1 });
+  }
+  const includedRecords = records.length - (request.includeMissing ? 0 : missingRecords);
+  if (includedRecords === 0) throw new RangeError("No records remain for the selected frequency variable and missing-value setting.");
+  const ordered = [...groups.values()].sort((left, right) => {
+    if (left.rank !== right.rank) return left.rank - right.rank;
+    if (left.numericValue !== null && right.numericValue !== null) return left.numericValue - right.numericValue;
+    return left.value.localeCompare(right.value, "en-US");
+  });
+  let cumulative = 0;
+  const categories = ordered.map((category) => {
+    cumulative += category.frequency;
+    const percent = WASM.frequency_proportion(category.frequency, includedRecords);
+    const lower = WASM.frequency_ci_lower(category.frequency, includedRecords);
+    const upper = WASM.frequency_ci_upper(category.frequency, includedRecords);
+    if (![percent, lower, upper].every(Number.isFinite)) {
+      throw new RangeError("The frequency kernel rejected the derived category counts.");
+    }
+    return {
+      value: category.value,
+      missing: category.missing,
+      frequency: category.frequency,
+      percent,
+      cumulativePercent: WASM.frequency_proportion(cumulative, includedRecords),
+      confidenceInterval: { lower, upper },
+    };
+  });
+  const warnings: string[] = [];
+  if (missingRecords > 0) warnings.push(request.includeMissing
+    ? `${missingRecords} record${missingRecords === 1 ? "" : "s"} with missing values are shown as a category.`
+    : `${missingRecords} record${missingRecords === 1 ? "" : "s"} with missing values were excluded.`);
+  return {
+    schemaVersion: "0.9.0",
+    operation: "epi.frequency",
+    engine: { id: "epi-core-wasm", version: "0.9.0", operation: "epi.frequency" },
+    input: {
+      field: request.field,
+      prompt: request.prompt,
+      includeMissing: request.includeMissing,
+      confidenceLevel: 0.95,
+    },
+    methods: {
+      categoryOrdering: "typed-value-ascending-missing-last",
+      percent: "frequency-over-included-total",
+      confidenceInterval: "legacy-epi-info-exact-under-300-wilson-at-least-300",
+    },
+    categories,
+    totals: {
+      sourceRecords: records.length,
+      includedRecords,
+      excludedMissing: request.includeMissing ? 0 : missingRecords,
+      categoryCount: categories.length,
+    },
+    command: `FREQ ${commandField(request.field)}`,
+    diagnostics: { warnings },
   };
 }

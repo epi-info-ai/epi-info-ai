@@ -170,3 +170,46 @@ export interface DatasetStratifiedTable2x2Derivation {
   };
   command: string;
 }
+
+export interface FrequencyInput {
+  field: string;
+  prompt: string;
+  includeMissing: boolean;
+  confidenceLevel: 0.95;
+}
+
+export interface FrequencyCategory {
+  value: string;
+  missing: boolean;
+  frequency: number;
+  percent: number;
+  cumulativePercent: number;
+  confidenceInterval: ConfidenceInterval;
+}
+
+export interface FrequencyResult {
+  schemaVersion: "0.9.0";
+  operation: "epi.frequency";
+  engine: { id: "epi-core-wasm"; version: "0.9.0"; operation: "epi.frequency" };
+  input: FrequencyInput;
+  methods: {
+    categoryOrdering: "typed-value-ascending-missing-last";
+    percent: "frequency-over-included-total";
+    confidenceInterval: "legacy-epi-info-exact-under-300-wilson-at-least-300";
+  };
+  categories: FrequencyCategory[];
+  totals: {
+    sourceRecords: number;
+    includedRecords: number;
+    excludedMissing: number;
+    categoryCount: number;
+  };
+  command: string;
+  diagnostics: { warnings: string[] };
+}
+
+export interface DatasetFrequencyRequest {
+  field: string;
+  prompt: string;
+  includeMissing: boolean;
+}

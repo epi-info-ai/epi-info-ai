@@ -1,4 +1,4 @@
-import { calculateTable2x2, deriveStratifiedTable2x2 } from "./engine.js";
+import { calculateTable2x2, deriveFrequency, deriveStratifiedTable2x2 } from "./engine.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -12,7 +12,7 @@ import {
 import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
-import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
+import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, FrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -223,6 +223,12 @@ const classicExposedValues = requiredElement<HTMLSelectElement>("#classic-expose
 const classicCaseValues = requiredElement<HTMLSelectElement>("#classic-case-values");
 const classicConfidenceLevel = requiredElement<HTMLSelectElement>("#classic-confidence-level");
 const classicFeedback = requiredElement<HTMLElement>("#classic-tables-feedback");
+const frequencyForm = requiredElement<HTMLFormElement>("#frequency-form");
+const frequencyField = requiredElement<HTMLSelectElement>("#frequency-field");
+const frequencyIncludeMissing = requiredElement<HTMLInputElement>("#frequency-include-missing");
+const frequencyFeedback = requiredElement<HTMLElement>("#frequency-feedback");
+const frequencyOutput = requiredElement<HTMLElement>("#frequency-output");
+let lastFrequencyResult: FrequencyResult | null = null;
 let nextStratumId = 3;
 let stratifiedController: AbortController | null = null;
 
@@ -255,6 +261,76 @@ function fieldByHint(hint: RegExp, excluded = new Set<string>()): string | null 
 function setFieldOptions(select: HTMLSelectElement, selected: string): void {
   const source = getCurrentProjectData();
   select.replaceChildren(...source.fields.map((field) => new Option(field.prompt, field.name, false, field.name === selected)));
+}
+
+function updateFrequencyCommandPreview(): void {
+  const bracket = (name: string) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
+  requiredElement("#frequency-generated-command").textContent = frequencyField.value
+    ? `FREQ ${bracket(frequencyField.value)}`
+    : "FREQ";
+}
+
+function refreshFrequencySelector(): void {
+  const source = getCurrentProjectData();
+  requiredElement("#frequency-source-name").textContent = `${source.formName} · ${source.records.length} records`;
+  if (source.fields.length === 0) {
+    frequencyField.replaceChildren();
+    frequencyFeedback.textContent = "The current form has no fields available for FREQ.";
+    frequencyOutput.hidden = true;
+    return;
+  }
+  const selected = source.fields.some((field) => field.name === frequencyField.value)
+    ? frequencyField.value
+    : fieldByHint(/case.?status|outcome|ill/) ?? source.fields[0]!.name;
+  setFieldOptions(frequencyField, selected);
+  updateFrequencyCommandPreview();
+  frequencyFeedback.textContent = "Values shown come from the current form. Missing values are excluded unless requested.";
+  frequencyOutput.hidden = lastFrequencyResult === null;
+}
+
+function percent(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function renderFrequency(result: FrequencyResult): void {
+  lastFrequencyResult = result;
+  const exact = result.totals.includedRecords < 300;
+  const method = exact ? "Exact" : "Wilson";
+  requiredElement("#frequency-output-title").textContent = result.input.prompt || result.input.field;
+  requiredElement("#frequency-variable-heading").textContent = result.input.prompt || result.input.field;
+  requiredElement("#frequency-method").textContent = `${method} 95% confidence limits`;
+  requiredElement("#frequency-confidence-title").textContent = `${method} 95% Conf Limits`;
+  const rows = result.categories.map((category) => {
+    const row = document.createElement("tr");
+    const heading = document.createElement("th");
+    heading.scope = "row";
+    heading.textContent = category.value;
+    row.append(heading);
+    for (const value of [String(category.frequency), percent(category.percent), percent(category.cumulativePercent)]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  });
+  requiredElement("#frequency-rows").replaceChildren(...rows);
+  const confidenceRows = result.categories.map((category) => {
+    const row = document.createElement("tr");
+    for (const value of [category.value, percent(category.confidenceInterval.lower), percent(category.confidenceInterval.upper)]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  });
+  requiredElement("#frequency-confidence-rows").replaceChildren(...confidenceRows);
+  requiredElement("#frequency-total").textContent = String(result.totals.includedRecords);
+  const warning = requiredElement<HTMLElement>("#frequency-warnings");
+  warning.textContent = result.diagnostics.warnings.join(" ");
+  warning.hidden = result.diagnostics.warnings.length === 0;
+  requiredElement("#frequency-generated-command").textContent = result.command;
+  frequencyFeedback.textContent = `Included ${result.totals.includedRecords} of ${result.totals.sourceRecords} records; excluded ${result.totals.excludedMissing} with missing values. ${result.totals.categoryCount} categories.`;
+  frequencyOutput.hidden = false;
 }
 
 function updateClassicCommandPreview(): void {
@@ -412,7 +488,24 @@ classicOutcomeField.addEventListener("change", () => {
 classicStrataField.addEventListener("change", updateClassicCommandPreview);
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="classic"], [data-module="classic"]')) {
   button.addEventListener("click", refreshClassicTablesSelectors);
+  button.addEventListener("click", refreshFrequencySelector);
 }
+frequencyField.addEventListener("change", updateFrequencyCommandPreview);
+frequencyForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  try {
+    const source = getCurrentProjectData();
+    const field = source.fields.find((candidate) => candidate.name === frequencyField.value);
+    if (!field) throw new RangeError("Select a frequency variable from the current form.");
+    renderFrequency(deriveFrequency(source.records, {
+      field: field.name,
+      prompt: field.prompt,
+      includeMissing: frequencyIncludeMissing.checked,
+    }));
+  } catch (error) {
+    frequencyFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate the frequency table.";
+  }
+});
 classicTablesForm.addEventListener("submit", (event) => {
   event.preventDefault();
   try {
@@ -434,6 +527,7 @@ classicTablesForm.addEventListener("submit", (event) => {
   }
 });
 refreshClassicTablesSelectors();
+refreshFrequencySelector();
 
 try {
   initializeFormDataDemo();

@@ -502,6 +502,35 @@ test("Classic Analysis TABLES derives foodborne strata from the current form", a
   await expect(page.locator("#stratified-rr")).toHaveText("4.50");
 });
 
+test("Classic Analysis FREQ derives the foodborne Case Status distribution", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="classic"]').click();
+  await expect(page.locator("#frequency-field")).toHaveValue("case_status");
+  await expect(page.locator("#frequency-generated-command")).toHaveText("FREQ case_status");
+  await page.locator("#frequency-run").click();
+
+  await expect(page.locator("#frequency-feedback")).toContainText("Included 96 of 96 records; excluded 0");
+  await expect(page.locator("#frequency-method")).toHaveText("Exact 95% confidence limits");
+  await expect(page.locator("#frequency-total")).toHaveText("96");
+  await expect(page.locator("#frequency-rows tr")).toHaveCount(4);
+  expect(await page.locator("#frequency-rows tr").allTextContents()).toEqual([
+    "Confirmed2222.9%22.9%",
+    "Not a case5254.2%77.1%",
+    "Probable1616.7%93.8%",
+    "Suspected66.3%100.0%",
+  ]);
+  expect(await page.locator("#frequency-confidence-rows tr").allTextContents()).toEqual([
+    "Confirmed15.0%32.6%",
+    "Not a case43.7%64.4%",
+    "Probable9.8%25.6%",
+    "Suspected2.3%13.1%",
+  ]);
+});
+
 test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ page }) => {
   await page.getByRole("button", { name: "Classic", exact: true }).click();
   const values = [
@@ -574,7 +603,7 @@ test("stratified analysis runs in a cancellable Worker and recovers after cancel
   await expect(page.locator("#stratified-worker-status")).toContainText("Worker completed");
 });
 
-test("JupyterLite validation lab V0.8 is part of the Pages artifact", async ({ page, request }) => {
+test("JupyterLite validation lab V0.9 is part of the Pages artifact", async ({ page, request }) => {
   const response = await page.goto("/validation-lab/lab/index.html?path=validate-table2x2.ipynb");
   expect(response?.ok()).toBe(true);
   await expect(page).toHaveTitle(/Epi Info AI Validation Lab|JupyterLite/, { timeout: 30_000 });
@@ -610,6 +639,19 @@ test("JupyterLite validation lab V0.8 is part of the Pages artifact", async ({ p
   const operational = await operationalResponse.json();
   expect(operational.generatedCases[0].strata).toBe(1024);
   expect(operational.reviewedLimits.maximumConvolutionWork).toBe(2_000_000);
+
+  const frequencyResponse = await request.get("/validation-lab/files/validate-frequency.ipynb");
+  expect(frequencyResponse.ok()).toBe(true);
+  const frequencyNotebook = await frequencyResponse.json();
+  expect(JSON.stringify(frequencyNotebook)).toContain("foodborne-frequency-v0.9.json");
+  expect(JSON.stringify(frequencyNotebook)).toContain("frequency_ci_lower");
+  expect(JSON.stringify(frequencyNotebook)).toContain("scipy.stats");
+
+  const frequencyFixtureResponse = await request.get("/validation-fixtures/foodborne-frequency-v0.9.json");
+  expect(frequencyFixtureResponse.ok()).toBe(true);
+  const frequencyFixture = await frequencyFixtureResponse.json();
+  expect(frequencyFixture.expected.includedRecords).toBe(96);
+  expect(frequencyFixture.expected.categories.map((category) => category.frequency)).toEqual([22, 52, 16, 6]);
 });
 
 test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadable", async ({ request }) => {

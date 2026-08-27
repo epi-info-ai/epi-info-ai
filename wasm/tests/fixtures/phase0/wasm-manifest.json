@@ -4,7 +4,7 @@
   "size": 20154,
   "engine": {
     "id": "epi-core-wasm",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "operation": "epi.table2x2",
     "schemaVersion": "0.4.0"
   },
@@ -52,6 +52,9 @@
     "stratified_conditional_odds_ratio",
     "stratified_conditional_odds_ratio_fisher_lower",
     "stratified_conditional_odds_ratio_fisher_upper",
-    "chi_square_p_value_df"
+    "chi_square_p_value_df",
+    "frequency_proportion",
+    "frequency_ci_lower",
+    "frequency_ci_upper"
   ]
 }

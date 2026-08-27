@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "operation": "epi.frequency",
+  "operationVersion": "0.9.0",
+  "status": "candidate",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "rows": 96
+  },
+  "request": {
+    "field": "case_status",
+    "sourceHeader": "Case Status",
+    "prompt": "Case Status",
+    "includeMissing": false,
+    "confidenceLevel": 0.95
+  },
+  "expected": {
+    "command": "FREQ case_status",
+    "includedRecords": 96,
+    "excludedMissing": 0,
+    "confidenceMethod": "exact",
+    "categories": [
+      { "value": "Confirmed", "frequency": 22, "percent": 0.22916666666666666, "cumulativePercent": 0.22916666666666666, "lower": 0.14953397247531025, "upper": 0.32614938377146674 },
+      { "value": "Not a case", "frequency": 52, "percent": 0.5416666666666666, "cumulativePercent": 0.7708333333333334, "lower": 0.43686339407750274, "upper": 0.6438296572038142 },
+      { "value": "Probable", "frequency": 16, "percent": 0.16666666666666666, "cumulativePercent": 0.9375, "lower": 0.09837277457724741, "upper": 0.25649996752084847 },
+      { "value": "Suspected", "frequency": 6, "percent": 0.0625, "cumulativePercent": 1.0, "lower": 0.02327958773077249, "upper": 0.1310850358019408 }
+    ]
+  },
+  "provenance": {
+    "legacySources": [
+      "wasm/source/Epi-Info-Community-Edition/Epi.Windows.Analysis/Dialogs/FrequencyDialog.cs",
+      "wasm/source/Epi-Info-Community-Edition/Epi.Analysis.Statistics/Frequency.cs",
+      "wasm/source/Epi-Info-Community-Edition/StatisticsRepository/freq.vb"
+    ],
+    "reviewNote": "Counts are frozen from the canonical foodborne CSV. Exact 95% limits are independent Clopper-Pearson anchors; legacy-output comparison remains open."
+  }
+}

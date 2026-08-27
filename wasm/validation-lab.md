@@ -383,6 +383,17 @@ discrepancy to its detailed evidence record.
   G5 is intentionally deferred to one consolidated statistical and implementation
   review across all candidate outputs.
 
+### V0.9 — Classic Analysis frequency lab
+
+- `validate-frequency.ipynb` verifies the canonical foodborne CSV hash and
+  independently derives the four Case Status categories from all 96 records.
+- It compares deployed Rust/WASM proportions, cumulative proportions, and 95%
+  confidence limits with the frozen V0.9 fixture and SciPy beta quantiles.
+- Boundary checks preserve the audited legacy switch from exact limits below 300
+  records to Wilson limits at 300 or more, including the legacy 100%–100% case.
+- Multiple variables, strata, weights, output tables, broader edge corpora, and
+  formal approval remain open. G5 is deferred to the consolidated output review.
+
 ### Later releases
 
 - Extend the corpus to exact tests, rates, sample size, regression, dates/times,

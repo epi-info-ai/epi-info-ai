@@ -21,6 +21,143 @@ fn valid_confidence_multiplier(z: f64) -> bool {
     z.is_finite() && z > 0.0
 }
 
+fn valid_frequency_counts(frequency: f64, total: f64) -> bool {
+    frequency.is_finite()
+        && total.is_finite()
+        && frequency >= 0.0
+        && total > 0.0
+        && frequency <= total
+        && frequency == libm::floor(frequency)
+        && total == libm::floor(total)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn frequency_proportion(frequency: f64, total: f64) -> f64 {
+    if valid_frequency_counts(frequency, total) {
+        frequency / total
+    } else {
+        f64::NAN
+    }
+}
+
+fn binomial_cdf(k: u32, n: u32, probability: f64) -> f64 {
+    if k >= n || probability <= 0.0 {
+        return 1.0;
+    }
+    if probability >= 1.0 {
+        return 0.0;
+    }
+    let log_p = libm::log(probability);
+    let log_q = libm::log(1.0 - probability);
+    let mut log_choose = 0.0;
+    let mut maximum = f64::NEG_INFINITY;
+    for value in 0..=k {
+        if value > 0 {
+            log_choose += libm::log((n - value + 1) as f64) - libm::log(value as f64);
+        }
+        let term = log_choose + value as f64 * log_p + (n - value) as f64 * log_q;
+        if term > maximum {
+            maximum = term;
+        }
+    }
+    log_choose = 0.0;
+    let mut scaled_sum = 0.0;
+    for value in 0..=k {
+        if value > 0 {
+            log_choose += libm::log((n - value + 1) as f64) - libm::log(value as f64);
+        }
+        let term = log_choose + value as f64 * log_p + (n - value) as f64 * log_q;
+        scaled_sum += libm::exp(term - maximum);
+    }
+    let result = libm::exp(maximum) * scaled_sum;
+    if result > 1.0 {
+        1.0
+    } else {
+        result
+    }
+}
+
+fn frequency_exact_limit(frequency: u32, total: u32, upper: bool) -> f64 {
+    const TAIL: f64 = 0.025;
+    if !upper && frequency == 0 {
+        return 0.0;
+    }
+    if upper && frequency == total {
+        return 1.0;
+    }
+    let estimate = frequency as f64 / total as f64;
+    let (mut low, mut high) = if upper {
+        (estimate, 1.0)
+    } else {
+        (0.0, estimate)
+    };
+    for _ in 0..100 {
+        let midpoint = 0.5 * (low + high);
+        if upper {
+            let probability = binomial_cdf(frequency, total, midpoint);
+            if probability > TAIL {
+                low = midpoint;
+            } else {
+                high = midpoint;
+            }
+        } else {
+            let probability = binomial_cdf(total - frequency, total, 1.0 - midpoint);
+            if probability > TAIL {
+                high = midpoint;
+            } else {
+                low = midpoint;
+            }
+        }
+    }
+    0.5 * (low + high)
+}
+
+fn frequency_confidence_limit(frequency: f64, total: f64, upper: bool) -> f64 {
+    if !valid_frequency_counts(frequency, total) {
+        return f64::NAN;
+    }
+    if total < 300.0 {
+        return frequency_exact_limit(frequency as u32, total as u32, upper);
+    }
+    // Preserve the Classic Analysis special case: an all-observation category
+    // reports 100% to 100% once the Wilson branch is selected.
+    if frequency == total {
+        return 1.0;
+    }
+    let proportion = frequency / total;
+    let z = 1.96;
+    let z_squared = z * z;
+    let denominator = 1.0 + z_squared / total;
+    let center = proportion + z_squared / (2.0 * total);
+    let radius = z
+        * libm::sqrt(
+            proportion * (1.0 - proportion) / total
+                + z_squared / (4.0 * total * total),
+        );
+    let result = if upper {
+        (center + radius) / denominator
+    } else {
+        (center - radius) / denominator
+    };
+    if result < 0.0 {
+        0.0
+    } else if result > 1.0 {
+        1.0
+    } else {
+        result
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn frequency_ci_lower(frequency: f64, total: f64) -> f64 {
+    frequency_confidence_limit(frequency, total, false)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn frequency_ci_upper(frequency: f64, total: f64) -> f64 {
+    frequency_confidence_limit(frequency, total, true)
+}
+
 const MAX_EXACT_SUPPORT: f64 = 100_000.0;
 const LEGACY_TWO_SIDED_TOLERANCE: f64 = 1.000_001;
 const MAX_STRATA: usize = 1_024;
@@ -1226,6 +1363,53 @@ mod tests {
             0.412_591_358_941_486_35,
         );
         assert_near(chi_square_p_value(24.0), 0.000_000_963_357_008_643_096);
+    }
+
+    #[test]
+    fn foodborne_frequency_matches_classic_exact_limits() {
+        for &(frequency, proportion, lower, upper) in &[
+            (
+                22.0,
+                22.0 / 96.0,
+                0.149_533_972_475_310_25,
+                0.326_149_383_771_466_74,
+            ),
+            (
+                52.0,
+                52.0 / 96.0,
+                0.436_863_394_077_502_74,
+                0.643_829_657_203_814_2,
+            ),
+            (
+                16.0,
+                16.0 / 96.0,
+                0.098_372_774_577_247_41,
+                0.256_499_967_520_848_47,
+            ),
+            (
+                6.0,
+                6.0 / 96.0,
+                0.023_279_587_730_772_49,
+                0.131_085_035_801_940_8,
+            ),
+        ] {
+            assert_near(frequency_proportion(frequency, 96.0), proportion);
+            assert_near(frequency_ci_lower(frequency, 96.0), lower);
+            assert_near(frequency_ci_upper(frequency, 96.0), upper);
+        }
+    }
+
+    #[test]
+    fn frequency_limits_preserve_boundaries_and_wilson_switch() {
+        assert_eq!(frequency_ci_lower(0.0, 10.0), 0.0);
+        assert_near(frequency_ci_upper(0.0, 10.0), 0.308_497_107_818_760_8);
+        assert_near(frequency_ci_lower(10.0, 10.0), 0.691_502_892_181_239_2);
+        assert_eq!(frequency_ci_upper(10.0, 10.0), 1.0);
+        assert_eq!(frequency_ci_lower(300.0, 300.0), 1.0);
+        assert_eq!(frequency_ci_upper(300.0, 300.0), 1.0);
+        assert!(frequency_proportion(-1.0, 10.0).is_nan());
+        assert!(frequency_ci_lower(11.0, 10.0).is_nan());
+        assert!(frequency_ci_upper(0.0, 0.0).is_nan());
     }
 
     #[test]

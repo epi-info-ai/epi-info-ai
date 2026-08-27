@@ -14,9 +14,11 @@ REPOSITORY = Path(__file__).resolve().parents[2]
 NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-table2x2.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-stratified2x2.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-frequency.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
+FREQUENCY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -37,6 +39,12 @@ def verify_notebook() -> None:
     source = "\n".join(cell.source for cell in stratified.cells)
     assert "stratified-operational-v0.8.json" in source
     assert "1,024-strata" in source
+
+    frequency = nbformat.read(NOTEBOOKS[2], as_version=4)
+    source = "\n".join(cell.source for cell in frequency.cells)
+    assert "foodborne-frequency-v0.9.json" in source
+    assert "frequency_ci_lower" in source
+    assert "scipy.stats" in source
 
 
 def verify_stratified_operational_fixture() -> None:
@@ -89,8 +97,22 @@ def verify_foodborne_derivation() -> None:
     assert excluded == rules["excludedRows"]
 
 
+def verify_foodborne_frequency() -> None:
+    fixture = json.loads(FREQUENCY_FIXTURE.read_text(encoding="utf-8"))
+    data = (REPOSITORY / fixture["dataset"]["file"]).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+    rows = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = row[fixture["request"]["sourceHeader"]]
+        counts[value] = counts.get(value, 0) + 1
+    expected = {item["value"]: item["frequency"] for item in fixture["expected"]["categories"]}
+    assert counts == expected
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
+    verify_foodborne_frequency()
     verify_stratified_operational_fixture()
-    print("Validation Lab source passed: notebook schemas/syntax, foodborne derivation, and V0.8 operational fixture.")
+    print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

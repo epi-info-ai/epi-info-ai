@@ -46,7 +46,7 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch Epi Info AI](https://epi-info-ai-2859c9.gitpages.cdc.gov/)** — the latest GitLab Pages application build, published from the default branch after CI validation. CDC GitLab authentication may be required by the Pages access policy.
 
-**[Open Validation Lab V0.8](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb)** — opens the current stratified-analysis validation notebook directly. The [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remains available. The same CDC GitLab Pages access policy applies.
+**[Open Validation Lab V0.9](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb)** — opens the current Classic Analysis frequency validation notebook directly. The [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb) and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
 
 Current capabilities include:
 
@@ -73,7 +73,7 @@ pnpm run check
 
 Preview the generated artifact with `pnpm run preview`, then open the URL printed by the command. GitLab Pages publishes this same generated artifact rather than copying the transitional source directly.
 
-GitLab CI also builds the V0.8 JupyterLite lab into `/validation-lab/`. The lab
+GitLab CI also builds the V0.9 JupyterLite lab into `/validation-lab/`. The lab
 derives the canonical potato-salad 2 x 2 table from the frozen 96-record
 foodborne-outbreak corpus, then compares the release Rust/WASM estimates,
 confidence intervals, chi-square p-values, Fisher exact tails, and mid-p tails
@@ -83,7 +83,9 @@ a transparent validation demonstration and does not replace the algorithm gates 
 appear in the Epi Info workflow menus. Its current Pyodide runtime and scientific
 packages are fetched on demand, so the first notebook run requires network access.
 The companion stratified notebook compares deployed WASM Mantel-Haenszel
-estimates and tests with direct independent Python formulas.
+estimates and tests with direct independent Python formulas. The frequency
+notebook re-derives the foodborne Case Status distribution and compares the
+deployed exact/Wilson Rust exports with independent SciPy formulas.
 
 ## Integrated browser test examples
 
@@ -191,6 +193,11 @@ checksums, expected metadata, and combined testing workflow are documented in
   maximum-strata CI performance guard, native/release-WASM parity, dedicated
   cancellable Worker execution, recovery testing, and a consolidated-review
   evidence packet. The operation remains a candidate until the batched G5 review.
+- Added the V0.9 Classic Analysis `FREQ` slice for one current-form variable:
+  familiar command preview, typed categories, optional missing values, frequency,
+  percent, cumulative percent, and candidate legacy exact/Wilson 95% limits.
+- Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
+  notebook that independently checks the deployed Rust/WASM frequency kernel.
 
 ## TODO
 
@@ -223,12 +230,15 @@ checksums, expected metadata, and combined testing workflow are documented in
   imported legacy 2 x 2 corpus, add independent/pathological exact fixtures, and
   complete native/WASM parity and review gates before expanding the Rust kernel.
 - Evaluate and, if required, self-host a pinned Pyodide distribution and scientific wheels before claiming that the validation lab or a future Advanced Analysis workspace works offline.
-- Continue Phase 5 V0.8 validation for the candidate stratified 2 x 2
+- Continue Phase 5 validation for the candidate stratified 2 x 2
   Mantel-Haenszel OR/RR, confidence limits, and association tests. The automated
   pathological, metamorphic, maximum-strata, performance, and Worker-isolation
   evidence is now implemented; add familiar multiple-stratifier/weight/filter
   support and broader reviewed legacy-output corpora without removing the direct
   StatCalc branch. Complete G5 once for the consolidated set of candidate outputs.
+- Expand Classic Analysis `FREQ` from the V0.9 single-variable slice to multiple
+  variables, `* EXCEPT`, strata, weights, `OUTTABLE`, filters, and saved program
+  execution. Complete G5 once for all candidate outputs, as planned.
 - Complete legacy Epi Info and independent review of the Phase 5 V0.4 confidence
   intervals, exact tails, conditional odds ratios, and exact limits; the browser now
   obtains those results from Rust/WASM, but the registry remains `candidate`.

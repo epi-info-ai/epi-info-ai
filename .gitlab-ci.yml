@@ -86,6 +86,7 @@ validation-lab-build:
     - test -f wasm/dist/validation-lab/lab/index.html
     - test -f wasm/dist/validation-lab/files/validate-table2x2.ipynb
     - test -f wasm/dist/validation-lab/files/validate-stratified2x2.ipynb
+    - test -f wasm/dist/validation-lab/files/validate-frequency.ipynb
   artifacts:
     paths:
       - wasm/dist

@@ -64,9 +64,12 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/algorithm-validation-standard.md",
     "wasm/docs/validation/table2x2-exact-method-contract.md",
     "wasm/docs/validation/stratified-table2x2-method-contract.md",
+    "wasm/docs/validation/frequency-method-contract.md",
+    "wasm/docs/design/frequency-compatibility-inventory.md",
     "wasm/docs/design/statcalc-compatibility-inventory.md",
     "wasm/validation-lab/content/validate-table2x2.ipynb",
     "wasm/validation-lab/content/validate-stratified2x2.ipynb",
+    "wasm/validation-lab/content/validate-frequency.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -78,6 +81,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/stratified-homogeneity-v0.7.json",
     "wasm/tests/fixtures/algorithm-validation/stratified-exact-v0.8.json",
     "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json",
+    "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -138,6 +142,12 @@ async function checkRequiredAssetsAndUi() {
     "classic-case-values",
     "classic-strata-field",
     "classic-run-tables",
+    "frequency-form",
+    "frequency-field",
+    "frequency-include-missing",
+    "frequency-run",
+    "frequency-rows",
+    "frequency-confidence-rows",
     "strata-rows",
     "add-stratum",
     "calculate-stratified",
@@ -161,7 +171,7 @@ async function checkRequiredAssetsAndUi() {
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
-  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-stratified2x2\.ipynb/);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-frequency\.ipynb/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])
@@ -480,6 +490,52 @@ async function checkStratifiedOperationalContract() {
   assert.ok(durationMs <= generated.budget.ciRunnerMilliseconds,
     `maximum-strata calculation took ${durationMs.toFixed(1)} ms; budget is ${generated.budget.ciRunnerMilliseconds} ms`);
   console.log(`INFO maximum-strata V0.8 calculation ${durationMs.toFixed(1)} ms`);
+}
+
+async function checkFrequencyContract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json",
+  ), "utf8"));
+  const datasetBytes = await readFile(repositoryPath(fixture.dataset.file));
+  assert.equal(createHash("sha256").update(datasetBytes).digest("hex"), fixture.dataset.sha256);
+  const { inferSchemaFromRows, parseCsv } = await import(
+    `${pathToFileURL(repositoryPath("wasm/app/forms/csv.ts")).href}?frequency=${Date.now()}`
+  );
+  const parsedRows = parseCsv(datasetBytes.toString("utf8").replace(/^\uFEFF/, ""));
+  const imported = inferSchemaFromRows("foodborne.csv", parsedRows);
+  const { deriveFrequency } = await importEngineWithFileFetch();
+  const result = deriveFrequency(imported.records, {
+    field: fixture.request.field,
+    prompt: fixture.request.prompt,
+    includeMissing: fixture.request.includeMissing,
+  });
+  assert.equal(result.schemaVersion, "0.9.0");
+  assert.equal(result.operation, fixture.operation);
+  assert.equal(result.engine.id, "epi-core-wasm");
+  assert.equal(result.command, fixture.expected.command);
+  assert.equal(result.totals.includedRecords, fixture.expected.includedRecords);
+  assert.equal(result.totals.excludedMissing, fixture.expected.excludedMissing);
+  assert.deepEqual(result.categories.map(({ value, frequency }) => ({ value, frequency })),
+    fixture.expected.categories.map(({ value, frequency }) => ({ value, frequency })));
+  for (const [index, expected] of fixture.expected.categories.entries()) {
+    const actual = result.categories[index];
+    near(actual.percent, expected.percent, 1e-12, `${expected.value} percent`);
+    near(actual.cumulativePercent, expected.cumulativePercent, 1e-12, `${expected.value} cumulative percent`);
+    near(actual.confidenceInterval.lower, expected.lower, 1e-12, `${expected.value} exact lower`);
+    near(actual.confidenceInterval.upper, expected.upper, 1e-12, `${expected.value} exact upper`);
+  }
+
+  const missingRecords = [{ value: "A" }, { value: "" }, { value: null }, { value: "B" }];
+  const excluded = deriveFrequency(missingRecords, { field: "value", prompt: "Value", includeMissing: false });
+  assert.deepEqual(excluded.categories.map(({ value, frequency }) => [value, frequency]), [["A", 1], ["B", 1]]);
+  assert.equal(excluded.totals.excludedMissing, 2);
+  const included = deriveFrequency(missingRecords, { field: "value", prompt: "Value", includeMissing: true });
+  assert.deepEqual(included.categories.map(({ value, frequency }) => [value, frequency]), [["A", 1], ["B", 1], ["Missing", 2]]);
+  assert.equal(included.categories.at(-1).missing, true);
+  const wilson = deriveFrequency(Array.from({ length: 300 }, () => ({ value: "Only" })), {
+    field: "value", prompt: "Value", includeMissing: false,
+  });
+  assert.deepEqual(wilson.categories[0].confidenceInterval, { lower: 1, upper: 1 });
 }
 
 async function checkFoodborneValidationFixture() {
@@ -957,6 +1013,7 @@ async function run() {
     ["stratified OR/RR homogeneity contract", checkStratifiedHomogeneityContract],
     ["stratified exact conditional contract", checkStratifiedExactContract],
     ["stratified operational limits and metamorphic contract", checkStratifiedOperationalContract],
+    ["foodborne Classic FREQ contract", checkFrequencyContract],
     ["foodborne 2 x 2 validation fixture", checkFoodborneValidationFixture],
     ["legacy 100-case exact 2 x 2 corpus", checkLegacyTwoByTwoCorpus],
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],
