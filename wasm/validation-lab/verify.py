@@ -20,6 +20,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-population-survey.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-cohort-cross-sectional.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-unmatched-case-control.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-chi-square-trend.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -29,6 +30,7 @@ RATE_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-
 POPULATION_SURVEY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json"
 COHORT_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json"
 UNMATCHED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json"
+TREND_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -59,6 +61,12 @@ def verify_notebook() -> None:
     assert "foodborne-frequency-v0.9.json" in source
     assert "frequency_ci_lower" in source
     assert "scipy.stats" in source
+
+    trend = nbformat.read(NOTEBOOKS[8], as_version=4)
+    source = "\n".join(cell.source for cell in trend.cells)
+    assert "chi-square-trend-v0.15.json" in source
+    assert "trend_chi_square" in source
+    assert "math.erfc" in source
 
     unmatched = nbformat.read(NOTEBOOKS[7], as_version=4)
     source = "\n".join(cell.source for cell in unmatched.cells)
@@ -208,6 +216,14 @@ def verify_unmatched() -> None:
     assert fixture["cases"][1]["methods"][2]["total"] == 159
 
 
+def verify_chi_square_trend() -> None:
+    fixture = json.loads(TREND_FIXTURE.read_text(encoding="utf-8"))
+    rows = fixture["input"]["rows"]
+    assert len(rows) == 4
+    assert fixture["expected"]["oddsRatios"] == [1, 2.25, 27 / 7, 6]
+    assert fixture["expected"]["chiSquare"] == 26.6
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
@@ -217,5 +233,6 @@ if __name__ == "__main__":
     verify_population_survey()
     verify_cohort()
     verify_unmatched()
+    verify_chi_square_trend()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

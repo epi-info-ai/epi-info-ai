@@ -835,17 +835,26 @@ provenance.
 
 ## Immediate next slice
 
-The Phase 5 V0.8 operational-closure slice is complete when CI confirms its
-pathological corpus, native/release-WASM parity, Worker cancellation and recovery,
-maximum-strata performance guard, JupyterLite evidence, and Pages artifact. G5 is
-intentionally batched for one consolidated statistical and implementation review
-across all candidate outputs; V0.8 remains `candidate` until that review.
+Phase 5 V0.15 restores Chi Square for Trend as the fourth learned StatCalc menu
+branch. It preserves the legacy editable score/case/control table, Add Row action,
+reference-row odds ratios, Extended Mantel-Haenszel statistic, and p value behind
+`epi.chiSquareTrend`, with a bounded Rust buffer, immutable fixture, browser test,
+method contract, and JupyterLite comparison. G5 remains intentionally batched for
+one consolidated statistical and implementation review across candidate outputs.
 
-The next implementation slice is Phase 5 V0.9: begin migration-order item 4 with
-a familiar Classic Analysis `FREQ` vertical slice. Audit the legacy C# frequency
-engine and UI as the compatibility floor, define `epi.frequency`, derive the
-canonical foodborne Case Status frequency table, render familiar frequency,
-percent, cumulative-percent, missing-value, and confidence-limit output, expose
-the generated `FREQ` command, and extend the Validation Lab. Weight, stratified,
-and complex-sample frequency branches must remain explicitly preserved as later
-parity work rather than silently omitted.
+The next release activity is a focused **demo-readiness gate**, not another broad
+algorithm slice. It must verify the launcher-to-workflow rehearsal path, sticky
+familiar module tree, type-aware validation dialogs, successful adjusted-results
+Worker startup/recovery, seeded foodborne/Toledo/WorldPop examples, GeoTIFF upload,
+responsive desktop/tablet/phone behavior, visible failures, README links, clean CI,
+and Pages publication. This is a release-hardening step and does not claim that
+open parity gaps are closed.
+
+Immediately after that gate, begin **Phase 5B IDE V0.1**. The first IDE slice is
+the recognizable Program Editor shell with project program list, visible editable
+source, open/save and `.pgm7` exchange, find/replace, diagnostics, and a bounded
+first command execution path with structured Output and provenance. The typed
+Visual Epi Info box-and-connection view begins against the same intermediate
+representation; effective source remains visible beside it from the start. Thus
+the IDE starts after the demo-readiness pass, before returning to the remaining
+Poisson, Population Binomial, and Matched Pair StatCalc branches.

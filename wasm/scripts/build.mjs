@@ -18,7 +18,7 @@ const maintainedModules = [
   "stratified-worker-client",
   "supabase-sync",
 ];
-const bundledModules = new Set(["form-data", "supabase-sync"]);
+const bundledModules = new Set(["app", "form-data", "maps", "stratified-worker", "supabase-sync"]);
 
 async function existingSource(baseName) {
   for (const extension of [".ts", ".js"]) {
@@ -89,6 +89,10 @@ await cp(
 await cp(
   join(wasmDirectory, "tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json"),
   join(validationFixtureDirectory, "unmatched-case-control-v0.14.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"),
+  join(validationFixtureDirectory, "chi-square-trend-v0.15.json"),
 );
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));

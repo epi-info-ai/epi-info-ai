@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "0.15.0",
+  "operation": "epi.chiSquareTrend",
+  "status": "candidate",
+  "provenance": {
+    "legacySource": "EpiDashboard/StatCalc/ChiSquareControl.xaml.cs:GetChiSquareForTrend",
+    "independentMethod": "direct Extended Mantel-Haenszel linear-trend formula and chi-square survival with 1 degree of freedom"
+  },
+  "input": {
+    "rows": [
+      { "score": 0, "cases": 10, "controls": 90 },
+      { "score": 1, "cases": 20, "controls": 80 },
+      { "score": 2, "cases": 30, "controls": 70 },
+      { "score": 3, "cases": 40, "controls": 60 }
+    ]
+  },
+  "expected": {
+    "oddsRatios": [1, 2.25, 3.857142857142857, 6],
+    "chiSquare": 26.6,
+    "pValueUpperBound": 0.000001
+  },
+  "tolerances": {
+    "absolute": 1e-10
+  }
+}

@@ -268,6 +268,30 @@
         "Complete Save as Image, Print, keyboard behavior, and translated-label compatibility.",
         "Complete the consolidated statistical and implementation review across all candidate outputs."
       ]
+    },
+    {
+      "operation": "epi.chiSquareTrend",
+      "resultSchemaVersion": "0.15.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "epi-core-wasm",
+        "engineVersion": "0.15.0",
+        "source": "wasm/engine-rust/src/lib.rs"
+      },
+      "gates": { "G0": "passed", "G1": "partial", "G2": "partial", "G3": "passed", "G4": "partial", "G5": "not-started", "G6": "partial" },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json",
+        "wasm/docs/design/statcalc-compatibility-inventory.md",
+        "wasm/docs/validation/chi-square-trend-method-contract.md",
+        "wasm/validation-lab/content/validate-chi-square-trend.ipynb"
+      ],
+      "knownGaps": [
+        "Compare against a broader reviewed legacy Epi Info Chi Square for Trend output corpus.",
+        "Expand zero-cell, fractional-count, reordered-score, and localization evidence.",
+        "Complete Save as Image, Print, and keyboard behavior compatibility.",
+        "Complete the consolidated statistical and implementation review across all candidate outputs."
+      ]
     }
   ]
 }

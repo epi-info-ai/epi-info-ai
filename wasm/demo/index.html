@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=31" />
+    <link rel="stylesheet" href="styles.css?v=32" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=36"></script>
+  <script type="module" src="app.js?v=37"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -330,7 +330,7 @@
                   <button id="map-add-case-cluster" type="button">Case Cluster</button>
                   <button id="map-add-geojson" type="button">GeoJSON Layer...</button>
                   <button id="map-add-h3" type="button">H3 Hexagons...</button>
-                  <button type="button" disabled title="Example fixture included; raster rendering is planned under LEGACY-MAPS-015">GeoTIFF Raster...</button>
+                  <button id="map-add-raster" type="button">GeoTIFF Raster...</button>
                   <button type="button" disabled>Choropleth</button>
                   <button type="button" disabled>Dot Density</button>
                 </div>
@@ -373,6 +373,7 @@
                       <label><input id="map-location-layer-toggle" type="checkbox" checked /> Current location</label>
                       <div id="map-geojson-layers" class="map-geojson-layers"></div>
                       <div id="map-h3-layers" class="map-h3-layers"></div>
+                      <div id="map-raster-layers" class="map-raster-layers"></div>
                     </div>
                     <p class="map-privacy-note">Coordinates stay in this browser. Street tiles are requested from OpenStreetMap when online.</p>
                   </div>
@@ -387,7 +388,7 @@
           <button class="secondary-button" type="button" data-statcalc-tool="population-survey" aria-pressed="false">Population Survey</button>
           <button class="secondary-button" type="button" data-statcalc-tool="cohort-cross-sectional" aria-pressed="false">Cohort or Cross-Sectional</button>
           <button class="secondary-button" type="button" data-statcalc-tool="unmatched-case-control" aria-pressed="false">Unmatched Case-Control</button>
-          <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Chi Square for Trend</button>
+          <button class="secondary-button" type="button" data-statcalc-tool="chi-square-trend" aria-pressed="false">Chi Square for Trend</button>
           <button class="secondary-button active" type="button" data-statcalc-tool="table2x2" aria-pressed="true">Tables (2 x 2 x N)</button>
           <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Poisson</button>
           <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Population Binomial</button>
@@ -814,6 +815,31 @@
         <footer class="audit-strip" data-module-view="statcalc" data-statcalc-view="unmatched-case-control" hidden>
           <span><strong>Operation</strong> epi.sampleSize.unmatchedCaseControl</span><span><strong>Status</strong> V0.14 candidate · consolidated G5 review pending</span>
         </footer>
+
+        <div class="workspace-heading" data-module-view="statcalc" data-statcalc-view="chi-square-trend" hidden>
+          <div><p class="eyebrow">STATCALC</p><h1>Chi Square for Trend</h1><p>Analysis for linear trends in proportions.</p></div>
+          <div class="engine-badge" title="The Extended Mantel-Haenszel calculation runs in Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rust candidate · contract 0.15</span></div>
+        </div>
+        <section class="panel trend-panel" data-module-view="statcalc" data-statcalc-view="chi-square-trend" hidden aria-labelledby="trend-title">
+          <div class="panel-heading"><div><p class="step-label">CHI SQUARE FOR TREND</p><h2 id="trend-title">Analysis For Linear Trends In Proportions</h2></div><button id="trend-example" class="text-button" type="button">Load example</button></div>
+          <form id="trend-form">
+            <div class="results-table-scroll">
+              <table class="results-table trend-entry-table">
+                <thead><tr><th scope="col">Exposure Score</th><th scope="col">Cases</th><th scope="col">Controls</th><th scope="col">Odds Ratio</th><th scope="col"><span class="sr-only">Row action</span></th></tr></thead>
+                <tbody id="trend-rows"></tbody>
+              </table>
+            </div>
+            <div class="form-actions"><button id="trend-add-row" class="secondary-button" type="button">Add Row</button><button class="primary-button" type="submit">Calculate</button></div>
+            <p id="trend-feedback" class="inline-feedback" role="status">Enter at least two complete rows. The first row is the odds-ratio reference.</p>
+          </form>
+          <div class="trend-summary" aria-live="polite">
+            <span><strong>Chi Square for linear trend<br>(Extended Mantel-Haenszel)</strong><output id="trend-chi-square">...</output></span>
+            <span><strong>p value</strong><output id="trend-p-value">...</output></span>
+          </div>
+        </section>
+        <footer class="audit-strip" data-module-view="statcalc" data-statcalc-view="chi-square-trend" hidden>
+          <span><strong>Operation</strong> epi.chiSquareTrend</span><span><strong>Status</strong> V0.15 candidate · consolidated G5 review pending</span>
+        </footer>
       </main>
     </div>
 
@@ -884,27 +910,42 @@
         </div>
         <div class="legacy-dialog-body">
           <p>Field: <strong id="field-rules-name"></strong></p>
+          <p id="field-rules-type-note" class="dialog-note"></p>
           <fieldset>
             <legend>Validation</legend>
             <label><input id="field-rule-unique" type="checkbox" /> Value must be unique</label>
-            <div class="field-rule-range">
+            <div id="field-rule-range-group" class="field-rule-range">
               <label for="field-rule-lower">Lower limit</label>
               <input id="field-rule-lower" type="text" placeholder="Number or YYYY-MM-DD" />
               <label for="field-rule-upper">Upper limit</label>
               <input id="field-rule-upper" type="text" placeholder="Number or YYYY-MM-DD" />
             </div>
-            <label for="field-rule-legal-values">Legal values (one per line)</label>
-            <textarea id="field-rule-legal-values" rows="4"></textarea>
-            <label><input id="field-rule-comment-legal" type="checkbox" /> Allow a comment value outside the list</label>
-            <label for="field-rule-pattern">Pattern (regular expression)</label>
-            <input id="field-rule-pattern" type="text" spellcheck="false" placeholder="Example: ^CASE-[0-9]{3}$" />
-            <fieldset class="nested-fieldset">
+            <div id="field-rule-legal-group">
+              <label for="field-rule-legal-values">Legal values (one per line)</label>
+              <textarea id="field-rule-legal-values" rows="4"></textarea>
+              <label><input id="field-rule-comment-legal" type="checkbox" /> Allow a comment value outside the list</label>
+            </div>
+            <div id="field-rule-pattern-group">
+              <label for="field-rule-pattern">Pattern (regular expression)</label>
+              <input id="field-rule-pattern" type="text" spellcheck="false" placeholder="Example: ^CASE-[0-9]{3}$" />
+            </div>
+            <fieldset id="field-rule-age-group" class="nested-fieldset">
               <legend>Calculated age</legend>
               <p class="dialog-note">For a Number field, calculate completed years from a source date and an optional as-of date.</p>
               <label for="field-rule-age-source">Date of birth/source date</label>
               <select id="field-rule-age-source"><option value="">Do not calculate age</option></select>
               <label for="field-rule-age-as-of">As-of date</label>
               <select id="field-rule-age-as-of"><option value="">Today</option></select>
+            </fieldset>
+            <fieldset id="field-rule-coordinate-group" class="nested-fieldset">
+              <legend>Geographic coordinate</legend>
+              <p class="dialog-note">Coordinates use signed decimal degrees and retain at least five decimal places. A minus sign means west longitude or south latitude; no sign or + means east/north.</p>
+              <label for="field-rule-coordinate-axis">Coordinate role</label>
+              <select id="field-rule-coordinate-axis">
+                <option value="">Not a coordinate</option>
+                <option value="latitude">Latitude (-90 through 90)</option>
+                <option value="longitude">Longitude (-180 through 180)</option>
+              </select>
             </fieldset>
           </fieldset>
           <fieldset>
@@ -1016,6 +1057,7 @@
           <p>Aggregate the current case-cluster records into Uber H3 cells.</p>
           <label for="h3-resolution">Resolution: <output id="h3-resolution-value" for="h3-resolution">8</output></label>
           <input id="h3-resolution" type="range" min="0" max="15" step="1" value="8" />
+          <p class="dialog-note">Higher resolutions create smaller hexagons and show more local detail; lower resolutions create larger hexagons and summarize broader areas.</p>
           <p id="h3-resolution-detail" class="dialog-note"></p>
           <label for="h3-layer-name">Layer name</label>
           <input id="h3-layer-name" type="text" maxlength="80" placeholder="H3 Resolution 8" />
@@ -1074,6 +1116,30 @@
         <div class="legacy-dialog-actions">
           <button class="dialog-primary" value="add" type="submit">Add Layer</button>
           <button value="cancel" type="button" data-close-geojson>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="raster-dialog" class="legacy-dialog" aria-labelledby="raster-dialog-title">
+      <form id="raster-form" method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="raster-dialog-title">Add GeoTIFF Raster Layer</strong>
+          <button type="button" data-close-raster aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p>Choose a WGS 84 GeoTIFF. The first band is rendered locally as a population-density color ramp.</p>
+          <p><a class="text-button" href="examples/worldpop-toledo-population-density.tif" download>Download WorldPop test raster</a></p>
+          <label for="raster-file">GeoTIFF file</label>
+          <input id="raster-file" type="file" accept=".tif,.tiff,image/tiff,image/geotiff" required />
+          <label for="raster-layer-name">Layer name</label>
+          <input id="raster-layer-name" type="text" maxlength="80" placeholder="Uses the file name when blank" />
+          <label for="raster-opacity">Opacity <output id="raster-opacity-value" for="raster-opacity">70%</output></label>
+          <input id="raster-opacity" type="range" min="10" max="100" step="5" value="70" />
+          <p id="raster-dialog-status" class="dialog-note" role="status" aria-live="polite">Files stay in this browser. Maximum size: 50 MB; display is downsampled to at most 1,048,576 pixels.</p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button class="dialog-primary" value="add" type="submit">Add Layer</button>
+          <button value="cancel" type="button" data-close-raster>Cancel</button>
         </div>
       </form>
     </dialog>

@@ -46,7 +46,7 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch Epi Info AI](https://epi-info-ai-2859c9.gitpages.cdc.gov/)** — the latest GitLab Pages application build, published from the default branch after CI validation. CDC GitLab authentication may be required by the Pages access policy.
 
-**[Open Validation Lab V0.14](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-unmatched-case-control.ipynb)** — opens the current StatCalc Unmatched Case-Control validation notebook directly. The [Cohort notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-cohort-cross-sectional.ipynb), [Population Survey notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-population-survey.ipynb), [Rates notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-rate.ipynb), [means notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb), [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
+**[Open Validation Lab V0.15](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb)** — opens the current StatCalc Chi Square for Trend validation notebook directly. The [Unmatched Case-Control notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-unmatched-case-control.ipynb), [Cohort notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-cohort-cross-sectional.ipynb), [Population Survey notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-population-survey.ipynb), [Rates notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-rate.ipynb), [means notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb), [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
 
 Current capabilities include:
 
@@ -59,10 +59,13 @@ Current capabilities include:
 - browser-local GeoJSON upload, polygon-label field selection, zoom-dependent interior labels, and label visibility controls;
 - compact map-layer controls, fullscreen mapping, and cumulative date/time animation;
 - configurable Uber H3 resolutions from 0 through 15, with mapped records aggregated into toggleable hexagon layers;
+- live H3 resolution guidance showing how higher resolutions produce smaller hexagons, including approximate average edge length and area;
+- browser-local WGS 84 GeoTIFF upload with bounded downsampling, a population-density color ramp, opacity/visibility/removal controls, and raster-below-vector drawing order;
 - a distinct Visual Dashboard Rates candidate using the familiar numerator PER denominator workflow;
 - a StatCalc Population Survey candidate preserving the familiar five inputs and seven-level cluster/total sample table;
 - a StatCalc Cohort or Cross-Sectional candidate with linked effect measures and Kelsey/Fleiss sample-size output;
 - a StatCalc Unmatched Case-Control candidate with linked exposure measures and cases/controls sample-size output;
+- a StatCalc Chi Square for Trend candidate preserving the familiar editable exposure-score/case/control table, Add Row action, row odds ratios, and Extended Mantel-Haenszel output;
 - deterministic 2 x 2 calculations backed by the Rust WebAssembly kernel; and
 - an optional JupyterLite validation lab that compares the deployed Rust/WASM
   calculation with independent Python references without changing the familiar UI.
@@ -77,7 +80,7 @@ pnpm run check
 
 Preview the generated artifact with `pnpm run preview`, then open the URL printed by the command. GitLab Pages publishes this same generated artifact rather than copying the transitional source directly.
 
-GitLab CI also builds the V0.14 JupyterLite lab into `/validation-lab/`. The lab
+GitLab CI also builds the V0.15 JupyterLite lab into `/validation-lab/`. The lab
 derives the canonical potato-salad 2 x 2 table from the frozen 96-record
 foodborne-outbreak corpus, then compares the release Rust/WASM estimates,
 confidence intervals, chi-square p-values, Fisher exact tails, and mid-p tails
@@ -103,14 +106,17 @@ ratios against the deployed Rust/WASM sample-size operation.
 The Unmatched Case-Control notebook independently translates the legacy
 exposure conversion and Kelsey/Fleiss formulas, checking equal and unequal
 controls-to-cases ratios against its distinct deployed Rust/WASM operation.
+The Chi Square for Trend notebook independently recomputes the Extended
+Mantel-Haenszel statistic, reference-row odds ratios, and one-degree-of-freedom
+p value against the deployed Rust/WASM operation.
 
 ## Integrated browser test examples
 
 The production demo includes the official migrated Epi Info Sample project, the same 96-record synthetic foodborne-outbreak line
 list as CSV and Excel `.xlsx`, an
 87-feature City of Toledo neighborhood GeoJSON layer, and a WorldPop-derived
-Toledo GeoTIFF fixture. The raster is downloadable and verified in the Pages
-artifact, but rendering remains the open `LEGACY-MAPS-015` task. Their provenance,
+Toledo GeoTIFF fixture. The raster is downloadable, verified, and renderable as
+a bounded WGS 84 local raster layer in the Pages artifact. Their provenance,
 checksums, expected metadata, and combined testing workflow are documented in
 [`wasm/demo/examples/README.md`](wasm/demo/examples/README.md).
 
@@ -142,6 +148,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   auditable calculated age, safe allowlisted Check Code field actions, validation
   across entry/import/restore, duplicate comparison, and an audited recoverable
   Recycle Bin.
+- Hardened field validation so rule choices match the field data type. Number
+  fields can be designated latitude or longitude, with signed decimal-degree
+  ranges and at least five retained decimal places enforced before records save
+  or import.
 - Locked familiar launcher order at phone, tablet, and desktop widths and added a
   storage compatibility inventory covering legacy stores and new hosted branches.
 - Completed migration Phase 3B for Enter Data: phone-first record entry, a
@@ -236,6 +246,12 @@ checksums, expected metadata, and combined testing workflow are documented in
   linked control/case exposure inputs, cases/controls/total Kelsey and Fleiss
   output, a distinct Rust/WASM contract over the audited shared core, fixtures,
   browser coverage, and an independent JupyterLite notebook.
+- Added the V0.15 StatCalc `Chi Square for Trend` slice with the familiar
+  exposure-score table, Add Row workflow, relative odds ratios, audited Extended
+  Mantel-Haenszel Rust/WASM formula, fixture, browser coverage, and independent lab.
+- Added a bounded WGS 84 GeoTIFF raster demo using the included WorldPop example,
+  plus H3 size guidance, a sticky desktop module tree, type-aware field-rule UI,
+  and a bundled/cache-busted stratified Worker to prevent the observed failure.
 
 ## TODO
 
@@ -260,7 +276,7 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Continue decomposing the typed Forms controller into designer, validation,
   Data Quality, and record-lifecycle modules before expanding legacy parity.
 - Add explicit coordinate reference system detection and reprojection for imported spatial data; current case coordinates and GeoJSON are expected in WGS 84 longitude/latitude.
-- Add browser-local GeoTIFF raster layers under Maps > Add Data Layer, with CRS detection/reprojection, nodata and transparency controls, safe file/memory limits, raster styling, and placement beneath polygon, line, and point layers.
+- Expand GeoTIFF beyond the bounded WGS 84 first-band demo with deterministic reprojection, multiband styling, legends, persisted layer definitions, and richer nodata controls.
 - Add offline basemap packages, choropleths, spatial analysis, geocoding, and additional legacy map workflows.
 - Replace `localStorage` project persistence with SQLite WASM and OPFS.
 - Implement the versioned plugin runtime, capability API, permissions, and plugin catalog described in the architecture plan.
@@ -284,9 +300,8 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Expand Visual Dashboard `Rates` from the V0.11 COUNT slice to the audited
   aggregate list, condition builders, distinct counts, grouping, sorting,
   filters, colors, exports, and saved gadget canvas. Keep G5 consolidated.
-- Expand StatCalc beyond the first three sample-size candidates in legacy menu
-  order, beginning with Chi Square for Trend;
-  retain Chi Square for Trend, 2 x 2 x N, Poisson, Population Binomial, and
+- Expand StatCalc beyond the first three sample-size candidates and Chi Square
+  for Trend in legacy menu order; retain 2 x 2 x N, Poisson, Population Binomial, and
   Matched Pair Case-Control as explicit compatibility-floor branches.
 - Complete legacy Epi Info and independent review of the Phase 5 V0.4 confidence
   intervals, exact tails, conditional odds ratios, and exact limits; the browser now

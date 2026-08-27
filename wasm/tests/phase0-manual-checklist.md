@@ -61,9 +61,14 @@ system, viewport, and result in the review or release notes.
 - [ ] Map Layers starts minimized, expands from its compact control, and minimizes again without changing layer visibility.
 - [ ] Create Time Lapse accepts a date/time field from the current case cluster, plays cumulatively, pauses, scrubs, and restores all points when closed.
 - [ ] Add Data Layer > H3 Hexagons opens after a case cluster is mapped, accepts resolutions 0 through 15, and displays the approximate average edge length.
+- [ ] H3 guidance explains that higher resolutions mean smaller hexagons and reports the selected resolution's approximate average edge length and area.
 - [ ] An H3 layer aggregates all mapped records, displays cell counts in popups, and can be hidden, shown, removed, and included by Fit Layers.
+- [ ] Add Data Layer > GeoTIFF Raster accepts the WorldPop `.tif`, renders it below vector layers, and supports opacity, hide/show, remove, and Fit Layers.
+- [ ] A projected/non-WGS-84 GeoTIFF is rejected with an actionable CRS message instead of being drawn in the wrong location.
 - [ ] Map geometry retains the visual hierarchy points above lines, lines above polygons, and polygons above raster basemaps regardless of layer-add order.
 - [ ] Invalid JSON, invalid GeoJSON, and files over 10 MB produce feedback without removing existing layers.
+- [ ] The desktop module tree remains visible while the workspace scrolls; the narrow/mobile module rail remains usable without covering content.
+- [ ] Field Validation shows only rules compatible with the selected field's data type and reports incompatible saved rules before removal.
 - [ ] Enter Data > Maps opens the current-form-linked map and automatically plots records when latitude and longitude fields are available.
 - [ ] Current Location requests browser permission only after the user activates it.
 - [ ] If online tiles fail, the app reports the basemap failure without losing local points.

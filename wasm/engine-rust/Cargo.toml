@@ -1,6 +1,6 @@
 [package]
 name = "epi-info-table2x2"
-version = "0.8.0"
+version = "0.15.0"
 edition = "2024"
 
 [lib]

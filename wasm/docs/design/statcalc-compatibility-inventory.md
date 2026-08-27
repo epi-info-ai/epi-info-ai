@@ -64,7 +64,7 @@ remain separately traceable.
 | LEGACY-STATCALC-003 | Population Survey Save as Image and Print | Open gap | Browser image/report export and print layout |
 | LEGACY-STATCALC-004 | Cohort or Cross-Sectional | V0.13 candidate Rust/WASM workflow | Broader legacy corpus, boundary/property evidence, Save/Print, G5 |
 | LEGACY-STATCALC-005 | Unmatched Case-Control | V0.14 candidate Rust/WASM workflow | Broader legacy corpus, protective-effect/property evidence, Save/Print, G5 |
-| LEGACY-STATCALC-006 | Chi Square for Trend | Open gap | Port audited formulas, UI, fixtures, and validation |
+| LEGACY-STATCALC-006 | Chi Square for Trend | V0.15 candidate Rust/WASM workflow | Broader legacy corpus, fractional/zero-cell decisions, Save/Print, and G5 |
 | LEGACY-STATCALC-007 | Tables (2 x 2 x N) menu workflow | Direct 2 x 2 candidate only | Restore learned menu/tool scope and full output |
 | LEGACY-STATCALC-008 | Poisson (rare event vs. standard) | Open gap | Port audited formulas, UI, fixtures, and validation |
 | LEGACY-STATCALC-009 | Population Binomial (proportion vs. standard) | Open gap | Port audited formulas, UI, fixtures, and validation |

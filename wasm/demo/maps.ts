@@ -1,4 +1,6 @@
 ﻿import { UNITS, cellToBoundary, getHexagonEdgeLengthAvg, latLngToCell } from "./vendor/h3-js/h3-js.es.js";
+import { fromArrayBuffer } from "geotiff";
+import { getHexagonAreaAvg } from "./vendor/h3-js/h3-js.es.js";
 import type {
   GeoJsonCoordinates,
   GeoJsonFeature,
@@ -82,6 +84,17 @@ interface H3LayerEntry {
   bounds: LeafletBounds;
 }
 
+interface RasterLayerEntry {
+  layer: LeafletLayer;
+  name: string;
+  bounds: LeafletBounds;
+  sourceWidth: number;
+  sourceHeight: number;
+  displayWidth: number;
+  displayHeight: number;
+  opacity: number;
+}
+
 interface TemporalValue {
   timestamp: number;
   kind: "date" | "time" | "datetime";
@@ -115,8 +128,11 @@ let activeRecordOpenHandler: OpenRecordHandler | null = null;
 let timeLapseState: TimeLapseState | null = null;
 const geoJsonLayers = new Map<string, GeoJsonLayerEntry>();
 const h3Layers = new Map<string, H3LayerEntry>();
+const rasterLayers = new Map<string, RasterLayerEntry>();
 const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
 const MAX_GEOJSON_FEATURES = 10000;
+const MAX_RASTER_BYTES = 50 * 1024 * 1024;
+const MAX_RASTER_PIXELS = 1024 * 1024;
 export const MAP_PANE_Z_INDEX = Object.freeze({
   raster: 200,
   polygon: 410,
@@ -133,7 +149,7 @@ export function mapPaneForGeometryType(type: string): string {
 }
 
 function updateLayerCount() {
-  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + h3Layers.size;
+  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + h3Layers.size + rasterLayers.size;
   requiredElement("#map-layer-count").textContent = String(count);
 }
 
@@ -490,6 +506,11 @@ function resetMapWorkspace() {
   }
   h3Layers.clear();
   renderH3LayerList();
+  for (const entry of rasterLayers.values()) {
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+  }
+  rasterLayers.clear();
+  renderRasterLayerList();
   lastBounds = null;
   caseClusterAdded = false;
   locationAdded = false;
@@ -560,7 +581,7 @@ function expandGeoJsonFeatures(geojson: SupportedGeoJson): GeoJsonFeature[] {
 }
 
 function refreshMapEmptyState() {
-  requiredElement("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || h3Layers.size > 0;
+  requiredElement("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || h3Layers.size > 0 || rasterLayers.size > 0;
 }
 
 function renderGeoJsonLayerList() {
@@ -633,6 +654,112 @@ function renderH3LayerList() {
   container.replaceChildren(...rows);
 }
 
+function renderRasterLayerList() {
+  const container = requiredElement("#map-raster-layers");
+  const rows = [];
+  for (const [id, entry] of rasterLayers) {
+    const row = document.createElement("span");
+    row.className = "map-raster-layer";
+    const label = document.createElement("label");
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = map.hasLayer(entry.layer);
+    toggle.dataset.rasterToggle = id;
+    const name = document.createElement("span");
+    name.className = "map-raster-layer-name";
+    name.textContent = entry.name;
+    name.title = `${entry.sourceWidth} × ${entry.sourceHeight} source pixels; ${entry.displayWidth} × ${entry.displayHeight} displayed`;
+    label.append(toggle, name);
+    const opacity = document.createElement("input");
+    opacity.type = "range";
+    opacity.min = "10";
+    opacity.max = "100";
+    opacity.step = "5";
+    opacity.value = String(Math.round(entry.opacity * 100));
+    opacity.dataset.rasterOpacity = id;
+    opacity.setAttribute("aria-label", `${entry.name} opacity`);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "map-layer-remove";
+    remove.dataset.rasterRemove = id;
+    remove.setAttribute("aria-label", `Remove ${entry.name}`);
+    remove.textContent = "x";
+    row.append(label, opacity, remove);
+    rows.push(row);
+  }
+  container.replaceChildren(...rows);
+}
+
+function rasterColor(value: number, low: number, high: number): [number, number, number] {
+  const fraction = Math.max(0, Math.min(1, (Math.log1p(Math.max(0, value)) - low) / Math.max(Number.EPSILON, high - low)));
+  const stops: Array<[number, number, number]> = [[21, 67, 119], [38, 150, 170], [238, 218, 65], [184, 36, 50]];
+  const scaled = fraction * (stops.length - 1);
+  const index = Math.min(stops.length - 2, Math.floor(scaled));
+  const local = scaled - index;
+  const start = stops[index]!;
+  const end = stops[index + 1]!;
+  return [0, 1, 2].map((channel) => Math.round(start[channel]! + (end[channel]! - start[channel]!) * local)) as [number, number, number];
+}
+
+async function addRasterLayer(file: File, name: string, opacity: number): Promise<void> {
+  if (file.size > MAX_RASTER_BYTES) throw new Error("This file is larger than the 50 MB demo limit.");
+  const tiff = await fromArrayBuffer(await file.arrayBuffer());
+  const image = await tiff.getImage();
+  const geoKeys = image.getGeoKeys();
+  const projectedCrs = Number(geoKeys?.ProjectedCSTypeGeoKey || 0);
+  const geographicCrs = Number(geoKeys?.GeographicTypeGeoKey || 0);
+  if (projectedCrs || (geographicCrs && geographicCrs !== 4326)) {
+    throw new Error(`This demo currently accepts WGS 84 geographic GeoTIFFs (EPSG:4326). This file reports ${projectedCrs || geographicCrs}.`);
+  }
+  const [west, south, east, north] = image.getBoundingBox();
+  if (![west, south, east, north].every(Number.isFinite) || west! < -180 || east! > 180 || south! < -90 || north! > 90 || west! >= east! || south! >= north!) {
+    throw new Error("The GeoTIFF does not contain valid WGS 84 geographic bounds.");
+  }
+  const sourceWidth = image.getWidth();
+  const sourceHeight = image.getHeight();
+  const scale = Math.min(1, Math.sqrt(MAX_RASTER_PIXELS / (sourceWidth * sourceHeight)));
+  const displayWidth = Math.max(1, Math.round(sourceWidth * scale));
+  const displayHeight = Math.max(1, Math.round(sourceHeight * scale));
+  const raster = await image.readRasters({ samples: [0], interleave: true, width: displayWidth, height: displayHeight, resampleMethod: "bilinear" });
+  const noData = image.getGDALNoData();
+  const finite = Array.from(raster, Number).filter((value) => Number.isFinite(value) && value !== noData && value > 0).sort((a, b) => a - b);
+  if (finite.length === 0) throw new Error("The first GeoTIFF band contains no positive finite values to display.");
+  const lowValue = finite[Math.floor((finite.length - 1) * 0.02)]!;
+  const highValue = finite[Math.floor((finite.length - 1) * 0.98)]!;
+  const low = Math.log1p(lowValue);
+  const high = Math.log1p(Math.max(lowValue, highValue));
+  const canvas = document.createElement("canvas");
+  canvas.width = displayWidth;
+  canvas.height = displayHeight;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("This browser cannot create the raster display canvas.");
+  const pixels = context.createImageData(displayWidth, displayHeight);
+  for (let index = 0; index < raster.length; index += 1) {
+    const value = Number(raster[index]);
+    const outputIndex = index * 4;
+    if (!Number.isFinite(value) || value === noData || value <= 0) {
+      pixels.data[outputIndex + 3] = 0;
+      continue;
+    }
+    const [red, green, blue] = rasterColor(value, low, high);
+    pixels.data[outputIndex] = red;
+    pixels.data[outputIndex + 1] = green;
+    pixels.data[outputIndex + 2] = blue;
+    pixels.data[outputIndex + 3] = 255;
+  }
+  context.putImageData(pixels, 0, 0);
+  const bounds = L.latLngBounds([[south, west], [north, east]]);
+  const layer = L.imageOverlay(canvas.toDataURL("image/png"), bounds, { pane: "epi-raster-pane", opacity, interactive: false });
+  layer.addTo(ensureMap());
+  const id = globalThis.crypto?.randomUUID?.() || `raster-${Date.now()}`;
+  rasterLayers.set(id, { layer, name, bounds, sourceWidth, sourceHeight, displayWidth, displayHeight, opacity });
+  renderRasterLayerList();
+  updateLayerCount();
+  refreshMapEmptyState();
+  ensureMap().fitBounds(bounds.pad(0.08));
+  requiredElement("#map-status").textContent = `Added GeoTIFF raster “${name}” beneath vector layers.`;
+}
+
 function combinedLayerBounds() {
   const bounds = L.latLngBounds([]);
   if (caseClusterAdded && map.hasLayer(recordLayer) && lastBounds?.isValid()) bounds.extend(lastBounds);
@@ -640,6 +767,9 @@ function combinedLayerBounds() {
     if (map.hasLayer(entry.layer) && entry.bounds?.isValid()) bounds.extend(entry.bounds);
   }
   for (const entry of h3Layers.values()) {
+    if (map.hasLayer(entry.layer) && entry.bounds?.isValid()) bounds.extend(entry.bounds);
+  }
+  for (const entry of rasterLayers.values()) {
     if (map.hasLayer(entry.layer) && entry.bounds?.isValid()) bounds.extend(entry.bounds);
   }
   return bounds;
@@ -1050,6 +1180,13 @@ export function initializeMaps(
   const h3ResolutionDetail = requiredElement("#h3-resolution-detail");
   const h3LayerName = requiredElement("#h3-layer-name");
   const h3Status = requiredElement("#h3-dialog-status");
+  const rasterDialog = requiredElement("#raster-dialog");
+  const rasterForm = requiredElement("#raster-form");
+  const rasterFile = requiredElement("#raster-file");
+  const rasterName = requiredElement("#raster-layer-name");
+  const rasterOpacity = requiredElement("#raster-opacity");
+  const rasterOpacityValue = requiredElement("#raster-opacity-value");
+  const rasterStatus = requiredElement("#raster-dialog-status");
   const timeLapseDialog = requiredElement("#time-lapse-dialog");
   const timeLapseField = requiredElement("#time-lapse-field");
   const timeLapseStatus = requiredElement("#time-lapse-dialog-status");
@@ -1066,11 +1203,16 @@ export function initializeMaps(
   const updateH3ResolutionDescription = () => {
     const resolution = Number(h3Resolution.value);
     const edgeKilometers = getHexagonEdgeLengthAvg(resolution, UNITS.km);
+    const areaSquareKilometers = getHexagonAreaAvg(resolution, UNITS.km2);
     h3ResolutionValue.textContent = String(resolution);
     h3LayerName.placeholder = `H3 Resolution ${resolution}`;
-    h3ResolutionDetail.textContent = edgeKilometers >= 1
-      ? `Average hexagon edge length: ${edgeKilometers.toLocaleString(undefined, { maximumFractionDigits: 2 })} km.`
-      : `Average hexagon edge length: ${(edgeKilometers * 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} m.`;
+    const edge = edgeKilometers >= 1
+      ? `${edgeKilometers.toLocaleString(undefined, { maximumFractionDigits: 2 })} km`
+      : `${(edgeKilometers * 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} m`;
+    const area = areaSquareKilometers >= 1
+      ? `${areaSquareKilometers.toLocaleString(undefined, { maximumFractionDigits: 2 })} km²`
+      : `${(areaSquareKilometers * 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 0 })} m²`;
+    h3ResolutionDetail.textContent = `At resolution ${resolution}, an average hexagon has an edge about ${edge} long and covers about ${area}.`;
   };
   const updateLayerPanelToggle = () => {
     const action = layerPanel.open ? "Minimize" : "Maximize";
@@ -1215,6 +1357,38 @@ export function initializeMaps(
       h3Status.textContent = error instanceof Error ? error.message : "Unable to create the H3 layer.";
     }
   });
+  requiredElement("#map-add-raster").addEventListener("click", () => {
+    requiredElement("#map-add-layer-menu").open = false;
+    rasterForm.reset();
+    rasterOpacity.value = "70";
+    rasterOpacityValue.textContent = "70%";
+    rasterStatus.textContent = "Files stay in this browser. Maximum size: 50 MB; display is downsampled to at most 1,048,576 pixels.";
+    rasterDialog.showModal();
+  });
+  rasterOpacity.addEventListener("input", () => { rasterOpacityValue.textContent = `${rasterOpacity.value}%`; });
+  rasterFile.addEventListener("change", () => {
+    const file = rasterFile.files?.[0];
+    if (file && !rasterName.value.trim()) rasterName.value = file.name.replace(/\.tiff?$/i, "");
+  });
+  for (const button of requiredElements("[data-close-raster]")) {
+    button.addEventListener("click", () => rasterDialog.close("cancel"));
+  }
+  rasterForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!eventForm(event).reportValidity()) return;
+    const file = rasterFile.files?.[0];
+    if (!file) {
+      rasterStatus.textContent = "Choose a GeoTIFF file first.";
+      return;
+    }
+    rasterStatus.textContent = "Reading and rendering the GeoTIFF locally...";
+    try {
+      await addRasterLayer(file, rasterName.value.trim() || file.name.replace(/\.tiff?$/i, "") || "GeoTIFF Raster", Number(rasterOpacity.value) / 100);
+      rasterDialog.close("add");
+    } catch (error) {
+      rasterStatus.textContent = error instanceof Error ? error.message : "Unable to add this GeoTIFF raster.";
+    }
+  });
   requiredElement("#map-add-geojson").addEventListener("click", () => {
     requiredElement("#map-add-layer-menu").open = false;
     geoJsonForm.reset();
@@ -1332,6 +1506,38 @@ export function initializeMaps(
     refreshMapEmptyState();
     requiredElement("#map-status").textContent = `Removed H3 layer "${entry.name}".`;
   });
+  requiredElement("#map-raster-layers").addEventListener("input", (event) => {
+    const target = eventControl(event);
+    const id = target.dataset.rasterOpacity;
+    if (!id) return;
+    const entry = rasterLayers.get(id);
+    if (!entry) return;
+    entry.opacity = Number(target.value) / 100;
+    entry.layer.setOpacity(entry.opacity);
+    requiredElement("#map-status").textContent = `${entry.name} opacity ${target.value}%.`;
+  });
+  requiredElement("#map-raster-layers").addEventListener("change", (event) => {
+    const target = eventControl(event);
+    const id = target.dataset.rasterToggle;
+    if (!id) return;
+    const entry = rasterLayers.get(id);
+    if (!entry) return;
+    if (target.checked) entry.layer.addTo(ensureMap());
+    else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    requiredElement("#map-status").textContent = `${entry.name} ${target.checked ? "shown" : "hidden"}.`;
+  });
+  requiredElement("#map-raster-layers").addEventListener("click", (event) => {
+    const id = eventControl(event).dataset.rasterRemove;
+    if (!id) return;
+    const entry = rasterLayers.get(id);
+    if (!entry) return;
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    rasterLayers.delete(id);
+    renderRasterLayerList();
+    updateLayerCount();
+    refreshMapEmptyState();
+    requiredElement("#map-status").textContent = `Removed GeoTIFF raster “${entry.name}”.`;
+  });
   requiredElement("#map-current-location").addEventListener("click", captureLocation);
   requiredElement("#map-fullscreen-toggle").addEventListener("click", async () => {
     try {
@@ -1348,7 +1554,7 @@ export function initializeMaps(
   requiredElement("#map-fit-points").addEventListener("click", () => {
     const bounds = combinedLayerBounds();
     if (bounds.isValid()) ensureMap().fitBounds(bounds.pad(0.18), { maxZoom: 15 });
-    else requiredElement("#map-status").textContent = "Add or show a case-cluster, H3, or GeoJSON layer before fitting the map.";
+    else requiredElement("#map-status").textContent = "Add or show a case-cluster, H3, GeoJSON, or GeoTIFF layer before fitting the map.";
   });
   for (const radio of requiredElements('[name="map-basemap"]')) {
     radio.addEventListener("change", (event) => {

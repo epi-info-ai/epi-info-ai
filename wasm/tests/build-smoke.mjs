@@ -56,12 +56,13 @@ const requiredFiles = [
   "validation-fixtures/population-survey-v0.12.json",
   "validation-fixtures/cohort-cross-sectional-v0.13.json",
   "validation-fixtures/unmatched-case-control-v0.14.json",
+  "validation-fixtures/chi-square-trend-v0.15.json",
   "build-manifest.json",
 ];
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=36["']/);
+assert.match(html, /src=["']app\.js\?v=37["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);
 assert.match(html, /id=["']file-exit["']/);
@@ -71,21 +72,24 @@ assert.match(html, /id=["']tools-menu["']/);
 assert.match(html, /id=["']designer-file-menu["']/);
 assert.match(html, /id=["']designer-project-storage["']/);
 assert.match(html, /id=["']epi-map["']/);
+assert.match(html, /id=["']field-rule-coordinate-group["']/);
 
 const app = await requireFile("app.js");
-assert.match(app, /\.\/maps\.js/);
-assert.match(app, /\.\/form-data\.js/);
-assert.match(app, /\.\/supabase-sync\.js/);
-assert.match(app, /\.\/stratified-worker-client\.js/);
+assert.match(app, /initializeMaps/);
+assert.match(app, /initializeFormDataDemo/);
+assert.match(app, /initializeSupabaseSync/);
+assert.match(app, /calculateStratifiedTable2x2InWorker/);
 assert.match(app, /deriveFrequency/);
 assert.match(app, /deriveMeans/);
 assert.match(app, /deriveRate/);
 assert.match(app, /calculatePopulationSurvey/);
 assert.match(app, /calculateCohortSampleSize/);
 assert.match(app, /calculateUnmatchedCaseControl/);
+assert.match(app, /calculateChiSquareTrend/);
 const maps = await requireFile("maps.js");
 assert.match(maps, /MAP_PANE_Z_INDEX/);
 assert.match(maps, /aggregateH3Cells/);
+assert.match(maps, /addRasterLayer/);
 
 const manifest = JSON.parse(await requireFile("build-manifest.json"));
 assert.equal(manifest.schemaVersion, 1);

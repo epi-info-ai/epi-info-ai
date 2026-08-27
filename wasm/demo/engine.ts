@@ -16,6 +16,8 @@ import type {
   CohortSampleSizeResult,
   UnmatchedCaseControlInput,
   UnmatchedCaseControlResult,
+  ChiSquareTrendRow,
+  ChiSquareTrendResult,
   MidPExactResult,
   StratifiedTable2x2Input,
   StratifiedTable2x2Result,
@@ -102,6 +104,11 @@ interface EpiWasmExports {
   unmatched_case_control_case_exposure: WasmNumericFunction;
   unmatched_case_control_odds_from_exposures: WasmNumericFunction;
   unmatched_case_control_sample_size: WasmNumericFunction;
+  trend_reset: WasmNumericFunction;
+  trend_set_row: WasmNumericFunction;
+  trend_chi_square: WasmNumericFunction;
+  trend_p_value: WasmNumericFunction;
+  trend_odds_ratio: WasmNumericFunction;
 }
 
 function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
@@ -174,6 +181,11 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
     "unmatched_case_control_case_exposure",
     "unmatched_case_control_odds_from_exposures",
     "unmatched_case_control_sample_size",
+    "trend_reset",
+    "trend_set_row",
+    "trend_chi_square",
+    "trend_p_value",
+    "trend_odds_ratio",
     "chi_square_p_value_df",
   ] as const;
   const validated = {} as EpiWasmExports;
@@ -859,6 +871,51 @@ export function calculateUnmatchedCaseControl(input: UnmatchedCaseControlInput):
     input,
     derived: { caseExposurePercent },
     methods,
+    diagnostics: { warnings: [] },
+  };
+}
+
+export function calculateChiSquareTrend(rows: readonly ChiSquareTrendRow[]): ChiSquareTrendResult {
+  if (rows.length < 2) throw new RangeError("Enter at least two complete exposure rows.");
+  if (rows.length > 1024) throw new RangeError("This candidate supports at most 1,024 exposure rows.");
+  if (rows.some((row) => !Number.isFinite(row.score) || !Number.isFinite(row.cases) || !Number.isFinite(row.controls))) {
+    throw new RangeError("Every exposure score, case count, and control count must be numeric.");
+  }
+  if (rows.some((row) => row.cases < 0 || row.controls < 0)) {
+    throw new RangeError("Case and control counts cannot be negative.");
+  }
+  if (new Set(rows.map((row) => row.score)).size < 2) {
+    throw new RangeError("Use at least two different exposure scores.");
+  }
+  if (rows[0]!.cases <= 0 || rows[0]!.controls <= 0 || rows.some((row) => row.controls <= 0)) {
+    throw new RangeError("The reference row and every control count must be greater than zero to report legacy odds ratios.");
+  }
+  WASM.trend_reset();
+  rows.forEach((row, index) => {
+    if (WASM.trend_set_row(index, row.score, row.cases, row.controls) !== 1) {
+      throw new RangeError(`The trend kernel rejected row ${index + 1}.`);
+    }
+  });
+  const count = rows.length;
+  const chiSquare = WASM.trend_chi_square(count);
+  const probability = WASM.trend_p_value(count);
+  const resultRows = rows.map((row, index) => ({ ...row, oddsRatio: WASM.trend_odds_ratio(index, count) }));
+  if (!Number.isFinite(chiSquare) || !Number.isFinite(probability) || resultRows.some((row) => !Number.isFinite(row.oddsRatio))) {
+    throw new RangeError("These rows do not define a finite Chi Square for Trend result.");
+  }
+  return {
+    schemaVersion: "0.15.0",
+    operation: "epi.chiSquareTrend",
+    engine: { id: "epi-core-wasm", version: "0.15.0", operation: "epi.chiSquareTrend" },
+    input: { rows: rows.map((row) => ({ ...row })) },
+    methods: {
+      test: "extended-mantel-haenszel-linear-trend",
+      oddsRatio: "crude-row-relative-to-first-row",
+      pValue: "chi-square-survival-df1-erfc",
+    },
+    rows: resultRows,
+    chiSquare,
+    pValue: probability,
     diagnostics: { warnings: [] },
   };
 }

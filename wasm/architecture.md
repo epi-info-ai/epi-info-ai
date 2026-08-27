@@ -338,6 +338,7 @@ Source: `engine-rust/src/lib.rs`
 | Population Survey cluster size with legacy normal approximation and correction/rounding sequence | `population_survey_cluster_size` | Rust/WASM V0.12 bounded candidate |
 | Cohort/Cross-Sectional effect conversions and Kelsey/Fleiss group sample sizes | `cohort_exposed_outcome`, `cohort_odds_from_*`, `cohort_sample_size` | Rust/WASM V0.13 bounded candidate |
 | Unmatched Case-Control exposure conversions and Kelsey/Fleiss group sample sizes | `unmatched_case_control_*` | Rust/WASM V0.14 bounded candidate |
+| Chi Square for Trend row buffer, reference odds ratios, Extended Mantel-Haenszel statistic, and p value | `trend_*` | Rust/WASM V0.15 bounded candidate |
 
 The compiled browser artifact is `demo/epi2x2.wasm`. It is deliberately small
 and has no runtime dependencies or operating-system access.
@@ -360,7 +361,7 @@ and has no runtime dependencies or operating-system access.
 | Read inputs, handle events, format, render, and copy results | `demo/app.ts` | TypeScript |
 | Form schema designer, Project Explorer, palette, drag/drop, and snap preference | `demo/form-data.ts` | TypeScript |
 | Project data-store dialog, Supabase connection test, record entry, and line list | `demo/form-data.ts` | TypeScript |
-| Typed field rules, calculated-age materialization, and saved-record validation | `app/contracts/validation.ts` + `app/forms/validation.ts` | TypeScript; deterministic product behavior, not epidemiologic kernel computation |
+| Typed field rules, calculated-age materialization, signed decimal-degree coordinate precision, and saved-record validation | `app/contracts/validation.ts` + `app/forms/validation.ts` | TypeScript; deterministic product behavior, not epidemiologic kernel computation |
 | Safe allowlisted Check Code statements and entry-time field actions | `app/contracts/check-code.ts` + `app/forms/entry-view.ts` | TypeScript; arbitrary imported code is never evaluated |
 | Completeness, validation issues, duplicate candidates, Recycle Bin, and audit UI | `app/forms/data-quality.ts` + `demo/form-data.ts` | TypeScript; lifecycle data is part of the validated project snapshot |
 | Delimited parsing, CSV export, and schema inference | `app/forms/csv.ts` | TypeScript |

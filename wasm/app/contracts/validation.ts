@@ -44,7 +44,13 @@ export interface CalculatedAgeRule extends RuleBase {
   asOfDateField?: string;
 }
 
-export type FieldValidationRule = RequiredRule | RangeRule | LegalValuesRule | PatternRule | UniqueRule | CalculatedAgeRule;
+export interface CoordinateRule extends RuleBase {
+  kind: "coordinate";
+  axis: "latitude" | "longitude";
+  minimumDecimalPlaces: number;
+}
+
+export type FieldValidationRule = RequiredRule | RangeRule | LegalValuesRule | PatternRule | UniqueRule | CalculatedAgeRule | CoordinateRule;
 
 export interface FieldValidationIssue {
   formId: string;
@@ -111,6 +117,20 @@ export function validateFieldRules(value: unknown, path = "rules"): FieldValidat
         result.asOfDateField = source.asOfDateField.trim();
       }
       return result;
+    }
+    if (source.kind === "coordinate") {
+      if (source.axis !== "latitude" && source.axis !== "longitude") {
+        fail(`${rulePath}.axis`, "must be latitude or longitude");
+      }
+      if (!Number.isInteger(source.minimumDecimalPlaces) || Number(source.minimumDecimalPlaces) < 5 || Number(source.minimumDecimalPlaces) > 15) {
+        fail(`${rulePath}.minimumDecimalPlaces`, "must be an integer from 5 through 15");
+      }
+      return {
+        ...base,
+        kind: "coordinate",
+        axis: source.axis,
+        minimumDecimalPlaces: Number(source.minimumDecimalPlaces),
+      };
     }
     if (source.kind === "legal-values") {
       if (!Array.isArray(source.values) || source.values.length === 0 || source.values.some((entry) => typeof entry !== "string")) {

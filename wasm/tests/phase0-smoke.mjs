@@ -70,6 +70,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/population-survey-method-contract.md",
     "wasm/docs/validation/cohort-cross-sectional-method-contract.md",
     "wasm/docs/validation/unmatched-case-control-method-contract.md",
+    "wasm/docs/validation/chi-square-trend-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
     "wasm/docs/design/means-compatibility-inventory.md",
     "wasm/docs/design/rates-compatibility-inventory.md",
@@ -82,6 +83,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/content/validate-population-survey.ipynb",
     "wasm/validation-lab/content/validate-cohort-cross-sectional.ipynb",
     "wasm/validation-lab/content/validate-unmatched-case-control.ipynb",
+    "wasm/validation-lab/content/validate-chi-square-trend.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -99,6 +101,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json",
     "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json",
     "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json",
+    "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -138,6 +141,7 @@ async function checkRequiredAssetsAndUi() {
     "map-add-case-cluster",
     "map-add-geojson",
     "map-add-h3",
+    "map-add-raster",
     "map-fullscreen-toggle",
     "map-create-timelapse",
     "time-lapse-dialog",
@@ -148,8 +152,12 @@ async function checkRequiredAssetsAndUi() {
     "geojson-label-field",
     "map-geojson-layers",
     "map-h3-layers",
+    "map-raster-layers",
     "h3-dialog",
     "h3-resolution",
+    "raster-dialog",
+    "raster-file",
+    "raster-opacity",
     "table-form",
     "stratified-form",
     "classic-tables-form",
@@ -207,6 +215,11 @@ async function checkRequiredAssetsAndUi() {
     "unmatched-case-exposure",
     "unmatched-calculate",
     "unmatched-rows",
+    "trend-form",
+    "trend-rows",
+    "trend-add-row",
+    "trend-chi-square",
+    "trend-p-value",
     "strata-rows",
     "add-stratum",
     "calculate-stratified",
@@ -230,7 +243,7 @@ async function checkRequiredAssetsAndUi() {
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
-  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-unmatched-case-control\.ipynb/);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-chi-square-trend\.ipynb/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])
@@ -891,6 +904,10 @@ async function checkCsvAndProjectFixtures() {
   assert.equal(outbreakRows[0][26], "Household Neighborhood");
   const outbreak = module.inferSchemaFromCsv("foodborne-outbreak-investigation.csv", outbreakRows);
   assert.equal(outbreak.records.length, 96);
+  assert.deepEqual(outbreak.schema.fields.find((field) => field.name === "latitude")?.rules,
+    [{ kind: "coordinate", axis: "latitude", minimumDecimalPlaces: 5 }]);
+  assert.deepEqual(outbreak.schema.fields.find((field) => field.name === "longitude")?.rules,
+    [{ kind: "coordinate", axis: "longitude", minimumDecimalPlaces: 5 }]);
   assert.equal(new Set(outbreak.records.map((record) => record.id)).size, 96);
   assert.ok(outbreak.records.every((record) => Number(record.latitude) >= 41.6 && Number(record.latitude) <= 41.8));
   assert.ok(outbreak.records.every((record) => Number(record.longitude) >= -83.7 && Number(record.longitude) <= -83.4));
@@ -1009,6 +1026,8 @@ async function checkFormValidationContracts() {
       { name: "case_id", prompt: "Case ID", type: "text", required: true, rules: [{ kind: "unique" }, { kind: "pattern", pattern: "^CASE-[0-9]{3}$" }] },
       { name: "age", prompt: "Age", type: "number", required: false, rules: [{ kind: "range", valueType: "number", min: 0, max: 120 }] },
       { name: "status", prompt: "Status", type: "option", required: false, rules: [{ kind: "legal-values", values: ["Confirmed", "Probable"] }] },
+      { name: "latitude", prompt: "Latitude", type: "number", required: false, rules: [{ kind: "coordinate", axis: "latitude", minimumDecimalPlaces: 5 }] },
+      { name: "longitude", prompt: "Longitude", type: "number", required: false, rules: [{ kind: "coordinate", axis: "longitude", minimumDecimalPlaces: 5 }] },
     ],
   };
   const snapshot = contracts.validateProjectSnapshot({
@@ -1021,17 +1040,32 @@ async function checkFormValidationContracts() {
   const issues = validation.validateRecord(
     "validation-form",
     schema,
-    { case_id: "case-001", age: 121, status: "Suspected" },
+    { case_id: "case-001", age: 121, status: "Suspected", latitude: "41.6528", longitude: "-183.53790" },
     1,
     [{ case_id: "CASE-001", age: 40, status: "Confirmed" }],
   );
-  assert.deepEqual(new Set(issues.map((issue) => issue.rule)), new Set(["unique", "pattern", "range", "legal-values"]));
+  assert.deepEqual(new Set(issues.map((issue) => issue.rule)), new Set(["unique", "pattern", "range", "legal-values", "coordinate"]));
+  assert.equal(issues.filter((issue) => issue.rule === "coordinate").length, 2);
   assert.ok(issues.every((issue) => issue.formId === "validation-form" && issue.recordIndex === 1 && issue.suggestedResolution));
   assert.throws(() => contracts.validateProjectSnapshot({
     name: "Invalid rules",
     currentFormId: "form",
     forms: [{ id: "form", schema: { name: "Form", fields: [{ name: "x", prompt: "X", type: "text", required: false, rules: [{ kind: "range", valueType: "number" }] }] }, records: [] }],
   }), /must define min, max, or both/);
+  assert.throws(() => contracts.validateProjectSnapshot({
+    name: "Invalid coordinate rule",
+    currentFormId: "form",
+    forms: [{ id: "form", schema: { name: "Form", fields: [{ name: "latitude", prompt: "Latitude", type: "text", required: false, rules: [{ kind: "coordinate", axis: "latitude", minimumDecimalPlaces: 5 }] }] }, records: [] }],
+  }), /coordinate rules require a Number field/);
+  const coordinateSchema = contracts.validateProjectSnapshot({
+    name: "Coordinates",
+    currentFormId: "form",
+    forms: [{ id: "form", schema: { name: "Form", fields: [
+      { name: "latitude", prompt: "Latitude", type: "number", required: false, rules: [{ kind: "coordinate", axis: "latitude", minimumDecimalPlaces: 5 }] },
+      { name: "longitude", prompt: "Longitude", type: "number", required: false, rules: [{ kind: "coordinate", axis: "longitude", minimumDecimalPlaces: 5 }] },
+    ] }, records: [] }],
+  }).forms[0].schema;
+  assert.equal(validation.validateRecord("form", coordinateSchema, { latitude: "+41.65280", longitude: "-83.53790" }, 0).length, 0);
 
   const skipSchema = {
     name: "Skip form",

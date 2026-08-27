@@ -92,6 +92,7 @@ validation-lab-build:
     - test -f wasm/dist/validation-lab/files/validate-population-survey.ipynb
     - test -f wasm/dist/validation-lab/files/validate-cohort-cross-sectional.ipynb
     - test -f wasm/dist/validation-lab/files/validate-unmatched-case-control.ipynb
+    - test -f wasm/dist/validation-lab/files/validate-chi-square-trend.ipynb
   artifacts:
     paths:
       - wasm/dist

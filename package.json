@@ -22,6 +22,7 @@
     "typescript": "7.0.2"
   },
   "dependencies": {
+    "geotiff": "3.0.5",
     "read-excel-file": "9.3.10"
   }
 }

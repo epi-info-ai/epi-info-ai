@@ -353,6 +353,49 @@ function updateRulesButton(row: HTMLTableRowElement): void {
   button.textContent = count > 0 ? `Rules (${count})` : "Rules...";
 }
 
+function fieldRuleCapabilities(type: FieldType) {
+  const textLike = ["text", "text-uppercase", "multiline", "unique-id", "phone"].includes(type);
+  return {
+    unique: !["checkbox", "yes-no", "option"].includes(type),
+    range: type === "number" || type === "date",
+    legal: textLike || type === "yes-no" || type === "option",
+    pattern: textLike,
+    calculatedAge: type === "number",
+    coordinate: type === "number",
+  };
+}
+
+function configureFieldRuleInterface(type: FieldType, rules: readonly FieldValidationRule[]): void {
+  const capabilities = fieldRuleCapabilities(type);
+  const unique = requiredElement<HTMLInputElement>("#field-rule-unique");
+  unique.closest("label")!.hidden = !capabilities.unique;
+  unique.disabled = !capabilities.unique;
+  requiredElement<HTMLElement>("#field-rule-range-group").hidden = !capabilities.range;
+  requiredElement<HTMLElement>("#field-rule-legal-group").hidden = !capabilities.legal;
+  requiredElement<HTMLElement>("#field-rule-pattern-group").hidden = !capabilities.pattern;
+  requiredElement<HTMLElement>("#field-rule-age-group").hidden = !capabilities.calculatedAge;
+  requiredElement<HTMLElement>("#field-rule-coordinate-group").hidden = !capabilities.coordinate;
+  const lower = requiredElement<HTMLInputElement>("#field-rule-lower");
+  const upper = requiredElement<HTMLInputElement>("#field-rule-upper");
+  lower.type = upper.type = type === "date" ? "date" : "number";
+  lower.step = upper.step = type === "number" ? "any" : "1";
+  lower.placeholder = upper.placeholder = type === "date" ? "YYYY-MM-DD" : "Number";
+  const compatible = (rule: FieldValidationRule) => {
+    if (rule.kind === "unique") return capabilities.unique;
+    if (rule.kind === "range") return capabilities.range && rule.valueType === type;
+    if (rule.kind === "legal-values") return capabilities.legal;
+    if (rule.kind === "pattern") return capabilities.pattern;
+    if (rule.kind === "calculated-age") return capabilities.calculatedAge;
+    if (rule.kind === "coordinate") return capabilities.coordinate;
+    return true;
+  };
+  const incompatible = rules.filter((rule) => !compatible(rule));
+  requiredElement("#field-rules-type-note").textContent = `Available rules are filtered for the ${type} data type.`;
+  requiredElement("#field-rules-status").textContent = incompatible.length > 0
+    ? `${incompatible.length} saved rule${incompatible.length === 1 ? " is" : "s are"} incompatible with this field type and will be removed if you save.`
+    : "";
+}
+
 function openFieldRules(row: HTMLTableRowElement): void {
   activeRulesRow = row;
   const rules = JSON.parse(row.dataset.rules || "[]") as FieldValidationRule[];
@@ -361,15 +404,18 @@ function openFieldRules(row: HTMLTableRowElement): void {
   const legal = rules.find((rule) => rule.kind === "legal-values");
   const pattern = rules.find((rule) => rule.kind === "pattern");
   const calculatedAge = rules.find((rule) => rule.kind === "calculated-age");
+  const coordinate = rules.find((rule) => rule.kind === "coordinate");
   const statement = checkCode.after?.[0];
   const fieldName = normalizeFieldName(requiredControl(row, '[data-part="name"]').value);
   requiredElement("#field-rules-name").textContent = fieldName || "unnamed field";
+  const fieldType = requiredControl(row, '[data-part="type"]').value as FieldType;
   requiredElement("#field-rule-unique").checked = rules.some((rule) => rule.kind === "unique");
   requiredElement("#field-rule-lower").value = range?.min === undefined ? "" : String(range.min);
   requiredElement("#field-rule-upper").value = range?.max === undefined ? "" : String(range.max);
   requiredElement("#field-rule-legal-values").value = legal?.values.join("\n") ?? "";
   requiredElement("#field-rule-comment-legal").checked = legal?.allowComment ?? false;
   requiredElement("#field-rule-pattern").value = pattern?.pattern ?? "";
+  requiredElement<HTMLSelectElement>("#field-rule-coordinate-axis").value = coordinate?.axis ?? "";
   const dateFields = [...requiredElements<HTMLTableRowElement>("#field-list tr")]
     .filter((candidate) => requiredControl(candidate, '[data-part="type"]').value === "date")
     .map((candidate) => normalizeFieldName(requiredControl(candidate, '[data-part="name"]').value))
@@ -387,7 +433,7 @@ function openFieldRules(row: HTMLTableRowElement): void {
   requiredElement("#field-skip-value").value = statement?.when ? String(statement.when.value ?? "") : "";
   requiredElement<HTMLSelectElement>("#field-check-action").value = statement?.kind === "field-action" ? statement.action : "goto";
   populateCheckCodeTargets(statement?.targetField ?? "");
-  requiredElement("#field-rules-status").textContent = "";
+  configureFieldRuleInterface(fieldType, rules);
   updateSkipRuleControls();
   requiredElement<HTMLDialogElement>("#field-rules-dialog").showModal();
 }
@@ -398,33 +444,37 @@ function saveFieldRules(): void {
   const previousRules = row.dataset.rules ?? "[]";
   const previousCheckCode = row.dataset.checkCode ?? "{}";
   const rules: FieldValidationRule[] = [];
-  if (requiredElement("#field-rule-unique").checked) rules.push({ kind: "unique" });
+  const type = requiredControl(row, '[data-part="type"]').value as FieldType;
+  const capabilities = fieldRuleCapabilities(type);
+  if (capabilities.unique && requiredElement("#field-rule-unique").checked) rules.push({ kind: "unique" });
   const lower = requiredElement("#field-rule-lower").value.trim();
   const upper = requiredElement("#field-rule-upper").value.trim();
   if (lower || upper) {
-    const type = requiredControl(row, '[data-part="type"]').value;
-    if (type !== "number" && type !== "date") throw new Error("Ranges are available only for Number and Date fields.");
+    if (!capabilities.range || (type !== "number" && type !== "date")) throw new Error("Ranges are available only for Number and Date fields.");
     const range: FieldValidationRule = { kind: "range", valueType: type };
     if (lower) range.min = type === "number" ? Number(lower) : lower;
     if (upper) range.max = type === "number" ? Number(upper) : upper;
     rules.push(range);
   }
   const values = requiredElement("#field-rule-legal-values").value.split(/\r?\n/).map((value: string) => value.trim()).filter(Boolean);
-  if (values.length > 0) rules.push({
+  if (capabilities.legal && values.length > 0) rules.push({
     kind: "legal-values",
     values,
     allowComment: requiredElement("#field-rule-comment-legal").checked,
   });
   const pattern = requiredElement("#field-rule-pattern").value.trim();
-  if (pattern) {
+  if (capabilities.pattern && pattern) {
     new RegExp(pattern);
     rules.push({ kind: "pattern", pattern });
   }
   const ageSource = requiredElement<HTMLSelectElement>("#field-rule-age-source").value;
-  if (ageSource) {
-    if (requiredControl(row, '[data-part="type"]').value !== "number") throw new Error("Calculated age is available only for Number fields.");
+  if (capabilities.calculatedAge && ageSource) {
     const asOfDateField = requiredElement<HTMLSelectElement>("#field-rule-age-as-of").value;
     rules.push({ kind: "calculated-age", sourceDateField: ageSource, ...(asOfDateField ? { asOfDateField } : {}) });
+  }
+  const coordinateAxis = requiredElement<HTMLSelectElement>("#field-rule-coordinate-axis").value as "" | "latitude" | "longitude";
+  if (capabilities.coordinate && coordinateAxis) {
+    rules.push({ kind: "coordinate", axis: coordinateAxis, minimumDecimalPlaces: 5 });
   }
   const condition = requiredElement<HTMLSelectElement>("#field-skip-condition").value;
   const action = requiredElement<HTMLSelectElement>("#field-check-action").value as "goto" | SafeFieldAction;

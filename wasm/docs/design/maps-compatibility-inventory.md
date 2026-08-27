@@ -68,7 +68,7 @@ branches rather than replacements for learned paths.
 | LEGACY-MAPS-010 | Coordinate systems | ESRI spatial references | WGS 84 GeoJSON/record coordinates only | Adapt through explicit CRS metadata and reprojection; never silently guess |
 | LEGACY-MAPS-013 | H3 aggregation | No legacy equivalent | Configurable H3 cells | Keep as a new branch under data layers |
 | LEGACY-MAPS-014 | Browser geolocation | No desktop equivalent | One-shot browser geolocation | Keep as a new, permission-gated branch |
-| LEGACY-MAPS-015 | GeoTIFF raster | No inspected legacy equivalent | Checksummed WGS 84 WorldPop test fixture; renderer TODO | Defer as a new reference/raster layer |
+| LEGACY-MAPS-015 | GeoTIFF raster | No inspected legacy equivalent | Bounded WGS 84 first-band renderer with WorldPop fixture, color ramp, opacity, visibility, removal, and raster pane | Keep as a new branch; add reprojection, styling/legend breadth, persistence, and richer nodata controls |
 
 ## TypeScript layer model
 

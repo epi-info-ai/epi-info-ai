@@ -55,6 +55,18 @@ export function inferFieldType(name: string, values: string[]): FieldType {
   return "text";
 }
 
+function inferredCoordinateRule(name: string, prompt: string, type: FieldType): FieldDefinition["rules"] {
+  if (type !== "number") return undefined;
+  const identity = `${name} ${prompt}`;
+  if (/(^|[_\s])(latitude|lat|gps[_\s]?lat)([_\s]|$)/i.test(identity)) {
+    return [{ kind: "coordinate", axis: "latitude", minimumDecimalPlaces: 5 }];
+  }
+  if (/(^|[_\s])(longitude|lon|lng|long|gps[_\s]?(lon|lng))([_\s]|$)/i.test(identity)) {
+    return [{ kind: "coordinate", axis: "longitude", minimumDecimalPlaces: 5 }];
+  }
+  return undefined;
+}
+
 function escapeCsv(value: RecordValue | undefined): string {
   const text = String(value ?? "");
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
@@ -141,11 +153,15 @@ export function inferSchemaFromRows(fileName: string, rows: string[][]): CsvInfe
       suffix += 1;
     }
     usedNames.add(name);
+    const prompt = fieldPrompt(header);
+    const type = inferFieldType(name, rows.slice(1).map((row) => row[column.index] ?? ""));
+    const rules = inferredCoordinateRule(name, prompt, type);
     return {
       name,
-      prompt: fieldPrompt(header),
-      type: inferFieldType(name, rows.slice(1).map((row) => row[column.index] ?? "")),
+      prompt,
+      type,
       required: false,
+      ...(rules ? { rules } : {}),
     };
   });
 

@@ -349,3 +349,25 @@ export interface UnmatchedCaseControlResult {
   methods: UnmatchedCaseControlMethodResult[];
   diagnostics: { warnings: string[] };
 }
+
+export interface ChiSquareTrendRow {
+  score: number;
+  cases: number;
+  controls: number;
+}
+
+export interface ChiSquareTrendResult {
+  schemaVersion: "0.15.0";
+  operation: "epi.chiSquareTrend";
+  engine: { id: "epi-core-wasm"; version: "0.15.0"; operation: "epi.chiSquareTrend" };
+  input: { rows: ChiSquareTrendRow[] };
+  methods: {
+    test: "extended-mantel-haenszel-linear-trend";
+    oddsRatio: "crude-row-relative-to-first-row";
+    pValue: "chi-square-survival-df1-erfc";
+  };
+  rows: Array<ChiSquareTrendRow & { oddsRatio: number }>;
+  chiSquare: number;
+  pValue: number;
+  diagnostics: { warnings: string[] };
+}

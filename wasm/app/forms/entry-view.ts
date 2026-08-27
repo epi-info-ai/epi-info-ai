@@ -87,6 +87,13 @@ function entryControl(field: FieldDefinition): HTMLLabelElement {
   } else if (control instanceof HTMLInputElement) {
     control.type = ["number", "date", "time", "checkbox"].includes(field.type) ? field.type : "text";
     if (field.type === "number") control.step = "any";
+    const coordinate = rule(field, "coordinate");
+    if (field.type === "number" && coordinate?.kind === "coordinate") {
+      control.step = "0.00001";
+      control.inputMode = "decimal";
+      control.placeholder = coordinate.axis === "latitude" ? "e.g. +41.65280" : "e.g. -83.53790";
+      control.title = "Signed decimal degrees with at least five decimal places";
+    }
     if (field.type === "text-uppercase") control.addEventListener("input", () => { control.value = control.value.toUpperCase(); });
     const range = rule<RangeRule>(field, "range");
     if (range?.min !== undefined) control.min = String(range.min);

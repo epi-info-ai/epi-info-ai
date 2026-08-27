@@ -460,6 +460,7 @@ test("Classic Analysis stratified table renders Mantel-Haenszel results", async 
   await page.getByRole("button", { name: "Classic", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Stratified 2 x 2 (Mantel-Haenszel)" })).toBeVisible();
   await page.locator("#stratified-form").getByRole("button", { name: "Calculate adjusted results" }).click();
+  await expect(page.locator("#stratified-worker-status")).toContainText("Worker completed");
   await expect(page.locator("#stratified-or")).toHaveText("15.00");
   await expect(page.locator("#stratified-rr")).toHaveText("4.50");
   await expect(page.locator("#stratified-mh-value")).toHaveText("32.21");
@@ -856,4 +857,26 @@ test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadabl
   expect(createHash("sha256").update(raster).digest("hex")).toBe(
     "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1",
   );
+});
+
+test("Chi Square for Trend preserves the familiar table and Rust result", async ({ page }) => {
+  await page.locator('[data-open-module="statcalc"]').click();
+  await page.getByRole("button", { name: "Chi Square for Trend" }).click();
+  await expect(page.getByRole("heading", { name: "Chi Square for Trend" })).toBeVisible();
+  await page.locator("#trend-example").click();
+  await expect(page.locator("#trend-rows tr")).toHaveCount(4);
+  await expect(page.locator("#trend-chi-square")).toHaveText("26.60000");
+  await expect(page.locator("#trend-p-value")).toHaveText("< 0.0001");
+  await expect(page.locator('[data-trend-odds]').last()).toHaveText("6.000");
+});
+
+test("Maps uploads and renders the WorldPop GeoTIFF below vector panes", async ({ page }) => {
+  await page.getByRole("button", { name: "Create Maps" }).click();
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await page.getByRole("button", { name: "GeoTIFF Raster..." }).click();
+  await page.locator("#raster-file").setInputFiles("wasm/demo/examples/worldpop-toledo-population-density.tif");
+  await page.locator("#raster-form").getByRole("button", { name: "Add Layer" }).click();
+  await expect(page.locator("#map-raster-layers")).toContainText("worldpop-toledo-population-density");
+  await expect(page.locator(".leaflet-image-layer")).toBeVisible();
+  await expect(page.locator("#map-status")).toContainText("beneath vector layers");
 });

@@ -100,6 +100,19 @@ export function validateRecord(
         }
         continue;
       }
+      if (rule.kind === "coordinate") {
+        if (blank(value)) continue;
+        const text = String(value).trim();
+        const coordinate = Number(text);
+        const limit = rule.axis === "latitude" ? 90 : 180;
+        const decimalPlaces = /^[+-]?\d+\.(\d+)$/.exec(text)?.[1]?.length ?? 0;
+        if (!Number.isFinite(coordinate) || coordinate < -limit || coordinate > limit) {
+          issues.push(issue(formId, recordIndex, field, rule, `${field.prompt} must be a valid ${rule.axis} from ${-limit} through ${limit}.`, `Enter a signed decimal-degree ${rule.axis}.`));
+        } else if (decimalPlaces < rule.minimumDecimalPlaces) {
+          issues.push(issue(formId, recordIndex, field, rule, `${field.prompt} must retain at least ${rule.minimumDecimalPlaces} decimal places.`, `Enter the coordinate to ${rule.minimumDecimalPlaces} or more decimal places; use a minus sign for west/south and no sign or + for east/north.`));
+        }
+        continue;
+      }
       if (blank(value)) continue;
       if (rule.kind === "range") {
         const candidate = rule.valueType === "number" ? Number(value) : Date.parse(String(value));

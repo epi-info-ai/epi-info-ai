@@ -277,6 +277,109 @@ pub extern "C" fn unmatched_case_control_sample_size(
     )
 }
 
+const MAX_TREND_ROWS: usize = 1_024;
+static mut TREND_ROWS: [[f64; 3]; MAX_TREND_ROWS] = [[0.0; 3]; MAX_TREND_ROWS];
+static mut TREND_LENGTH: usize = 0;
+#[cfg(test)]
+static TREND_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Clears the browser-to-WASM input buffer used by Chi Square for Trend.
+#[unsafe(no_mangle)]
+pub extern "C" fn trend_reset() {
+    unsafe { TREND_LENGTH = 0 };
+}
+
+/// Appends one exposure-score, case-count, control-count row.
+#[unsafe(no_mangle)]
+pub extern "C" fn trend_set_row(index: u32, score: f64, cases: f64, controls: f64) -> u32 {
+    let index = index as usize;
+    let length = unsafe { TREND_LENGTH };
+    if index != length
+        || index >= MAX_TREND_ROWS
+        || !score.is_finite()
+        || !cases.is_finite()
+        || !controls.is_finite()
+        || cases < 0.0
+        || controls < 0.0
+    {
+        return 0;
+    }
+    let rows = core::ptr::addr_of_mut!(TREND_ROWS) as *mut [f64; 3];
+    unsafe {
+        *rows.add(index) = [score, cases, controls];
+        TREND_LENGTH = length + 1;
+    }
+    1
+}
+
+fn trend_statistics(count: u32) -> Option<(f64, f64, f64, f64)> {
+    let count = count as usize;
+    if count < 2 || count != unsafe { TREND_LENGTH } {
+        return None;
+    }
+    let rows = core::ptr::addr_of!(TREND_ROWS) as *const [f64; 3];
+    let mut t1 = 0.0;
+    let mut t2 = 0.0;
+    let mut t3 = 0.0;
+    let mut cases_total = 0.0;
+    let mut controls_total = 0.0;
+    for index in 0..count {
+        let [score, cases, controls] = unsafe { *rows.add(index) };
+        let row_total = cases + controls;
+        t1 += cases * score;
+        t2 += row_total * score;
+        t3 += row_total * score * score;
+        cases_total += cases;
+        controls_total += controls;
+    }
+    let total = cases_total + controls_total;
+    if cases_total <= 0.0 || controls_total <= 0.0 || total <= 1.0 {
+        return None;
+    }
+    let variance = cases_total * controls_total * (total * t3 - t2 * t2)
+        / (total * total * (total - 1.0));
+    if !variance.is_finite() || variance <= 0.0 {
+        return None;
+    }
+    let deviation = t1 - cases_total * t2 / total;
+    let chi_square = deviation * deviation / variance;
+    Some((chi_square, cases_total, controls_total, total))
+}
+
+/// Returns the Extended Mantel-Haenszel chi square for linear trend.
+#[unsafe(no_mangle)]
+pub extern "C" fn trend_chi_square(count: u32) -> f64 {
+    trend_statistics(count).map_or(f64::NAN, |result| result.0)
+}
+
+/// Returns the chi-square survival probability with one degree of freedom.
+#[unsafe(no_mangle)]
+pub extern "C" fn trend_p_value(count: u32) -> f64 {
+    let chi_square = trend_chi_square(count);
+    if chi_square.is_finite() {
+        chi_square_p_value(chi_square)
+    } else {
+        f64::NAN
+    }
+}
+
+/// Returns the crude odds ratio for a row relative to the first row.
+#[unsafe(no_mangle)]
+pub extern "C" fn trend_odds_ratio(index: u32, count: u32) -> f64 {
+    let index = index as usize;
+    let count = count as usize;
+    if count < 2 || count != unsafe { TREND_LENGTH } || index >= count {
+        return f64::NAN;
+    }
+    let rows = core::ptr::addr_of!(TREND_ROWS) as *const [f64; 3];
+    let [_base_score, base_cases, base_controls] = unsafe { *rows };
+    let [_score, cases, controls] = unsafe { *rows.add(index) };
+    if base_cases <= 0.0 || base_controls <= 0.0 || controls <= 0.0 {
+        return f64::NAN;
+    }
+    cases * base_controls / (controls * base_cases)
+}
+
 const MAX_MEANS_VALUES: usize = 65_536;
 static mut MEANS_VALUES: [f64; MAX_MEANS_VALUES] = [0.0; MAX_MEANS_VALUES];
 static mut MEANS_LENGTH: usize = 0;
@@ -1980,6 +2083,46 @@ mod tests {
             3.0,
         );
         assert!(unmatched_case_control_sample_size(0.0, 0.0, 0.95, 80.0, 1.0, 0.40, 1.0).is_nan());
+    }
+
+    #[test]
+    fn chi_square_for_trend_matches_independent_reference_values() {
+        let _guard = TREND_TEST_LOCK.lock().expect("trend test lock");
+        trend_reset();
+        for (index, row) in [
+            (0.0, 10.0, 90.0),
+            (1.0, 20.0, 80.0),
+            (2.0, 30.0, 70.0),
+            (3.0, 40.0, 60.0),
+        ]
+        .iter()
+        .enumerate()
+        {
+            assert_eq!(trend_set_row(index as u32, row.0, row.1, row.2), 1);
+        }
+        assert_near(trend_odds_ratio(0, 4), 1.0);
+        assert_near(trend_odds_ratio(1, 4), 2.25);
+        assert_near(trend_odds_ratio(2, 4), 27.0 / 7.0);
+        assert_near(trend_odds_ratio(3, 4), 6.0);
+        assert_near(trend_chi_square(4), 26.6);
+        assert!(trend_p_value(4) > 0.0 && trend_p_value(4) < 0.000_001);
+    }
+
+    #[test]
+    fn chi_square_for_trend_fails_closed_on_invalid_inputs() {
+        let _guard = TREND_TEST_LOCK.lock().expect("trend test lock");
+        trend_reset();
+        assert_eq!(trend_set_row(1, 0.0, 1.0, 1.0), 0);
+        assert_eq!(trend_set_row(0, 0.0, -1.0, 1.0), 0);
+        assert_eq!(trend_set_row(0, 0.0, 10.0, 90.0), 1);
+        assert!(trend_chi_square(1).is_nan());
+        assert_eq!(trend_set_row(1, 0.0, 20.0, 80.0), 1);
+        assert!(trend_chi_square(2).is_nan());
+        assert!(trend_p_value(2).is_nan());
+        trend_reset();
+        assert_eq!(trend_set_row(0, 0.0, 0.0, 100.0), 1);
+        assert_eq!(trend_set_row(1, 1.0, 10.0, 90.0), 1);
+        assert!(trend_odds_ratio(1, 2).is_nan());
     }
 
     #[test]

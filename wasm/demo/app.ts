@@ -1,4 +1,4 @@
-import { calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, calculateUnmatchedCaseControl, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2, unmatchedCaseExposureFromOdds, unmatchedOddsFromExposures } from "./engine.js";
+import { calculateChiSquareTrend, calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, calculateUnmatchedCaseControl, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2, unmatchedCaseExposureFromOdds, unmatchedOddsFromExposures } from "./engine.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -12,7 +12,7 @@ import {
 import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
-import type { BoundaryInterval, BoundaryNumber, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
+import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -31,6 +31,9 @@ const cohortForm = requiredElement<HTMLFormElement>("#cohort-form");
 const cohortFeedback = requiredElement<HTMLElement>("#cohort-feedback");
 const unmatchedForm = requiredElement<HTMLFormElement>("#unmatched-form");
 const unmatchedFeedback = requiredElement<HTMLElement>("#unmatched-feedback");
+const trendForm = requiredElement<HTMLFormElement>("#trend-form");
+const trendRows = requiredElement<HTMLTableSectionElement>("#trend-rows");
+const trendFeedback = requiredElement<HTMLElement>("#trend-feedback");
 let currentStatCalcTool = "table2x2";
 
 const cells: Record<Exclude<keyof Table2x2Input, "confidenceLevel">, HTMLInputElement> = {
@@ -347,6 +350,68 @@ function setUnmatchedEffectValues(source: "odds" | "exposures"): void {
   }
 }
 
+function addTrendRow(row: ChiSquareTrendRow = { score: 0, cases: 0, controls: 0 }): void {
+  const index = trendRows.rows.length;
+  const tableRow = document.createElement("tr");
+  for (const [field, value] of Object.entries(row) as Array<[keyof ChiSquareTrendRow, number]>) {
+    const cell = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = "any";
+    input.required = true;
+    input.value = String(value);
+    input.dataset.trendField = field;
+    input.setAttribute("aria-label", `Row ${index + 1} ${field}`);
+    if (field !== "score") input.min = "0";
+    cell.append(input);
+    tableRow.append(cell);
+  }
+  const oddsCell = document.createElement("td");
+  const odds = document.createElement("output");
+  odds.dataset.trendOdds = "";
+  odds.textContent = "...";
+  oddsCell.append(odds);
+  const actionCell = document.createElement("td");
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "text-button trend-remove-row";
+  remove.dataset.removeTrendRow = "";
+  remove.textContent = "Remove";
+  remove.setAttribute("aria-label", `Remove row ${index + 1}`);
+  actionCell.append(remove);
+  tableRow.append(oddsCell, actionCell);
+  trendRows.append(tableRow);
+}
+
+function loadTrendRows(rows: readonly ChiSquareTrendRow[]): void {
+  trendRows.replaceChildren();
+  rows.forEach((row) => addTrendRow(row));
+}
+
+function parseTrendRows(): ChiSquareTrendRow[] {
+  return [...trendRows.rows].map((row) => {
+    const value = (field: keyof ChiSquareTrendRow) => Number(row.querySelector<HTMLInputElement>(`[data-trend-field="${field}"]`)?.value);
+    return { score: value("score"), cases: value("cases"), controls: value("controls") };
+  });
+}
+
+function runTrend(): void {
+  try {
+    const result = calculateChiSquareTrend(parseTrendRows());
+    [...trendRows.rows].forEach((row, index) => {
+      const odds = row.querySelector<HTMLOutputElement>("[data-trend-odds]");
+      if (odds) odds.textContent = number(result.rows[index]!.oddsRatio, 3);
+    });
+    requiredElement<HTMLOutputElement>("#trend-chi-square").textContent = number(result.chiSquare, 5);
+    requiredElement<HTMLOutputElement>("#trend-p-value").textContent = pValue(result.pValue);
+    trendFeedback.textContent = `Calculated ${result.rows.length} exposure levels locally.`;
+  } catch (error) {
+    requiredElement<HTMLOutputElement>("#trend-chi-square").textContent = "...";
+    requiredElement<HTMLOutputElement>("#trend-p-value").textContent = "...";
+    trendFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate Chi Square for Trend.";
+  }
+}
+
 function showStatCalcTool(name: string): void {
   currentStatCalcTool = name;
   for (const view of document.querySelectorAll<HTMLElement>("[data-statcalc-view]")) view.hidden = view.dataset.statcalcView !== name;
@@ -391,6 +456,25 @@ unmatchedForm.addEventListener("input", (event) => {
   else if (target.id === "unmatched-odds-ratio" || target.id === "unmatched-control-exposure") setUnmatchedEffectValues("odds");
   if (unmatchedForm.checkValidity()) runUnmatched();
 });
+trendForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (trendForm.reportValidity()) runTrend();
+});
+requiredElement("#trend-add-row").addEventListener("click", () => addTrendRow({ score: trendRows.rows.length, cases: 0, controls: 0 }));
+requiredElement("#trend-example").addEventListener("click", () => {
+  loadTrendRows([{ score: 0, cases: 10, controls: 90 }, { score: 1, cases: 20, controls: 80 }, { score: 2, cases: 30, controls: 70 }, { score: 3, cases: 40, controls: 60 }]);
+  runTrend();
+});
+trendRows.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement) || !target.hasAttribute("data-remove-trend-row")) return;
+  if (trendRows.rows.length <= 2) {
+    trendFeedback.textContent = "Chi Square for Trend requires at least two rows.";
+    return;
+  }
+  target.closest("tr")?.remove();
+  runTrend();
+});
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -425,6 +509,8 @@ calculate();
 runPopulationSurvey();
 runCohort();
 runUnmatched();
+loadTrendRows([{ score: 0, cases: 10, controls: 90 }, { score: 1, cases: 20, controls: 80 }, { score: 2, cases: 30, controls: 70 }, { score: 3, cases: 40, controls: 60 }]);
+runTrend();
 showStatCalcTool(currentStatCalcTool);
 
 const stratifiedForm = requiredElement<HTMLFormElement>("#stratified-form");

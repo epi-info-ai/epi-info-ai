@@ -158,7 +158,25 @@ function fieldDefinitionAt(value: unknown, path: string): FieldDefinition {
     if (typeof field.y !== "number" || !Number.isFinite(field.y)) fail(`${path}.y`, "must be a finite number");
     result.y = field.y;
   }
-  if (field.rules !== undefined) result.rules = validateFieldRules(field.rules, `${path}.rules`);
+  if (field.rules !== undefined) {
+    result.rules = validateFieldRules(field.rules, `${path}.rules`);
+    const textLike = ["text", "text-uppercase", "multiline", "unique-id", "phone"].includes(result.type);
+    for (const [index, rule] of result.rules.entries()) {
+      const rulePath = `${path}.rules[${index}]`;
+      if (rule.kind === "range" && (result.type !== "number" && result.type !== "date" || rule.valueType !== result.type)) {
+        fail(rulePath, `range rules must match a Number or Date field's data type`);
+      }
+      if (rule.kind === "pattern" && !textLike) fail(rulePath, "pattern rules require a text-like field");
+      if (rule.kind === "legal-values" && !textLike && result.type !== "yes-no" && result.type !== "option") {
+        fail(rulePath, "legal-values rules require a text, Yes/No, or Option field");
+      }
+      if (rule.kind === "calculated-age" && result.type !== "number") fail(rulePath, "calculated-age rules require a Number field");
+      if (rule.kind === "coordinate" && result.type !== "number") fail(rulePath, "coordinate rules require a Number field");
+      if (rule.kind === "unique" && ["checkbox", "yes-no", "option"].includes(result.type)) {
+        fail(rulePath, "unique rules are not available for categorical Boolean or Option fields");
+      }
+    }
+  }
   if (field.tabStop !== undefined) {
     if (typeof field.tabStop !== "boolean") fail(`${path}.tabStop`, "must be a boolean");
     result.tabStop = field.tabStop;

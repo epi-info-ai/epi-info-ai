@@ -67,7 +67,7 @@ refer to the same capability.
 | LEGACY-MAPS-012 | Enter Data record linkage | Double-click popup linkage | Preserve and test record selection across all record-backed layers |
 | LEGACY-MAPS-013 | H3 aggregation (new branch) | Working prototype | Persistable layer definition, legends, filters, and validation |
 | LEGACY-MAPS-014 | Browser geolocation (new branch) | Working prototype | Permission, privacy, accuracy, and mobile-field workflow hardening |
-| LEGACY-MAPS-015 | GeoTIFF raster (new branch) | WorldPop test fixture included; renderer TODO | Local raster import, CRS/nodata/style controls, limits, raster pane |
+| LEGACY-MAPS-015 | GeoTIFF raster (new branch) | WGS 84 first-band renderer with limits, ramp, opacity, visibility, removal, and raster pane | Reprojection, multiband styles/legends, persistence, richer nodata controls |
 
 ## Shell gap register
 
@@ -151,7 +151,7 @@ panels.
 |---|---|---|---|---|---|
 | REG-0001 | LEGACY-MAPS-013 | New branch: H3 aggregation under Maps data layers | Adds configurable hexagonal aggregation; does not replace Case Cluster | Project direction / 2026-08-26 | Prototype, open gap |
 | REG-0002 | LEGACY-MAPS-014 | New branch: browser geolocation under Maps | Adds permission-gated field location; does not replace record coordinate fields | Project direction / 2026-08-26 | Prototype, open gap |
-| REG-0003 | LEGACY-MAPS-015 | New branch planned: GeoTIFF raster reference layer | Adds browser-local raster support beneath vector layers | Project direction / 2026-08-26 | TODO, open gap |
+| REG-0003 | LEGACY-MAPS-015 | New branch: bounded GeoTIFF raster reference layer | Adds browser-local WGS 84 first-band rendering beneath vector layers; unsupported projections fail closed | Project direction; implemented 2026-08-27 | Prototype, extension gaps open |
 | REG-0004 | LEGACY-STORAGE-006 | New branch: browser-local project working copy | Adds an offline-capable browser persistence path; does not replace portable/legacy project compatibility | Registry audit / 2026-08-26 | Prototype, open gap |
 | REG-0005 | LEGACY-STORAGE-007 | New branch: authenticated Supabase hosted copy | Adds optional HTTPS synchronization with RLS; does not replace legacy project/data-store adapters | Registry audit / 2026-08-26 | Prototype, open gap |
 | REG-0006 | LEGACY-STORAGE-008 | New branch planned: multi-user record merge | Extends hosted copies with reviewed record-level collaboration; does not weaken whole-project conflict rejection until validated | Project direction / 2026-08-26 | TODO, open gap |
@@ -173,6 +173,9 @@ panels.
 | REG-0022 | LEGACY-STATCALC-002, LEGACY-STATCALC-003 | Adapted branch: Population Survey sample-size candidate | Restores the first learned StatCalc menu item, legacy defaults/input order, simple-random-sampling guidance, and seven-row cluster/total table using the audited C# calculation sequence; Save as Image, Print, broader corpora, and consolidated G5 approval remain open | `StatCalcMenu.xaml` and `PopulationSurvey.xaml(.cs)` audit / 2026-08-27 | Phase 5 V0.12 candidate, parity gaps open |
 | REG-0023 | LEGACY-STATCALC-004 | Adapted branch: Cohort or Cross-Sectional sample-size candidate | Restores the second learned StatCalc menu item, linked risk/odds/outcome inputs, and exposed/unexposed/total Kelsey and Fleiss output table using the audited C# sequence; Save as Image, Print, broader corpora, and consolidated G5 approval remain open | `StatCalcMenu.xaml` and `Cohort.xaml(.cs)` audit / 2026-08-27 | Phase 5 V0.13 candidate, parity gaps open |
 | REG-0024 | LEGACY-STATCALC-005 | Adapted branch: Unmatched Case-Control sample-size candidate | Restores the third learned StatCalc menu item, linked odds/case-exposure inputs, and cases/controls/total Kelsey and Fleiss table using a distinct contract over the shared audited core; Save as Image, Print, broader corpora, and consolidated G5 approval remain open | `StatCalcMenu.xaml` and `UnmatchedCaseControl.xaml(.cs)` audit / 2026-08-27 | Phase 5 V0.14 candidate, parity gaps open |
+| REG-0025 | LEGACY-STATCALC-006 | Adapted branch: Chi Square for Trend candidate | Restores the fourth learned StatCalc menu item, editable Exposure Score/Cases/Controls rows, Add Row, reference-row odds ratios, and Extended Mantel-Haenszel result using audited Rust/WASM formulas; Save/Print, broader corpora, zero-cell decisions, and G5 remain open | `ChiSquareControl.xaml(.cs)` audit / 2026-08-27 | Phase 5 V0.15 candidate, parity gaps open |
+| REG-0026 | LEGACY-FORM-003 | Clarified branch: validation rules follow field data type | Filters the rule editor by field type and rejects incompatible serialized combinations at the project boundary; incompatible saved rules are disclosed before removal rather than silently executed | Demo review / 2026-08-27 | Phase 4 hardening, broader rule parity open |
+| REG-0027 | LEGACY-FORM-003, LEGACY-MAPS-001 | New branch: coordinate-aware Number validation | Allows a Number field to be designated latitude or longitude, enforces signed decimal-degree range and at least five retained decimal places across entry/import validation, and adds the rule automatically when tabular schema inference recognizes coordinate columns | Demo review / 2026-08-27 | Phase 4/Maps hardening; CRS and directional-notation adapters remain open |
 
 No legacy branch is currently approved for deprecation or retirement.
 

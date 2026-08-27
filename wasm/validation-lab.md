@@ -451,6 +451,17 @@ discrepancy to its detailed evidence record.
 - Broader legacy output, protective-effect, property/boundary, implementation,
   and statistical review remain open. G5 stays consolidated.
 
+### V0.15 — StatCalc Chi Square for Trend lab
+
+- `validate-chi-square-trend.ipynb` loads the deployed Rust/WASM buffer exports
+  and the immutable four-level trend fixture.
+- Independent Python directly recomputes the Extended Mantel-Haenszel variance,
+  statistic, reference-row odds ratios, and `erfc(sqrt(X²/2))` p value.
+- The notebook compares every candidate value at an explicit tolerance and
+  reports a transparent PASS object.
+- Broader legacy output, zero/fractional-cell decisions, property/boundary,
+  implementation, and statistical review remain open. G5 stays consolidated.
+
 ### Later releases
 
 - Extend the corpus to additional rate and sample-size branches, regression, dates/times,

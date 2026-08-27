@@ -75,9 +75,10 @@ SHA-256: `CF7EC32DE75D9B782A141E0E8E361216D9C74A71B467486AAA4F0C1782060DF1`
 4. Choose **Add Data Layer > GeoJSON Layer** and select the Toledo file.
 5. Select `name` as the polygon label field, then test label visibility, zoom,
    Fit Layers, fullscreen, H3 aggregation, and time lapse.
-6. Download the WorldPop GeoTIFF as the raster fixture for the planned
-   `LEGACY-MAPS-015` GeoTIFF layer. Raster rendering is still a TODO and the
-   current Maps UI will not load this file yet.
+6. Choose **Add Data Layer > GeoTIFF Raster**, select the WorldPop fixture,
+   adjust its opacity, and confirm that the raster remains beneath polygons,
+   lines, and points. The bounded demo accepts local WGS 84 GeoTIFFs; projected
+   rasters and general reprojection remain tracked gaps under `LEGACY-MAPS-015`.
 
 These examples are demonstrations, not algorithm-validation reference data and not
 real outbreak surveillance records.
