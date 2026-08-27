@@ -110,8 +110,8 @@ pub extern "C" fn population_survey_cluster_size(
     {
         return f64::NAN;
     }
-    let factor = expected_frequency * (100.0 - expected_frequency)
-        / (margin_of_error * margin_of_error);
+    let factor =
+        expected_frequency * (100.0 - expected_frequency) / (margin_of_error * margin_of_error);
     let z = population_survey_anorm(1.0 - confidence_level);
     let uncorrected = z * z * factor;
     let corrected = uncorrected / (1.0 + uncorrected / population);
@@ -1740,15 +1740,9 @@ mod tests {
             population_survey_cluster_size(10_000.0, 50.0, 5.0, 2.0, 10.0, 0.95),
             74.0
         );
-        assert!(
-            population_survey_cluster_size(0.0, 50.0, 5.0, 1.0, 1.0, 0.95).is_nan()
-        );
-        assert!(
-            population_survey_cluster_size(1000.0, 50.0, 0.0, 1.0, 1.0, 0.95).is_nan()
-        );
-        assert!(
-            population_survey_cluster_size(1000.0, 100.0, 5.0, 1.0, 1.0, 0.95).is_nan()
-        );
+        assert!(population_survey_cluster_size(0.0, 50.0, 5.0, 1.0, 1.0, 0.95).is_nan());
+        assert!(population_survey_cluster_size(1000.0, 50.0, 0.0, 1.0, 1.0, 0.95).is_nan());
+        assert!(population_survey_cluster_size(1000.0, 100.0, 5.0, 1.0, 1.0, 0.95).is_nan());
     }
 
     #[test]
