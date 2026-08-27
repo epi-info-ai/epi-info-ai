@@ -436,7 +436,7 @@ function ensureMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   });
   tileLayer.on("tileerror", () => {
-    requiredElement("#map-status").textContent = "Basemap unavailable; local point layers still work.";
+    requiredElement("#map-basemap-status").textContent = "Basemap unavailable; local layers still work.";
   });
   tileLayer.addTo(map);
   recordLayer = L.layerGroup().addTo(map);
@@ -1561,9 +1561,11 @@ export function initializeMaps(
       const currentMap = ensureMap();
       if (eventControl(event).value === "street") {
         if (!currentMap.hasLayer(tileLayer)) tileLayer.addTo(currentMap);
+        requiredElement("#map-basemap-status").textContent = "";
         requiredElement("#map-status").textContent = "Street background selected.";
       } else if (currentMap.hasLayer(tileLayer)) {
         currentMap.removeLayer(tileLayer);
+        requiredElement("#map-basemap-status").textContent = "Blank background works without a tile service.";
         requiredElement("#map-status").textContent = "Blank background selected.";
       }
     });

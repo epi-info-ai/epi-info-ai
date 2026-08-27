@@ -1719,6 +1719,10 @@ select {
   margin-left: auto;
 }
 
+.map-toolbar .map-basemap-status {
+  color: #7c4a03;
+}
+
 .map-workspace {
   min-height: 39rem;
 }

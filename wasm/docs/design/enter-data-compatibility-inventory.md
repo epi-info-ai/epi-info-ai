@@ -30,6 +30,13 @@ small vertical slice. It does not define the legacy capability floor by itself.
 | LEGACY-ENTER-007 | Linked Maps and other Enter Data tools | Current-form Maps link works | Preserve learned paths; inventory all linked commands before claiming parity. |
 | LEGACY-ENTER-008 | Record status, storage status, and error feedback | Local/hosted badge plus adjacent save/import status | Adapt to browser persistence and asynchronous synchronization states. |
 | LEGACY-ENTER-009 | Phone field-entry workflow | Phase 3B entry/records switcher on narrow screens | Responsive adaptation. Keep labels/order identical and retain both familiar panels on wider screens. |
+| LEGACY-ENTER-010 | Acquire and review record coordinates | No address geocoder or GPS-to-field command; coordinate Number rules are a new validation branch | Preserve desktop Address -> Get Coordinates -> review/Accept behavior and mobile Capture Coordinates field selection. A future click-map picker is optional and must be labeled as a new branch, not legacy parity. |
+
+When the configured geocoding service is unavailable, the form remains usable.
+Manual/imported signed coordinates are retained; permission-gated browser GPS is
+an adapted mobile branch; and a click-map picker may be offered as a labeled new
+branch. No fallback silently invents a coordinate. Address, acquisition status,
+coordinate provenance, and validation remain distinguishable.
 
 ## Phase 3B responsive contract
 

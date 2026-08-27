@@ -68,6 +68,7 @@ refer to the same capability.
 | LEGACY-MAPS-013 | H3 aggregation (new branch) | Working prototype | Persistable layer definition, legends, filters, and validation |
 | LEGACY-MAPS-014 | Browser geolocation (new branch) | Working prototype | Permission, privacy, accuracy, and mobile-field workflow hardening |
 | LEGACY-MAPS-015 | GeoTIFF raster (new branch) | WGS 84 first-band renderer with limits, ramp, opacity, visibility, removal, and raster pane | Reprojection, multiband styles/legends, persistence, richer nodata controls |
+| LEGACY-MAPS-016 | Click map to populate record fields (possible new branch) | Not present | Add only as an explicitly labeled extension after preserving the legacy GEOCODE/GPS acquisition paths |
 
 ## Shell gap register
 
@@ -79,14 +80,14 @@ or retire a workflow branch.
 ## Enter Data gap register
 
 The detailed evidence and closure gates for `LEGACY-ENTER-001` through
-`LEGACY-ENTER-009` are maintained in `enter-data-compatibility-inventory.md`.
+`LEGACY-ENTER-010` are maintained in `enter-data-compatibility-inventory.md`.
 Phase 3B changes the narrow-screen presentation only. It preserves the Enter Data
 branch, field order, storage contracts, wider-screen panels, and linked Maps path.
 
 ## Form Designer gap register
 
 The detailed evidence and closure gates for `LEGACY-FORM-001` through
-`LEGACY-FORM-011` are maintained in `form-designer-compatibility-inventory.md`.
+`LEGACY-FORM-012` are maintained in `form-designer-compatibility-inventory.md`.
 Skip patterns remain two distinct legacy concepts: persisted tab-stop navigation
 and event-driven Check Code. Phase 4 must not collapse them into an ordinary
 validation rule or execute arbitrary imported code.
@@ -176,6 +177,8 @@ panels.
 | REG-0025 | LEGACY-STATCALC-006 | Adapted branch: Chi Square for Trend candidate | Restores the fourth learned StatCalc menu item, editable Exposure Score/Cases/Controls rows, Add Row, reference-row odds ratios, and Extended Mantel-Haenszel result using audited Rust/WASM formulas; Save/Print, broader corpora, zero-cell decisions, and G5 remain open | `ChiSquareControl.xaml(.cs)` audit / 2026-08-27 | Phase 5 V0.15 candidate, parity gaps open |
 | REG-0026 | LEGACY-FORM-003 | Clarified branch: validation rules follow field data type | Filters the rule editor by field type and rejects incompatible serialized combinations at the project boundary; incompatible saved rules are disclosed before removal rather than silently executed | Demo review / 2026-08-27 | Phase 4 hardening, broader rule parity open |
 | REG-0027 | LEGACY-FORM-003, LEGACY-MAPS-001 | New branch: coordinate-aware Number validation | Allows a Number field to be designated latitude or longitude, enforces signed decimal-degree range and at least five retained decimal places across entry/import validation, and adds the rule automatically when tabular schema inference recognizes coordinate columns | Demo review / 2026-08-27 | Phase 4/Maps hardening; CRS and directional-notation adapters remain open |
+| REG-0028 | LEGACY-FORM-012, LEGACY-ENTER-010, LEGACY-MAPS-016 | Clarified legacy floor: acquire coordinates before mapping | Records the documented Address -> Get Coordinates/GEOCODE -> review/Accept -> coordinate fields workflow and mobile GPS field selection. Map clicks in the inspected desktop implementation add marker/text/zone overlays; click-to-record harvesting is reserved as a possible new branch | Epi Info 7 User Guide plus `GuiMediator.IEnterCheckCode.cs`, `Rule_Geocode.cs`, and map-control audit / 2026-08-27 | Legacy workflow open; new branch not started |
+| REG-0029 | LEGACY-ENTER-010, LEGACY-MAPS-014, LEGACY-MAPS-016 | New branches: resilient coordinate acquisition without geocoding | Keeps manual/imported coordinates available, adapts permission-gated browser GPS, and reserves a click-map picker over online/cached/blank maps; never fabricates a geocode and always exposes acquisition status/provenance | Demo review / 2026-08-27 | Design recorded; entry workflow not started |
 
 No legacy branch is currently approved for deprecation or retirement.
 

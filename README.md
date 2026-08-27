@@ -152,6 +152,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   fields can be designated latitude or longitude, with signed decimal-degree
   ranges and at least five retained decimal places enforced before records save
   or import.
+- Clarified the coordinate workflow compatibility floor: desktop Epi Info uses
+  Address > Get Coordinates (GEOCODE) > review/Accept before Maps selects the
+  resulting Latitude/Longitude fields. Coordinate validation is a new branch;
+  a future click-map picker must also remain an explicitly labeled new branch.
 - Locked familiar launcher order at phone, tablet, and desktop widths and added a
   storage compatibility inventory covering legacy stores and new hosted branches.
 - Completed migration Phase 3B for Enter Data: phone-first record entry, a

@@ -32,6 +32,10 @@ This inventory separates four decisions:
 - `source/Epi-Info-Community-Edition/EpiDashboard/Mapping/TimeLapse.xaml.cs`
 - the layer provider/property classes in the same directory
 - Epi Info 7 User Guide, Maps chapter, manual pages 10-1 through 10-36
+- Epi Info 7 User Guide, Form Designer Geo-location template and Check Code
+  GEOCODE workflow
+- `Epi.Windows.Enter/PresentationLogic/GuiMediator.IEnterCheckCode.cs`
+- `Epi.Core.EnterInterpreter/Rules/Rule_Geocode.cs`
 
 ## Workflow baseline
 
@@ -45,6 +49,14 @@ The manual and C# code define two related entry points:
 These entry points must remain distinct even when they share a browser map host.
 The old menu tree remains the navigation tree; new browser capabilities are new
 branches rather than replacements for learned paths.
+
+Coordinate acquisition is a preceding Forms/Enter workflow, not a replacement
+Maps workflow. The documented desktop sequence is Address -> Get Coordinates ->
+GEOCODE result review -> Accept into Latitude/Longitude fields. Maps then selects
+those existing numeric fields for Case Cluster or Point layers. The legacy map
+surface allows manual markers, text, and zones at a clicked/right-clicked point;
+the inspected manual and C# do not establish click-map-to-record-field harvesting.
+A future browser point picker must therefore be registered as a new branch.
 
 ## Capability comparison
 
@@ -69,6 +81,7 @@ branches rather than replacements for learned paths.
 | LEGACY-MAPS-013 | H3 aggregation | No legacy equivalent | Configurable H3 cells | Keep as a new branch under data layers |
 | LEGACY-MAPS-014 | Browser geolocation | No desktop equivalent | One-shot browser geolocation | Keep as a new, permission-gated branch |
 | LEGACY-MAPS-015 | GeoTIFF raster | No inspected legacy equivalent | Bounded WGS 84 first-band renderer with WorldPop fixture, color ramp, opacity, visibility, removal, and raster pane | Keep as a new branch; add reprojection, styling/legend breadth, persistence, and richer nodata controls |
+| LEGACY-MAPS-016 | Click map to populate record coordinates | No inspected desktop manual/code equivalent; clicks support marker/text/zone placement | Not implemented | Optional future new branch only; do not substitute it for the legacy Geo-location/GEOCODE and Case Cluster field-selection workflows |
 
 ## TypeScript layer model
 
