@@ -1,10 +1,10 @@
 {
   "file": "wasm/demo/epi2x2.wasm",
-  "sha256": "aa4f82c53f474d35355c01b8653d4e5cc27fa37b9f3b7ce4531e343c5ace6cf1",
-  "size": 25987,
+  "sha256": "a9062cc4b57376be500cb101b04e8bb505ea023be315e97e29e52c64b13c2c1e",
+  "size": 26901,
   "engine": {
     "id": "epi-core-wasm",
-    "version": "0.14.0",
+    "version": "0.15.0",
     "operation": "epi.table2x2",
     "schemaVersion": "0.4.0"
   },
@@ -77,6 +77,11 @@
     "cohort_sample_size",
     "unmatched_case_control_case_exposure",
     "unmatched_case_control_odds_from_exposures",
-    "unmatched_case_control_sample_size"
+    "unmatched_case_control_sample_size",
+    "trend_reset",
+    "trend_set_row",
+    "trend_chi_square",
+    "trend_p_value",
+    "trend_odds_ratio"
   ]
 }
