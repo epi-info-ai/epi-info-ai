@@ -439,6 +439,18 @@ discrepancy to its detailed evidence record.
 - Broader legacy output, protective-effect, property/boundary, implementation,
   and statistical review remain open. G5 stays consolidated.
 
+### V0.14 — StatCalc Unmatched Case-Control lab
+
+- `validate-unmatched-case-control.ipynb` independently translates the audited
+  C# normal-tail, exposure-conversion, Kelsey, Fleiss, continuity-correction,
+  and independent case/control ceiling sequence.
+- It checks CDC's source-embedded example and an unequal controls-to-cases
+  design against distinct deployed Rust/WASM exports.
+- A no-effect design fails closed, and SciPy independently compares the normal
+  deviates without replacing the preserved legacy algorithm.
+- Broader legacy output, protective-effect, property/boundary, implementation,
+  and statistical review remain open. G5 stays consolidated.
+
 ### Later releases
 
 - Extend the corpus to additional rate and sample-size branches, regression, dates/times,

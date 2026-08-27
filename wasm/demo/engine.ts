@@ -14,6 +14,8 @@ import type {
   PopulationSurveyResult,
   CohortSampleSizeInput,
   CohortSampleSizeResult,
+  UnmatchedCaseControlInput,
+  UnmatchedCaseControlResult,
   MidPExactResult,
   StratifiedTable2x2Input,
   StratifiedTable2x2Result,
@@ -97,6 +99,9 @@ interface EpiWasmExports {
   cohort_odds_from_risk: WasmNumericFunction;
   cohort_odds_from_outcomes: WasmNumericFunction;
   cohort_sample_size: WasmNumericFunction;
+  unmatched_case_control_case_exposure: WasmNumericFunction;
+  unmatched_case_control_odds_from_exposures: WasmNumericFunction;
+  unmatched_case_control_sample_size: WasmNumericFunction;
 }
 
 function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
@@ -166,6 +171,9 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
     "cohort_odds_from_risk",
     "cohort_odds_from_outcomes",
     "cohort_sample_size",
+    "unmatched_case_control_case_exposure",
+    "unmatched_case_control_odds_from_exposures",
+    "unmatched_case_control_sample_size",
     "chi_square_p_value_df",
   ] as const;
   const validated = {} as EpiWasmExports;
@@ -812,6 +820,44 @@ export function calculateCohortSampleSize(input: CohortSampleSizeInput): CohortS
     engine: { id: "epi-core-wasm", version: "0.13.0", operation: "epi.sampleSize.cohortCrossSectional" },
     input,
     derived,
+    methods,
+    diagnostics: { warnings: [] },
+  };
+}
+
+export function unmatchedCaseExposureFromOdds(controlExposurePercent: number, oddsRatio: number): number {
+  const exposure = WASM.unmatched_case_control_case_exposure(controlExposurePercent / 100, oddsRatio);
+  if (!Number.isFinite(exposure)) throw new RangeError("Control exposure and odds ratio do not define a valid case exposure.");
+  return exposure * 100;
+}
+
+export function unmatchedOddsFromExposures(controlExposurePercent: number, caseExposurePercent: number): number {
+  const odds = WASM.unmatched_case_control_odds_from_exposures(controlExposurePercent / 100, caseExposurePercent / 100);
+  if (!Number.isFinite(odds)) throw new RangeError("Case and control exposure percentages must be between 0% and 100%.");
+  return odds;
+}
+
+export function calculateUnmatchedCaseControl(input: UnmatchedCaseControlInput): UnmatchedCaseControlResult {
+  if (![0.80, 0.90, 0.95, 0.99, 0.999, 0.9999].includes(input.confidenceLevel)) throw new RangeError("Select a valid confidence level.");
+  if (!(input.powerPercent > 0 && input.powerPercent < 100)) throw new RangeError("Power must be greater than 0% and less than 100%.");
+  if (!(input.controlsToCasesRatio > 0)) throw new RangeError("The controls-to-cases ratio must be greater than zero.");
+  if (!(input.controlExposurePercent > 0 && input.controlExposurePercent < 100)) throw new RangeError("Percent of controls exposed must be between 0% and 100%.");
+  if (!(input.oddsRatio > 0) || input.oddsRatio === 1) throw new RangeError("Odds ratio must be positive and different from 1.");
+  const caseExposurePercent = unmatchedCaseExposureFromOdds(input.controlExposurePercent, input.oddsRatio);
+  const labels = ["Kelsey", "Fleiss", "Fleiss with continuity correction"] as const;
+  const methods = labels.map((method, methodIndex) => {
+    const args = [input.confidenceLevel, input.powerPercent, input.controlsToCasesRatio, input.controlExposurePercent / 100, input.oddsRatio] as const;
+    const cases = WASM.unmatched_case_control_sample_size(methodIndex, 0, ...args);
+    const controls = WASM.unmatched_case_control_sample_size(methodIndex, 1, ...args);
+    if (!Number.isSafeInteger(cases) || !Number.isSafeInteger(controls)) throw new RangeError("The Unmatched Case-Control kernel rejected these inputs.");
+    return { method, cases, controls, total: cases + controls };
+  });
+  return {
+    schemaVersion: "0.14.0",
+    operation: "epi.sampleSize.unmatchedCaseControl",
+    engine: { id: "epi-core-wasm", version: "0.14.0", operation: "epi.sampleSize.unmatchedCaseControl" },
+    input,
+    derived: { caseExposurePercent },
     methods,
     diagnostics: { warnings: [] },
   };

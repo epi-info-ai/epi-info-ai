@@ -324,3 +324,28 @@ export interface CohortSampleSizeResult {
   methods: CohortSampleSizeMethodResult[];
   diagnostics: { warnings: string[] };
 }
+
+export interface UnmatchedCaseControlInput {
+  confidenceLevel: 0.80 | 0.90 | 0.95 | 0.99 | 0.999 | 0.9999;
+  powerPercent: number;
+  controlsToCasesRatio: number;
+  controlExposurePercent: number;
+  oddsRatio: number;
+}
+
+export interface UnmatchedCaseControlMethodResult {
+  method: "Kelsey" | "Fleiss" | "Fleiss with continuity correction";
+  cases: number;
+  controls: number;
+  total: number;
+}
+
+export interface UnmatchedCaseControlResult {
+  schemaVersion: "0.14.0";
+  operation: "epi.sampleSize.unmatchedCaseControl";
+  engine: { id: "epi-core-wasm"; version: "0.14.0"; operation: "epi.sampleSize.unmatchedCaseControl" };
+  input: UnmatchedCaseControlInput;
+  derived: { caseExposurePercent: number };
+  methods: UnmatchedCaseControlMethodResult[];
+  diagnostics: { warnings: string[] };
+}

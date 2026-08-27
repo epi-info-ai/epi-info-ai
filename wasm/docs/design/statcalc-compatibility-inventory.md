@@ -7,8 +7,8 @@ audited branches are Population Survey, Cohort or Cross-Sectional, Unmatched
 Case-Control, Chi Square for Trend, Tables (2 x 2 x N), Poisson (rare event vs.
 standard), Population Binomial (proportion vs. standard), and Matched Pair
 Case-Control Study. The browser currently retains the direct 2 x 2 calculator
-and adds the first two legacy menu items, Population Survey and Cohort or
-Cross-Sectional. Stratified
+and adds the first three legacy menu items: Population Survey, Cohort or
+Cross-Sectional, and Unmatched Case-Control. Stratified
 2 x 2 analysis belongs to the learned **Classic Analysis > TABLES** workflow:
 users select exposure, outcome, and one or more stratification variables, inspect
 each stratum, and then read summary estimates and overall-association tests.
@@ -48,6 +48,13 @@ audited Kelsey, Fleiss, Fleiss-with-continuity-correction, and independent
 group-ceiling sequence. The source-embedded 95%/80% example is frozen as the
 first validation case.
 
+The V0.14 `epi.sampleSize.unmatchedCaseControl` candidate restores the legacy
+confidence, power, controls-to-cases ratio, control-exposure, odds-ratio, and
+case-exposure workflow. It exposes a distinct operation while deliberately
+sharing the audited Kelsey/Fleiss mathematical core with Cohort. Case/control
+labels, linked exposures, independent ceilings, fixtures, and registry evidence
+remain separately traceable.
+
 ## Stable gaps
 
 | Gap ID | Legacy capability | Current state | Closure evidence |
@@ -56,7 +63,7 @@ first validation case.
 | LEGACY-STATCALC-002 | Population Survey inputs and seven-level sample table | V0.12 candidate Rust/WASM workflow | Broader legacy corpus, boundary/property evidence, G5 |
 | LEGACY-STATCALC-003 | Population Survey Save as Image and Print | Open gap | Browser image/report export and print layout |
 | LEGACY-STATCALC-004 | Cohort or Cross-Sectional | V0.13 candidate Rust/WASM workflow | Broader legacy corpus, boundary/property evidence, Save/Print, G5 |
-| LEGACY-STATCALC-005 | Unmatched Case-Control | Visible compatibility-floor placeholder | Port audited formulas, UI, fixtures, and validation |
+| LEGACY-STATCALC-005 | Unmatched Case-Control | V0.14 candidate Rust/WASM workflow | Broader legacy corpus, protective-effect/property evidence, Save/Print, G5 |
 | LEGACY-STATCALC-006 | Chi Square for Trend | Open gap | Port audited formulas, UI, fixtures, and validation |
 | LEGACY-STATCALC-007 | Tables (2 x 2 x N) menu workflow | Direct 2 x 2 candidate only | Restore learned menu/tool scope and full output |
 | LEGACY-STATCALC-008 | Poisson (rare event vs. standard) | Open gap | Port audited formulas, UI, fixtures, and validation |

@@ -1,4 +1,4 @@
-import { calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2 } from "./engine.js";
+import { calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, calculateUnmatchedCaseControl, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2, unmatchedCaseExposureFromOdds, unmatchedOddsFromExposures } from "./engine.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -12,7 +12,7 @@ import {
 import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
-import type { BoundaryInterval, BoundaryNumber, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
+import type { BoundaryInterval, BoundaryNumber, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -29,6 +29,8 @@ const populationSurveyForm = requiredElement<HTMLFormElement>("#population-surve
 const populationSurveyFeedback = requiredElement<HTMLElement>("#population-survey-feedback");
 const cohortForm = requiredElement<HTMLFormElement>("#cohort-form");
 const cohortFeedback = requiredElement<HTMLElement>("#cohort-feedback");
+const unmatchedForm = requiredElement<HTMLFormElement>("#unmatched-form");
+const unmatchedFeedback = requiredElement<HTMLElement>("#unmatched-feedback");
 let currentStatCalcTool = "table2x2";
 
 const cells: Record<Exclude<keyof Table2x2Input, "confidenceLevel">, HTMLInputElement> = {
@@ -283,6 +285,68 @@ function setCohortEffectValues(source: "odds" | "risk" | "outcomes"): void {
   }
 }
 
+function unmatchedNumber(id: string): number {
+  return Number(requiredElement<HTMLInputElement>(`#${id}`).value);
+}
+
+function parseUnmatchedInput(): UnmatchedCaseControlInput {
+  return {
+    confidenceLevel: Number(requiredElement<HTMLSelectElement>("#unmatched-confidence").value) as UnmatchedCaseControlInput["confidenceLevel"],
+    powerPercent: unmatchedNumber("unmatched-power"),
+    controlsToCasesRatio: unmatchedNumber("unmatched-ratio"),
+    controlExposurePercent: unmatchedNumber("unmatched-control-exposure"),
+    oddsRatio: unmatchedNumber("unmatched-odds-ratio"),
+  };
+}
+
+function renderUnmatched(result: UnmatchedCaseControlResult): void {
+  const groups = [
+    ["Cases", ...result.methods.map((method) => method.cases)],
+    ["Controls", ...result.methods.map((method) => method.controls)],
+    ["Total", ...result.methods.map((method) => method.total)],
+  ];
+  const rows = groups.map((values) => {
+    const row = document.createElement("tr");
+    values.forEach((value, index) => {
+      const cell = document.createElement(index === 0 ? "th" : "td");
+      cell.textContent = String(value);
+      if (index === 0) cell.setAttribute("scope", "row");
+      row.append(cell);
+    });
+    return row;
+  });
+  requiredElement("#unmatched-rows").replaceChildren(...rows);
+  unmatchedFeedback.textContent = "Calculated Kelsey and Fleiss sample sizes locally.";
+}
+
+function runUnmatched(): void {
+  try {
+    renderUnmatched(calculateUnmatchedCaseControl(parseUnmatchedInput()));
+  } catch (error) {
+    unmatchedFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate unmatched case-control sample sizes.";
+  }
+}
+
+let syncingUnmatchedEffects = false;
+function setUnmatchedEffectValues(source: "odds" | "exposures"): void {
+  if (syncingUnmatchedEffects) return;
+  syncingUnmatchedEffects = true;
+  try {
+    const control = unmatchedNumber("unmatched-control-exposure");
+    const oddsInput = requiredElement<HTMLInputElement>("#unmatched-odds-ratio");
+    const casesInput = requiredElement<HTMLInputElement>("#unmatched-case-exposure");
+    let odds = Number(oddsInput.value);
+    if (source === "exposures") odds = unmatchedOddsFromExposures(control, Number(casesInput.value));
+    const cases = unmatchedCaseExposureFromOdds(control, odds);
+    oddsInput.value = String(Math.round(odds * 100000) / 100000);
+    casesInput.value = String(Math.round(cases * 100000) / 100000);
+  } catch (error) {
+    unmatchedFeedback.textContent = error instanceof Error ? error.message : "Unable to link exposure measures.";
+  } finally {
+    syncingUnmatchedEffects = false;
+  }
+}
+
 function showStatCalcTool(name: string): void {
   currentStatCalcTool = name;
   for (const view of document.querySelectorAll<HTMLElement>("[data-statcalc-view]")) view.hidden = view.dataset.statcalcView !== name;
@@ -317,6 +381,16 @@ cohortForm.addEventListener("input", (event) => {
   else if (target.id === "cohort-odds-ratio" || target.id === "cohort-unexposed-outcome") setCohortEffectValues("odds");
   if (cohortForm.checkValidity()) runCohort();
 });
+unmatchedForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (unmatchedForm.reportValidity()) runUnmatched();
+});
+unmatchedForm.addEventListener("input", (event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.id === "unmatched-case-exposure") setUnmatchedEffectValues("exposures");
+  else if (target.id === "unmatched-odds-ratio" || target.id === "unmatched-control-exposure") setUnmatchedEffectValues("odds");
+  if (unmatchedForm.checkValidity()) runUnmatched();
+});
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -350,6 +424,7 @@ copyJsonButton.addEventListener("click", async () => {
 calculate();
 runPopulationSurvey();
 runCohort();
+runUnmatched();
 showStatCalcTool(currentStatCalcTool);
 
 const stratifiedForm = requiredElement<HTMLFormElement>("#stratified-form");

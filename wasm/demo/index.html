@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=31" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=35"></script>
+  <script type="module" src="app.js?v=36"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -386,7 +386,7 @@
         <nav class="statcalc-tool-chooser" data-module-view="statcalc" aria-label="StatCalc tools">
           <button class="secondary-button" type="button" data-statcalc-tool="population-survey" aria-pressed="false">Population Survey</button>
           <button class="secondary-button" type="button" data-statcalc-tool="cohort-cross-sectional" aria-pressed="false">Cohort or Cross-Sectional</button>
-          <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Unmatched Case-Control</button>
+          <button class="secondary-button" type="button" data-statcalc-tool="unmatched-case-control" aria-pressed="false">Unmatched Case-Control</button>
           <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Chi Square for Trend</button>
           <button class="secondary-button active" type="button" data-statcalc-tool="table2x2" aria-pressed="true">Tables (2 x 2 x N)</button>
           <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Poisson</button>
@@ -782,6 +782,37 @@
         </section>
         <footer class="audit-strip" data-module-view="statcalc" data-statcalc-view="cohort-cross-sectional" hidden>
           <span><strong>Operation</strong> epi.sampleSize.cohortCrossSectional</span><span><strong>Status</strong> V0.13 candidate · consolidated G5 review pending</span>
+        </footer>
+
+        <div class="workspace-heading" data-module-view="statcalc" data-statcalc-view="unmatched-case-control" hidden>
+          <div><p class="eyebrow">STATCALC · SAMPLE SIZE AND POWER</p><h1>Unmatched Case-Control</h1><p>Comparison of ill and not ill groups.</p></div>
+          <div class="engine-badge" title="Sample sizes are calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rust candidate · contract 0.14</span></div>
+        </div>
+        <section class="panel population-survey-panel" data-module-view="statcalc" data-statcalc-view="unmatched-case-control" hidden aria-labelledby="unmatched-title">
+          <div class="panel-heading"><div><p class="step-label">UNMATCHED CASE-CONTROL</p><h2 id="unmatched-title">Unmatched Case-Control Study</h2></div></div>
+          <p class="method-note">Changing odds ratio, control exposure, or case exposure keeps the exposure measures linked, as in desktop Epi Info.</p>
+          <div class="population-survey-layout">
+            <form id="unmatched-form" class="population-survey-inputs">
+              <label>Two-sided confidence level<select id="unmatched-confidence" required><option value="0.80">80%</option><option value="0.90">90%</option><option value="0.95">95%</option><option value="0.99">99%</option><option value="0.999" selected>99.9%</option><option value="0.9999">99.99%</option></select></label>
+              <label>Power (%)<input id="unmatched-power" type="number" min="0.000001" max="99.999999" step="any" value="80" required></label>
+              <label>Ratio of controls to cases<input id="unmatched-ratio" type="number" min="0.000001" step="any" value="1" required></label>
+              <label>Percent of controls exposed<input id="unmatched-control-exposure" type="number" min="0.000001" max="99.999999" step="any" value="40" required></label>
+              <label>Odds ratio<input id="unmatched-odds-ratio" type="number" min="0.000001" step="any" value="10" required></label>
+              <label>Percent of cases with exposure<input id="unmatched-case-exposure" type="number" min="0.000001" max="99.999999" step="any" value="86.95652" required></label>
+              <div class="form-actions"><button id="unmatched-calculate" class="primary-button" type="submit">Calculate</button></div>
+              <p id="unmatched-feedback" class="inline-feedback" role="status">Sample sizes update when valid inputs change.</p>
+            </form>
+            <div class="results-table-scroll">
+              <table class="results-table cohort-results">
+                <thead><tr><th scope="col">Group</th><th scope="col">Kelsey</th><th scope="col">Fleiss</th><th scope="col">Fleiss w/ CC</th></tr></thead>
+                <tbody id="unmatched-rows"></tbody>
+              </table>
+            </div>
+          </div>
+          <p id="unmatched-warnings" class="warnings" hidden></p>
+        </section>
+        <footer class="audit-strip" data-module-view="statcalc" data-statcalc-view="unmatched-case-control" hidden>
+          <span><strong>Operation</strong> epi.sampleSize.unmatchedCaseControl</span><span><strong>Status</strong> V0.14 candidate · consolidated G5 review pending</span>
         </footer>
       </main>
     </div>

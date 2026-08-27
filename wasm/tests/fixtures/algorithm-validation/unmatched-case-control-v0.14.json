@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "operation": "epi.sampleSize.unmatchedCaseControl",
+  "operationVersion": "0.14.0",
+  "status": "candidate",
+  "cases": [
+    {
+      "id": "legacy-source-example",
+      "input": { "confidenceLevel": 0.95, "powerPercent": 80, "controlsToCasesRatio": 1, "controlExposurePercent": 40, "oddsRatio": 10 },
+      "derived": { "caseExposurePercent": 86.9565217391304 },
+      "methods": [
+        { "method": "Kelsey", "cases": 17, "controls": 17, "total": 34 },
+        { "method": "Fleiss", "cases": 16, "controls": 16, "total": 32 },
+        { "method": "Fleiss with continuity correction", "cases": 20, "controls": 20, "total": 40 }
+      ]
+    },
+    {
+      "id": "unequal-groups",
+      "input": { "confidenceLevel": 0.95, "powerPercent": 80, "controlsToCasesRatio": 2, "controlExposurePercent": 20, "oddsRatio": 3 },
+      "derived": { "caseExposurePercent": 42.8571428571429 },
+      "methods": [
+        { "method": "Kelsey", "cases": 46, "controls": 91, "total": 137 },
+        { "method": "Fleiss", "cases": 47, "controls": 93, "total": 140 },
+        { "method": "Fleiss with continuity correction", "cases": 53, "controls": 106, "total": 159 }
+      ]
+    }
+  ],
+  "provenance": {
+    "legacySources": [
+      "wasm/source/Epi-Info-Community-Edition/StatCalc/StatCalcMenu.xaml",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/StatCalc/UnmatchedCaseControl.xaml",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/StatCalc/UnmatchedCaseControl.xaml.cs"
+    ],
+    "reviewNote": "The first case is the example embedded in CDC's legacy source. The operation deliberately shares the audited Kelsey/Fleiss mathematical core with Cohort while retaining distinct case/control semantics and traceability."
+  }
+}

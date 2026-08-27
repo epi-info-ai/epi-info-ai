@@ -19,6 +19,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-rate.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-population-survey.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-cohort-cross-sectional.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-unmatched-case-control.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -27,6 +28,7 @@ MEANS_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne
 RATE_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json"
 POPULATION_SURVEY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json"
 COHORT_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json"
+UNMATCHED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -56,6 +58,12 @@ def verify_notebook() -> None:
     source = "\n".join(cell.source for cell in frequency.cells)
     assert "foodborne-frequency-v0.9.json" in source
     assert "frequency_ci_lower" in source
+    assert "scipy.stats" in source
+
+    unmatched = nbformat.read(NOTEBOOKS[7], as_version=4)
+    source = "\n".join(cell.source for cell in unmatched.cells)
+    assert "unmatched-case-control-v0.14.json" in source
+    assert "unmatched_case_control_sample_size" in source
     assert "scipy.stats" in source
 
     cohort = nbformat.read(NOTEBOOKS[6], as_version=4)
@@ -190,6 +198,16 @@ def verify_cohort() -> None:
     assert fixture["cases"][1]["methods"][2]["total"] == 669
 
 
+def verify_unmatched() -> None:
+    fixture = json.loads(UNMATCHED_FIXTURE.read_text(encoding="utf-8"))
+    assert fixture["cases"][0]["methods"] == [
+        {"method": "Kelsey", "cases": 17, "controls": 17, "total": 34},
+        {"method": "Fleiss", "cases": 16, "controls": 16, "total": 32},
+        {"method": "Fleiss with continuity correction", "cases": 20, "controls": 20, "total": 40},
+    ]
+    assert fixture["cases"][1]["methods"][2]["total"] == 159
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
@@ -198,5 +216,6 @@ if __name__ == "__main__":
     verify_foodborne_rate()
     verify_population_survey()
     verify_cohort()
+    verify_unmatched()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

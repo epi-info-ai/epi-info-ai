@@ -617,6 +617,25 @@ test("StatCalc Cohort or Cross-Sectional preserves sample sizes and linked effec
   await expect(page.locator("#cohort-rows tr").nth(2)).toHaveText(/Total587615669/);
 });
 
+test("StatCalc Unmatched Case-Control preserves sample sizes and linked exposures", async ({ page }) => {
+  await page.getByRole("button", { name: "StatCalc", exact: true }).first().click();
+  await page.getByRole("button", { name: "Unmatched Case-Control", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Unmatched Case-Control", exact: true })).toBeVisible();
+  await expect(page.locator("#unmatched-confidence")).toHaveValue("0.999");
+  await page.locator("#unmatched-confidence").selectOption("0.95");
+  await expect(page.locator("#unmatched-rows tr")).toHaveCount(3);
+  await expect(page.locator("#unmatched-rows tr").nth(0)).toHaveText(/Cases171620/);
+  await expect(page.locator("#unmatched-rows tr").nth(1)).toHaveText(/Controls171620/);
+  await expect(page.locator("#unmatched-rows tr").nth(2)).toHaveText(/Total343240/);
+
+  await page.locator("#unmatched-control-exposure").fill("20");
+  await page.locator("#unmatched-ratio").fill("2");
+  await page.locator("#unmatched-odds-ratio").fill("3");
+  await page.locator("#unmatched-calculate").click();
+  await expect(page.locator("#unmatched-case-exposure")).toHaveValue("42.85714");
+  await expect(page.locator("#unmatched-rows tr").nth(2)).toHaveText(/Total137140159/);
+});
+
 test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ page }) => {
   await page.getByRole("button", { name: "Classic", exact: true }).click();
   const values = [
@@ -784,6 +803,17 @@ test("JupyterLite validation lab V0.9 is part of the Pages artifact", async ({ p
   expect(cohortFixtureResponse.ok()).toBe(true);
   const cohortFixture = await cohortFixtureResponse.json();
   expect(cohortFixture.cases[0].methods.map((method) => method.total)).toEqual([26, 24, 32]);
+
+  const unmatchedResponse = await request.get("/validation-lab/files/validate-unmatched-case-control.ipynb");
+  expect(unmatchedResponse.ok()).toBe(true);
+  const unmatchedNotebook = await unmatchedResponse.json();
+  expect(JSON.stringify(unmatchedNotebook)).toContain("unmatched-case-control-v0.14.json");
+  expect(JSON.stringify(unmatchedNotebook)).toContain("unmatched_case_control_sample_size");
+
+  const unmatchedFixtureResponse = await request.get("/validation-fixtures/unmatched-case-control-v0.14.json");
+  expect(unmatchedFixtureResponse.ok()).toBe(true);
+  const unmatchedFixture = await unmatchedFixtureResponse.json();
+  expect(unmatchedFixture.cases[0].methods.map((method) => method.total)).toEqual([34, 32, 40]);
 });
 
 test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadable", async ({ request }) => {

@@ -576,8 +576,13 @@ must never be translated into arbitrary JavaScript execution.
    power, group-ratio, and linked effect-measure workflow plus the three-method
    exposed/unexposed/total table. Rust/WASM reproduces the audited Kelsey, Fleiss,
    and continuity-correction sequence; source-derived fixtures and JupyterLite
-   provide initial independent evidence. Unmatched Case-Control is the next
-   planned StatCalc branch.
+   provide initial independent evidence. **Candidate V0.14 StatCalc Unmatched
+   Case-Control slice complete:** the third legacy StatCalc menu item preserves
+   its confidence, power, controls-to-cases ratio, and linked exposure workflow
+   plus the cases/controls/total Kelsey and Fleiss table. A distinct Rust/WASM
+   contract reuses the audited mathematical core while retaining independent
+   provenance, fixtures, browser coverage, and JupyterLite evidence. Chi Square
+   for Trend is the next planned StatCalc branch.
 5. Regression, survival, and other advanced analysis modules.
 
 ### Required work for every operation

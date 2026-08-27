@@ -237,6 +237,46 @@ pub extern "C" fn cohort_sample_size(
     libm::ceil(raw * if group == 0.0 { 1.0 } else { ratio })
 }
 
+/// Converts control exposure and an odds ratio to the case exposure proportion.
+#[unsafe(no_mangle)]
+pub extern "C" fn unmatched_case_control_case_exposure(
+    control_exposure: f64,
+    odds_ratio: f64,
+) -> f64 {
+    cohort_exposed_outcome(control_exposure, odds_ratio)
+}
+
+/// Converts case and control exposure proportions to an odds ratio.
+#[unsafe(no_mangle)]
+pub extern "C" fn unmatched_case_control_odds_from_exposures(
+    control_exposure: f64,
+    case_exposure: f64,
+) -> f64 {
+    cohort_odds_from_outcomes(control_exposure, case_exposure)
+}
+
+/// Reproduces the legacy Kelsey/Fleiss unmatched case-control sample sizes.
+#[unsafe(no_mangle)]
+pub extern "C" fn unmatched_case_control_sample_size(
+    method: f64,
+    group: f64,
+    confidence_level: f64,
+    power_percent: f64,
+    controls_to_cases_ratio: f64,
+    control_exposure: f64,
+    odds_ratio: f64,
+) -> f64 {
+    cohort_sample_size(
+        method,
+        group,
+        confidence_level,
+        power_percent,
+        controls_to_cases_ratio,
+        control_exposure,
+        odds_ratio,
+    )
+}
+
 const MAX_MEANS_VALUES: usize = 65_536;
 static mut MEANS_VALUES: [f64; MAX_MEANS_VALUES] = [0.0; MAX_MEANS_VALUES];
 static mut MEANS_LENGTH: usize = 0;
@@ -1900,6 +1940,78 @@ mod tests {
         assert_near(exposed, 0.558_139_534_883_721);
         assert_near(cohort_odds_from_outcomes(0.05, exposed), 24.0);
         assert_near(cohort_odds_from_risk(0.05, exposed / 0.05), 24.0);
+    }
+
+    #[test]
+    fn unmatched_case_control_matches_the_legacy_source_example() {
+        let expected = [(17.0, 17.0), (16.0, 16.0), (20.0, 20.0)];
+        for (method, (cases, controls)) in expected.iter().enumerate() {
+            assert_eq!(
+                unmatched_case_control_sample_size(
+                    method as f64,
+                    0.0,
+                    0.95,
+                    80.0,
+                    1.0,
+                    0.40,
+                    10.0,
+                ),
+                *cases
+            );
+            assert_eq!(
+                unmatched_case_control_sample_size(
+                    method as f64,
+                    1.0,
+                    0.95,
+                    80.0,
+                    1.0,
+                    0.40,
+                    10.0,
+                ),
+                *controls
+            );
+        }
+        assert_near(unmatched_case_control_case_exposure(0.40, 10.0), 0.869_565_217_391_304);
+    }
+
+    #[test]
+    fn unmatched_case_control_supports_unequal_groups_and_linked_exposures() {
+        let expected = [(46.0, 91.0), (47.0, 93.0), (53.0, 106.0)];
+        for (method, (cases, controls)) in expected.iter().enumerate() {
+            assert_eq!(
+                unmatched_case_control_sample_size(
+                    method as f64,
+                    0.0,
+                    0.95,
+                    80.0,
+                    2.0,
+                    0.20,
+                    3.0,
+                ),
+                *cases
+            );
+            assert_eq!(
+                unmatched_case_control_sample_size(
+                    method as f64,
+                    1.0,
+                    0.95,
+                    80.0,
+                    2.0,
+                    0.20,
+                    3.0,
+                ),
+                *controls
+            );
+        }
+        let case_exposure = unmatched_case_control_case_exposure(0.20, 3.0);
+        assert_near(
+            unmatched_case_control_odds_from_exposures(0.20, case_exposure),
+            3.0,
+        );
+        assert!(
+            unmatched_case_control_sample_size(0.0, 0.0, 0.95, 80.0, 1.0, 0.40, 1.0)
+                .is_nan()
+        );
     }
 
     #[test]
