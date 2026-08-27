@@ -336,8 +336,8 @@ fn trend_statistics(count: u32) -> Option<(f64, f64, f64, f64)> {
     if cases_total <= 0.0 || controls_total <= 0.0 || total <= 1.0 {
         return None;
     }
-    let variance = cases_total * controls_total * (total * t3 - t2 * t2)
-        / (total * total * (total - 1.0));
+    let variance =
+        cases_total * controls_total * (total * t3 - t2 * t2) / (total * total * (total - 1.0));
     if !variance.is_finite() || variance <= 0.0 {
         return None;
     }
