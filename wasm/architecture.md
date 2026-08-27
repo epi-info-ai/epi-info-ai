@@ -335,6 +335,7 @@ Source: `engine-rust/src/lib.rs`
 | Frequency proportion and legacy exact/Wilson category limits | `frequency_proportion`, `frequency_ci_*` | Rust/WASM V0.9 candidate |
 | Single-variable descriptive statistics and legacy rank quartiles/mode | `means_*` | Rust/WASM V0.10 bounded candidate |
 | Visual Dashboard rate from validated numerator/denominator aggregates and multiplier | `rate_calculate` | Rust/WASM V0.11 bounded candidate |
+| Population Survey cluster size with legacy normal approximation and correction/rounding sequence | `population_survey_cluster_size` | Rust/WASM V0.12 bounded candidate |
 
 The compiled browser artifact is `demo/epi2x2.wasm`. It is deliberately small
 and has no runtime dependencies or operating-system access.

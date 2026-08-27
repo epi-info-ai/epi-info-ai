@@ -577,6 +577,26 @@ test("Visual Dashboard Rates derives the foodborne Confirmed rate", async ({ pag
   await expect(page.locator("#rates-value")).toHaveText("22.9167");
 });
 
+test("StatCalc Population Survey preserves the legacy default table and clustered design", async ({ page }) => {
+  await page.getByRole("button", { name: "StatCalc", exact: true }).first().click();
+  await page.getByRole("button", { name: "Population Survey", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Population Survey" })).toBeVisible();
+  await expect(page.locator("#population-size")).toHaveValue("999999");
+  await expect(page.locator("#population-expected-frequency")).toHaveValue("50");
+  await expect(page.locator("#population-margin-error")).toHaveValue("5");
+  await expect(page.locator("#population-design-effect")).toHaveValue("1.0");
+  await expect(page.locator("#population-clusters")).toHaveValue("1");
+  await expect(page.locator("#population-survey-rows tr")).toHaveCount(7);
+  await expect(page.locator("#population-survey-rows tr").nth(2)).toHaveText(/95%384384/);
+  await expect(page.locator("#population-survey-rows tr").nth(6)).toHaveText(/99\.99%15121512/);
+
+  await page.locator("#population-size").fill("10000");
+  await page.locator("#population-design-effect").fill("2");
+  await page.locator("#population-clusters").fill("10");
+  await page.locator("#population-survey-calculate").click();
+  await expect(page.locator("#population-survey-rows tr").nth(2)).toHaveText(/95%74740/);
+});
+
 test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ page }) => {
   await page.getByRole("button", { name: "Classic", exact: true }).click();
   const values = [
@@ -722,6 +742,17 @@ test("JupyterLite validation lab V0.9 is part of the Pages artifact", async ({ p
   expect(rateFixtureResponse.ok()).toBe(true);
   const rateFixture = await rateFixtureResponse.json();
   expect(rateFixture.expected).toMatchObject({ numerator: 22, denominator: 96, falseCount: 74 });
+
+  const populationResponse = await request.get("/validation-lab/files/validate-population-survey.ipynb");
+  expect(populationResponse.ok()).toBe(true);
+  const populationNotebook = await populationResponse.json();
+  expect(JSON.stringify(populationNotebook)).toContain("population-survey-v0.12.json");
+  expect(JSON.stringify(populationNotebook)).toContain("population_survey_cluster_size");
+
+  const populationFixtureResponse = await request.get("/validation-fixtures/population-survey-v0.12.json");
+  expect(populationFixtureResponse.ok()).toBe(true);
+  const populationFixture = await populationFixtureResponse.json();
+  expect(populationFixture.cases[0].expected.map((row) => row.clusterSize)).toEqual([164, 270, 384, 471, 663, 1082, 1512]);
 });
 
 test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadable", async ({ request }) => {

@@ -2720,6 +2720,47 @@ body.map-fullscreen-fallback {
   font-size: 0.88rem;
 }
 
+.statcalc-tool-chooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.statcalc-tool-chooser .active {
+  color: white;
+  background: var(--epi-blue-dark);
+}
+
+.population-survey-layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.population-survey-inputs {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.population-survey-inputs label {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(100px, 0.7fr);
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+}
+
+.population-survey-results td:not(:first-child),
+.population-survey-results th:not(:first-child) {
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .population-survey-layout { grid-template-columns: 1fr; }
+}
+
 @media (min-width: 641px) {
   .classic-variable-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

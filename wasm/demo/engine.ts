@@ -10,6 +10,8 @@ import type {
   FrequencyResult,
   MeansResult,
   RateResult,
+  PopulationSurveyInput,
+  PopulationSurveyResult,
   MidPExactResult,
   StratifiedTable2x2Input,
   StratifiedTable2x2Result,
@@ -88,6 +90,7 @@ interface EpiWasmExports {
   means_maximum: WasmNumericFunction;
   means_mode: WasmNumericFunction;
   rate_calculate: WasmNumericFunction;
+  population_survey_cluster_size: WasmNumericFunction;
 }
 
 function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
@@ -152,6 +155,7 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
     "means_maximum",
     "means_mode",
     "rate_calculate",
+    "population_survey_cluster_size",
     "chi_square_p_value_df",
   ] as const;
   const validated = {} as EpiWasmExports;
@@ -709,6 +713,51 @@ export function deriveRate(records: readonly EpiRecord[], request: DatasetRateRe
     totals: { sourceRecords: records.length, excludedDenominatorMissing: records.length - denominator },
     diagnostics: {
       warnings: numerator === 0 ? ["No denominator-eligible records matched the selected numerator value."] : [],
+    },
+  };
+}
+
+const POPULATION_SURVEY_LEVELS = [0.80, 0.90, 0.95, 0.97, 0.99, 0.999, 0.9999] as const;
+
+export function calculatePopulationSurvey(input: PopulationSurveyInput): PopulationSurveyResult {
+  if (!Number.isSafeInteger(input.populationSize) || input.populationSize <= 0) {
+    throw new RangeError("Population size must be a positive whole number.");
+  }
+  if (!(input.expectedFrequencyPercent > 0 && input.expectedFrequencyPercent < 100)) {
+    throw new RangeError("Expected frequency must be greater than 0% and less than 100%.");
+  }
+  if (!(input.marginOfErrorPercent > 0)) throw new RangeError("Acceptable margin of error must be greater than 0%.");
+  if (!(input.designEffect > 0)) throw new RangeError("Design effect must be greater than zero.");
+  if (!Number.isSafeInteger(input.clusters) || input.clusters < 1) {
+    throw new RangeError("Clusters must be a positive whole number.");
+  }
+  const rows = POPULATION_SURVEY_LEVELS.map((confidenceLevel) => {
+    const clusterSize = WASM.population_survey_cluster_size(
+      input.populationSize,
+      input.expectedFrequencyPercent,
+      input.marginOfErrorPercent,
+      input.designEffect,
+      input.clusters,
+      confidenceLevel,
+    );
+    if (!Number.isSafeInteger(clusterSize) || clusterSize < 0) {
+      throw new RangeError("The Population Survey kernel rejected these inputs.");
+    }
+    return { confidenceLevel, clusterSize, totalSample: clusterSize * input.clusters };
+  });
+  return {
+    schemaVersion: "0.12.0",
+    operation: "epi.sampleSize.populationSurvey",
+    engine: { id: "epi-core-wasm", version: "0.12.0", operation: "epi.sampleSize.populationSurvey" },
+    input,
+    methods: {
+      normalQuantile: "legacy-epi-info-tail-approximation",
+      finitePopulationCorrection: "n-over-one-plus-n-over-population",
+      rounding: "base-to-even-then-design-effect-per-cluster-ceiling",
+    },
+    rows,
+    diagnostics: {
+      warnings: input.designEffect === 1 && input.clusters === 1 ? [] : ["Cluster size is rounded up after applying design effect and dividing by the number of clusters."],
     },
   };
 }

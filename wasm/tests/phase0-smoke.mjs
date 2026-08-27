@@ -67,6 +67,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/frequency-method-contract.md",
     "wasm/docs/validation/means-method-contract.md",
     "wasm/docs/validation/rate-method-contract.md",
+    "wasm/docs/validation/population-survey-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
     "wasm/docs/design/means-compatibility-inventory.md",
     "wasm/docs/design/rates-compatibility-inventory.md",
@@ -76,6 +77,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/content/validate-frequency.ipynb",
     "wasm/validation-lab/content/validate-means.ipynb",
     "wasm/validation-lab/content/validate-rate.ipynb",
+    "wasm/validation-lab/content/validate-population-survey.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -90,6 +92,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json",
     "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json",
     "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json",
+    "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -171,6 +174,14 @@ async function checkRequiredAssetsAndUi() {
     "rates-run",
     "rates-output",
     "rates-value",
+    "population-survey-form",
+    "population-size",
+    "population-expected-frequency",
+    "population-margin-error",
+    "population-design-effect",
+    "population-clusters",
+    "population-survey-calculate",
+    "population-survey-rows",
     "strata-rows",
     "add-stratum",
     "calculate-stratified",
@@ -194,7 +205,7 @@ async function checkRequiredAssetsAndUi() {
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
-  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-rate\.ipynb/);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-population-survey\.ipynb/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])
@@ -632,6 +643,25 @@ async function checkRateContract() {
     numeratorField: "status", numeratorPrompt: "Status", numeratorValue: "yes",
     denominatorField: "id", denominatorPrompt: "ID", multiplier: 100,
   }), /No records/);
+}
+
+async function checkPopulationSurveyContract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json",
+  ), "utf8"));
+  const { calculatePopulationSurvey } = await importEngineWithFileFetch();
+  const defaultCase = fixture.cases[0];
+  const result = calculatePopulationSurvey(defaultCase.input);
+  assert.equal(result.schemaVersion, "0.12.0");
+  assert.equal(result.operation, fixture.operation);
+  assert.deepEqual(result.rows, defaultCase.expected);
+  const clustered = fixture.cases[1];
+  const clusteredResult = calculatePopulationSurvey(clustered.input);
+  assert.deepEqual(clusteredResult.rows.find((row) => row.confidenceLevel === 0.95), clustered.expected95);
+  assert.match(clusteredResult.diagnostics.warnings[0], /rounded up/);
+  assert.throws(() => calculatePopulationSurvey({ ...defaultCase.input, populationSize: 0 }), /Population size/);
+  assert.throws(() => calculatePopulationSurvey({ ...defaultCase.input, expectedFrequencyPercent: 100 }), /Expected frequency/);
+  assert.throws(() => calculatePopulationSurvey({ ...defaultCase.input, clusters: 1.5 }), /whole number/);
 }
 
 async function checkFoodborneValidationFixture() {
@@ -1112,6 +1142,7 @@ async function run() {
     ["foodborne Classic FREQ contract", checkFrequencyContract],
     ["foodborne Classic MEANS contract", checkMeansContract],
     ["foodborne Visual Dashboard Rates contract", checkRateContract],
+    ["StatCalc Population Survey contract", checkPopulationSurveyContract],
     ["foodborne 2 x 2 validation fixture", checkFoodborneValidationFixture],
     ["legacy 100-case exact 2 x 2 corpus", checkLegacyTwoByTwoCorpus],
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],

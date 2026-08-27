@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "operation": "epi.sampleSize.populationSurvey",
+  "operationVersion": "0.12.0",
+  "status": "candidate",
+  "cases": [
+    {
+      "id": "legacy-defaults",
+      "input": { "populationSize": 999999, "expectedFrequencyPercent": 50, "marginOfErrorPercent": 5, "designEffect": 1, "clusters": 1 },
+      "expected": [
+        { "confidenceLevel": 0.80, "clusterSize": 164, "totalSample": 164 },
+        { "confidenceLevel": 0.90, "clusterSize": 270, "totalSample": 270 },
+        { "confidenceLevel": 0.95, "clusterSize": 384, "totalSample": 384 },
+        { "confidenceLevel": 0.97, "clusterSize": 471, "totalSample": 471 },
+        { "confidenceLevel": 0.99, "clusterSize": 663, "totalSample": 663 },
+        { "confidenceLevel": 0.999, "clusterSize": 1082, "totalSample": 1082 },
+        { "confidenceLevel": 0.9999, "clusterSize": 1512, "totalSample": 1512 }
+      ]
+    },
+    {
+      "id": "clustered-design",
+      "input": { "populationSize": 10000, "expectedFrequencyPercent": 50, "marginOfErrorPercent": 5, "designEffect": 2, "clusters": 10 },
+      "expected95": { "confidenceLevel": 0.95, "clusterSize": 74, "totalSample": 740 }
+    }
+  ],
+  "provenance": {
+    "legacySources": [
+      "wasm/source/Epi-Info-Community-Edition/StatCalc/StatCalcMenu.xaml",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/StatCalc/PopulationSurvey.xaml",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/StatCalc/PopulationSurvey.xaml.cs"
+    ],
+    "reviewNote": "The default table is frozen directly from the legacy XAML and reproduced by its audited CalculateSampleSizes, ANorm, and Norm sequence. Broader reviewed legacy-output comparison remains open."
+  }
+}

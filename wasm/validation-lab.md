@@ -416,9 +416,20 @@ discrepancy to its detailed evidence record.
 - Full aggregate/condition/grouping behavior, broader boundary corpora, legacy
   output comparison, and formal approval remain open. G5 stays consolidated.
 
+### V0.12 — StatCalc Population Survey lab
+
+- `validate-population-survey.ipynb` independently translates the audited C#
+  `Norm`, `ANorm`, finite-population correction, and rounding sequence.
+- It checks all seven frozen legacy defaults, a clustered-design case, and an
+  invalid-input boundary against the deployed Rust/WASM export.
+- A SciPy normal-quantile table is shown as an independent modern comparator;
+  the candidate contract deliberately preserves the legacy algorithm.
+- Broader legacy corpora, boundary/property evidence, export/print behavior, and
+  formal approval remain open. G5 stays consolidated.
+
 ### Later releases
 
-- Extend the corpus to additional rate branches, sample size, regression, dates/times,
+- Extend the corpus to additional rate and sample-size branches, regression, dates/times,
   epidemic curves, and programming-workflow fixtures as the corresponding kernel
   operations mature.
 - Add seeded differential/property testing and a permanent discrepancy corpus.

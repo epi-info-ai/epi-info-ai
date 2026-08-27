@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=29" />
+    <link rel="stylesheet" href="styles.css?v=30" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=33"></script>
+  <script type="module" src="app.js?v=34"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -383,7 +383,18 @@
           </div>
         </section>
 
-        <div class="workspace-heading" data-module-view="statcalc">
+        <nav class="statcalc-tool-chooser" data-module-view="statcalc" aria-label="StatCalc tools">
+          <button class="secondary-button" type="button" data-statcalc-tool="population-survey" aria-pressed="false">Population Survey</button>
+          <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Cohort or Cross-Sectional</button>
+          <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Unmatched Case-Control</button>
+          <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Chi Square for Trend</button>
+          <button class="secondary-button active" type="button" data-statcalc-tool="table2x2" aria-pressed="true">Tables (2 x 2 x N)</button>
+          <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Poisson</button>
+          <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Population Binomial</button>
+          <button class="secondary-button" type="button" disabled title="Compatibility-floor branch not yet implemented">Matched Pair Case-Control Study</button>
+        </nav>
+
+        <div class="workspace-heading" data-module-view="statcalc" data-statcalc-view="table2x2">
           <div>
             <p class="eyebrow">STATCALC</p>
             <h1>Two-by-Two Table</h1>
@@ -395,7 +406,7 @@
           </div>
         </div>
 
-        <div class="workspace-grid" data-module-view="statcalc">
+        <div class="workspace-grid" data-module-view="statcalc" data-statcalc-view="table2x2">
           <section class="panel input-panel" aria-labelledby="input-title">
             <div class="panel-heading">
               <div>
@@ -705,10 +716,40 @@
           <span><strong>Status</strong> Candidates · consolidated G5 review pending</span>
         </footer>
 
-        <footer class="audit-strip" data-module-view="statcalc">
+        <footer class="audit-strip" data-module-view="statcalc" data-statcalc-view="table2x2">
           <span><strong>Operation</strong> epi.table2x2</span>
           <span><strong>Data</strong> stays in this browser</span>
           <button id="copy-json" class="text-button" type="button">Copy result JSON</button>
+        </footer>
+
+        <div class="workspace-heading" data-module-view="statcalc" data-statcalc-view="population-survey" hidden>
+          <div><p class="eyebrow">STATCALC · SAMPLE SIZE AND POWER</p><h1>Population Survey</h1><p>Population survey or descriptive study.</p></div>
+          <div class="engine-badge" title="Sample sizes are calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rust candidate · contract 0.12</span></div>
+        </div>
+        <section class="panel population-survey-panel" data-module-view="statcalc" data-statcalc-view="population-survey" hidden aria-labelledby="population-survey-title">
+          <div class="panel-heading"><div><p class="step-label">POPULATION SURVEY</p><h2 id="population-survey-title">Sample Size and Power</h2></div></div>
+          <p class="method-note">For simple random sampling, leave design effect and clusters equal to 1.</p>
+          <div class="population-survey-layout">
+            <form id="population-survey-form" class="population-survey-inputs">
+              <label>Population size<input id="population-size" type="number" min="1" step="1" value="999999" required></label>
+              <label>Expected frequency (%)<input id="population-expected-frequency" type="number" min="0.000001" max="99.999999" step="any" value="50" required></label>
+              <label>Acceptable Margin of Error (%)<input id="population-margin-error" type="number" min="0.000001" step="any" value="5" required></label>
+              <label>Design effect<input id="population-design-effect" type="number" min="0.000001" step="any" value="1.0" required></label>
+              <label>Clusters<input id="population-clusters" type="number" min="1" step="1" value="1" required></label>
+              <div class="form-actions"><button id="population-survey-calculate" class="primary-button" type="submit">Calculate</button></div>
+              <p id="population-survey-feedback" class="inline-feedback" role="status">Sample sizes update when valid inputs change.</p>
+            </form>
+            <div class="results-table-scroll">
+              <table class="results-table population-survey-results">
+                <thead><tr><th scope="col">Confidence Level</th><th scope="col">Cluster Size</th><th scope="col">Total Sample</th></tr></thead>
+                <tbody id="population-survey-rows"></tbody>
+              </table>
+            </div>
+          </div>
+          <p id="population-survey-warnings" class="warnings" hidden></p>
+        </section>
+        <footer class="audit-strip" data-module-view="statcalc" data-statcalc-view="population-survey" hidden>
+          <span><strong>Operation</strong> epi.sampleSize.populationSurvey</span><span><strong>Status</strong> V0.12 candidate · consolidated G5 review pending</span>
         </footer>
       </main>
     </div>

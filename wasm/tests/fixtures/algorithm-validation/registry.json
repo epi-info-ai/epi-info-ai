@@ -172,6 +172,38 @@
         "Complete aggregate functions, condition builders, distinct counts, grouping, sorting, filters, display, export, and saved-dashboard compatibility.",
         "Complete the consolidated statistical and implementation review across all candidate outputs."
       ]
+    },
+    {
+      "operation": "epi.sampleSize.populationSurvey",
+      "resultSchemaVersion": "0.12.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "epi-core-wasm",
+        "engineVersion": "0.12.0",
+        "source": "wasm/engine-rust/src/lib.rs"
+      },
+      "gates": {
+        "G0": "passed",
+        "G1": "partial",
+        "G2": "partial",
+        "G3": "passed",
+        "G4": "partial",
+        "G5": "not-started",
+        "G6": "partial"
+      },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json",
+        "wasm/docs/design/statcalc-compatibility-inventory.md",
+        "wasm/docs/validation/population-survey-method-contract.md",
+        "wasm/validation-lab/content/validate-population-survey.ipynb"
+      ],
+      "knownGaps": [
+        "Compare against a broader reviewed legacy Epi Info Population Survey output corpus.",
+        "Expand boundary, property, high-design-effect, high-cluster-count, and localization evidence.",
+        "Complete Save as Image, Print, keyboard behavior, and translated-label compatibility.",
+        "Complete the consolidated statistical and implementation review across all candidate outputs."
+      ]
     }
   ]
 }

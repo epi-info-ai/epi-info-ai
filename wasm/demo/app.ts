@@ -1,4 +1,4 @@
-import { calculateTable2x2, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2 } from "./engine.js";
+import { calculatePopulationSurvey, calculateTable2x2, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2 } from "./engine.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -12,7 +12,7 @@ import {
 import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
-import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, FrequencyResult, MeansResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
+import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -25,6 +25,9 @@ const message = requiredElement<HTMLElement>("#form-message");
 const warningBox = requiredElement<HTMLElement>("#warnings");
 const warningList = requiredElement<HTMLUListElement>("#warning-list");
 let lastResult: Table2x2Result | null = null;
+const populationSurveyForm = requiredElement<HTMLFormElement>("#population-survey-form");
+const populationSurveyFeedback = requiredElement<HTMLElement>("#population-survey-feedback");
+let currentStatCalcTool = "table2x2";
 
 const cells: Record<Exclude<keyof Table2x2Input, "confidenceLevel">, HTMLInputElement> = {
   exposedCases: requiredElement<HTMLInputElement>("#exposed-cases"),
@@ -178,6 +181,65 @@ function calculate(): void {
   }
 }
 
+function parsePopulationSurveyInput(): PopulationSurveyInput {
+  return {
+    populationSize: Number(requiredElement<HTMLInputElement>("#population-size").value),
+    expectedFrequencyPercent: Number(requiredElement<HTMLInputElement>("#population-expected-frequency").value),
+    marginOfErrorPercent: Number(requiredElement<HTMLInputElement>("#population-margin-error").value),
+    designEffect: Number(requiredElement<HTMLInputElement>("#population-design-effect").value),
+    clusters: Number(requiredElement<HTMLInputElement>("#population-clusters").value),
+  };
+}
+
+function renderPopulationSurvey(result: PopulationSurveyResult): void {
+  const rows = result.rows.map((row) => {
+    const tableRow = document.createElement("tr");
+    for (const value of [`${row.confidenceLevel * 100}%`, String(row.clusterSize), String(row.totalSample)]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      tableRow.append(cell);
+    }
+    return tableRow;
+  });
+  requiredElement("#population-survey-rows").replaceChildren(...rows);
+  populationSurveyFeedback.textContent = `Calculated ${rows.length} confidence levels locally.`;
+  const warnings = requiredElement<HTMLElement>("#population-survey-warnings");
+  warnings.textContent = result.diagnostics.warnings.join(" ");
+  warnings.hidden = result.diagnostics.warnings.length === 0;
+}
+
+function runPopulationSurvey(): void {
+  try {
+    renderPopulationSurvey(calculatePopulationSurvey(parsePopulationSurveyInput()));
+  } catch (error) {
+    populationSurveyFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate Population Survey sample sizes.";
+  }
+}
+
+function showStatCalcTool(name: string): void {
+  currentStatCalcTool = name;
+  for (const view of document.querySelectorAll<HTMLElement>("[data-statcalc-view]")) view.hidden = view.dataset.statcalcView !== name;
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-statcalc-tool]")) {
+    const active = button.dataset.statcalcTool === name;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
+}
+
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-statcalc-tool]")) {
+  button.addEventListener("click", () => showStatCalcTool(button.dataset.statcalcTool ?? "table2x2"));
+}
+for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="statcalc"], [data-module="statcalc"]')) {
+  button.addEventListener("click", () => showStatCalcTool(currentStatCalcTool));
+}
+populationSurveyForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (populationSurveyForm.reportValidity()) runPopulationSurvey();
+});
+populationSurveyForm.addEventListener("input", () => {
+  if (populationSurveyForm.checkValidity()) runPopulationSurvey();
+});
+
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   if (form.reportValidity()) calculate();
@@ -208,6 +270,8 @@ copyJsonButton.addEventListener("click", async () => {
 });
 
 calculate();
+runPopulationSurvey();
+showStatCalcTool(currentStatCalcTool);
 
 const stratifiedForm = requiredElement<HTMLFormElement>("#stratified-form");
 const strataRows = requiredElement<HTMLTableSectionElement>("#strata-rows");

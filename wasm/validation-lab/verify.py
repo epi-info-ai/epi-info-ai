@@ -17,12 +17,14 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-frequency.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-means.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-rate.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-population-survey.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
 FREQUENCY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json"
 MEANS_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json"
 RATE_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json"
+POPULATION_SURVEY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -65,6 +67,12 @@ def verify_notebook() -> None:
     assert "foodborne-rate-v0.11.json" in source
     assert "rate_calculate" in source
     assert "wasm_response.buffer()" in source
+
+    population_survey = nbformat.read(NOTEBOOKS[5], as_version=4)
+    source = "\n".join(cell.source for cell in population_survey.cells)
+    assert "population-survey-v0.12.json" in source
+    assert "population_survey_cluster_size" in source
+    assert "scipy.stats" in source
 
 
 def verify_stratified_operational_fixture() -> None:
@@ -155,11 +163,21 @@ def verify_foodborne_rate() -> None:
     assert len(eligible) == fixture["expected"]["denominator"]
 
 
+def verify_population_survey() -> None:
+    fixture = json.loads(POPULATION_SURVEY_FIXTURE.read_text(encoding="utf-8"))
+    default = fixture["cases"][0]
+    assert [row["confidenceLevel"] for row in default["expected"]] == [0.80, 0.90, 0.95, 0.97, 0.99, 0.999, 0.9999]
+    assert [row["clusterSize"] for row in default["expected"]] == [164, 270, 384, 471, 663, 1082, 1512]
+    clustered = fixture["cases"][1]
+    assert clustered["expected95"]["clusterSize"] * clustered["input"]["clusters"] == clustered["expected95"]["totalSample"]
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
     verify_foodborne_frequency()
     verify_foodborne_means()
     verify_foodborne_rate()
+    verify_population_survey()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

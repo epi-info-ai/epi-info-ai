@@ -38,6 +38,87 @@ pub extern "C" fn rate_calculate(numerator: f64, denominator: f64, multiplier: f
     }
 }
 
+fn population_survey_norm_tail(z: f64) -> f64 {
+    let z = libm::sqrt(z * z);
+    let mut p = 1.0
+        + z * (0.049_867_35
+            + z * (0.021_141_01
+                + z * (0.003_277_63
+                    + z * (0.000_038_003_6 + z * (0.000_048_890_6 + z * 0.000_005_383)))));
+    p *= p;
+    p *= p;
+    p *= p;
+    1.0 / (p * p)
+}
+
+fn population_survey_anorm(probability: f64) -> f64 {
+    let mut value = 0.5;
+    let mut delta = 0.5;
+    let mut z = 0.0;
+    while delta > 0.000_001 {
+        z = 1.0 / value - 1.0;
+        delta /= 2.0;
+        if population_survey_norm_tail(z) > probability {
+            value -= delta;
+        } else {
+            value += delta;
+        }
+    }
+    z
+}
+
+fn round_to_even_nonnegative(value: f64) -> f64 {
+    let lower = libm::floor(value);
+    let fraction = value - lower;
+    if fraction < 0.5 {
+        lower
+    } else if fraction > 0.5 {
+        lower + 1.0
+    } else if lower % 2.0 == 0.0 {
+        lower
+    } else {
+        lower + 1.0
+    }
+}
+
+/// Reproduces the audited Epi Info Population Survey cluster-size sequence.
+#[unsafe(no_mangle)]
+pub extern "C" fn population_survey_cluster_size(
+    population: f64,
+    expected_frequency: f64,
+    margin_of_error: f64,
+    design_effect: f64,
+    clusters: f64,
+    confidence_level: f64,
+) -> f64 {
+    if !population.is_finite()
+        || !expected_frequency.is_finite()
+        || !margin_of_error.is_finite()
+        || !design_effect.is_finite()
+        || !clusters.is_finite()
+        || !confidence_level.is_finite()
+        || population <= 0.0
+        || population != libm::floor(population)
+        || expected_frequency <= 0.0
+        || expected_frequency >= 100.0
+        || margin_of_error <= 0.0
+        || design_effect <= 0.0
+        || clusters < 1.0
+        || clusters != libm::floor(clusters)
+        || confidence_level <= 0.0
+        || confidence_level >= 1.0
+    {
+        return f64::NAN;
+    }
+    let factor = expected_frequency * (100.0 - expected_frequency)
+        / (margin_of_error * margin_of_error);
+    let z = population_survey_anorm(1.0 - confidence_level);
+    let uncorrected = z * z * factor;
+    let corrected = uncorrected / (1.0 + uncorrected / population);
+    let rounded = round_to_even_nonnegative(corrected);
+    libm::ceil(design_effect * rounded / clusters)
+}
+
 const MAX_MEANS_VALUES: usize = 65_536;
 static mut MEANS_VALUES: [f64; MAX_MEANS_VALUES] = [0.0; MAX_MEANS_VALUES];
 static mut MEANS_LENGTH: usize = 0;
@@ -1639,6 +1720,35 @@ mod tests {
         assert!(rate_calculate(11.0, 10.0, 100.0).is_nan());
         assert!(rate_calculate(-1.0, 10.0, 100.0).is_nan());
         assert!(rate_calculate(1.0, 10.0, 0.0).is_nan());
+    }
+
+    #[test]
+    fn population_survey_defaults_match_the_legacy_table() {
+        let levels = [0.80, 0.90, 0.95, 0.97, 0.99, 0.999, 0.9999];
+        let expected = [164.0, 270.0, 384.0, 471.0, 663.0, 1082.0, 1512.0];
+        for (level, sample) in levels.iter().zip(expected) {
+            assert_eq!(
+                population_survey_cluster_size(999_999.0, 50.0, 5.0, 1.0, 1.0, *level),
+                sample
+            );
+        }
+    }
+
+    #[test]
+    fn population_survey_applies_design_and_cluster_sequence() {
+        assert_eq!(
+            population_survey_cluster_size(10_000.0, 50.0, 5.0, 2.0, 10.0, 0.95),
+            74.0
+        );
+        assert!(
+            population_survey_cluster_size(0.0, 50.0, 5.0, 1.0, 1.0, 0.95).is_nan()
+        );
+        assert!(
+            population_survey_cluster_size(1000.0, 50.0, 0.0, 1.0, 1.0, 0.95).is_nan()
+        );
+        assert!(
+            population_survey_cluster_size(1000.0, 100.0, 5.0, 1.0, 1.0, 0.95).is_nan()
+        );
     }
 
     #[test]

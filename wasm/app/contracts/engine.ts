@@ -271,3 +271,31 @@ export interface RateResult {
   totals: { sourceRecords: number; excludedDenominatorMissing: number };
   diagnostics: { warnings: string[] };
 }
+
+export interface PopulationSurveyInput {
+  populationSize: number;
+  expectedFrequencyPercent: number;
+  marginOfErrorPercent: number;
+  designEffect: number;
+  clusters: number;
+}
+
+export interface PopulationSurveyRow {
+  confidenceLevel: 0.80 | 0.90 | 0.95 | 0.97 | 0.99 | 0.999 | 0.9999;
+  clusterSize: number;
+  totalSample: number;
+}
+
+export interface PopulationSurveyResult {
+  schemaVersion: "0.12.0";
+  operation: "epi.sampleSize.populationSurvey";
+  engine: { id: "epi-core-wasm"; version: "0.12.0"; operation: "epi.sampleSize.populationSurvey" };
+  input: PopulationSurveyInput;
+  methods: {
+    normalQuantile: "legacy-epi-info-tail-approximation";
+    finitePopulationCorrection: "n-over-one-plus-n-over-population";
+    rounding: "base-to-even-then-design-effect-per-cluster-ceiling";
+  };
+  rows: PopulationSurveyRow[];
+  diagnostics: { warnings: string[] };
+}

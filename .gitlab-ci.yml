@@ -89,6 +89,7 @@ validation-lab-build:
     - test -f wasm/dist/validation-lab/files/validate-frequency.ipynb
     - test -f wasm/dist/validation-lab/files/validate-means.ipynb
     - test -f wasm/dist/validation-lab/files/validate-rate.ipynb
+    - test -f wasm/dist/validation-lab/files/validate-population-survey.ipynb
   artifacts:
     paths:
       - wasm/dist

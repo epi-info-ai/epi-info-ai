@@ -53,12 +53,13 @@ const requiredFiles = [
   "validation-fixtures/foodborne-frequency-v0.9.json",
   "validation-fixtures/foodborne-means-v0.10.json",
   "validation-fixtures/foodborne-rate-v0.11.json",
+  "validation-fixtures/population-survey-v0.12.json",
   "build-manifest.json",
 ];
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=33["']/);
+assert.match(html, /src=["']app\.js\?v=34["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);
 assert.match(html, /id=["']file-exit["']/);
@@ -77,6 +78,7 @@ assert.match(app, /\.\/stratified-worker-client\.js/);
 assert.match(app, /deriveFrequency/);
 assert.match(app, /deriveMeans/);
 assert.match(app, /deriveRate/);
+assert.match(app, /calculatePopulationSurvey/);
 const maps = await requireFile("maps.js");
 assert.match(maps, /MAP_PANE_Z_INDEX/);
 assert.match(maps, /aggregateH3Cells/);

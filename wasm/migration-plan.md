@@ -564,8 +564,14 @@ must never be translated into arbitrary JavaScript execution.
    calculation, while the foodborne 22/96 fixture and notebook provide initial
    independent evidence. Other aggregates, condition builders, distinct counts,
    grouping, sorting, filters, display/export, saved dashboards, broader corpora,
-   and G5 review remain open. A legacy StatCalc sample-size workflow is the next
-   planned item-4 kernel slice.
+   and G5 review remain open. **Candidate V0.12 StatCalc Population Survey slice
+   complete:** the first legacy StatCalc menu item now preserves the five inputs,
+   defaults, simple-random-sampling guidance, seven confidence levels, cluster
+   sizes, and total samples. Rust/WASM reproduces the audited normal-tail
+   approximation, finite-population correction, and legacy rounding sequence;
+   an immutable fixture and JupyterLite notebook provide initial independent
+   evidence. Save/Print, broader corpora, the other StatCalc calculators, and G5
+   remain open. Cohort or Cross-Sectional is the next planned StatCalc branch.
 5. Regression, survival, and other advanced analysis modules.
 
 ### Required work for every operation
