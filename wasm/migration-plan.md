@@ -49,6 +49,13 @@ delivery work needed to make those migrations safe.
    or production public-health data.
 9. **Keep plugins outside the trust boundary.** Extensions receive only declared,
    approved capabilities and can be disabled without breaking core workflows.
+10. **Drive gaps from the legacy capability register.** Inventory the old manual
+    branches and their C# assets before declaring parity or designing extensions;
+    label deliberate browser additions as new branches.
+11. **Do not regress below the compatibility floor.** An inventoried legacy
+    capability remains required until implemented or explicitly retired through
+    review with a documented replacement; an unimplemented prototype control
+    never narrows that floor.
 
 ## Current baseline
 
@@ -209,8 +216,15 @@ new user-visible functionality.
   application falls back to compatible legacy form and record storage.
 - [x] Supabase synchronization is TypeScript, with typed configuration, sessions,
   hosted rows, API errors, and validated upload/download boundaries.
-- [ ] Migrate Maps, the application controller, forms/data entry, and the engine
-  adapter in the order below.
+- [x] Maps and its external data/browser boundaries are strict TypeScript; the
+  pinned Leaflet global is confined to the map adapter.
+- [x] The application controller, familiar menu shell, forms/data entry, and
+  engine adapter are strict TypeScript without changing serialized keys or DOM IDs.
+- [x] CSV parsing/schema inference, project load/recovery, and generic browser
+  persistence have been extracted from the transitional form controller.
+- [x] Explicit map/layer and versioned 2 x 2 request/result contracts are present.
+- [x] No handwritten application-feature JavaScript remains; generated JavaScript
+  and reviewed pinned vendor libraries are the only JavaScript artifacts.
 
 ### Module order
 
@@ -220,7 +234,8 @@ new user-visible functionality.
    revisions, and API responses; keep Row Level Security as the authorization
    boundary.
 3. **Maps:** type data sources, coordinate selection, layers, popups, and browser
-   geolocation results.
+   geolocation results. Use the stable gap IDs in the legacy capability register;
+   this language-only conversion does not itself close deferred feature gaps.
 4. **Application controller:** type 2 x 2 inputs/results and module navigation.
 5. **Forms and data entry:** split the current large module into schema, designer,
    entry, CSV, local persistence, and project-state modules before adding features.
@@ -243,6 +258,16 @@ new user-visible functionality.
 All maintained feature logic is TypeScript, type checking is strict, and remaining
 handwritten JavaScript is listed and justified as runtime glue.
 
+### Exit record
+
+The exit gate is met. `app.ts`, `engine.ts`, `form-data.ts`, `maps.ts`, `shell.ts`,
+and `supabase-sync.ts` pass strict checking. The production build emits JavaScript
+from these sources. The only source JavaScript retained is reviewed pinned vendor
+code under `demo/vendor/`; Leaflet's global runtime surface is isolated in
+`maps.ts`. Further extraction of designer and entry rendering from
+`form-data.ts` remains a reviewability refactor before Phase 4 functionality, not
+untyped migration debt.
+
 ## Phase 3 - Mobile-first application shell and data entry
 
 Convert one visible workflow at a time, starting with the tasks most likely to be
@@ -258,6 +283,28 @@ used in the field.
   status indicators.
 - Provide at least 44 by 44 CSS pixel touch targets and visible keyboard focus.
 
+#### Implementation status
+
+- [x] The familiar palette, surfaces, status colors, spacing, radii, focus ring,
+  shell heights, and minimum control size are reusable CSS tokens.
+- [x] Narrow-screen shell and launcher rules are the base; tablet and desktop
+  composition is restored with `min-width: 641px` and `min-width: 961px` queries.
+- [x] The Epi Info AI identity, learned menu tree, module names, Help control,
+  local status, launcher ordering, and desktop visual landmarks remain present.
+- [x] Launch controls meet the 44 by 44 CSS pixel target and interactive elements
+  have visible keyboard focus; reduced-motion preferences are honored.
+- [x] Chromium checks cover phone, tablet, and desktop launchers, page overflow,
+  focus, status announcements, and familiar menu navigation.
+- [x] `shell-compatibility-inventory.md` maps the responsive adaptation to the
+  manual and legacy C#/XAML assets without declaring an old branch retired.
+
+#### Exit record
+
+Phase 3A is complete for the shared application shell and main launcher. Inner
+module workspaces still contain transitional desktop-first responsive rules; they
+move one workflow at a time in Phases 3B onward and are not included in this exit
+claim.
+
 ### 3B. Enter Data
 
 - Show one clear record-entry task on phones.
@@ -268,12 +315,63 @@ used in the field.
 - Make save state, validation errors, and synchronization state visible near the
   action that caused them.
 
+#### Implementation status
+
+- [x] Phones open with New record as the primary task and expose Saved records as
+  an explicit secondary view with a live record count.
+- [x] The view switch does not modify schema order, prompts, storage keys, CSV
+  contracts, records, or the Enter Data > Maps linkage.
+- [x] Tablet layouts show both panels in task order and desktop restores the
+  familiar side-by-side form and line list.
+- [x] Record save feedback remains beside Save/Clear; CSV import/export feedback
+  remains directly below its controls; the local/hosted working-copy badge remains
+  visible in the Enter Data heading.
+- [x] Record controls and view actions meet the mobile touch target and visible
+  focus contract inherited from Phase 3A.
+- [x] Chromium tests cover field order, phone view switching, local save, line-list
+  visibility, CSV import feedback, and tablet/desktop panel composition.
+- [x] `enter-data-compatibility-inventory.md` maps the slice to the manual and C#
+  assets and retains unimplemented record, validation, and Check Code capabilities
+  as stable gaps.
+
+#### Exit record
+
+Phase 3B is complete as a responsive migration of the current Enter Data slice.
+It does not claim full Enter Data parity: record navigation/edit/delete, multi-page
+forms, legal values, Check Code, and scalable persistence remain open
+`LEGACY-ENTER-*` gaps.
+
 ### 3C. Project storage and main menu
 
 - Reflow storage/authentication dialogs without hiding status messages below the
   viewport.
 - Keep Create Forms, Enter Data, Classic, Visual Dashboard, Create Maps, StatCalc,
   and their familiar grouping on all sizes.
+
+#### Implementation status
+
+- [x] Project and Project Storage dialogs use a phone-first bounded-height layout
+  with scrollable content, persistent title/actions, 44-pixel controls, and wider
+  tablet/desktop presentation.
+- [x] Connection feedback remains below Test Connection/Copy Setup SQL, account
+  feedback below sign-in/account actions, and synchronization feedback below
+  upload/download actions.
+- [x] The storage summary distinguishes offline, local, pending, connected,
+  synchronized, and failed states; synchronized is only set after a confirmed
+  upload or validated download.
+- [x] Phone/tablet/desktop tests lock the familiar launcher labels, Analyze Data
+  grouping, and order without enabling unfinished Classic or Dashboard controls.
+- [x] Browser tests cover dialog bounds/scrolling, touch targets, feedback
+  placement, connection and failure states, network transitions, and the local
+  New Project note.
+- [x] `storage-compatibility-inventory.md` records legacy project/database paths,
+  safe browser adaptation boundaries, and new browser/Supabase branches.
+
+#### Exit record
+
+Phase 3C implementation is complete. The automated Phase 3 gate passes across
+phone, tablet, and desktop. Formal experienced-user review remains required before
+the related shell, Enter Data, or storage gaps can be marked parity-complete.
 
 ### Exit gate
 
@@ -282,6 +380,34 @@ representative phone, tablet, and desktop widths. Experienced users can identify
 and complete the same workflow without relearning module names or task order.
 
 ## Phase 4 - Form Designer and data-quality validation
+
+An enabling migration slice now provides the V2 portable project envelope,
+read-only `Sample.mdb` converter, official Sample fixture, and familiar File >
+Open Project / Save Project As flow. It preserves the `Statistics` PGM and the
+complete legacy metadata inventory needed to drive later Form Designer and
+program-engine compatibility tests. This does not complete Phase 7 durable
+storage. The Phase 4 prototype exit gate is now complete; remaining legacy-form
+parity gaps stay open in the compatibility inventories.
+
+### Implementation status
+
+- [x] Typed, serializable required, number/date range, legal/comment-legal,
+  pattern, unique, and calculated-age rules are runtime validated.
+- [x] Calculated age uses completed years from a configured source date and
+  optional as-of date, is read-only during entry, and is materialized on save and
+  tabular import.
+- [x] The safe Check Code subset supports field After-event conditions with
+  same-form `GOTO`, `ENABLE`, `DISABLE`, `HIDE`, `UNHIDE`, `SET-REQUIRED`, and
+  `SET-NOT-REQUIRED`; arbitrary imported source is never executed.
+- [x] Manual entry and CSV/TSV/JSON/Excel imports share record validation;
+  restored local, portable, and hosted snapshots are revalidated and direct the
+  user to Data Quality without silently discarding records.
+- [x] Data Quality reports completeness and violations, identifies unique-field
+  and exact-row duplicate candidates, and provides side-by-side comparison.
+- [x] Duplicate deletion requires a reason and confirmation, moves the record to
+  a persisted Recycle Bin, records an audit event, and supports restoration.
+- [x] Contract, pure-function, build-artifact, and Chromium workflow tests cover
+  the Phase 4 slice.
 
 ### Form Designer
 
@@ -304,9 +430,10 @@ Add typed, serializable field rules for:
 - calculated age using an auditable date-based function;
 - safe skip logic and an allowlisted Check Code subset.
 
-Apply the same rules during manual entry, CSV import, hosted download, and project
-restore. Validation results must identify the form, record, field, rule, severity,
-and suggested resolution.
+Apply the same rules during manual entry, every supported tabular adapter (CSV,
+TSV, JSON records, and Excel `.xlsx`), hosted download, and project restore.
+Validation results must identify the form, record, field, rule, severity, and
+suggested resolution.
 
 ### Data Quality workspace
 
@@ -323,6 +450,13 @@ The manual's core Data Quality Check workflow is represented by tested validatio
 rules and a familiar review flow. Imported and manually entered records are checked
 consistently, and destructive actions are auditable and recoverable.
 
+### Exit record
+
+The prototype exit gate is met. This records completion of the planned migration
+slice, not Epi Info Form Designer parity: pages/templates, the full Check Code
+language and event model, editing/navigation, group actions, and scalable
+persistence remain named legacy gaps.
+
 ## Phase 5 - Rust epidemiology kernel expansion
 
 The Rust kernel owns deterministic epidemiologic computation, not DOM, storage,
@@ -330,15 +464,83 @@ authentication, formatting, or AI interpretation.
 
 All work in this phase must pass the repository's
 [algorithm validation standard](docs/validation/algorithm-validation-standard.md).
+The [Validation Lab plan](validation-lab.md) defines how immutable fixtures,
+legacy output, independent Python references, and the release Rust/WASM artifact
+are brought together, beginning with the canonical foodborne-outbreak corpus.
 Candidate Rust crates are implementation options behind the owned `epi-core`
 facade, not trusted result sources. See the
 [Rust epidemiology landscape assessment](docs/research/rust-epidemiology-landscape.md).
 
+### Programming curriculum and reference corpus
+
+The browser implementation must preserve not only individual statistical results
+but also the learned Epi Info programming workflows that compose commands into
+repeatable investigations. Use the following CDC materials as behavioral evidence
+and sources for acceptance fixtures:
+
+- The [Epi Info Community Health Assessment Tutorial](https://www.cdc.gov/epiinfo/pdfs/eihat/EIHATFull.pdf)
+  provides a two-hour intermediate Check Code lesson covering the Program Editor,
+  `IF/THEN/ELSE`, `GOTO`, skip patterns, `ASSIGN`, `YEARS`, and `DIALOG`.
+- The [Classic Analysis user-defined commands chapter](https://www.cdc.gov/epiinfo/user-guide/classic-analysis/userdefinedcommands.html)
+  documents editing generated commands, saving and opening project-backed or
+  external `.pgm7` programs, running selected or complete command blocks, and
+  composing programs with `RUNPGM`.
+- The [CDC/NIOSH industry and occupation coding tutorial](https://archive.cdc.gov/www_cdc_gov/niosh/topics/coding/epiinfo.html)
+  is a concrete Program Editor exercise using `READ`, `DEFINE`, `RECODE`, `FREQ`,
+  saved programs, reruns against updated data, and `WRITE` export.
+- The [CDC programming and command-reference introduction](https://www.cdc.gov/epiinfo/user-guide/command-reference/introduction.html)
+  defines programs as scripts for data-entry guidance, data restructuring, and
+  analysis, and distinguishes Form Designer Check Code from Classic Analysis PGM
+  execution.
+- The historical [CDC/Emory intermediate-to-advanced course notice](https://www.cdc.gov/mmwr/preview/mmwrhtml/mm5804a5.htm)
+  records a curriculum spanning advanced Check Code, functions, relational data,
+  regression, survival analysis, complex surveys, maps, and reports. Treat this as
+  historical scope evidence unless the complete course materials are recovered.
+
+Turn this corpus into three initial end-to-end programming fixtures:
+
+1. **Check Code lesson:** date of birth to calculated age, conditional skip, and
+   user dialog. This extends the Phase 4 safe subset; unsupported commands remain
+   preserved and non-executable.
+2. **Data-management PGM:** `READ -> DEFINE -> RECODE -> FREQ -> WRITE`, adapted
+   from the NIOSH exercise with synthetic non-sensitive data and deterministic
+   expected output.
+3. **Official Sample Statistics PGM:** execute progressively reviewed sections of
+   the preserved `Statistics.pgm`, from `READ`/`LIST`/`FREQ` through tables,
+   regression, survival, complex samples, graphs, and routed output.
+
+The Program Editor, parser, command dispatcher, dataset state, and output history
+belong to the TypeScript application layer. Validated epidemiologic operations are
+versioned calls into the Rust kernel. Browser-inapplicable commands such as
+unrestricted `EXECUTE`, DLL loading, filesystem paths, or external process launch
+must be explicitly blocked or replaced by permissioned browser workflows; they
+must never be translated into arbitrary JavaScript execution.
+
 ### Migration order
 
-1. Confidence intervals and chi-square p-values.
-2. Fisher exact and other exact methods.
-3. Stratified 2 x 2 and Mantel-Haenszel estimates.
+1. Confidence intervals and chi-square p-values. **Candidate implementation
+   complete:** Rust/WASM owns Katz risk-ratio, Wald odds-ratio, unpooled Wald
+   risk-difference intervals, and one-degree-of-freedom chi-square survival
+   probabilities. The V0.2 foodborne fixture and notebook provide initial
+   independent evidence; legacy corpus classification and G5 review remain open.
+2. Fisher/mid-p exact tails, conditional-MLE odds ratios, and exact confidence
+   limits. **Candidate implementation complete:** Rust/WASM owns the exact tails,
+   conditional estimate, central Fisher interval, and mid-p interval. CI compares
+   Fisher p-values and confidence limits for all 100 legacy-derived tables; the
+   foodborne lab independently exercises SciPy's noncentral hypergeometric
+   reference. Expanded pathological/performance evidence and G5 review remain.
+3. Stratified 2 x 2 and Mantel-Haenszel estimates. **Candidate V0.8 slice
+   complete:** Rust/WASM owns adjusted OR/RR, legacy confidence-limit formulas,
+   corrected/uncorrected MH tests, fixed-margin Breslow-Day/Tarone OR tests, and
+   the legacy Epi Info-labelled Woolf OR/RR homogeneity statistics, and bounded
+   product-hypergeometric conditional MLE/Fisher inference. The browser supports
+   ordered manual strata. Expanded exact/homogeneity validation, performance
+   evidence, Worker isolation, and review remain open.
+   **Current-form adapter complete for the next prototype slice:** the familiar
+   TABLES panel selects exposure, outcome, and one stratifier from saved records,
+   explicitly maps positive values, reports missing exclusions, displays the
+   generated command, and feeds auditable tables to the V0.8 kernel. Multiple
+   stratifiers, weights, filters, saved PGM execution, and full output parity remain.
 4. Frequencies, means, rates, and sample-size calculations.
 5. Regression, survival, and other advanced analysis modules.
 
@@ -361,6 +563,41 @@ facade, not trusted result sources. See the
 An operation replaces its JavaScript implementation only after parity, edge-case,
 browser, provenance, and performance gates pass. The old path remains available
 for comparison during one release and is then removed.
+
+## Phase 5B - Epi Info programming IDE
+
+The gap between the legacy Program Editor/Check Code Editor and a safe modern
+browser IDE is the roadmap for this phase. The complete capability floor, stable
+gap IDs, new branches, six implementation waves, and closure rules are maintained
+in the [programming IDE compatibility inventory](docs/design/programming-ide-compatibility-inventory.md).
+
+### Delivery order
+
+1. Complete the command/function/event/dialog inventory and executable fixtures.
+2. Reproduce the familiar editor shell, project program list, source editing,
+   `.pgm7` exchange, find/replace, and open/save paths.
+3. Add the versioned parser, typed intermediate representation, command generation,
+   language service, and precise unsupported-command diagnostics.
+4. Execute the first safe PGM slice with bounded `RUNPGM`, dataset/session state,
+   Worker cancellation, structured Output, and immutable run provenance.
+5. Expand through the Check Code course, NIOSH data-management exercise, and
+   official Sample `Statistics.pgm` as their underlying operations pass validation.
+6. Add the modern branches—program tests, richer language assistance, debugger,
+   source history, optional reviewed AI assistance, responsive authoring, and the
+   typed **Visual Epi Info** dataflow view defined by `LEGACY-PROGRAM-020`. Flow,
+   Program, and Output remain synchronized, and the complete effective source is
+   always inspectable in the traditional Program Editor.
+
+### Exit gate
+
+An experienced user can recognize the Classic Analysis programming workflow,
+open or author a program, understand compatibility diagnostics, run a validated
+command subset or selection, inspect reproducible Output, save and reopen source,
+and execute the three curriculum fixtures supported at that release. Unsupported
+source round-trips unchanged and cannot acquire ambient browser or operating-system
+capabilities. Visual Epi Info cannot meet this gate unless every flow exposes its
+effective code in the traditional editor and reports partial/source-only conversion
+without hiding or discarding source.
 
 ## Phase 6 - Plugin platform foundation
 
@@ -429,6 +666,8 @@ tests. With the plugin subsystem disabled, all core workflows still pass.
   explicit export, and restore.
 - Define a portable Epi Info AI project package containing versioned schema,
   records, validation rules, metadata, and optional attachments.
+- Promote the validated V2 JSON prototype to the final `.epia` container while
+  retaining its programs, code tables, migration evidence, and version rejection.
 - Add a service worker only after update and recovery behavior is designed.
 - Preserve compatibility with existing localStorage demo snapshots during the
   migration window.
@@ -475,6 +714,21 @@ Two authorized users can enter different records offline/online and synchronize
 without overwriting each other. Same-record conflicts are never silently resolved,
 and unauthorized users cannot discover or access the project.
 
+## Deferred cross-cutting TODO - page walkthroughs
+
+After the core migration phases are complete, add a reusable optional walkthrough
+to every user-facing page. Each walkthrough must be launched and replayed from
+Help, point to actual page controls, use concise Back/Next/Finish/Exit steps, and
+leave project and partially entered form state unchanged.
+
+The shared walkthrough contract must cover keyboard and touch operation, focus
+return, screen-reader announcements, reduced motion, phone/tablet/desktop
+placement, content versioning, and automated detection of missing or stale target
+controls. Approved plugin pages may contribute declarative walkthrough steps
+through the host API; plugins do not receive unrestricted DOM access. Implement
+this after the phases rather than duplicating page-specific tour code during
+migration.
+
 ## Cross-cutting test matrix
 
 | Concern | Required coverage |
@@ -488,6 +742,7 @@ and unauthorized users cannot discover or access the project.
 | Security | RLS allow/deny tests, OAuth redirects, session expiry, secret scanning, dependency review |
 | Plugins | Manifest/schema validation, capability denial, sandbox escape resistance, timeout/cancellation, integrity, revocation, API compatibility, and provenance |
 | Compatibility | Existing local snapshots, representative legacy forms, Unicode/CSV edge cases |
+| Walkthroughs (deferred) | Every page registered, all targets present/visible, keyboard/touch navigation, focus return, responsive placement, reduced motion, no project-state mutation |
 
 ## Pull-request slicing
 
@@ -513,6 +768,8 @@ and unauthorized users cannot discover or access the project.
    and offer export/recovery rather than initializing an empty project.
 6. A plugin can be disabled or revoked independently without rolling back the host
    application or making a project unreadable.
+7. Treat any loss of an implemented legacy-floor capability or learned navigation
+   path as a blocking regression, not an acceptable migration tradeoff.
 
 ## Definition of done for a migrated module
 
@@ -537,12 +794,8 @@ provenance.
 
 ## Immediate next slice
 
-Phases 0 and 1 are closed. Begin Phase 2 without changing user-visible behavior:
-
-1. Convert Maps to TypeScript before adding more mapping features.
-2. Convert the application controller.
-3. Split forms and data entry into schema, designer, entry, CSV, persistence, and
-   project-state modules before converting them.
-
-This keeps the safety net ahead of the feature migration and prevents additional
-JavaScript migration debt.
+Phases 0 through 2 and Phase 3 implementation are closed, subject to the recorded
+experienced-user parity review. Before Phase 4 adds Form Designer and validation
+behavior, extract the remaining designer and entry rendering responsibilities
+from `form-data.ts` into their target modules. Then begin the Phase 4 typed
+validation model without narrowing the legacy Form Designer or Check Code floor.

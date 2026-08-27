@@ -9,6 +9,7 @@
 **/obj/
 **/node_modules/
 **/dist/
+**/_output/
 **/coverage/
 playwright-report/
 test-results/

@@ -1,10 +1,13 @@
 [package]
 name = "epi-info-table2x2"
-version = "0.1.0"
+version = "0.8.0"
 edition = "2024"
 
 [lib]
 crate-type = ["cdylib"]
+
+[dependencies]
+libm = "=0.2.8"
 
 [profile.release]
 opt-level = "s"
@@ -12,4 +15,3 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
-

@@ -20,5 +20,8 @@
     "@playwright/test": "1.62.0",
     "esbuild": "0.28.2",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "read-excel-file": "9.3.10"
   }
 }

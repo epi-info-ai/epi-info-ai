@@ -3,11 +3,11 @@
   "algorithms": [
     {
       "operation": "epi.table2x2",
-      "resultSchemaVersion": "0.1.0",
+      "resultSchemaVersion": "0.4.0",
       "state": "candidate",
       "implementation": {
-        "engineId": "rust-wasm-spike",
-        "engineVersion": "0.1.0",
+        "engineId": "epi-core-wasm",
+        "engineVersion": "0.8.0",
         "source": "wasm/engine-rust/src/lib.rs"
       },
       "gates": {
@@ -25,12 +25,55 @@
       },
       "evidence": [
         "wasm/tests/fixtures/phase0/table2x2-baseline.json",
-        "wasm/tests/fixtures/phase0/wasm-manifest.json"
+        "wasm/tests/fixtures/phase0/wasm-manifest.json",
+        "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json",
+        "wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.csv",
+        "wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.manifest.json",
+        "wasm/docs/validation/table2x2-exact-method-contract.md",
+        "wasm/validation-lab/content/validate-table2x2.ipynb"
       ],
       "knownGaps": [
-        "Import and classify the legacy 100-case TwoBy2Stats.csv corpus.",
-        "Implement and validate confidence intervals and exact tests in Rust/WASM.",
+        "Complete provenance review and method classification for the imported legacy 100-case TwoBy2Stats corpus.",
+        "Complete independent and legacy validation of the Rust/WASM confidence intervals and chi-square p-values.",
+        "Validate Rust/WASM Fisher and mid-p exact tails across independent pathological and large-margin corpora.",
+        "Complete independent pathological, boundary, and extreme-margin validation for conditional odds ratios and exact confidence limits.",
         "Define reviewed edge semantics for zero, invalid, and extreme inputs.",
+        "Complete independent statistical and implementation review."
+        ,"Complete multiple-stratifier, weight, filter, missing-value, and saved-command parity for the Classic Analysis TABLES adapter."
+      ]
+    },
+    {
+      "operation": "epi.stratified2x2",
+      "resultSchemaVersion": "0.8.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "epi-core-wasm",
+        "engineVersion": "0.8.0",
+        "source": "wasm/engine-rust/src/lib.rs"
+      },
+      "gates": {
+        "G0": "partial",
+        "G1": "partial",
+        "G2": "partial",
+        "G3": "partial",
+        "G4": "not-started",
+        "G5": "not-started",
+        "G6": "not-started"
+      },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/stratified-two-by-two-v0.5.json",
+        "wasm/tests/fixtures/algorithm-validation/stratified-homogeneity-v0.7.json",
+        "wasm/tests/fixtures/algorithm-validation/stratified-exact-v0.8.json",
+        "wasm/docs/validation/stratified-table2x2-method-contract.md",
+        "wasm/docs/design/statcalc-compatibility-inventory.md",
+        "wasm/validation-lab/content/validate-stratified2x2.ipynb"
+      ],
+      "knownGaps": [
+        "Add independently generated and legacy-output corpora, including foodborne stratification.",
+        "Add sparse, empty, extreme, metamorphic, native/WASM parity, and performance evidence.",
+        "Expand exact stratified evidence with reviewed legacy outputs, independent software, pathological margins, support-limit boundaries, and performance cases.",
+        "Expand OR/RR homogeneity evidence with sparse, extreme-margin, metamorphic, native/WASM parity, and reviewed legacy-output corpora.",
         "Complete independent statistical and implementation review."
       ]
     }

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "operation": "epi.stratified2x2",
+  "provenance": {
+    "purpose": "Foodborne potato-salad table stratified by sex, with direct legacy formulas",
+    "dataset": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "datasetSha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "derivation": { "exposure": "Potato Salad", "outcome": "Case Status", "stratum": "Sex", "excludedRows": 0 },
+    "legacySources": [
+      "StatisticsRepository/Strat2X2.vb",
+      "Epi.Analysis.Statistics/Tables.cs"
+    ],
+    "reviewState": "candidate-unreviewed"
+  },
+  "input": {
+    "confidenceLevel": 0.95,
+    "strata": [
+      { "id": "female", "label": "Female", "exposedCases": 18, "exposedNonCases": 6, "unexposedCases": 4, "unexposedNonCases": 20 },
+      { "id": "male", "label": "Male", "exposedCases": 18, "exposedNonCases": 6, "unexposedCases": 4, "unexposedNonCases": 20 }
+    ]
+  },
+  "expected": {
+    "adjustedOddsRatio": 15.0,
+    "adjustedOddsRatioLower": 5.50979583988387,
+    "adjustedOddsRatioUpper": 40.83635883044666,
+    "adjustedRiskRatio": 4.5,
+    "adjustedRiskRatioLower": 2.341416454323164,
+    "adjustedRiskRatioUpper": 8.648610956248572,
+    "mantelHaenszelUncorrected": 32.209790209790214,
+    "mantelHaenszelCorrected": 29.950174825174827
+  },
+  "tolerance": 1e-12
+}

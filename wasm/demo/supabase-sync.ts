@@ -67,6 +67,24 @@ class SupabaseApiError extends Error {
 let session: SupabaseSession | null = null;
 let githubAvailable = false;
 
+type StorageState = "offline" | "local" | "pending" | "connected" | "synchronized" | "failed";
+type StorageFeedbackArea = "connection" | "account" | "sync";
+
+const STORAGE_STATE_LABELS: Record<StorageState, string> = {
+  offline: "Offline",
+  local: "Local",
+  pending: "Working...",
+  connected: "Connected",
+  synchronized: "Synchronized",
+  failed: "Needs attention",
+};
+
+const STORAGE_FEEDBACK_IDS: Record<StorageFeedbackArea, string> = {
+  connection: "#project-storage-status",
+  account: "#storage-account-status",
+  sync: "#storage-sync-status",
+};
+
 function requiredElement<T extends Element>(selector: string): T {
   const value = document.querySelector<T>(selector);
   if (!value) throw new Error(`Required interface element is missing: ${selector}`);
@@ -120,8 +138,12 @@ function saveConfig(config: SupabaseConfig): void {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
 }
 
-function status(message: string): void {
-  requiredElement<HTMLElement>("#project-storage-status").textContent = message;
+function status(message: string, state: StorageState = "local", area: StorageFeedbackArea = "connection"): void {
+  requiredElement<HTMLElement>(STORAGE_FEEDBACK_IDS[area]).textContent = message;
+  const stateElement = requiredElement<HTMLElement>("#storage-state");
+  stateElement.dataset.state = state;
+  requiredElement<HTMLElement>("#storage-state-label").textContent = STORAGE_STATE_LABELS[state];
+  requiredElement<HTMLElement>("#storage-state-detail").textContent = message;
 }
 
 function formConfig(): SupabaseConfig {
@@ -256,7 +278,7 @@ async function restoreOAuthSession(): Promise<void> {
   const oauthError = callback.get("error_description") || callback.get("error");
   if (oauthError) {
     history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-    status(`GitHub sign-in failed: ${oauthError}`);
+    status(`GitHub sign-in failed: ${oauthError}`, "failed", "account");
     return;
   }
   const accessToken = callback.get("access_token");
@@ -264,7 +286,7 @@ async function restoreOAuthSession(): Promise<void> {
   history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
   const saved = loadConfig();
   if (!saved.url || !saved.publishableKey) {
-    status("GitHub sign-in returned, but the saved Supabase connection is missing.");
+    status("GitHub sign-in returned, but the saved Supabase connection is missing.", "failed", "account");
     return;
   }
   const config: SupabaseConfig = { url: saved.url, publishableKey: saved.publishableKey };
@@ -283,11 +305,11 @@ async function restoreOAuthSession(): Promise<void> {
     session.user = parseUser(await apiRequest(config, "/auth/v1/user", {}, true));
     setProviderAvailability(config);
     setSignedInState(true);
-    status(`Signed in with GitHub as ${session.user.email || "a Supabase user"}.`);
+    status(`Signed in with GitHub as ${session.user.email || "a Supabase user"}.`, "connected", "account");
   } catch (error) {
     session = null;
     setSignedInState(false);
-    status(`GitHub sign-in could not be completed: ${messageOf(error)}`);
+    status(`GitHub sign-in could not be completed: ${messageOf(error)}`, "failed", "account");
   }
 }
 
@@ -419,12 +441,29 @@ export function initializeSupabaseSync({
     setProviderAvailability(config);
     hostedSelect.replaceChildren(new Option(session ? "Loading hosted projects..." : "Sign in to list hosted projects", ""));
     setSignedInState(Boolean(session));
-    status(session ? `Signed in as ${session.user.email || "a Supabase user"}. Refreshing hosted projects...` : "Not signed in.");
+    requiredElement<HTMLElement>("#project-storage-status").textContent = config.url
+      ? "Saved Supabase connection settings loaded. Test the connection before synchronizing."
+      : "Not connected.";
+    requiredElement<HTMLElement>("#storage-account-status").textContent = session
+      ? `Signed in as ${session.user.email || "a Supabase user"}.`
+      : "Not signed in.";
+    requiredElement<HTMLElement>("#storage-sync-status").textContent = snapshot.remote
+      ? `Last confirmed hosted revision: ${snapshot.remote.revision}. No synchronization is running.`
+      : "No synchronization is running.";
+    if (!navigator.onLine) {
+      status("The browser is offline. The local working copy remains available.", "offline", "connection");
+    } else if (session) {
+      status(`Signed in as ${session.user.email || "a Supabase user"}. Refreshing hosted projects...`, "pending", "account");
+    } else {
+      status("Working copy is stored in this browser. Connect and sign in to synchronize it.", "local", "connection");
+    }
     dialog.showModal();
     if (session && config.url && config.publishableKey) {
       const completeConfig: SupabaseConfig = { url: config.url, publishableKey: config.publishableKey };
       if (config.providers) completeConfig.providers = config.providers;
-      refreshHostedProjects(completeConfig, snapshot.remote?.id).catch((error: unknown) => status(messageOf(error)));
+      refreshHostedProjects(completeConfig, snapshot.remote?.id)
+        .then(() => status("Connected and signed in. Hosted projects are ready.", "connected", "sync"))
+        .catch((error: unknown) => status(messageOf(error), "failed", "sync"));
     }
   });
 
@@ -432,7 +471,10 @@ export function initializeSupabaseSync({
     button.addEventListener("click", () => dialog.close("close"));
   }
 
-  requiredElement<HTMLButtonElement>("#storage-test-connection").addEventListener("click", async () => {
+  const testConnectionButton = requiredElement<HTMLButtonElement>("#storage-test-connection");
+  testConnectionButton.addEventListener("click", async () => {
+    testConnectionButton.disabled = true;
+    status("Testing the Supabase connection...", "pending", "connection");
     try {
       const entered = formConfig();
       const config = await testConnection(entered.url, entered.publishableKey);
@@ -440,62 +482,68 @@ export function initializeSupabaseSync({
       setProviderAvailability(config);
       status(config.providers?.github
         ? "Supabase connection verified. Sign in with GitHub or email to synchronize this project."
-        : "Supabase connection verified. GitHub sign-in is not enabled for this project; use email or enable the GitHub provider.");
+        : "Supabase connection verified. GitHub sign-in is not enabled for this project; use email or enable the GitHub provider.", "connected", "connection");
     } catch (error) {
-      status(messageOf(error));
+      status(messageOf(error), "failed", "connection");
+    } finally {
+      testConnectionButton.disabled = false;
     }
   });
 
   requiredElement<HTMLButtonElement>("#storage-sign-in-github").addEventListener("click", async () => {
+    status("Starting GitHub sign-in...", "pending", "account");
     try {
       const entered = formConfig();
       const config = await testConnection(entered.url, entered.publishableKey);
       setProviderAvailability(config);
       startGitHubSignIn(config);
     } catch (error) {
-      status(messageOf(error));
+      status(messageOf(error), "failed", "account");
     }
   });
 
   requiredElement<HTMLButtonElement>("#storage-copy-schema").addEventListener("click", async () => {
+    status("Preparing the Supabase setup SQL...", "pending", "connection");
     try {
       const response = await fetch("setup/supabase-schema.sql", { cache: "no-store" });
       if (!response.ok) throw new Error("Unable to load the setup SQL.");
       await navigator.clipboard.writeText(await response.text());
-      status("Setup SQL copied. Run it once in the Supabase SQL Editor, then return and sign in.");
+      status("Setup SQL copied. Run it once in the Supabase SQL Editor, then return and sign in.", "local", "connection");
     } catch (error) {
-      status(messageOf(error));
+      status(messageOf(error), "failed", "connection");
     }
   });
 
   requiredElement<HTMLButtonElement>("#storage-sign-in").addEventListener("click", async () => {
+    status("Signing in to Supabase...", "pending", "account");
     try {
       const entered = formConfig();
       const config = await testConnection(entered.url, entered.publishableKey);
       saveConfig(config);
       await signIn(config);
-      status(`Signed in as ${session?.user.email || "a Supabase user"}.`);
+      status(`Signed in as ${session?.user.email || "a Supabase user"}.`, "connected", "account");
       await refreshHostedProjects(config, validateProjectSnapshot(getSnapshot()).remote?.id);
     } catch (error) {
       setSignedInState(false);
-      status(messageOf(error));
+      status(messageOf(error), "failed", "account");
     }
   });
 
   requiredElement<HTMLButtonElement>("#storage-sign-up").addEventListener("click", async () => {
+    status("Creating the Supabase account...", "pending", "account");
     try {
       const entered = formConfig();
       const config = await testConnection(entered.url, entered.publishableKey);
       saveConfig(config);
       const result = await signUp(config);
       if (result) {
-        status(`Account created and signed in as ${result.user.email || "a Supabase user"}.`);
+        status(`Account created and signed in as ${result.user.email || "a Supabase user"}.`, "connected", "account");
         await refreshHostedProjects(config, validateProjectSnapshot(getSnapshot()).remote?.id);
       } else {
-        status("Account created. Confirm the email from Supabase, then use Sign In.");
+        status("Account created. Confirm the email from Supabase, then use Sign In.", "connected", "account");
       }
     } catch (error) {
-      status(messageOf(error));
+      status(messageOf(error), "failed", "account");
     }
   });
 
@@ -509,7 +557,7 @@ export function initializeSupabaseSync({
     session = null;
     setSignedInState(false);
     hostedSelect.replaceChildren(new Option("Sign in to list hosted projects", ""));
-    status("Signed out.");
+    status("Signed out. The project remains in the local browser working copy.", "local", "account");
   });
 
   hostedSelect.addEventListener("change", () => {
@@ -521,12 +569,12 @@ export function initializeSupabaseSync({
       const entered = formConfig();
       const config = await testConnection(entered.url, entered.publishableKey);
       saveConfig(config);
-      status("Uploading the current project snapshot...");
+      status("Uploading the current project snapshot...", "pending", "sync");
       const result = await uploadProject(config, getSnapshot, markSynced);
-      status(`Synchronized ${result.formCount} form${result.formCount === 1 ? "" : "s"} and ${result.recordCount} record${result.recordCount === 1 ? "" : "s"} as revision ${result.saved.revision}.`);
+      status(`Synchronized ${result.formCount} form${result.formCount === 1 ? "" : "s"} and ${result.recordCount} record${result.recordCount === 1 ? "" : "s"} as revision ${result.saved.revision}.`, "synchronized", "sync");
       await refreshHostedProjects(config, result.saved.id);
     } catch (error) {
-      status(messageOf(error));
+      status(messageOf(error), "failed", "sync");
     }
   });
 
@@ -534,6 +582,7 @@ export function initializeSupabaseSync({
     try {
       if (!hostedSelect.value) throw new Error("Select a hosted project first.");
       if (!window.confirm("Replace the current local working copy with the selected hosted project?")) return;
+      status("Downloading and validating the hosted project...", "pending", "sync");
       const entered = formConfig();
       const config = await testConnection(entered.url, entered.publishableKey);
       const hosted = await getHostedProject(config, hostedSelect.value);
@@ -541,10 +590,17 @@ export function initializeSupabaseSync({
       const snapshot = validateProjectSnapshot(hosted.snapshot);
       applySnapshot(snapshot, { id: hosted.id, revision: hosted.revision, syncedAt: hosted.updated_at });
       requiredElement<HTMLElement>("#storage-current-project").textContent = hosted.name;
-      status(`Downloaded ${hosted.name}, revision ${hosted.revision}.`);
+      status(`Downloaded ${hosted.name}, revision ${hosted.revision}.`, "synchronized", "sync");
     } catch (error) {
-      status(messageOf(error));
+      status(messageOf(error), "failed", "sync");
     }
+  });
+
+  window.addEventListener("offline", () => {
+    if (dialog.open) status("The browser is offline. The local working copy remains available.", "offline", "connection");
+  });
+  window.addEventListener("online", () => {
+    if (dialog.open) status("The browser is online. Test the connection or continue with the local working copy.", "local", "connection");
   });
 
   void restoreOAuthSession();

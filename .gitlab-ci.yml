@@ -1,4 +1,5 @@
 stages:
+  - kernel
   - test
   - build
   - validation-build
@@ -12,6 +13,9 @@ browser-baseline:
     - corepack enable
     - corepack install
     - pnpm install --frozen-lockfile
+  needs:
+    - job: rust-kernel
+      artifacts: true
   script:
     - pnpm run typecheck
     - pnpm run test
@@ -20,13 +24,19 @@ browser-baseline:
     - if: '$CI_COMMIT_BRANCH'
 
 rust-kernel:
-  stage: test
+  stage: kernel
   image: rust:1.85.0-alpine3.20
   script:
+    - cargo fmt --manifest-path wasm/engine-rust/Cargo.toml -- --check
     - cargo test --locked --manifest-path wasm/engine-rust/Cargo.toml
     - rustup target add wasm32-unknown-unknown
     - cargo build --locked --manifest-path wasm/engine-rust/Cargo.toml --release --target wasm32-unknown-unknown
     - test -s wasm/engine-rust/target/wasm32-unknown-unknown/release/epi_info_table2x2.wasm
+    - cp wasm/engine-rust/target/wasm32-unknown-unknown/release/epi_info_table2x2.wasm wasm/demo/epi2x2.wasm
+    - sha256sum wasm/demo/epi2x2.wasm
+  artifacts:
+    paths:
+      - wasm/demo/epi2x2.wasm
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
@@ -35,8 +45,10 @@ production-build:
   stage: build
   image: node:24.19.0-alpine
   needs:
-    - browser-baseline
-    - rust-kernel
+    - job: browser-baseline
+      artifacts: false
+    - job: rust-kernel
+      artifacts: true
   before_script:
     - corepack enable
     - corepack install
@@ -68,9 +80,11 @@ validation-lab-build:
   before_script:
     - python -m pip install --requirement wasm/validation-lab/requirements.txt
   script:
+    - python wasm/validation-lab/verify.py
     - jupyter lite build --lite-dir wasm/validation-lab --contents content --output-dir wasm/dist/validation-lab
     - test -f wasm/dist/validation-lab/lab/index.html
     - test -f wasm/dist/validation-lab/files/validate-table2x2.ipynb
+    - test -f wasm/dist/validation-lab/files/validate-stratified2x2.ipynb
   artifacts:
     paths:
       - wasm/dist

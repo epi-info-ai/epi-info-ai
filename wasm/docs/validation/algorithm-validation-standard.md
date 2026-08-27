@@ -30,7 +30,7 @@ method-level adjudication rather than majority voting.
 | `restricted` | Validated only for a documented input/method subset | Production only inside that subset |
 | `retired` | Replaced or withdrawn; evidence remains archived | Existing provenance remains readable |
 
-The current 2 x 2 spike remains a candidate until the legacy corpus, exact methods,
+The current 2 x 2 kernel remains a candidate until the legacy corpus, exact methods,
 confidence intervals, edge semantics, native/WASM parity, and review gates are
 complete.
 
@@ -219,7 +219,9 @@ as a JavaScript-accessible library. This allows Rust results, Python scientific
 references, fixtures, tolerances, discrepancies, and provenance to appear together
 without treating Python as a second production engine.
 
-Notebook demonstrations are informative, not approval gates. They must:
+The repository-level corpus and notebook design is maintained in
+[`validation-lab.md`](../../validation-lab.md). Notebook demonstrations are
+informative, not approval gates. They must:
 
 - load the same versioned fixtures and release WASM artifact used by CI;
 - show unrounded values, per-output comparison rules, warnings, method identity,
@@ -229,16 +231,20 @@ Notebook demonstrations are informative, not approval gates. They must:
 - preserve discovered discrepancies rather than hiding or rounding them away; and
 - keep authoritative pass/fail decisions in immutable fixtures and automated CI.
 
-The V0.1 lab is built from
+The V0.4 lab is built from
 [`validation-lab/content/validate-table2x2.ipynb`](../../validation-lab/content/validate-table2x2.ipynb)
 and deployed under `/validation-lab/` on the same GitLab Pages origin as the app.
-It compares the Rust/WASM risk ratio with the current fixture and SciPy. V0.2 will
-add the classified legacy 100-case corpus.
+It derives the canonical potato-salad table from the frozen foodborne corpus and
+compares Rust/WASM estimates, confidence intervals, chi-square p-values, exact
+tails, conditional odds ratios, and exact confidence limits with candidate
+goldens and SciPy. CI also runs the 100-case legacy-derived Fisher p-value and
+confidence-limit corpus. The next increment expands pathological and performance
+evidence before moving to stratified methods.
 
 ## Initial execution order
 
-1. Apply this standard to `epi.table2x2`; import and classify the existing legacy
-   100-case corpus before adding algorithms.
+1. Apply this standard to `epi.table2x2`; complete provenance and method review
+   for the imported legacy 100-case corpus.
 2. Complete confidence intervals, exact tests, warning/undefined semantics, and
    native/browser WASM parity.
 3. Add frequencies and means with missing-value and weighting rules.

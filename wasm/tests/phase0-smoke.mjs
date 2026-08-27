@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -35,19 +34,21 @@ async function checkRequiredAssetsAndUi() {
   const requiredFiles = [
     "wasm/demo/index.html",
     "wasm/demo/styles.css",
-    "wasm/demo/app.js",
-    "wasm/demo/engine.js",
-    "wasm/demo/form-data.js",
-    "wasm/demo/maps.js",
-    "wasm/demo/shell.js",
+    "wasm/demo/app.ts",
+    "wasm/demo/engine.ts",
+    "wasm/demo/form-data.ts",
+    "wasm/demo/maps.ts",
+    "wasm/demo/shell.ts",
     "wasm/demo/supabase-sync.ts",
     "wasm/app/contracts/core.ts",
+    "wasm/app/contracts/project-package.ts",
     "wasm/demo/epi2x2.wasm",
     "wasm/demo/sample-case-data.csv",
     "wasm/demo/sample-map-layer.geojson",
     "wasm/demo/examples/README.md",
     "wasm/demo/examples/foodborne-outbreak-investigation.csv",
     "wasm/demo/examples/city-of-toledo-neighborhoods.geojson",
+    "wasm/demo/examples/sample-project.epia.json",
     "wasm/demo/vendor/leaflet/leaflet.css",
     "wasm/demo/vendor/leaflet/leaflet.js",
     "wasm/demo/vendor/leaflet/LICENSE",
@@ -59,10 +60,21 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/setup/supabase-schema.sql",
     "wasm/docs/research/rust-epidemiology-landscape.md",
     "wasm/docs/validation/algorithm-validation-standard.md",
+    "wasm/docs/validation/table2x2-exact-method-contract.md",
+    "wasm/docs/validation/stratified-table2x2-method-contract.md",
+    "wasm/docs/design/statcalc-compatibility-inventory.md",
     "wasm/validation-lab/content/validate-table2x2.ipynb",
+    "wasm/validation-lab/content/validate-stratified2x2.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
+    "wasm/validation-lab/verify.py",
     "wasm/tests/fixtures/algorithm-validation/registry.json",
+    "wasm/demo/tests/fixtures/two-by-two.json",
+    "wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.csv",
+    "wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.manifest.json",
+    "wasm/tests/fixtures/algorithm-validation/stratified-two-by-two-v0.5.json",
+    "wasm/tests/fixtures/algorithm-validation/stratified-homogeneity-v0.7.json",
+    "wasm/tests/fixtures/algorithm-validation/stratified-exact-v0.8.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -72,6 +84,9 @@ async function checkRequiredAssetsAndUi() {
     "main-menu-button",
     "file-menu",
     "file-exit",
+    "file-open-project",
+    "file-save-project",
+    "project-package-open",
     "view-menu",
     "view-status-bar",
     "tools-menu",
@@ -85,6 +100,13 @@ async function checkRequiredAssetsAndUi() {
     "save-form",
     "snap-to-grid",
     "record-form",
+    "field-rules-dialog",
+    "field-rule-age-source",
+    "field-check-action",
+    "data-quality-dialog",
+    "data-quality-duplicate-group",
+    "data-quality-deleted-record",
+    "data-quality-audit-log",
     "csv-import",
     "csv-export",
     "enter-open-maps",
@@ -105,6 +127,16 @@ async function checkRequiredAssetsAndUi() {
     "h3-dialog",
     "h3-resolution",
     "table-form",
+    "stratified-form",
+    "classic-tables-form",
+    "classic-exposure-field",
+    "classic-exposed-values",
+    "classic-outcome-field",
+    "classic-case-values",
+    "classic-strata-field",
+    "classic-run-tables",
+    "strata-rows",
+    "add-stratum",
     "project-storage-dialog",
     "project-storage-status",
   ];
@@ -116,24 +148,34 @@ async function checkRequiredAssetsAndUi() {
     assert.ok(html.includes(label), `main application must retain the familiar ${label} label`);
   }
 
-  const shell = await readFile(join(demoDirectory, "shell.js"), "utf8");
+  const shell = await readFile(join(demoDirectory, "shell.ts"), "utf8");
   assert.match(shell, /designer-new-project[\s\S]*#new-project/);
   assert.match(shell, /designer-project-storage[\s\S]*#project-storage/);
   assert.match(shell, /view-status-bar[\s\S]*main-menu-status/);
+
+  const readme = await readFile(repositoryPath("README.md"), "utf8");
+  assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-stratified2x2\.ipynb/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])
     .filter((reference) => !reference.startsWith("#") && !/^(?:https?:|data:|mailto:)/.test(reference));
   for (const reference of localAssetReferences) {
     const withoutQuery = reference.split(/[?#]/, 1)[0];
-    await assertFile(`wasm/demo/${withoutQuery}`);
+    const maintainedSource = ({ "app.js": "app.ts", "shell.js": "shell.ts" })[withoutQuery] ?? withoutQuery;
+    await assertFile(`wasm/demo/${maintainedSource}`);
   }
 }
 
-async function checkJavaScriptSyntax() {
-  const maintainedScripts = ["app.js", "engine.js", "form-data.js", "maps.js", "shell.js"];
-  for (const script of maintainedScripts) {
-    execFileSync(process.execPath, ["--check", join(demoDirectory, script)], { stdio: "pipe" });
+async function checkSourceLanguageBoundary() {
+  const rootSources = await readdir(demoDirectory);
+  assert.deepEqual(
+    rootSources.filter((name) => name.endsWith(".js")),
+    [],
+    "handwritten application JavaScript must not return to the demo root",
+  );
+  for (const moduleName of ["app", "engine", "form-data", "maps", "shell", "supabase-sync"]) {
+    assert.ok(rootSources.includes(`${moduleName}.ts`), `${moduleName} must remain a TypeScript source module`);
   }
 }
 
@@ -161,7 +203,7 @@ async function importEngineWithFileFetch() {
     return nativeFetch(input, init);
   };
   try {
-    return await import(`${pathToFileURL(join(demoDirectory, "engine.js")).href}?phase0=${Date.now()}`);
+    return await import(`${pathToFileURL(join(demoDirectory, "engine.ts")).href}?phase0=${Date.now()}`);
   } finally {
     globalThis.fetch = nativeFetch;
   }
@@ -178,24 +220,308 @@ async function checkTable2x2Contract() {
   assert.equal(result.engine.id, fixture.contract.engineId);
   assert.equal(result.engine.version, fixture.contract.engineVersion);
   assert.deepEqual(result.input, fixture.input);
+  assert.deepEqual(result.methods, fixture.methods);
   assert.deepEqual(result.totals, fixture.expected.totals);
   near(result.estimates.riskExposed, fixture.expected.riskExposed, tolerance, "risk among exposed");
   near(result.estimates.riskUnexposed, fixture.expected.riskUnexposed, tolerance, "risk among unexposed");
   near(result.estimates.riskRatio.estimate, fixture.expected.riskRatio, tolerance, "risk ratio");
+  near(result.estimates.riskRatio.confidenceInterval.lower, fixture.expected.riskRatioConfidenceInterval.lower, tolerance, "risk ratio CI lower");
+  near(result.estimates.riskRatio.confidenceInterval.upper, fixture.expected.riskRatioConfidenceInterval.upper, tolerance, "risk ratio CI upper");
   near(result.estimates.oddsRatio.estimate, fixture.expected.oddsRatio, tolerance, "odds ratio");
+  near(result.estimates.oddsRatio.confidenceInterval.lower, fixture.expected.oddsRatioConfidenceInterval.lower, tolerance, "odds ratio CI lower");
+  near(result.estimates.oddsRatio.confidenceInterval.upper, fixture.expected.oddsRatioConfidenceInterval.upper, tolerance, "odds ratio CI upper");
   near(result.estimates.riskDifference.estimate, fixture.expected.riskDifference, tolerance, "risk difference");
+  near(result.estimates.riskDifference.confidenceInterval.lower, fixture.expected.riskDifferenceConfidenceInterval.lower, tolerance, "risk difference CI lower");
+  near(result.estimates.riskDifference.confidenceInterval.upper, fixture.expected.riskDifferenceConfidenceInterval.upper, tolerance, "risk difference CI upper");
   near(result.tests.pearson.value, fixture.expected.pearsonChiSquare, tolerance, "Pearson chi-square");
+  near(result.tests.pearson.pValue, fixture.expected.pearsonPValue, tolerance, "Pearson p-value");
   near(result.tests.mantelHaenszel.value, fixture.expected.mantelHaenszelChiSquare, tolerance, "Mantel-Haenszel chi-square");
+  near(result.tests.mantelHaenszel.pValue, fixture.expected.mantelHaenszelPValue, tolerance, "Mantel-Haenszel p-value");
   near(result.tests.yates.value, fixture.expected.yatesChiSquare, tolerance, "Yates chi-square");
+  near(result.tests.yates.pValue, fixture.expected.yatesPValue, tolerance, "Yates p-value");
+  for (const tail of ["left", "right", "oneTailed", "twoTailed"]) {
+    near(result.tests.fisherExact[tail], fixture.expected.fisherExact[tail], tolerance, `Fisher exact ${tail}`);
+  }
+  for (const tail of ["left", "right", "oneTailed"]) {
+    near(result.tests.midPExact[tail], fixture.expected.midPExact[tail], tolerance, `mid-p exact ${tail}`);
+  }
+  const conditional = result.estimates.conditionalOddsRatio;
+  const conditionalTolerance = 1e-10;
+  assert.equal(conditional.estimate.state, "finite");
+  near(conditional.estimate.value, fixture.expected.conditionalOddsRatio.estimate, conditionalTolerance, "conditional odds ratio");
+  for (const method of ["fisherConfidenceInterval", "midPConfidenceInterval"]) {
+    assert.equal(conditional[method].lower.state, "finite");
+    assert.equal(conditional[method].upper.state, "finite");
+    near(conditional[method].lower.value, fixture.expected.conditionalOddsRatio[method].lower, conditionalTolerance,
+      `conditional odds ratio ${method} lower`);
+    near(conditional[method].upper.value, fixture.expected.conditionalOddsRatio[method].upper, conditionalTolerance,
+      `conditional odds ratio ${method} upper`);
+  }
   assert.deepEqual(result.diagnostics.expectedCellCounts, fixture.expected.expectedCellCounts);
   assert.deepEqual(result.diagnostics.warnings, []);
-  assert.ok(result.tests.fisherExact.twoTailed >= 0 && result.tests.fisherExact.twoTailed <= 1);
 
-  assert.throws(() => calculateTable2x2({ ...fixture.input, exposedCases: -1 }), /non-negative whole numbers/);
+  assert.throws(() => calculateTable2x2({ ...fixture.input, exposedCases: -1 }), /non-negative safe whole numbers/);
+  assert.throws(() => calculateTable2x2({ ...fixture.input, exposedCases: Number.MAX_SAFE_INTEGER + 1 }), /safe whole numbers/);
   assert.throws(() => calculateTable2x2({ ...fixture.input, confidenceLevel: 0.8 }), /Confidence level/);
   assert.throws(() => calculateTable2x2({ exposedCases: 0, exposedNonCases: 0, unexposedCases: 0, unexposedNonCases: 0, confidenceLevel: 0.95 }), /at least one observation/i);
   const sparse = calculateTable2x2({ exposedCases: 0, exposedNonCases: 10, unexposedCases: 2, unexposedNonCases: 8, confidenceLevel: 0.95 });
   assert.ok(sparse.diagnostics.warnings.some((warning) => warning.includes("zero")));
+  assert.deepEqual(sparse.estimates.conditionalOddsRatio.estimate, { value: 0, state: "zero" });
+  assert.deepEqual(sparse.estimates.conditionalOddsRatio.fisherConfidenceInterval.lower, { value: 0, state: "zero" });
+  const infinite = calculateTable2x2({ exposedCases: 10, exposedNonCases: 0, unexposedCases: 8, unexposedNonCases: 2, confidenceLevel: 0.95 });
+  assert.deepEqual(infinite.estimates.conditionalOddsRatio.estimate, { value: null, state: "positive-infinity" });
+  assert.deepEqual(infinite.estimates.conditionalOddsRatio.fisherConfidenceInterval.upper, { value: null, state: "positive-infinity" });
+  const uninformative = calculateTable2x2({ exposedCases: 1, exposedNonCases: 0, unexposedCases: 0, unexposedNonCases: 0, confidenceLevel: 0.95 });
+  assert.deepEqual(uninformative.estimates.conditionalOddsRatio.estimate, { value: null, state: "unavailable" });
+  assert.ok(uninformative.diagnostics.warnings.some((warning) => warning.includes("margins are uninformative")));
+}
+
+async function checkStratifiedTable2x2Contract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/stratified-two-by-two-v0.5.json",
+  ), "utf8"));
+  const { calculateStratifiedTable2x2, deriveStratifiedTable2x2 } = await importEngineWithFileFetch();
+  const datasetBytes = await readFile(repositoryPath(fixture.provenance.dataset));
+  assert.equal(createHash("sha256").update(datasetBytes).digest("hex"), fixture.provenance.datasetSha256);
+  const { inferSchemaFromRows, parseCsv } = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/csv.ts")).href}?stratified=${Date.now()}`);
+  const parsedRows = parseCsv(datasetBytes.toString("utf8").replace(/^\uFEFF/, ""));
+  const [headers, ...rows] = parsedRows;
+  const indexes = Object.fromEntries(["Potato Salad", "Case Status", "Sex"].map((name) => [name, headers.indexOf(name)]));
+  assert.ok(Object.values(indexes).every((index) => index >= 0));
+  const derived = new Map(fixture.input.strata.map((stratum) => [stratum.label, [0, 0, 0, 0]]));
+  const caseValues = new Set(["Confirmed", "Probable", "Suspected"]);
+  for (const row of rows) {
+    const cells = derived.get(row[indexes.Sex]);
+    assert.ok(cells, `unexpected foodborne stratum ${row[indexes.Sex]}`);
+    const exposed = row[indexes["Potato Salad"]] === "Yes";
+    const illness = caseValues.has(row[indexes["Case Status"]]);
+    cells[(exposed ? 0 : 2) + (illness ? 0 : 1)] += 1;
+  }
+  assert.deepEqual([...derived.entries()], fixture.input.strata.map((stratum) => [stratum.label, [
+    stratum.exposedCases, stratum.exposedNonCases, stratum.unexposedCases, stratum.unexposedNonCases,
+  ]]));
+  const imported = inferSchemaFromRows("foodborne.csv", parsedRows);
+  const browserDerivation = deriveStratifiedTable2x2(imported.records, {
+    exposureField: "potato_salad",
+    exposedValues: ["Yes"],
+    outcomeField: "case_status",
+    caseValues: ["Confirmed", "Probable", "Suspected"],
+    strataField: "sex",
+    confidenceLevel: 0.95,
+  });
+  assert.equal(browserDerivation.command, "TABLES potato_salad case_status STRATAVAR=sex");
+  assert.deepEqual(browserDerivation.audit, {
+    sourceRecords: 96,
+    includedRecords: 96,
+    excludedMissing: 0,
+    exposureReferenceValues: ["No"],
+    outcomeReferenceValues: ["Not a case"],
+  });
+  assert.deepEqual(browserDerivation.input.strata.map(({ label, exposedCases, exposedNonCases, unexposedCases, unexposedNonCases }) => ({
+    label, exposedCases, exposedNonCases, unexposedCases, unexposedNonCases,
+  })), fixture.input.strata.map(({ label, exposedCases, exposedNonCases, unexposedCases, unexposedNonCases }) => ({
+    label, exposedCases, exposedNonCases, unexposedCases, unexposedNonCases,
+  })));
+  const withMissing = deriveStratifiedTable2x2([...imported.records, { potato_salad: "", case_status: "Confirmed", sex: "Female" }], {
+    exposureField: "potato_salad", exposedValues: ["Yes"], outcomeField: "case_status",
+    caseValues: ["Confirmed", "Probable", "Suspected"], strataField: "sex", confidenceLevel: 0.95,
+  });
+  assert.equal(withMissing.audit.sourceRecords, 97);
+  assert.equal(withMissing.audit.includedRecords, 96);
+  assert.equal(withMissing.audit.excludedMissing, 1);
+  assert.throws(() => deriveStratifiedTable2x2(imported.records, {
+    exposureField: "sex", exposedValues: ["Female"], outcomeField: "sex", caseValues: ["Female"],
+    strataField: "case_status", confidenceLevel: 0.95,
+  }), /three different/);
+  const result = calculateStratifiedTable2x2(fixture.input);
+  const expected = fixture.expected;
+  const tolerance = fixture.tolerance;
+  assert.equal(result.schemaVersion, "0.8.0");
+  assert.equal(result.operation, fixture.operation);
+  assert.deepEqual(result.input, fixture.input);
+  near(result.estimates.adjustedOddsRatio.estimate, expected.adjustedOddsRatio, tolerance, "adjusted MH odds ratio");
+  near(result.estimates.adjustedOddsRatio.confidenceInterval.lower, expected.adjustedOddsRatioLower, tolerance, "adjusted MH OR lower");
+  near(result.estimates.adjustedOddsRatio.confidenceInterval.upper, expected.adjustedOddsRatioUpper, tolerance, "adjusted MH OR upper");
+  near(result.estimates.adjustedRiskRatio.estimate, expected.adjustedRiskRatio, tolerance, "adjusted MH risk ratio");
+  near(result.estimates.adjustedRiskRatio.confidenceInterval.lower, expected.adjustedRiskRatioLower, tolerance, "adjusted MH RR lower");
+  near(result.estimates.adjustedRiskRatio.confidenceInterval.upper, expected.adjustedRiskRatioUpper, tolerance, "adjusted MH RR upper");
+  near(result.tests.mantelHaenszelUncorrected.value, expected.mantelHaenszelUncorrected, tolerance, "MH uncorrected");
+  near(result.tests.mantelHaenszelCorrected.value, expected.mantelHaenszelCorrected, tolerance, "MH corrected");
+  near(result.tests.breslowDayOddsRatio.value, 0, tolerance, "foodborne fixed-margin Breslow-Day");
+  near(result.tests.breslowDayTaroneOddsRatio.value, 0, tolerance, "foodborne Breslow-Day-Tarone");
+  near(result.tests.legacyBreslowDayOddsRatio.value, 0, tolerance, "foodborne legacy-labelled Breslow-Day");
+  near(result.tests.legacyBreslowDayRiskRatio.value, 0, tolerance, "foodborne legacy-labelled Breslow-Day RR");
+  near(result.tests.breslowDayOddsRatio.pValue, 1, tolerance, "foodborne fixed-margin Breslow-Day p-value");
+  assert.deepEqual(result.diagnostics, { informativeStrata: 2, warnings: [] });
+  assert.throws(() => calculateStratifiedTable2x2({ ...fixture.input, strata: [] }), /between 1 and 1,024 strata/);
+  assert.throws(() => calculateStratifiedTable2x2({ ...fixture.input, strata: [fixture.input.strata[0], fixture.input.strata[0]] }), /unique ID/);
+}
+
+async function checkStratifiedHomogeneityContract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/stratified-homogeneity-v0.7.json",
+  ), "utf8"));
+  const { calculateStratifiedTable2x2 } = await importEngineWithFileFetch();
+  const result = calculateStratifiedTable2x2(fixture.input);
+  const expected = fixture.expected;
+  const tolerance = fixture.tolerance;
+  for (const name of ["breslowDayOddsRatio", "breslowDayTaroneOddsRatio", "legacyBreslowDayOddsRatio", "legacyBreslowDayRiskRatio"]) {
+    const test = result.tests[name];
+    assert.ok(test, `${name} must be available for the positive-cell benchmark`);
+    assert.equal(test.degreesOfFreedom, expected.degreesOfFreedom);
+    near(test.value, expected[name], tolerance, name);
+    near(test.pValue, expected[`${name}PValue`], tolerance, `${name} p-value`);
+  }
+  const sparse = calculateStratifiedTable2x2({
+    ...fixture.input,
+    strata: fixture.input.strata.map((stratum, index) => index === 0 ? { ...stratum, exposedCases: 0 } : stratum),
+  });
+  assert.equal(sparse.tests.legacyBreslowDayOddsRatio, null);
+  assert.equal(sparse.tests.legacyBreslowDayRiskRatio, null);
+  assert.ok(sparse.diagnostics.warnings.some((warning) => warning.includes("zero cell")));
+}
+
+async function checkStratifiedExactContract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/stratified-exact-v0.8.json",
+  ), "utf8"));
+  const { calculateStratifiedTable2x2 } = await importEngineWithFileFetch();
+  for (const candidate of fixture.cases) {
+    const exact = calculateStratifiedTable2x2(candidate.input).estimates.adjustedConditionalOddsRatio;
+    assert.equal(exact.estimate.state, "finite");
+    assert.equal(exact.fisherConfidenceInterval.lower.state, "finite");
+    assert.equal(exact.fisherConfidenceInterval.upper.state, "finite");
+    near(exact.estimate.value, candidate.expected.estimate, fixture.tolerance, `${candidate.id} conditional MLE`);
+    near(exact.fisherConfidenceInterval.lower.value, candidate.expected.lower, fixture.tolerance, `${candidate.id} exact lower`);
+    near(exact.fisherConfidenceInterval.upper.value, candidate.expected.upper, fixture.tolerance, `${candidate.id} exact upper`);
+  }
+  const zero = calculateStratifiedTable2x2({ confidenceLevel: 0.95, strata: [
+    { id: "one", label: "One", exposedCases: 0, exposedNonCases: 10, unexposedCases: 5, unexposedNonCases: 5 },
+    { id: "two", label: "Two", exposedCases: 0, exposedNonCases: 8, unexposedCases: 4, unexposedNonCases: 6 },
+  ] }).estimates.adjustedConditionalOddsRatio;
+  assert.equal(zero.estimate.state, "zero");
+  assert.equal(zero.fisherConfidenceInterval.lower.state, "zero");
+  assert.equal(zero.fisherConfidenceInterval.upper.state, "finite");
+  const infinite = calculateStratifiedTable2x2({ confidenceLevel: 0.95, strata: [
+    { id: "one", label: "One", exposedCases: 5, exposedNonCases: 5, unexposedCases: 0, unexposedNonCases: 10 },
+    { id: "two", label: "Two", exposedCases: 4, exposedNonCases: 6, unexposedCases: 0, unexposedNonCases: 8 },
+  ] }).estimates.adjustedConditionalOddsRatio;
+  assert.equal(infinite.estimate.state, "positive-infinity");
+  assert.equal(infinite.fisherConfidenceInterval.lower.state, "finite");
+  assert.equal(infinite.fisherConfidenceInterval.upper.state, "positive-infinity");
+}
+
+async function checkFoodborneValidationFixture() {
+  const fixturePath = "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json";
+  const fixture = JSON.parse(await readFile(repositoryPath(fixturePath), "utf8"));
+  const csvBytes = await readFile(repositoryPath(fixture.dataset.file));
+  assert.equal(createHash("sha256").update(csvBytes).digest("hex"), fixture.dataset.sha256);
+
+  const { parseCsv } = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/csv.ts")).href}?foodborne=${Date.now()}`);
+  const [headers, ...rows] = parseCsv(csvBytes.toString("utf8").replace(/^\uFEFF/, ""));
+  assert.equal(rows.length, fixture.dataset.rows);
+  const caseIndex = headers.indexOf(fixture.derivation.caseField);
+  const exposureIndex = headers.indexOf(fixture.derivation.exposureField);
+  assert.ok(caseIndex >= 0 && exposureIndex >= 0, "foodborne derivation fields must exist");
+  const normalize = (value) => value.trim().toLocaleLowerCase("en-US");
+  const cases = new Set(fixture.derivation.caseValues.map(normalize));
+  const noncases = new Set(fixture.derivation.noncaseValues.map(normalize));
+  const yes = new Set(fixture.derivation.yesValues.map(normalize));
+  const no = new Set(fixture.derivation.noValues.map(normalize));
+  const derived = { exposedCases: 0, exposedNonCases: 0, unexposedCases: 0, unexposedNonCases: 0 };
+  let excluded = 0;
+
+  for (const row of rows) {
+    const status = normalize(row[caseIndex] ?? "");
+    const exposure = normalize(row[exposureIndex] ?? "");
+    if ((!cases.has(status) && !noncases.has(status)) || (!yes.has(exposure) && !no.has(exposure))) {
+      excluded += 1;
+    } else if (yes.has(exposure) && cases.has(status)) {
+      derived.exposedCases += 1;
+    } else if (yes.has(exposure)) {
+      derived.exposedNonCases += 1;
+    } else if (cases.has(status)) {
+      derived.unexposedCases += 1;
+    } else {
+      derived.unexposedNonCases += 1;
+    }
+  }
+  assert.deepEqual(derived, {
+    exposedCases: fixture.input.exposedCases,
+    exposedNonCases: fixture.input.exposedNonCases,
+    unexposedCases: fixture.input.unexposedCases,
+    unexposedNonCases: fixture.input.unexposedNonCases,
+  });
+  assert.equal(excluded, fixture.derivation.excludedRows);
+
+  const { calculateTable2x2 } = await importEngineWithFileFetch();
+  const result = calculateTable2x2(fixture.input);
+  const expected = fixture.expected;
+  const tolerance = fixture.comparisons.finiteResults.tolerance;
+  near(result.estimates.riskRatio.estimate, expected.riskRatio, tolerance, "foodborne risk ratio");
+  near(result.estimates.riskRatio.confidenceInterval.lower, expected.riskRatioConfidenceInterval.lower, tolerance, "foodborne risk ratio CI lower");
+  near(result.estimates.riskRatio.confidenceInterval.upper, expected.riskRatioConfidenceInterval.upper, tolerance, "foodborne risk ratio CI upper");
+  near(result.estimates.oddsRatio.estimate, expected.oddsRatio, tolerance, "foodborne odds ratio");
+  near(result.estimates.oddsRatio.confidenceInterval.lower, expected.oddsRatioConfidenceInterval.lower, tolerance, "foodborne odds ratio CI lower");
+  near(result.estimates.oddsRatio.confidenceInterval.upper, expected.oddsRatioConfidenceInterval.upper, tolerance, "foodborne odds ratio CI upper");
+  near(result.tests.pearson.pValue, expected.pearsonPValue, tolerance, "foodborne Pearson p-value");
+  near(result.tests.mantelHaenszel.pValue, expected.mantelHaenszelPValue, tolerance, "foodborne Mantel-Haenszel p-value");
+  near(result.tests.yates.pValue, expected.yatesPValue, tolerance, "foodborne Yates p-value");
+  for (const tail of ["left", "right", "oneTailed", "twoTailed"]) {
+    near(result.tests.fisherExact[tail], expected.fisherExact[tail], tolerance, `foodborne Fisher exact ${tail}`);
+  }
+  for (const tail of ["left", "right", "oneTailed"]) {
+    near(result.tests.midPExact[tail], expected.midPExact[tail], tolerance, `foodborne mid-p exact ${tail}`);
+  }
+  const conditional = result.estimates.conditionalOddsRatio;
+  const conditionalTolerance = fixture.comparisons.conditionalOddsRatioResults.tolerance;
+  near(conditional.estimate.value, expected.conditionalOddsRatio.estimate, conditionalTolerance, "foodborne conditional odds ratio");
+  for (const method of ["fisherConfidenceInterval", "midPConfidenceInterval"]) {
+    near(conditional[method].lower.value, expected.conditionalOddsRatio[method].lower, conditionalTolerance,
+      `foodborne conditional odds ratio ${method} lower`);
+    near(conditional[method].upper.value, expected.conditionalOddsRatio[method].upper, conditionalTolerance,
+      `foodborne conditional odds ratio ${method} upper`);
+  }
+}
+
+async function checkLegacyTwoByTwoCorpus() {
+  const manifest = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.manifest.json"), "utf8"));
+  const corpusBytes = await readFile(repositoryPath(manifest.inputFixture.file));
+  const exactLimitBytes = await readFile(repositoryPath(manifest.extractedFixture.file));
+  assert.equal(createHash("sha256").update(corpusBytes).digest("hex"), manifest.inputFixture.sha256);
+  assert.equal(createHash("sha256").update(exactLimitBytes).digest("hex"), manifest.extractedFixture.sha256);
+  const corpus = JSON.parse(corpusBytes.toString("utf8").replace(/^\uFEFF/, ""));
+  const exactLimitRows = exactLimitBytes.toString("utf8")
+    .trim().split(/\r?\n/).slice(1).map((line) => {
+      const [id, fisherLower, fisherUpper] = line.split(",");
+      return { id: Number(id), fisherLower: Number(fisherLower), fisherUpper: Number(fisherUpper) };
+    });
+  assert.equal(corpus.length, 100, "the legacy-derived 2 x 2 corpus must retain all 100 cases");
+  assert.equal(exactLimitRows.length, manifest.extractedFixture.rows);
+  assert.equal(exactLimitRows.length, corpus.length, "legacy exact-limit fixture must align with the 100 cases");
+  const { calculateTable2x2 } = await importEngineWithFileFetch();
+  for (const testCase of corpus) {
+    const result = calculateTable2x2(testCase.input);
+    near(result.tests.fisherExact.oneTailed, testCase.expected.fisherOneTailed, 1e-9,
+      `legacy case ${testCase.id} Fisher one-tailed`);
+    near(result.tests.fisherExact.twoTailed, testCase.expected.fisherTwoTailed, 1e-9,
+      `legacy case ${testCase.id} Fisher two-tailed`);
+    assert.ok(Math.abs(result.tests.midPExact.left + result.tests.midPExact.right - 1) <= 1e-12,
+      `legacy case ${testCase.id} mid-p tails must sum to one`);
+    const exactLimits = exactLimitRows[testCase.id];
+    assert.equal(exactLimits.id, testCase.id);
+    near(result.estimates.conditionalOddsRatio.fisherConfidenceInterval.lower.value, exactLimits.fisherLower, manifest.comparison.tolerance,
+      `legacy case ${testCase.id} Fisher exact odds-ratio lower limit`);
+    near(result.estimates.conditionalOddsRatio.fisherConfidenceInterval.upper.value, exactLimits.fisherUpper, manifest.comparison.tolerance,
+      `legacy case ${testCase.id} Fisher exact odds-ratio upper limit`);
+    const conditional = result.estimates.conditionalOddsRatio;
+    assert.ok(conditional.fisherConfidenceInterval.lower.value <= conditional.estimate.value
+      && conditional.estimate.value <= conditional.fisherConfidenceInterval.upper.value,
+      `legacy case ${testCase.id} conditional estimate must lie within Fisher limits`);
+    assert.ok(conditional.midPConfidenceInterval.lower.value <= conditional.estimate.value
+      && conditional.estimate.value <= conditional.midPConfidenceInterval.upper.value,
+      `legacy case ${testCase.id} conditional estimate must lie within mid-p limits`);
+  }
 }
 
 async function checkCsvAndProjectFixtures() {
@@ -208,7 +534,7 @@ async function checkCsvAndProjectFixtures() {
   };
   const unreadableProject = JSON.stringify({ name: "Damaged project", currentFormId: "missing", forms: [] });
   memory.set("epi-info-ai.project-state.v1", unreadableProject);
-  const module = await import(`${pathToFileURL(join(demoDirectory, "form-data.js")).href}?phase0=${Date.now()}`);
+  const module = await import(`${pathToFileURL(join(demoDirectory, "form-data.ts")).href}?phase0=${Date.now()}`);
   assert.equal(memory.get("epi-info-ai.project-state-unreadable.v1"), unreadableProject);
   const csv = await readFile(join(fixturesDirectory, "csv-roundtrip.csv"), "utf8");
   const rows = module.parseCsv(csv);
@@ -224,6 +550,19 @@ async function checkCsvAndProjectFixtures() {
 
   const serializedRows = module.parseCsv(module.serializeCsv(inferred.schema, inferred.records));
   assert.deepEqual(serializedRows, rows);
+
+  const tsvRows = module.parseTsv('Case ID\tAge\tNotes\nTSV-001\t42\t"tabs stay tabular"\n');
+  assert.deepEqual(tsvRows, [["Case ID", "Age", "Notes"], ["TSV-001", "42", "tabs stay tabular"]]);
+  const jsonRows = module.parseJsonRecords(JSON.stringify([
+    { "Case ID": "JSON-001", Age: 31, Ill: true },
+    { "Case ID": "JSON-002", Age: null, Ill: false, Notes: "follow-up" },
+  ]));
+  assert.deepEqual(jsonRows, [
+    ["Case ID", "Age", "Ill", "Notes"],
+    ["JSON-001", "31", "true", ""],
+    ["JSON-002", "", "false", "follow-up"],
+  ]);
+  assert.throws(() => module.parseJsonRecords('{"type":"FeatureCollection","features":[]}'), /array of record objects/i);
 
   const outbreakCsv = await readFile(join(examplesDirectory, "foodborne-outbreak-investigation.csv"), "utf8");
   const outbreakRows = module.parseCsv(outbreakCsv);
@@ -267,7 +606,7 @@ async function checkCsvAndProjectFixtures() {
 
 async function checkMapFixture() {
   const fixture = await jsonFixture("map-points.json");
-  const { aggregateH3Cells, buildTimeLapseStops, extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, MAP_PANE_Z_INDEX, mapPaneForGeometryType, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.js")).href}?phase0=${Date.now()}`);
+  const { aggregateH3Cells, buildTimeLapseStops, extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, MAP_PANE_Z_INDEX, mapPaneForGeometryType, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.ts")).href}?phase0=${Date.now()}`);
   const points = extractMapPoints(fixture.records, fixture.latitudeField, fixture.longitudeField);
   assert.deepEqual(points.map(({ recordIndex, latitude, longitude }) => ({ recordIndex, latitude, longitude })), fixture.expected);
   const h3Cells = aggregateH3Cells(points, 8);
@@ -344,6 +683,149 @@ async function checkSupabaseSetupContract() {
   }
 }
 
+async function checkFormValidationContracts() {
+  const contracts = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/core.ts")).href}?validation=${Date.now()}`);
+  const validation = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/validation.ts")).href}?validation=${Date.now()}`);
+  const schema = {
+    name: "Validation form",
+    fields: [
+      { name: "case_id", prompt: "Case ID", type: "text", required: true, rules: [{ kind: "unique" }, { kind: "pattern", pattern: "^CASE-[0-9]{3}$" }] },
+      { name: "age", prompt: "Age", type: "number", required: false, rules: [{ kind: "range", valueType: "number", min: 0, max: 120 }] },
+      { name: "status", prompt: "Status", type: "option", required: false, rules: [{ kind: "legal-values", values: ["Confirmed", "Probable"] }] },
+    ],
+  };
+  const snapshot = contracts.validateProjectSnapshot({
+    version: 1,
+    name: "Validation project",
+    currentFormId: "validation-form",
+    forms: [{ id: "validation-form", schema, records: [] }],
+  });
+  assert.deepEqual(snapshot.forms[0].schema.fields[0].rules, schema.fields[0].rules);
+  const issues = validation.validateRecord(
+    "validation-form",
+    schema,
+    { case_id: "case-001", age: 121, status: "Suspected" },
+    1,
+    [{ case_id: "CASE-001", age: 40, status: "Confirmed" }],
+  );
+  assert.deepEqual(new Set(issues.map((issue) => issue.rule)), new Set(["unique", "pattern", "range", "legal-values"]));
+  assert.ok(issues.every((issue) => issue.formId === "validation-form" && issue.recordIndex === 1 && issue.suggestedResolution));
+  assert.throws(() => contracts.validateProjectSnapshot({
+    name: "Invalid rules",
+    currentFormId: "form",
+    forms: [{ id: "form", schema: { name: "Form", fields: [{ name: "x", prompt: "X", type: "text", required: false, rules: [{ kind: "range", valueType: "number" }] }] }, records: [] }],
+  }), /must define min, max, or both/);
+
+  const skipSchema = {
+    name: "Skip form",
+    fields: [
+      { name: "hospitalized", prompt: "Hospitalized", type: "yes-no", required: false, tabStop: true, checkCode: { version: 1, after: [{ kind: "goto", targetField: "antibiotics", when: { operator: "equals", value: "No" } }] } },
+      { name: "admission_date", prompt: "Admission date", type: "date", required: false, tabStop: true },
+      { name: "antibiotics", prompt: "Antibiotics", type: "yes-no", required: false, tabStop: true },
+    ],
+  };
+  const skipProject = contracts.validateProjectSnapshot({
+    version: 1,
+    name: "Skip project",
+    currentFormId: "skip",
+    forms: [{ id: "skip", schema: skipSchema, records: [] }],
+  });
+  assert.equal(skipProject.forms[0].schema.fields[0].checkCode.after[0].targetField, "antibiotics");
+  const entryView = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/entry-view.ts")).href}?skip=${Date.now()}`);
+  assert.equal(entryView.resolveAfterGoto(skipSchema.fields[0], "No"), "antibiotics");
+  assert.equal(entryView.resolveAfterGoto(skipSchema.fields[0], "Yes"), undefined);
+  const actionField = {
+    name: "hospitalized", prompt: "Hospitalized", type: "yes-no", required: false,
+    checkCode: { after: [{ kind: "field-action", action: "disable", targetField: "admission_date", when: { operator: "equals", value: "No" } }] },
+  };
+  assert.deepEqual(entryView.resolveAfterActions(actionField, "No").map((statement) => statement.action), ["disable"]);
+  assert.deepEqual(entryView.resolveAfterActions(actionField, "Yes"), []);
+  assert.throws(() => contracts.validateProjectSnapshot({
+    name: "Skip cycle",
+    currentFormId: "skip",
+    forms: [{ id: "skip", schema: { name: "Skip", fields: [
+      { name: "a", prompt: "A", type: "text", required: false, checkCode: { after: [{ kind: "goto", targetField: "b" }] } },
+      { name: "b", prompt: "B", type: "text", required: false, checkCode: { after: [{ kind: "goto", targetField: "a" }] } },
+    ] }, records: [] }],
+  }), /goto cycle/i);
+
+  const ageSchema = {
+    name: "Calculated age form",
+    fields: [
+      { name: "birth_date", prompt: "Birth date", type: "date", required: true },
+      { name: "interview_date", prompt: "Interview date", type: "date", required: true },
+      { name: "age", prompt: "Age", type: "number", required: false, rules: [{ kind: "calculated-age", sourceDateField: "birth_date", asOfDateField: "interview_date" }] },
+    ],
+  };
+  contracts.validateProjectSnapshot({ name: "Age", currentFormId: "age", forms: [{ id: "age", schema: ageSchema, records: [] }] });
+  assert.equal(validation.calculateAgeYears("2000-08-27", "2026-08-26"), 25);
+  assert.equal(validation.calculateAgeYears("2000-08-27", "2026-08-27"), 26);
+  assert.equal(validation.calculateAgeYears("not-a-date", "2026-08-27"), null);
+  assert.deepEqual(validation.materializeCalculatedFields(ageSchema, { birth_date: "2000-08-27", interview_date: "2026-08-27", age: 0 }).age, 26);
+  assert.throws(() => contracts.validateProjectSnapshot({
+    name: "Bad age", currentFormId: "age", forms: [{ id: "age", schema: { name: "Bad", fields: [
+      { name: "age", prompt: "Age", type: "number", required: false, rules: [{ kind: "calculated-age", sourceDateField: "missing" }] },
+    ] }, records: [] }],
+  }), /calculated-age source/);
+
+  const dataQuality = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/data-quality.ts")).href}?quality=${Date.now()}`);
+  const quality = dataQuality.buildDataQualityReport("validation-form", schema, [
+    { case_id: "CASE-001", age: 40, status: "Confirmed" },
+    { case_id: "CASE-001", age: "", status: "Suspected" },
+  ]);
+  assert.equal(quality.recordCount, 2);
+  assert.equal(quality.fields.find((field) => field.fieldName === "age").missing, 1);
+  assert.equal(quality.duplicateIssues, 2);
+  assert.ok(quality.duplicateGroups.some((group) => group.fieldName === "case_id" && group.recordIndexes.length === 2));
+  assert.ok(quality.issues.some((issue) => issue.rule === "legal-values"));
+
+  const lifecycle = contracts.validateProjectSnapshot({
+    version: 1,
+    name: "Lifecycle",
+    currentFormId: "validation-form",
+    forms: [{ id: "validation-form", schema, records: [], deletedRecords: [{
+      archiveId: "archive-1", record: { case_id: "CASE-001" }, originalIndex: 0,
+      deletedAt: "2026-08-27T12:00:00.000Z", reason: "Confirmed duplicate",
+    }] }],
+    auditLog: [{ id: "audit-1", occurredAt: "2026-08-27T12:00:00.000Z", action: "record-deleted", formId: "validation-form", archiveId: "archive-1", detail: "Record moved to Recycle Bin." }],
+  });
+  assert.equal(lifecycle.forms[0].deletedRecords[0].reason, "Confirmed duplicate");
+  assert.equal(lifecycle.auditLog[0].action, "record-deleted");
+}
+
+async function checkSampleProjectPackage() {
+  const contracts = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?package=${Date.now()}`);
+  const source = await readFile(repositoryPath("wasm/demo/examples/sample-project.epia.json"), "utf8");
+  assert.equal(createHash("sha256").update(source).digest("hex"), "e23dda745ff351b153158ecb920785933aaf077355cbbcad9aa8e84e54cd693b");
+  const packageValue = contracts.parseProjectPackage(source);
+  assert.equal(packageValue.project.name, "Sample");
+  assert.equal(packageValue.project.forms.length, 18);
+  assert.equal(packageValue.programs.length, 1);
+  assert.equal(packageValue.programs[0].name, "Statistics");
+  assert.match(packageValue.programs[0].source, /READ \{Projects\/Sample\/Sample\.prj\}:Oswego/);
+  assert.match(packageValue.programs[0].source, /LOGISTIC CHD = CAT/);
+  assert.equal(packageValue.codeTables.length, 22);
+  assert.deepEqual(packageValue.migration.inventory, {
+    forms: 18,
+    pages: 26,
+    fields: 417,
+    programs: 1,
+    codeTables: 22,
+  });
+  assert.equal(packageValue.migration.forms.flatMap((form) => form.pages).length, 26);
+  assert.equal(packageValue.migration.forms.flatMap((form) => [
+    ...form.unpagedFields,
+    ...form.pages.flatMap((page) => page.fields),
+  ]).length, 417);
+  const recordCounts = Object.fromEntries(packageValue.project.forms.map((form) => [form.schema.name, form.records.length]));
+  assert.equal(recordCounts.Oswego, 75);
+  assert.equal(recordCounts.Epi10, 2152);
+  assert.equal(recordCounts.Smoke, 337);
+  const invalidPackage = JSON.parse(source);
+  invalidPackage.version = 99;
+  assert.throws(() => contracts.validateProjectPackage(invalidPackage), /package.version/);
+}
+
 async function checkAlgorithmValidationRegistry() {
   const registry = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/registry.json"), "utf8"));
   const allowedStates = new Set(["experimental", "candidate", "validated", "restricted", "retired"]);
@@ -382,6 +864,8 @@ async function checkValidationLabSource() {
     "candidate operation",
     "WebAssembly.instantiate",
     "scipy.stats.contingency",
+    "nchypergeom_fisher",
+    "conditional_odds_ratio_fisher_lower",
     "absoluteTolerance",
     "wasm_sha256",
     "GitLab CI",
@@ -393,12 +877,19 @@ async function checkValidationLabSource() {
 async function run() {
   const checks = [
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
-    ["maintained JavaScript syntax", checkJavaScriptSyntax],
+    ["TypeScript source language boundary", checkSourceLanguageBoundary],
     ["WASM checksum and exports", checkWasmArtifact],
     ["2 x 2 result contract", checkTable2x2Contract],
+    ["stratified 2 x 2 result contract", checkStratifiedTable2x2Contract],
+    ["stratified OR/RR homogeneity contract", checkStratifiedHomogeneityContract],
+    ["stratified exact conditional contract", checkStratifiedExactContract],
+    ["foodborne 2 x 2 validation fixture", checkFoodborneValidationFixture],
+    ["legacy 100-case exact 2 x 2 corpus", checkLegacyTwoByTwoCorpus],
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],
     ["map coordinate filtering", checkMapFixture],
     ["Supabase RLS setup contract", checkSupabaseSetupContract],
+    ["form validation contracts", checkFormValidationContracts],
+    ["portable Sample project package", checkSampleProjectPackage],
     ["algorithm validation registry", checkAlgorithmValidationRegistry],
     ["JupyterLite validation lab source", checkValidationLabSource],
   ];

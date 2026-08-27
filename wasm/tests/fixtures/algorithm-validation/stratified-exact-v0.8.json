@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "operation": "epi.stratified2x2",
+  "provenance": {
+    "purpose": "Candidate conditional product-hypergeometric CMLE and central Fisher confidence-limit anchors",
+    "legacySource": "StatisticsRepository/Strat2X2.vb: ucestimaten, exactorln, exactorun",
+    "independentReference": "Python log-binomial convolution with scipy.optimize.brentq",
+    "reviewState": "candidate-unreviewed"
+  },
+  "cases": [
+    {
+      "id": "foodborne-potato-salad-by-sex",
+      "input": {
+        "confidenceLevel": 0.95,
+        "strata": [
+          { "id": "female", "label": "Female", "exposedCases": 18, "exposedNonCases": 6, "unexposedCases": 4, "unexposedNonCases": 20 },
+          { "id": "male", "label": "Male", "exposedCases": 18, "exposedNonCases": 6, "unexposedCases": 4, "unexposedNonCases": 20 }
+        ]
+      },
+      "expected": { "estimate": 13.92417586473359, "lower": 4.885405167537105, "upper": 44.31501806410245 }
+    },
+    {
+      "id": "heterogeneous-three-strata",
+      "input": {
+        "confidenceLevel": 0.95,
+        "strata": [
+          { "id": "one", "label": "Stratum 1", "exposedCases": 10, "exposedNonCases": 20, "unexposedCases": 15, "unexposedNonCases": 25 },
+          { "id": "two", "label": "Stratum 2", "exposedCases": 30, "exposedNonCases": 10, "unexposedCases": 10, "unexposedNonCases": 30 },
+          { "id": "three", "label": "Stratum 3", "exposedCases": 8, "exposedNonCases": 12, "unexposedCases": 14, "unexposedNonCases": 16 }
+        ]
+      },
+      "expected": { "estimate": 2.0260062808500727, "lower": 1.103918474649541, "upper": 3.7484703118266562 }
+    }
+  ],
+  "tolerance": 1e-12,
+  "reviewedLimits": { "maximumSupportWidth": 4096, "maximumConvolutionWork": 2000000, "maximumCell": 999999 }
+}

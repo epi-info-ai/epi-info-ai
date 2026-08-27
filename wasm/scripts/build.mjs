@@ -8,7 +8,7 @@ const wasmDirectory = resolve(scriptsDirectory, "..");
 const sourceDirectory = join(wasmDirectory, "demo");
 const outputDirectory = join(wasmDirectory, "dist");
 const validationFixtureDirectory = join(outputDirectory, "validation-fixtures");
-const maintainedModules = ["app", "engine", "form-data", "maps", "supabase-sync"];
+const maintainedModules = ["app", "engine", "form-data", "maps", "shell", "supabase-sync"];
 const bundledModules = new Set(["form-data", "supabase-sync"]);
 
 async function existingSource(baseName) {
@@ -36,6 +36,22 @@ await mkdir(validationFixtureDirectory, { recursive: true });
 await cp(
   join(wasmDirectory, "tests/fixtures/phase0/table2x2-baseline.json"),
   join(validationFixtureDirectory, "table2x2-baseline.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"),
+  join(validationFixtureDirectory, "foodborne-outbreak-v1-table2x2.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/stratified-two-by-two-v0.5.json"),
+  join(validationFixtureDirectory, "stratified-two-by-two-v0.5.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/stratified-homogeneity-v0.7.json"),
+  join(validationFixtureDirectory, "stratified-homogeneity-v0.7.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/stratified-exact-v0.8.json"),
+  join(validationFixtureDirectory, "stratified-exact-v0.8.json"),
 );
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));

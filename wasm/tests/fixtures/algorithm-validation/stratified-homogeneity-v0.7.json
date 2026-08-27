@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "operation": "epi.stratified2x2",
+  "provenance": {
+    "purpose": "Non-zero OR/RR homogeneity benchmark for standard Breslow-Day, Tarone correction, and legacy Epi Info-labelled Woolf statistics",
+    "legacySource": "Epi.Statistics/Single2x2.cs",
+    "independentReference": "Python fixed-margin and weighted log-effect formulas plus scipy.stats.chi2.sf",
+    "reviewState": "candidate-unreviewed"
+  },
+  "input": {
+    "confidenceLevel": 0.95,
+    "strata": [
+      { "id": "one", "label": "Stratum 1", "exposedCases": 10, "exposedNonCases": 20, "unexposedCases": 15, "unexposedNonCases": 25 },
+      { "id": "two", "label": "Stratum 2", "exposedCases": 30, "exposedNonCases": 10, "unexposedCases": 10, "unexposedNonCases": 30 },
+      { "id": "three", "label": "Stratum 3", "exposedCases": 8, "exposedNonCases": 12, "unexposedCases": 14, "unexposedNonCases": 16 }
+    ]
+  },
+  "expected": {
+    "degreesOfFreedom": 2,
+    "breslowDayOddsRatio": 14.711928390493496,
+    "breslowDayOddsRatioPValue": 0.0006387712203937335,
+    "breslowDayTaroneOddsRatio": 14.685939377019253,
+    "breslowDayTaroneOddsRatioPValue": 0.0006471259022433891,
+    "legacyBreslowDayOddsRatio": 14.157859408564644,
+    "legacyBreslowDayOddsRatioPValue": 0.000842674576886,
+    "legacyBreslowDayRiskRatio": 10.990876497300171,
+    "legacyBreslowDayRiskRatioPValue": 0.004105456860311477
+  },
+  "tolerance": 1e-12
+}

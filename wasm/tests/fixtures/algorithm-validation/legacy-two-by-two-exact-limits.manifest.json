@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "legacy-epi-info-two-by-two-exact-limits",
+  "classification": "legacy-regression-evidence",
+  "source": {
+    "file": "wasm/source/Epi-Info-Community-Edition/Epi.UnitTests/Data/TwoBy2Stats.csv",
+    "sha256": "4319e8726188698f0a4156099a7eef5a2fd1399b97dd2bfa76bae3f0d4f43da2",
+    "test": "Epi.UnitTests/AnalysisTest.cs::TwoByTwoTest",
+    "columns": {
+      "id": 0,
+      "fisherLower": 13,
+      "fisherUpper": 14
+    }
+  },
+  "extractedFixture": {
+    "file": "wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.csv",
+    "sha256": "f6905119c959f3099b1f65c2f3822df45713894242cea422f983f14c9901c357",
+    "rows": 100
+  },
+  "inputFixture": {
+    "file": "wasm/demo/tests/fixtures/two-by-two.json",
+    "sha256": "43986bdf0a641e9d3a015d294777ac9c7277211c9e63d0ef862121b5ad379a58",
+    "join": "zero-based row id"
+  },
+  "comparison": {
+    "rule": "absolute",
+    "tolerance": 1e-9,
+    "rationale": "The legacy expectations were serialized to ten decimal places."
+  }
+}

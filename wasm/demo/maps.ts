@@ -1,21 +1,120 @@
-import { UNITS, cellToBoundary, getHexagonEdgeLengthAvg, latLngToCell } from "./vendor/h3-js/h3-js.es.js";
+﻿import { UNITS, cellToBoundary, getHexagonEdgeLengthAvg, latLngToCell } from "./vendor/h3-js/h3-js.es.js";
+import type {
+  GeoJsonCoordinates,
+  GeoJsonFeature,
+  GeoJsonGeometry,
+  GeoJsonGeometryCollection,
+  GeoJsonProperties,
+  H3CellAggregate,
+  InferredMapFields,
+  MapDataSource,
+  MapLaunchContext,
+  OpenRecordHandler,
+  ParsedGeoJson,
+  SupportedGeoJson,
+  SupportedGeoJsonGeometry,
+  TimeLapseStop,
+} from "../app/contracts/maps.js";
+import type { EpiRecord, FieldDefinition, MapPoint, RecordValue } from "../app/contracts/core.js";
 
-let map = null;
-let tileLayer = null;
-let recordLayer = null;
-let locationLayer = null;
-let lastBounds = null;
+// Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
+// confined to this adapter module until the vendored distribution carries types.
+type LeafletHandle = any;
+const L: LeafletHandle = (globalThis as typeof globalThis & { L?: LeafletHandle }).L;
+
+type MapDomControl = HTMLElement & HTMLInputElement & HTMLSelectElement & HTMLDialogElement
+  & HTMLFormElement & HTMLDetailsElement;
+
+function requiredElement<T extends Element = MapDomControl>(selector: string): T {
+  const element = globalThis.document.querySelector<T>(selector);
+  if (!element) throw new Error(`Required Maps interface element is missing: ${selector}`);
+  return element;
+}
+
+function requiredElements<T extends Element = MapDomControl>(selector: string): NodeListOf<T> {
+  return globalThis.document.querySelectorAll<T>(selector);
+}
+
+function eventControl(event: Event): MapDomControl {
+  if (!(event.target instanceof HTMLElement)) throw new Error("Maps event target is not an interface element.");
+  return event.target as MapDomControl;
+}
+
+function eventForm(event: Event): HTMLFormElement {
+  if (!(event.currentTarget instanceof HTMLFormElement)) throw new Error("Maps submit target is not a form.");
+  return event.currentTarget;
+}
+
+type LeafletMap = LeafletHandle;
+type LeafletLayer = LeafletHandle;
+type LeafletBounds = LeafletHandle;
+
+interface GeoJsonLabelAnchor {
+  latitude: number;
+  longitude: number;
+  clearance: number;
+  longitudeScale: number;
+}
+
+interface GeoJsonLabel {
+  anchor: GeoJsonLabelAnchor;
+  labelLayer: LeafletLayer;
+  marker: LeafletLayer;
+  requiredRadius: number;
+}
+
+interface GeoJsonLayerEntry {
+  layer: LeafletLayer;
+  name: string;
+  featureCount: number;
+  bounds: LeafletBounds;
+  labelField: string;
+  labels: GeoJsonLabel[];
+  labelsEnabled: boolean;
+}
+
+interface H3LayerEntry {
+  layer: LeafletLayer;
+  name: string;
+  resolution: number;
+  cellCount: number;
+  recordCount: number;
+  bounds: LeafletBounds;
+}
+
+interface TemporalValue {
+  timestamp: number;
+  kind: "date" | "time" | "datetime";
+}
+
+interface TimeLapseState {
+  field: string;
+  index: number;
+  stops: TimeLapseStop[];
+  timer: ReturnType<typeof setInterval> | null;
+  totalPoints: number;
+}
+
+type Point2D = [number, number];
+type PolygonRings = Point2D[][];
+type H3Indexer = (latitude: number, longitude: number, resolution: number) => string;
+
+let map: LeafletMap | null = null;
+let tileLayer: LeafletLayer | null = null;
+let recordLayer: LeafletLayer | null = null;
+let locationLayer: LeafletLayer | null = null;
+let lastBounds: LeafletBounds | null = null;
 let caseClusterAdded = false;
 let locationAdded = false;
-let mapContext = "standalone";
-let activeData = null;
+let mapContext: MapLaunchContext = "standalone";
+let activeData: MapDataSource | null = null;
 let fallbackFullscreen = false;
-let activeRecordPoints = [];
+let activeRecordPoints: MapPoint[] = [];
 let activeRecordLabelField = "";
-let activeRecordOpenHandler = null;
-let timeLapseState = null;
-const geoJsonLayers = new Map();
-const h3Layers = new Map();
+let activeRecordOpenHandler: OpenRecordHandler | null = null;
+let timeLapseState: TimeLapseState | null = null;
+const geoJsonLayers = new Map<string, GeoJsonLayerEntry>();
+const h3Layers = new Map<string, H3LayerEntry>();
 const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
 const MAX_GEOJSON_FEATURES = 10000;
 export const MAP_PANE_Z_INDEX = Object.freeze({
@@ -26,7 +125,7 @@ export const MAP_PANE_Z_INDEX = Object.freeze({
   label: 440,
 });
 
-export function mapPaneForGeometryType(type) {
+export function mapPaneForGeometryType(type: string): string {
   if (["Point", "MultiPoint"].includes(type)) return "epi-point-pane";
   if (["LineString", "MultiLineString"].includes(type)) return "epi-line-pane";
   if (["Polygon", "MultiPolygon"].includes(type)) return "epi-polygon-pane";
@@ -35,23 +134,23 @@ export function mapPaneForGeometryType(type) {
 
 function updateLayerCount() {
   const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + h3Layers.size;
-  document.querySelector("#map-layer-count").textContent = String(count);
+  requiredElement("#map-layer-count").textContent = String(count);
 }
 
-function option(value, label) {
+function option(value: string, label: string): HTMLOptionElement {
   const item = document.createElement("option");
   item.value = value;
   item.textContent = label;
   return item;
 }
 
-function likelyField(fields, patterns) {
+function likelyField(fields: FieldDefinition[], patterns: RegExp[]): string {
   return fields.find((field) => patterns.some((pattern) => (
     pattern.test(field.name || "") || pattern.test(field.prompt || "")
   )))?.name || "";
 }
 
-export function inferMapFields(fields) {
+export function inferMapFields(fields: FieldDefinition[]): Pick<InferredMapFields, "latitude" | "longitude" | "label"> {
   return {
     latitude: likelyField(fields, [/^lat$/i, /latitude/i, /gps_?lat/i]),
     longitude: likelyField(fields, [/^(lon|lng|long)$/i, /longitude/i, /gps_?(lon|lng)/i]),
@@ -59,35 +158,48 @@ export function inferMapFields(fields) {
   };
 }
 
-export function parseGeoJson(text, maximumFeatures = MAX_GEOJSON_FEATURES) {
-  let geojson;
+export function parseGeoJson(text: string, maximumFeatures = MAX_GEOJSON_FEATURES): ParsedGeoJson {
+  let parsed: unknown;
   try {
-    geojson = JSON.parse(text);
+    parsed = JSON.parse(text) as unknown;
   } catch {
     throw new Error("This file is not valid JSON.");
   }
-  if (!geojson || typeof geojson !== "object" || Array.isArray(geojson)) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("The file must contain a GeoJSON object.");
   }
+  const geojson = parsed as Record<string, unknown>;
   const geometryTypes = new Set([
     "Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon", "GeometryCollection",
   ]);
-  const validateGeometry = (geometry) => {
+  const validateGeometry: (geometry: unknown) => asserts geometry is SupportedGeoJsonGeometry | null = (geometry) => {
     if (geometry === null) return;
-    if (!geometry || typeof geometry !== "object" || !geometryTypes.has(geometry.type)) {
+    if (!geometry || typeof geometry !== "object" || Array.isArray(geometry)) {
       throw new Error("A GeoJSON feature contains an invalid geometry.");
     }
-    if (geometry.type === "GeometryCollection") {
-      if (!Array.isArray(geometry.geometries)) throw new Error("A GeometryCollection must contain a geometries array.");
-      geometry.geometries.forEach(validateGeometry);
-    } else if (!Array.isArray(geometry.coordinates)) {
-      throw new Error(`A ${geometry.type} geometry must contain coordinates.`);
+    const candidate = geometry as Record<string, unknown>;
+    if (typeof candidate.type !== "string" || !geometryTypes.has(candidate.type)) {
+      throw new Error("A GeoJSON feature contains an invalid geometry.");
+    }
+    if (candidate.type === "GeometryCollection") {
+      if (!Array.isArray(candidate.geometries)) throw new Error("A GeometryCollection must contain a geometries array.");
+      candidate.geometries.forEach(validateGeometry);
+    } else if (!Array.isArray(candidate.coordinates)) {
+      throw new Error(`A ${candidate.type} geometry must contain coordinates.`);
     }
   };
-  const validateFeature = (feature) => {
-    if (!feature || feature.type !== "Feature") throw new Error("Every item in a GeoJSON FeatureCollection must be a Feature.");
-    if (!("geometry" in feature)) throw new Error("A GeoJSON Feature is missing its geometry.");
-    validateGeometry(feature.geometry);
+  const validateFeature: (feature: unknown) => asserts feature is GeoJsonFeature = (feature) => {
+    if (!feature || typeof feature !== "object" || Array.isArray(feature)) {
+      throw new Error("Every item in a GeoJSON FeatureCollection must be a Feature.");
+    }
+    const candidate = feature as Record<string, unknown>;
+    if (candidate.type !== "Feature") throw new Error("Every item in a GeoJSON FeatureCollection must be a Feature.");
+    if (!("geometry" in candidate)) throw new Error("A GeoJSON Feature is missing its geometry.");
+    validateGeometry(candidate.geometry);
+    if (candidate.properties !== null && candidate.properties !== undefined
+      && (typeof candidate.properties !== "object" || Array.isArray(candidate.properties))) {
+      throw new Error("A GeoJSON Feature has invalid properties.");
+    }
   };
   let featureCount = 1;
   if (geojson.type === "FeatureCollection") {
@@ -96,7 +208,7 @@ export function parseGeoJson(text, maximumFeatures = MAX_GEOJSON_FEATURES) {
     geojson.features.forEach(validateFeature);
   } else if (geojson.type === "Feature") {
     validateFeature(geojson);
-  } else if (!geometryTypes.has(geojson.type)) {
+  } else if (typeof geojson.type !== "string" || !geometryTypes.has(geojson.type)) {
     throw new Error("Use a GeoJSON FeatureCollection, Feature, or geometry object.");
   } else {
     validateGeometry(geojson);
@@ -104,18 +216,18 @@ export function parseGeoJson(text, maximumFeatures = MAX_GEOJSON_FEATURES) {
   if (featureCount > maximumFeatures) {
     throw new Error(`This file has ${featureCount.toLocaleString()} features; the demo limit is ${maximumFeatures.toLocaleString()}.`);
   }
-  return { geojson, featureCount };
+  return { geojson: geojson as unknown as SupportedGeoJson, featureCount };
 }
 
-export function listGeoJsonPolygonProperties(geojson) {
+export function listGeoJsonPolygonProperties(geojson: SupportedGeoJson): string[] {
   const features = geojson?.type === "FeatureCollection"
     ? geojson.features
     : geojson?.type === "Feature"
       ? [geojson]
       : [];
-  const fields = new Set();
+  const fields = new Set<string>();
   for (const feature of features || []) {
-    if (!["Polygon", "MultiPolygon"].includes(feature?.geometry?.type)) continue;
+    if (!["Polygon", "MultiPolygon"].includes(feature?.geometry?.type ?? "")) continue;
     for (const [key, value] of Object.entries(feature.properties || {})) {
       if (value === null || ["string", "number", "boolean"].includes(typeof value)) fields.add(key);
     }
@@ -123,21 +235,21 @@ export function listGeoJsonPolygonProperties(geojson) {
   return [...fields].sort((left, right) => left.localeCompare(right));
 }
 
-function pointInRing([x, y], ring) {
+function pointInRing([x, y]: Point2D, ring: Point2D[]): boolean {
   let inside = false;
   for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
-    const [xi, yi] = ring[index];
-    const [xj, yj] = ring[previous];
+    const [xi, yi] = ring[index]!;
+    const [xj, yj] = ring[previous]!;
     if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
 }
 
-function pointInPolygon(point, rings) {
-  return rings.length > 0 && pointInRing(point, rings[0]) && !rings.slice(1).some((ring) => pointInRing(point, ring));
+function pointInPolygon(point: Point2D, rings: PolygonRings): boolean {
+  return rings.length > 0 && pointInRing(point, rings[0]!) && !rings.slice(1).some((ring) => pointInRing(point, ring));
 }
 
-function distanceToSegmentSquared([x, y], [startX, startY], [endX, endY]) {
+function distanceToSegmentSquared([x, y]: Point2D, [startX, startY]: Point2D, [endX, endY]: Point2D): number {
   const segmentX = endX - startX;
   const segmentY = endY - startY;
   const lengthSquared = segmentX * segmentX + segmentY * segmentY;
@@ -148,13 +260,13 @@ function distanceToSegmentSquared([x, y], [startX, startY], [endX, endY]) {
   return offsetX * offsetX + offsetY * offsetY;
 }
 
-function signedPolygonDistance(point, rings) {
+function signedPolygonDistance(point: Point2D, rings: PolygonRings): number {
   let minimumSquared = Infinity;
   for (const ring of rings) {
     for (let index = 0; index < ring.length; index += 1) {
       minimumSquared = Math.min(
         minimumSquared,
-        distanceToSegmentSquared(point, ring[index], ring[(index + 1) % ring.length]),
+        distanceToSegmentSquared(point, ring[index]!, ring[(index + 1) % ring.length]!),
       );
     }
   }
@@ -162,25 +274,26 @@ function signedPolygonDistance(point, rings) {
   return pointInPolygon(point, rings) ? distance : -distance;
 }
 
-function ringCentroid(ring) {
+function ringCentroid(ring: Point2D[]): Point2D {
   let areaTwice = 0;
   let x = 0;
   let y = 0;
   for (let index = 0; index < ring.length; index += 1) {
-    const [x1, y1] = ring[index];
-    const [x2, y2] = ring[(index + 1) % ring.length];
+    const [x1, y1] = ring[index]!;
+    const [x2, y2] = ring[(index + 1) % ring.length]!;
     const cross = x1 * y2 - x2 * y1;
     areaTwice += cross;
     x += (x1 + x2) * cross;
     y += (y1 + y2) * cross;
   }
-  if (Math.abs(areaTwice) < Number.EPSILON) return ring[0];
+  if (Math.abs(areaTwice) < Number.EPSILON) return ring[0] ?? [0, 0];
   return [x / (3 * areaTwice), y / (3 * areaTwice)];
 }
 
-function interiorPointForPolygon(coordinates) {
-  if (!Array.isArray(coordinates?.[0]) || coordinates[0].length < 3) return null;
-  const latitudes = coordinates[0].map((position) => Number(position[1])).filter(Number.isFinite);
+function interiorPointForPolygon(coordinates: unknown): GeoJsonLabelAnchor | null {
+  if (!Array.isArray(coordinates) || !Array.isArray(coordinates[0]) || coordinates[0].length < 3) return null;
+  const sourceRings = coordinates as unknown[][][];
+  const latitudes = sourceRings[0]!.map((position) => Number(position[1])).filter(Number.isFinite);
   if (latitudes.length < 3) return null;
   let minimumLatitude = Infinity;
   let maximumLatitude = -Infinity;
@@ -190,8 +303,8 @@ function interiorPointForPolygon(coordinates) {
   }
   const meanLatitude = (minimumLatitude + maximumLatitude) / 2;
   const longitudeScale = Math.max(0.01, Math.cos(meanLatitude * Math.PI / 180));
-  const rings = coordinates.map((ring) => ring
-    .map(([longitude, latitude]) => [Number(longitude) * longitudeScale, Number(latitude)])
+  const rings: PolygonRings = sourceRings.map((ring) => ring
+    .map((position): Point2D => [Number(position[0]) * longitudeScale, Number(position[1])])
     .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)))
     .filter((ring) => ring.length >= 3);
   if (rings.length === 0) return null;
@@ -199,7 +312,7 @@ function interiorPointForPolygon(coordinates) {
   let maximumX = -Infinity;
   let minimumY = Infinity;
   let maximumY = -Infinity;
-  for (const [x, y] of rings[0]) {
+  for (const [x, y] of rings[0]!) {
     minimumX = Math.min(minimumX, x);
     maximumX = Math.max(maximumX, x);
     minimumY = Math.min(minimumY, y);
@@ -209,16 +322,16 @@ function interiorPointForPolygon(coordinates) {
   const height = maximumY - minimumY;
   if (width === 0 || height === 0) return null;
 
-  let bestPoint = ringCentroid(rings[0]);
+  let bestPoint = ringCentroid(rings[0]!);
   let bestDistance = signedPolygonDistance(bestPoint, rings);
-  const center = [(minimumX + maximumX) / 2, (minimumY + maximumY) / 2];
+  const center: Point2D = [(minimumX + maximumX) / 2, (minimumY + maximumY) / 2];
   const centerDistance = signedPolygonDistance(center, rings);
   if (centerDistance > bestDistance) [bestPoint, bestDistance] = [center, centerDistance];
 
   const gridSize = 10;
   for (let xIndex = 0; xIndex < gridSize; xIndex += 1) {
     for (let yIndex = 0; yIndex < gridSize; yIndex += 1) {
-      const candidate = [
+      const candidate: Point2D = [
         minimumX + width * (xIndex + 0.5) / gridSize,
         minimumY + height * (yIndex + 0.5) / gridSize,
       ];
@@ -232,7 +345,7 @@ function interiorPointForPolygon(coordinates) {
     step /= 2;
     for (let xOffset = -2; xOffset <= 2; xOffset += 1) {
       for (let yOffset = -2; yOffset <= 2; yOffset += 1) {
-        const candidate = [bestPoint[0] + xOffset * step, bestPoint[1] + yOffset * step];
+        const candidate: Point2D = [bestPoint[0] + xOffset * step, bestPoint[1] + yOffset * step];
         const distance = signedPolygonDistance(candidate, rings);
         if (distance > bestDistance) [bestPoint, bestDistance] = [candidate, distance];
       }
@@ -247,7 +360,7 @@ function interiorPointForPolygon(coordinates) {
   };
 }
 
-export function polygonLabelAnchor(geometry) {
+export function polygonLabelAnchor(geometry: SupportedGeoJsonGeometry | null): GeoJsonLabelAnchor | null {
   const polygons = geometry?.type === "Polygon"
     ? [geometry.coordinates]
     : geometry?.type === "MultiPolygon"
@@ -261,8 +374,8 @@ export function polygonLabelAnchor(geometry) {
   return best;
 }
 
-function setMapHeading(data = null) {
-  const heading = document.querySelector("#map-project-name");
+function setMapHeading(data: MapDataSource | null = null): void {
+  const heading = requiredElement("#map-project-name");
   if (!data) {
     heading.textContent = "Standalone map - no data source selected";
     return;
@@ -271,10 +384,10 @@ function setMapHeading(data = null) {
   heading.textContent = `${data.projectName} / ${data.formName}${linked}`;
 }
 
-function populateFieldSelectors(data) {
-  const latitude = document.querySelector("#map-latitude-field");
-  const longitude = document.querySelector("#map-longitude-field");
-  const label = document.querySelector("#map-label-field");
+function populateFieldSelectors(data: MapDataSource): Pick<InferredMapFields, "latitude" | "longitude" | "label"> {
+  const latitude = requiredElement("#map-latitude-field");
+  const longitude = requiredElement("#map-longitude-field");
+  const label = requiredElement("#map-label-field");
   const previous = { latitude: latitude.value, longitude: longitude.value, label: label.value };
   const inferred = inferMapFields(data.fields);
   const fieldOptions = data.fields.map((field) => option(field.name, `${field.prompt} (${field.name})`));
@@ -295,7 +408,7 @@ function populateFieldSelectors(data) {
 
 function ensureMap() {
   if (map) return map;
-  if (!globalThis.L) throw new Error("The map library could not be loaded.");
+  if (!L) throw new Error("The map library could not be loaded.");
   map = L.map("epi-map", { zoomControl: true }).setView([39.8283, -98.5795], 4);
   for (const [name, zIndex] of Object.entries(MAP_PANE_Z_INDEX)) {
     const pane = map.createPane(`epi-${name}-pane`);
@@ -307,7 +420,7 @@ function ensureMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   });
   tileLayer.on("tileerror", () => {
-    document.querySelector("#map-status").textContent = "Basemap unavailable; local point layers still work.";
+    requiredElement("#map-status").textContent = "Basemap unavailable; local point layers still work.";
   });
   tileLayer.addTo(map);
   recordLayer = L.layerGroup().addTo(map);
@@ -317,13 +430,13 @@ function ensureMap() {
   return map;
 }
 
-function mapWindowElement() {
-  return document.querySelector("[data-module-view='maps'] .map-window");
+function mapWindowElement(): MapDomControl {
+  return requiredElement("[data-module-view='maps'] .map-window");
 }
 
 function updateFullscreenControl() {
   const target = mapWindowElement();
-  const button = document.querySelector("#map-fullscreen-toggle");
+  const button = requiredElement("#map-fullscreen-toggle");
   const active = document.fullscreenElement === target || fallbackFullscreen;
   button.setAttribute("aria-pressed", String(active));
   button.setAttribute("aria-label", active ? "Exit map fullscreen" : "Enter map fullscreen");
@@ -331,7 +444,7 @@ function updateFullscreenControl() {
   requestAnimationFrame(() => requestAnimationFrame(() => map?.invalidateSize({ pan: false })));
 }
 
-function setFallbackFullscreen(active) {
+function setFallbackFullscreen(active: boolean): void {
   fallbackFullscreen = active;
   mapWindowElement().classList.toggle("map-window-maximized", active);
   document.body.classList.toggle("map-fullscreen-fallback", active);
@@ -354,12 +467,12 @@ async function toggleMapFullscreen() {
       return;
     } catch {
       setFallbackFullscreen(true);
-      document.querySelector("#map-status").textContent = "Map expanded to fill this browser window.";
+      requiredElement("#map-status").textContent = "Map expanded to fill this browser window.";
       return;
     }
   }
   setFallbackFullscreen(true);
-  document.querySelector("#map-status").textContent = "Map expanded to fill this browser window.";
+  requiredElement("#map-status").textContent = "Map expanded to fill this browser window.";
 }
 
 function resetMapWorkspace() {
@@ -384,17 +497,17 @@ function resetMapWorkspace() {
   activeRecordPoints = [];
   activeRecordLabelField = "";
   activeRecordOpenHandler = null;
-  document.querySelector("#map-point-count").textContent = "0";
-  document.querySelector("#map-record-layer-name").textContent = "Case Cluster";
-  document.querySelector("#map-record-layer-toggle").checked = true;
-  document.querySelector("#map-location-layer-toggle").checked = true;
-  document.querySelector("#map-layer-panel").open = false;
-  document.querySelector("#map-empty-state").hidden = false;
+  requiredElement("#map-point-count").textContent = "0";
+  requiredElement("#map-record-layer-name").textContent = "Case Cluster";
+  requiredElement("#map-record-layer-toggle").checked = true;
+  requiredElement("#map-location-layer-toggle").checked = true;
+  requiredElement("#map-layer-panel").open = false;
+  requiredElement("#map-empty-state").hidden = false;
   updateLayerCount();
   map.setView([39.8283, -98.5795], 4);
 }
 
-function markerPopup(record, labelField, latitude, longitude) {
+function markerPopup(record: EpiRecord, labelField: string, latitude: number, longitude: number): HTMLDivElement {
   const content = document.createElement("div");
   const heading = document.createElement("strong");
   heading.textContent = labelField && record[labelField] ? String(record[labelField]) : "Record location";
@@ -409,7 +522,7 @@ function markerPopup(record, labelField, latitude, longitude) {
   return content;
 }
 
-function geoJsonPopup(feature) {
+function geoJsonPopup(feature: GeoJsonFeature): HTMLDivElement | null {
   const properties = feature?.properties && typeof feature.properties === "object" ? feature.properties : {};
   const entries = Object.entries(properties)
     .filter(([, value]) => value === null || ["string", "number", "boolean"].includes(typeof value))
@@ -427,17 +540,17 @@ function geoJsonPopup(feature) {
   return content;
 }
 
-function expandGeoJsonFeatures(geojson) {
+function expandGeoJsonFeatures(geojson: SupportedGeoJson): GeoJsonFeature[] {
   const sourceFeatures = geojson.type === "FeatureCollection"
     ? geojson.features
     : geojson.type === "Feature"
       ? [geojson]
       : [{ type: "Feature", properties: {}, geometry: geojson }];
-  const expanded = [];
-  const addGeometry = (geometry, properties) => {
+  const expanded: GeoJsonFeature[] = [];
+  const addGeometry = (geometry: SupportedGeoJsonGeometry | null, properties: GeoJsonProperties | null): void => {
     if (!geometry) return;
     if (geometry.type === "GeometryCollection") {
-      geometry.geometries.forEach((child) => addGeometry(child, properties));
+      geometry.geometries.forEach((child: SupportedGeoJsonGeometry) => addGeometry(child, properties));
       return;
     }
     expanded.push({ type: "Feature", properties, geometry });
@@ -447,11 +560,11 @@ function expandGeoJsonFeatures(geojson) {
 }
 
 function refreshMapEmptyState() {
-  document.querySelector("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || h3Layers.size > 0;
+  requiredElement("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || h3Layers.size > 0;
 }
 
 function renderGeoJsonLayerList() {
-  const container = document.querySelector("#map-geojson-layers");
+  const container = requiredElement("#map-geojson-layers");
   const rows = [];
   for (const [id, entry] of geoJsonLayers) {
     const row = document.createElement("span");
@@ -492,7 +605,7 @@ function renderGeoJsonLayerList() {
 }
 
 function renderH3LayerList() {
-  const container = document.querySelector("#map-h3-layers");
+  const container = requiredElement("#map-h3-layers");
   const rows = [];
   for (const [id, entry] of h3Layers) {
     const row = document.createElement("span");
@@ -532,7 +645,7 @@ function combinedLayerBounds() {
   return bounds;
 }
 
-function labelClearanceInPixels(label) {
+function labelClearanceInPixels(label: GeoJsonLabel): number {
   const zoom = map.getZoom();
   const center = map.project([label.anchor.latitude, label.anchor.longitude], zoom);
   const horizontalEdge = map.project([
@@ -558,16 +671,16 @@ function updateGeoJsonLabelVisibility() {
   }
 }
 
-function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
+function addGeoJsonLayer(geojson: SupportedGeoJson, featureCount: number, name: string, labelField = ""): void {
   const currentMap = ensureMap();
   const labelLayer = L.layerGroup();
-  const labels = [];
+  const labels: GeoJsonLabel[] = [];
   const features = expandGeoJsonFeatures(geojson);
   const layerOptions = {
-    style: (feature) => ["LineString", "MultiLineString"].includes(feature.geometry?.type)
+    style: (feature: GeoJsonFeature) => ["LineString", "MultiLineString"].includes(feature.geometry?.type ?? "")
       ? { color: "#2563a5", weight: 2.5, opacity: 0.9 }
       : { color: "#2563a5", weight: 2, fillColor: "#4f9dc7", fillOpacity: 0.22 },
-    pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
+    pointToLayer: (_feature: GeoJsonFeature, latlng: LeafletHandle) => L.circleMarker(latlng, {
       pane: "epi-point-pane",
       radius: 6,
       color: "#174f78",
@@ -575,10 +688,10 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
       fillColor: "#66b5d4",
       fillOpacity: 0.9,
     }),
-    onEachFeature: (feature, featureLayer) => {
+    onEachFeature: (feature: GeoJsonFeature, featureLayer: LeafletLayer) => {
       const popup = geoJsonPopup(feature);
       if (popup) featureLayer.bindPopup(popup);
-      if (labelField && ["Polygon", "MultiPolygon"].includes(feature?.geometry?.type)) {
+      if (labelField && ["Polygon", "MultiPolygon"].includes(feature?.geometry?.type ?? "")) {
         const labelValue = feature.properties?.[labelField];
         if (labelValue !== null && labelValue !== undefined && typeof labelValue !== "object") {
           const anchor = polygonLabelAnchor(feature.geometry);
@@ -613,10 +726,10 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
     ["Polygon", "MultiPolygon"],
     ["LineString", "MultiLineString"],
     ["Point", "MultiPoint"],
-  ].map((types) => L.geoJSON({
+  ].map((types: string[]) => L.geoJSON({
     type: "FeatureCollection",
-    features: features.filter((feature) => types.includes(feature.geometry?.type)),
-  }, { ...layerOptions, pane: mapPaneForGeometryType(types[0]) }));
+    features: features.filter((feature) => types.includes(feature.geometry?.type ?? "")),
+  }, { ...layerOptions, pane: mapPaneForGeometryType(types[0]!) }));
   const geometryLayer = L.featureGroup(geometryLayers);
   const layer = L.layerGroup([geometryLayer, labelLayer]);
   layer.addTo(currentMap);
@@ -627,14 +740,14 @@ function addGeoJsonLayer(geojson, featureCount, name, labelField = "") {
   updateLayerCount();
   refreshMapEmptyState();
   const labelMessage = labelField ? ` Polygon labels use “${labelField}”.` : "";
-  document.querySelector("#map-status").textContent = `Added GeoJSON layer “${name}” with ${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}.${labelMessage}`;
+  requiredElement("#map-status").textContent = `Added GeoJSON layer “${name}” with ${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}.${labelMessage}`;
   if (bounds.isValid()) currentMap.fitBounds(bounds.pad(0.12), { maxZoom: 16 });
   updateGeoJsonLabelVisibility();
 }
 
-export function extractMapPoints(records, latitudeField, longitudeField) {
-  const points = [];
-  records.forEach((record, recordIndex) => {
+export function extractMapPoints(records: EpiRecord[], latitudeField: string, longitudeField: string): MapPoint[] {
+  const points: MapPoint[] = [];
+  records.forEach((record: EpiRecord, recordIndex: number) => {
     const rawLatitude = record[latitudeField];
     const rawLongitude = record[longitudeField];
     if (rawLatitude === null || rawLatitude === undefined || rawLongitude === null || rawLongitude === undefined) return;
@@ -647,11 +760,15 @@ export function extractMapPoints(records, latitudeField, longitudeField) {
   return points;
 }
 
-export function aggregateH3Cells(mappedRecords, resolution, indexer = latLngToCell) {
+export function aggregateH3Cells(
+  mappedRecords: MapPoint[],
+  resolution: number,
+  indexer: H3Indexer = latLngToCell,
+): H3CellAggregate[] {
   if (!Number.isInteger(resolution) || resolution < 0 || resolution > 15) {
     throw new Error("H3 resolution must be a whole number from 0 through 15.");
   }
-  const cells = new Map();
+  const cells = new Map<string, H3CellAggregate>();
   for (const point of mappedRecords) {
     const cell = indexer(point.latitude, point.longitude, resolution);
     const entry = cells.get(cell) || { cell, count: 0, points: [] };
@@ -662,7 +779,7 @@ export function aggregateH3Cells(mappedRecords, resolution, indexer = latLngToCe
   return [...cells.values()].sort((left, right) => right.count - left.count || left.cell.localeCompare(right.cell));
 }
 
-function h3FillColor(count, maximumCount) {
+function h3FillColor(count: number, maximumCount: number): string {
   const ratio = maximumCount <= 1 ? 1 : count / maximumCount;
   if (ratio > 0.75) return "#a71918";
   if (ratio > 0.5) return "#d9472b";
@@ -670,7 +787,7 @@ function h3FillColor(count, maximumCount) {
   return "#f3bf5a";
 }
 
-function h3CellPopup(cell, resolution, count) {
+function h3CellPopup(cell: string, resolution: number, count: number): HTMLDivElement {
   const content = document.createElement("div");
   const heading = document.createElement("strong");
   heading.textContent = `H3 cell ${cell}`;
@@ -680,7 +797,7 @@ function h3CellPopup(cell, resolution, count) {
   return content;
 }
 
-function addH3Layer(resolution, name) {
+function addH3Layer(resolution: number, name: string): void {
   if (activeRecordPoints.length === 0) throw new Error("Add a case-cluster layer before creating an H3 layer.");
   const cells = aggregateH3Cells(activeRecordPoints, resolution);
   const maximumCount = Math.max(...cells.map((entry) => entry.count));
@@ -708,11 +825,11 @@ function addH3Layer(resolution, name) {
   renderH3LayerList();
   updateLayerCount();
   refreshMapEmptyState();
-  document.querySelector("#map-status").textContent = `Added H3 layer "${name}" with ${cells.length.toLocaleString()} cell${cells.length === 1 ? "" : "s"} from ${activeRecordPoints.length.toLocaleString()} records.`;
+  requiredElement("#map-status").textContent = `Added H3 layer "${name}" with ${cells.length.toLocaleString()} cell${cells.length === 1 ? "" : "s"} from ${activeRecordPoints.length.toLocaleString()} records.`;
   if (bounds.isValid()) map.fitBounds(bounds.pad(0.12), { maxZoom: 16 });
 }
 
-function temporalValue(value) {
+function temporalValue(value: RecordValue | undefined): TemporalValue | null {
   if (value === null || value === undefined || String(value).trim() === "") return null;
   const text = String(value).trim();
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
@@ -736,15 +853,15 @@ function temporalValue(value) {
   return Number.isFinite(timestamp) ? { timestamp, kind: "datetime" } : null;
 }
 
-function formatTimeStop(timestamp, kind) {
+function formatTimeStop(timestamp: number, kind: TemporalValue["kind"]): string {
   const date = new Date(timestamp);
   if (kind === "time") return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   if (kind === "date") return date.toLocaleDateString();
   return date.toLocaleString();
 }
 
-export function buildTimeLapseStops(mappedRecords, timeField, maximumStops = 1000) {
-  const grouped = new Map();
+export function buildTimeLapseStops(mappedRecords: MapPoint[], timeField: string, maximumStops = 1000): TimeLapseStop[] {
+  const grouped = new Map<number, TemporalValue & { points: MapPoint[] }>();
   for (const point of mappedRecords) {
     const temporal = temporalValue(point.record?.[timeField]);
     if (!temporal) continue;
@@ -760,7 +877,7 @@ export function buildTimeLapseStops(mappedRecords, timeField, maximumStops = 100
     .map((stop) => ({ ...stop, label: formatTimeStop(stop.timestamp, stop.kind) }));
 }
 
-function renderRecordMarkers(mappedRecords) {
+function renderRecordMarkers(mappedRecords: MapPoint[]): void {
   recordLayer.clearLayers();
   for (const { record, recordIndex, latitude, longitude } of mappedRecords) {
     const marker = L.circleMarker([latitude, longitude], {
@@ -772,7 +889,9 @@ function renderRecordMarkers(mappedRecords) {
       fillOpacity: 0.84,
     }).bindPopup(markerPopup(record, activeRecordLabelField, latitude, longitude));
     if (mapContext === "current-form" && activeRecordOpenHandler) {
-      marker.on("dblclick", () => activeRecordOpenHandler(activeData.formId, recordIndex));
+      marker.on("dblclick", () => {
+        if (activeRecordOpenHandler && activeData) activeRecordOpenHandler(activeData.formId, recordIndex);
+      });
     }
     marker.addTo(recordLayer);
   }
@@ -782,42 +901,44 @@ function pauseTimeLapse() {
   if (!timeLapseState) return;
   if (timeLapseState.timer) clearInterval(timeLapseState.timer);
   timeLapseState.timer = null;
-  const button = document.querySelector("#map-time-lapse-play");
+  const button = requiredElement("#map-time-lapse-play");
   button.textContent = "Play";
   button.setAttribute("aria-label", "Play time lapse");
 }
 
-function renderTimeLapseStep(index) {
+function renderTimeLapseStep(index: number): void {
   if (!timeLapseState) return;
   const boundedIndex = Math.max(0, Math.min(index, timeLapseState.stops.length - 1));
   timeLapseState.index = boundedIndex;
+  const currentStop = timeLapseState.stops[boundedIndex];
+  if (!currentStop) return;
   const visiblePoints = timeLapseState.stops.slice(0, boundedIndex + 1).flatMap((stop) => stop.points);
   renderRecordMarkers(visiblePoints);
-  document.querySelector("#map-time-lapse-slider").value = String(boundedIndex);
-  document.querySelector("#map-time-lapse-date").textContent = timeLapseState.stops[boundedIndex].label;
-  document.querySelector("#map-time-lapse-count").textContent = `${visiblePoints.length} of ${timeLapseState.totalPoints}`;
-  document.querySelector("#map-point-count").textContent = String(visiblePoints.length);
-  document.querySelector("#map-status").textContent = `Time lapse: ${timeLapseState.stops[boundedIndex].label} - ${visiblePoints.length} mapped record${visiblePoints.length === 1 ? "" : "s"}.`;
+  requiredElement("#map-time-lapse-slider").value = String(boundedIndex);
+  requiredElement("#map-time-lapse-date").textContent = currentStop.label;
+  requiredElement("#map-time-lapse-count").textContent = `${visiblePoints.length} of ${timeLapseState.totalPoints}`;
+  requiredElement("#map-point-count").textContent = String(visiblePoints.length);
+  requiredElement("#map-status").textContent = `Time lapse: ${currentStop.label} - ${visiblePoints.length} mapped record${visiblePoints.length === 1 ? "" : "s"}.`;
 }
 
 function closeTimeLapse(restoreRecords = true) {
   pauseTimeLapse();
   timeLapseState = null;
-  document.querySelector("#map-time-lapse-controls").hidden = true;
-  document.querySelector(".map-canvas-wrap").classList.remove("time-lapse-active");
+  requiredElement("#map-time-lapse-controls").hidden = true;
+  requiredElement(".map-canvas-wrap").classList.remove("time-lapse-active");
   if (restoreRecords && activeRecordPoints.length > 0) {
     renderRecordMarkers(activeRecordPoints);
-    document.querySelector("#map-point-count").textContent = String(activeRecordPoints.length);
-    document.querySelector("#map-status").textContent = `Time lapse closed; showing all ${activeRecordPoints.length} mapped records.`;
+    requiredElement("#map-point-count").textContent = String(activeRecordPoints.length);
+    requiredElement("#map-status").textContent = `Time lapse closed; showing all ${activeRecordPoints.length} mapped records.`;
   }
 }
 
-function plotRecords(data, openRecord) {
-  const latitudeField = document.querySelector("#map-latitude-field").value;
-  const longitudeField = document.querySelector("#map-longitude-field").value;
-  const labelField = document.querySelector("#map-label-field").value;
+function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler): void {
+  const latitudeField = requiredElement("#map-latitude-field").value;
+  const longitudeField = requiredElement("#map-longitude-field").value;
+  const labelField = requiredElement("#map-label-field").value;
   if (!data || !latitudeField || !longitudeField) {
-    document.querySelector("#map-status").textContent = "Select a data source, latitude, and longitude fields first.";
+    requiredElement("#map-status").textContent = "Select a data source, latitude, and longitude fields first.";
     return;
   }
 
@@ -831,12 +952,12 @@ function plotRecords(data, openRecord) {
   renderRecordMarkers(mappedRecords);
   const points = mappedRecords.map(({ latitude, longitude }) => [latitude, longitude]);
   setMapHeading(data);
-  document.querySelector("#map-record-layer-name").textContent = `Case Cluster: ${data.formName}`;
-  document.querySelector("#map-point-count").textContent = String(points.length);
+  requiredElement("#map-record-layer-name").textContent = `Case Cluster: ${data.formName}`;
+  requiredElement("#map-point-count").textContent = String(points.length);
   caseClusterAdded = points.length > 0;
   refreshMapEmptyState();
   updateLayerCount();
-  document.querySelector("#map-status").textContent = points.length > 0
+  requiredElement("#map-status").textContent = points.length > 0
     ? `Mapped ${points.length} valid record${points.length === 1 ? "" : "s"}.`
     : "No valid coordinates were found in the selected fields.";
   lastBounds = points.length > 0 ? L.latLngBounds(points) : null;
@@ -845,10 +966,10 @@ function plotRecords(data, openRecord) {
 
 function captureLocation() {
   if (!navigator.geolocation) {
-    document.querySelector("#map-status").textContent = "Geolocation is not available in this browser.";
+    requiredElement("#map-status").textContent = "Geolocation is not available in this browser.";
     return;
   }
-  document.querySelector("#map-status").textContent = "Waiting for location permission...";
+  requiredElement("#map-status").textContent = "Waiting for location permission...";
   navigator.geolocation.getCurrentPosition((position) => {
     ensureMap();
     const { latitude, longitude, accuracy } = position.coords;
@@ -860,14 +981,14 @@ function captureLocation() {
     updateLayerCount();
     refreshMapEmptyState();
     map.setView([latitude, longitude], 15);
-    document.querySelector("#map-status").textContent = `Location captured with ${Math.round(accuracy)} m accuracy.`;
+    requiredElement("#map-status").textContent = `Location captured with ${Math.round(accuracy)} m accuracy.`;
   }, (error) => {
-    const messages = { 1: "Location permission was denied.", 2: "Location is unavailable.", 3: "Location request timed out." };
-    document.querySelector("#map-status").textContent = messages[error.code] || error.message || "Unable to capture location.";
+    const messages: Record<number, string> = { 1: "Location permission was denied.", 2: "Location is unavailable.", 3: "Location request timed out." };
+    requiredElement("#map-status").textContent = messages[error.code] || error.message || "Unable to capture location.";
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
 }
 
-function configureLaunch(context, getCurrentData, openRecord) {
+function configureLaunch(context: MapLaunchContext, getCurrentData: () => MapDataSource, openRecord: OpenRecordHandler): void {
   mapContext = context;
   resetMapWorkspace();
   if (context === "current-form") {
@@ -877,20 +998,23 @@ function configureLaunch(context, getCurrentData, openRecord) {
     if (selectedFields.latitude && selectedFields.longitude) {
       plotRecords(activeData, openRecord);
     } else {
-      document.querySelector("#map-empty-state").textContent = "The current form is linked, but its coordinate fields need to be selected.";
-      document.querySelector("#map-status").textContent = "Latitude and longitude fields were not identified. Use Add Data Layer > Case Cluster to select them.";
+      requiredElement("#map-empty-state").textContent = "The current form is linked, but its coordinate fields need to be selected.";
+      requiredElement("#map-status").textContent = "Latitude and longitude fields were not identified. Use Add Data Layer > Case Cluster to select them.";
     }
   } else {
     setMapHeading();
-    document.querySelector("#map-empty-state").textContent = "Select Add Data Layer > Case Cluster, then choose a project form.";
-    document.querySelector("#map-status").textContent = "Standalone map ready.";
+    requiredElement("#map-empty-state").textContent = "Select Add Data Layer > Case Cluster, then choose a project form.";
+    requiredElement("#map-status").textContent = "Standalone map ready.";
   }
 }
 
-function prepareCaseClusterDialog(getCurrentData, getDataSources) {
-  const source = document.querySelector("#map-data-source");
-  const title = document.querySelector("#case-cluster-dialog-title");
-  const description = document.querySelector("#case-cluster-dialog-description");
+function prepareCaseClusterDialog(
+  getCurrentData: () => MapDataSource,
+  getDataSources: () => MapDataSource[],
+): MapDataSource[] {
+  const source = requiredElement("#map-data-source");
+  const title = requiredElement("#case-cluster-dialog-title");
+  const description = requiredElement("#case-cluster-dialog-description");
   const sources = mapContext === "current-form" ? [getCurrentData()] : getDataSources();
   source.replaceChildren(option("", "Select a project form"), ...sources.map((data) => (
     option(data.formId, `${data.projectName} / ${data.formName} (${data.records.length} records)`)
@@ -906,34 +1030,38 @@ function prepareCaseClusterDialog(getCurrentData, getDataSources) {
   activeData = sources.find((data) => data.formId === source.value) || null;
   if (activeData) populateFieldSelectors(activeData);
   else {
-    document.querySelector("#map-latitude-field").replaceChildren(option("", "Select a data source first"));
-    document.querySelector("#map-longitude-field").replaceChildren(option("", "Select a data source first"));
-    document.querySelector("#map-label-field").replaceChildren(option("", "Select a data source first"));
+    requiredElement("#map-latitude-field").replaceChildren(option("", "Select a data source first"));
+    requiredElement("#map-longitude-field").replaceChildren(option("", "Select a data source first"));
+    requiredElement("#map-label-field").replaceChildren(option("", "Select a data source first"));
   }
   return sources;
 }
 
-export function initializeMaps(getCurrentData, getDataSources, openRecord) {
-  const caseClusterDialog = document.querySelector("#case-cluster-dialog");
-  const h3Dialog = document.querySelector("#h3-dialog");
-  const h3Form = document.querySelector("#h3-form");
-  const h3Resolution = document.querySelector("#h3-resolution");
-  const h3ResolutionValue = document.querySelector("#h3-resolution-value");
-  const h3ResolutionDetail = document.querySelector("#h3-resolution-detail");
-  const h3LayerName = document.querySelector("#h3-layer-name");
-  const h3Status = document.querySelector("#h3-dialog-status");
-  const timeLapseDialog = document.querySelector("#time-lapse-dialog");
-  const timeLapseField = document.querySelector("#time-lapse-field");
-  const timeLapseStatus = document.querySelector("#time-lapse-dialog-status");
-  const geoJsonDialog = document.querySelector("#geojson-dialog");
-  const geoJsonForm = document.querySelector("#geojson-form");
-  const geoJsonFile = document.querySelector("#geojson-file");
-  const geoJsonName = document.querySelector("#geojson-layer-name");
-  const geoJsonLabelField = document.querySelector("#geojson-label-field");
-  const geoJsonStatus = document.querySelector("#geojson-dialog-status");
-  const layerPanel = document.querySelector("#map-layer-panel");
-  const layerPanelToggle = document.querySelector("#map-layer-panel-toggle");
-  let dialogSources = [];
+export function initializeMaps(
+  getCurrentData: () => MapDataSource,
+  getDataSources: () => MapDataSource[],
+  openRecord: OpenRecordHandler,
+): void {
+  const caseClusterDialog = requiredElement("#case-cluster-dialog");
+  const h3Dialog = requiredElement("#h3-dialog");
+  const h3Form = requiredElement("#h3-form");
+  const h3Resolution = requiredElement("#h3-resolution");
+  const h3ResolutionValue = requiredElement("#h3-resolution-value");
+  const h3ResolutionDetail = requiredElement("#h3-resolution-detail");
+  const h3LayerName = requiredElement("#h3-layer-name");
+  const h3Status = requiredElement("#h3-dialog-status");
+  const timeLapseDialog = requiredElement("#time-lapse-dialog");
+  const timeLapseField = requiredElement("#time-lapse-field");
+  const timeLapseStatus = requiredElement("#time-lapse-dialog-status");
+  const geoJsonDialog = requiredElement("#geojson-dialog");
+  const geoJsonForm = requiredElement("#geojson-form");
+  const geoJsonFile = requiredElement("#geojson-file");
+  const geoJsonName = requiredElement("#geojson-layer-name");
+  const geoJsonLabelField = requiredElement("#geojson-label-field");
+  const geoJsonStatus = requiredElement("#geojson-dialog-status");
+  const layerPanel = requiredElement("#map-layer-panel");
+  const layerPanelToggle = requiredElement("#map-layer-panel-toggle");
+  let dialogSources: MapDataSource[] = [];
   let geoJsonInspectionVersion = 0;
   const updateH3ResolutionDescription = () => {
     const resolution = Number(h3Resolution.value);
@@ -952,41 +1080,42 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   };
   layerPanel.addEventListener("toggle", updateLayerPanelToggle);
   updateLayerPanelToggle();
-  for (const button of document.querySelectorAll('[data-module="maps"], [data-open-module="maps"]')) {
+  for (const button of requiredElements('[data-module="maps"], [data-open-module="maps"]')) {
     button.addEventListener("click", () => {
-      const context = button.dataset.mapContext || "standalone";
+      const context: MapLaunchContext = button.dataset.mapContext === "current-form" ? "current-form" : "standalone";
       setTimeout(() => {
         try {
           ensureMap();
           configureLaunch(context, getCurrentData, openRecord);
           map.invalidateSize();
         } catch (error) {
-          document.querySelector("#map-status").textContent = error.message;
+          requiredElement("#map-status").textContent = error instanceof Error ? error.message : "Unable to open Maps.";
         }
       }, 0);
     });
   }
-  document.querySelector("#map-add-case-cluster").addEventListener("click", () => {
-    document.querySelector("#map-add-layer-menu").open = false;
+  requiredElement("#map-add-case-cluster").addEventListener("click", () => {
+    requiredElement("#map-add-layer-menu").open = false;
     dialogSources = prepareCaseClusterDialog(getCurrentData, getDataSources);
     caseClusterDialog.showModal();
   });
-  document.querySelector("#map-data-source").addEventListener("change", (event) => {
-    activeData = dialogSources.find((data) => data.formId === event.target.value) || null;
+  requiredElement("#map-data-source").addEventListener("change", (event) => {
+    const target = eventControl(event);
+    activeData = dialogSources.find((data) => data.formId === target.value) || null;
     if (activeData) populateFieldSelectors(activeData);
   });
-  for (const button of document.querySelectorAll("[data-close-case-cluster]")) {
+  for (const button of requiredElements("[data-close-case-cluster]")) {
     button.addEventListener("click", () => caseClusterDialog.close("cancel"));
   }
-  document.querySelector("#case-cluster-form").addEventListener("submit", (event) => {
+  requiredElement("#case-cluster-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!event.currentTarget.reportValidity()) return;
+    if (!eventForm(event).reportValidity()) return;
     plotRecords(activeData, openRecord);
     caseClusterDialog.close("plot");
   });
-  document.querySelector("#map-create-timelapse").addEventListener("click", () => {
+  requiredElement("#map-create-timelapse").addEventListener("click", () => {
     if (!caseClusterAdded || !activeData || activeRecordPoints.length === 0) {
-      document.querySelector("#map-status").textContent = "Add a case-cluster layer before creating a time lapse.";
+      requiredElement("#map-status").textContent = "Add a case-cluster layer before creating a time lapse.";
       return;
     }
     const temporalFields = activeData.fields.filter((field) => (
@@ -994,7 +1123,7 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
       || /(date|time)/i.test(`${field.name} ${field.prompt || ""}`)
     ));
     if (temporalFields.length === 0) {
-      document.querySelector("#map-status").textContent = "The current case cluster has no date or time fields.";
+      requiredElement("#map-status").textContent = "The current case cluster has no date or time fields.";
       return;
     }
     timeLapseField.replaceChildren(
@@ -1004,12 +1133,12 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     timeLapseStatus.textContent = "Records with blank or invalid time values will be skipped. A maximum of 1,000 time stops is supported.";
     timeLapseDialog.showModal();
   });
-  for (const button of document.querySelectorAll("[data-close-time-lapse]")) {
+  for (const button of requiredElements("[data-close-time-lapse]")) {
     button.addEventListener("click", () => timeLapseDialog.close("cancel"));
   }
-  document.querySelector("#time-lapse-form").addEventListener("submit", (event) => {
+  requiredElement("#time-lapse-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!event.currentTarget.reportValidity()) return;
+    if (!eventForm(event).reportValidity()) return;
     try {
       const stops = buildTimeLapseStops(activeRecordPoints, timeLapseField.value);
       if (stops.length === 0) {
@@ -1024,25 +1153,25 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
         timer: null,
         totalPoints: stops.reduce((total, stop) => total + stop.points.length, 0),
       };
-      const slider = document.querySelector("#map-time-lapse-slider");
+      const slider = requiredElement("#map-time-lapse-slider");
       slider.max = String(stops.length - 1);
       slider.value = "0";
-      document.querySelector("#map-time-lapse-controls").hidden = false;
-      document.querySelector(".map-canvas-wrap").classList.add("time-lapse-active");
+      requiredElement("#map-time-lapse-controls").hidden = false;
+      requiredElement(".map-canvas-wrap").classList.add("time-lapse-active");
       renderTimeLapseStep(0);
       timeLapseDialog.close("create");
     } catch (error) {
       timeLapseStatus.textContent = error instanceof Error ? error.message : "Unable to create the time lapse.";
     }
   });
-  document.querySelector("#map-time-lapse-play").addEventListener("click", () => {
+  requiredElement("#map-time-lapse-play").addEventListener("click", () => {
     if (!timeLapseState) return;
     if (timeLapseState.timer) {
       pauseTimeLapse();
       return;
     }
     if (timeLapseState.index >= timeLapseState.stops.length - 1) renderTimeLapseStep(0);
-    const button = document.querySelector("#map-time-lapse-play");
+    const button = requiredElement("#map-time-lapse-play");
     button.textContent = "Pause";
     button.setAttribute("aria-label", "Pause time lapse");
     timeLapseState.timer = setInterval(() => {
@@ -1053,15 +1182,15 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
       renderTimeLapseStep(timeLapseState.index + 1);
     }, 900);
   });
-  document.querySelector("#map-time-lapse-slider").addEventListener("input", (event) => {
+  requiredElement("#map-time-lapse-slider").addEventListener("input", (event) => {
     pauseTimeLapse();
-    renderTimeLapseStep(Number(event.target.value));
+    renderTimeLapseStep(Number(eventControl(event).value));
   });
-  document.querySelector("#map-time-lapse-close").addEventListener("click", () => closeTimeLapse(true));
-  document.querySelector("#map-add-h3").addEventListener("click", () => {
-    document.querySelector("#map-add-layer-menu").open = false;
+  requiredElement("#map-time-lapse-close").addEventListener("click", () => closeTimeLapse(true));
+  requiredElement("#map-add-h3").addEventListener("click", () => {
+    requiredElement("#map-add-layer-menu").open = false;
     if (!caseClusterAdded || activeRecordPoints.length === 0) {
-      document.querySelector("#map-status").textContent = "Add a case-cluster layer before creating an H3 layer.";
+      requiredElement("#map-status").textContent = "Add a case-cluster layer before creating an H3 layer.";
       return;
     }
     h3Form.reset();
@@ -1071,12 +1200,12 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     h3Dialog.showModal();
   });
   h3Resolution.addEventListener("input", updateH3ResolutionDescription);
-  for (const button of document.querySelectorAll("[data-close-h3]")) {
+  for (const button of requiredElements("[data-close-h3]")) {
     button.addEventListener("click", () => h3Dialog.close("cancel"));
   }
   h3Form.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!event.currentTarget.reportValidity()) return;
+    if (!eventForm(event).reportValidity()) return;
     try {
       const resolution = Number(h3Resolution.value);
       const layerName = h3LayerName.value.trim() || `H3 Resolution ${resolution}`;
@@ -1086,8 +1215,8 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
       h3Status.textContent = error instanceof Error ? error.message : "Unable to create the H3 layer.";
     }
   });
-  document.querySelector("#map-add-geojson").addEventListener("click", () => {
-    document.querySelector("#map-add-layer-menu").open = false;
+  requiredElement("#map-add-geojson").addEventListener("click", () => {
+    requiredElement("#map-add-layer-menu").open = false;
     geoJsonForm.reset();
     geoJsonLabelField.replaceChildren(option("", "No polygon labels"));
     geoJsonLabelField.disabled = true;
@@ -1096,7 +1225,7 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
   });
   geoJsonFile.addEventListener("change", async () => {
     const inspectionVersion = ++geoJsonInspectionVersion;
-    const file = geoJsonFile.files[0];
+    const file = geoJsonFile.files?.[0];
     geoJsonLabelField.replaceChildren(option("", "No polygon labels"));
     geoJsonLabelField.disabled = true;
     if (!file) return;
@@ -1124,13 +1253,17 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
       }
     }
   });
-  for (const button of document.querySelectorAll("[data-close-geojson]")) {
+  for (const button of requiredElements("[data-close-geojson]")) {
     button.addEventListener("click", () => geoJsonDialog.close("cancel"));
   }
   geoJsonForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!event.currentTarget.reportValidity()) return;
-    const file = geoJsonFile.files[0];
+    if (!eventForm(event).reportValidity()) return;
+    const file = geoJsonFile.files?.[0];
+    if (!file) {
+      geoJsonStatus.textContent = "Choose a GeoJSON file first.";
+      return;
+    }
     if (file.size > MAX_GEOJSON_BYTES) {
       geoJsonStatus.textContent = "This file is larger than the 10 MB demo limit.";
       return;
@@ -1145,27 +1278,28 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
       geoJsonStatus.textContent = error instanceof Error ? error.message : "Unable to add this GeoJSON file.";
     }
   });
-  document.querySelector("#map-geojson-layers").addEventListener("change", (event) => {
-    const labelToggleId = event.target.dataset.geojsonLabelToggle;
+  requiredElement("#map-geojson-layers").addEventListener("change", (event) => {
+    const target = eventControl(event);
+    const labelToggleId = target.dataset.geojsonLabelToggle;
     if (labelToggleId) {
       const entry = geoJsonLayers.get(labelToggleId);
       if (!entry) return;
-      entry.labelsEnabled = event.target.checked;
+      entry.labelsEnabled = target.checked;
       updateGeoJsonLabelVisibility();
-      document.querySelector("#map-status").textContent = `${entry.name} labels ${entry.labelsEnabled ? "enabled" : "hidden"}.`;
+      requiredElement("#map-status").textContent = `${entry.name} labels ${entry.labelsEnabled ? "enabled" : "hidden"}.`;
       return;
     }
-    const id = event.target.dataset.geojsonToggle;
+    const id = target.dataset.geojsonToggle;
     if (!id) return;
     const entry = geoJsonLayers.get(id);
     if (!entry) return;
-    if (event.target.checked) entry.layer.addTo(ensureMap());
+    if (target.checked) entry.layer.addTo(ensureMap());
     else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
     updateGeoJsonLabelVisibility();
-    document.querySelector("#map-status").textContent = `${entry.name} ${event.target.checked ? "shown" : "hidden"}.`;
+    requiredElement("#map-status").textContent = `${entry.name} ${target.checked ? "shown" : "hidden"}.`;
   });
-  document.querySelector("#map-geojson-layers").addEventListener("click", (event) => {
-    const id = event.target.dataset.geojsonRemove;
+  requiredElement("#map-geojson-layers").addEventListener("click", (event) => {
+    const id = eventControl(event).dataset.geojsonRemove;
     if (!id) return;
     const entry = geoJsonLayers.get(id);
     if (!entry) return;
@@ -1174,19 +1308,20 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     renderGeoJsonLayerList();
     updateLayerCount();
     refreshMapEmptyState();
-    document.querySelector("#map-status").textContent = `Removed GeoJSON layer “${entry.name}”.`;
+    requiredElement("#map-status").textContent = `Removed GeoJSON layer “${entry.name}”.`;
   });
-  document.querySelector("#map-h3-layers").addEventListener("change", (event) => {
-    const id = event.target.dataset.h3Toggle;
+  requiredElement("#map-h3-layers").addEventListener("change", (event) => {
+    const target = eventControl(event);
+    const id = target.dataset.h3Toggle;
     if (!id) return;
     const entry = h3Layers.get(id);
     if (!entry) return;
-    if (event.target.checked) entry.layer.addTo(ensureMap());
+    if (target.checked) entry.layer.addTo(ensureMap());
     else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
-    document.querySelector("#map-status").textContent = `${entry.name} ${event.target.checked ? "shown" : "hidden"}.`;
+    requiredElement("#map-status").textContent = `${entry.name} ${target.checked ? "shown" : "hidden"}.`;
   });
-  document.querySelector("#map-h3-layers").addEventListener("click", (event) => {
-    const id = event.target.dataset.h3Remove;
+  requiredElement("#map-h3-layers").addEventListener("click", (event) => {
+    const id = eventControl(event).dataset.h3Remove;
     if (!id) return;
     const entry = h3Layers.get(id);
     if (!entry) return;
@@ -1195,14 +1330,14 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     renderH3LayerList();
     updateLayerCount();
     refreshMapEmptyState();
-    document.querySelector("#map-status").textContent = `Removed H3 layer "${entry.name}".`;
+    requiredElement("#map-status").textContent = `Removed H3 layer "${entry.name}".`;
   });
-  document.querySelector("#map-current-location").addEventListener("click", captureLocation);
-  document.querySelector("#map-fullscreen-toggle").addEventListener("click", async () => {
+  requiredElement("#map-current-location").addEventListener("click", captureLocation);
+  requiredElement("#map-fullscreen-toggle").addEventListener("click", async () => {
     try {
       await toggleMapFullscreen();
     } catch (error) {
-      document.querySelector("#map-status").textContent = error instanceof Error ? error.message : "Unable to change fullscreen mode.";
+      requiredElement("#map-status").textContent = error instanceof Error ? error.message : "Unable to change fullscreen mode.";
     }
   });
   document.addEventListener("fullscreenchange", updateFullscreenControl);
@@ -1210,31 +1345,31 @@ export function initializeMaps(getCurrentData, getDataSources, openRecord) {
     if (event.key === "Escape" && fallbackFullscreen) setFallbackFullscreen(false);
   });
   updateFullscreenControl();
-  document.querySelector("#map-fit-points").addEventListener("click", () => {
+  requiredElement("#map-fit-points").addEventListener("click", () => {
     const bounds = combinedLayerBounds();
     if (bounds.isValid()) ensureMap().fitBounds(bounds.pad(0.18), { maxZoom: 15 });
-    else document.querySelector("#map-status").textContent = "Add or show a case-cluster, H3, or GeoJSON layer before fitting the map.";
+    else requiredElement("#map-status").textContent = "Add or show a case-cluster, H3, or GeoJSON layer before fitting the map.";
   });
-  for (const radio of document.querySelectorAll('[name="map-basemap"]')) {
+  for (const radio of requiredElements('[name="map-basemap"]')) {
     radio.addEventListener("change", (event) => {
       const currentMap = ensureMap();
-      if (event.target.value === "street") {
+      if (eventControl(event).value === "street") {
         if (!currentMap.hasLayer(tileLayer)) tileLayer.addTo(currentMap);
-        document.querySelector("#map-status").textContent = "Street background selected.";
+        requiredElement("#map-status").textContent = "Street background selected.";
       } else if (currentMap.hasLayer(tileLayer)) {
         currentMap.removeLayer(tileLayer);
-        document.querySelector("#map-status").textContent = "Blank background selected.";
+        requiredElement("#map-status").textContent = "Blank background selected.";
       }
     });
   }
-  document.querySelector("#map-record-layer-toggle").addEventListener("change", (event) => {
+  requiredElement("#map-record-layer-toggle").addEventListener("change", (event) => {
     const currentMap = ensureMap();
-    if (event.target.checked) recordLayer.addTo(currentMap);
+    if (eventControl(event).checked) recordLayer.addTo(currentMap);
     else if (currentMap.hasLayer(recordLayer)) currentMap.removeLayer(recordLayer);
   });
-  document.querySelector("#map-location-layer-toggle").addEventListener("change", (event) => {
+  requiredElement("#map-location-layer-toggle").addEventListener("change", (event) => {
     const currentMap = ensureMap();
-    if (event.target.checked) locationLayer.addTo(currentMap);
+    if (eventControl(event).checked) locationLayer.addTo(currentMap);
     else if (currentMap.hasLayer(locationLayer)) currentMap.removeLayer(locationLayer);
   });
 }

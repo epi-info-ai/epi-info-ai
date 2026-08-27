@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "foodborne-v1-potato-salad-any-case",
+  "validationState": "candidate",
+  "dataset": {
+    "id": "foodborne-outbreak-v1",
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "rows": 96,
+    "classification": "synthetic-demo"
+  },
+  "operation": {
+    "id": "epi.table2x2",
+    "resultSchemaVersion": "0.4.0",
+    "engineId": "epi-core-wasm",
+    "engineVersion": "0.5.0"
+  },
+  "derivation": {
+    "caseField": "Case Status",
+    "caseValues": ["Confirmed", "Probable", "Suspected"],
+    "noncaseValues": ["Not a case"],
+    "exposureField": "Potato Salad",
+    "yesValues": ["Yes", "y"],
+    "noValues": ["No", "n"],
+    "textPolicy": "trim-and-case-insensitive",
+    "missingPolicy": "exclude-required-inputs",
+    "includedRows": 96,
+    "excludedRows": 0
+  },
+  "input": {
+    "exposedCases": 36,
+    "exposedNonCases": 12,
+    "unexposedCases": 8,
+    "unexposedNonCases": 40,
+    "confidenceLevel": 0.95
+  },
+  "methods": {
+    "riskRatioConfidenceInterval": "katz-log",
+    "oddsRatioConfidenceInterval": "wald-log",
+    "riskDifferenceConfidenceInterval": "wald-unpooled",
+    "chiSquarePValue": "chi-square-survival-df1-erfc",
+    "fisherExact": "conditional-hypergeometric-probability-ordering-epi-info-1.000001",
+    "midPExact": "conditional-hypergeometric-half-observed",
+    "conditionalOddsRatio": "conditional-noncentral-hypergeometric-mean-root",
+    "fisherExactOddsRatioConfidenceInterval": "conditional-noncentral-hypergeometric-central-tail-inversion",
+    "midPExactOddsRatioConfidenceInterval": "conditional-noncentral-hypergeometric-mid-p-tail-inversion"
+  },
+  "expected": {
+    "riskExposed": 0.75,
+    "riskUnexposed": 0.16666666666666666,
+    "riskRatio": 4.5,
+    "riskRatioConfidenceInterval": {
+      "lower": 2.3414164543231637,
+      "upper": 8.648610956248572
+    },
+    "oddsRatio": 15,
+    "oddsRatioConfidenceInterval": {
+      "lower": 5.50979583988387,
+      "upper": 40.83635883044666
+    },
+    "riskDifference": 0.5833333333333334,
+    "riskDifferenceConfidenceInterval": {
+      "lower": 0.4217133136756771,
+      "upper": 0.7449533529909896
+    },
+    "pearsonChiSquare": 32.89510489510489,
+    "pearsonPValue": 9.726787942247329e-9,
+    "mantelHaenszelChiSquare": 32.55244755244755,
+    "mantelHaenszelPValue": 1.1601893223407454e-8,
+    "yatesChiSquare": 30.587412587412587,
+    "yatesPValue": 3.191576624760761e-8,
+    "fisherExact": {
+      "left": 0.9999999996223071,
+      "right": 6.061730729553414e-9,
+      "oneTailed": 6.061730729553414e-9,
+      "twoTailed": 1.2123461459106826e-8
+    },
+    "midPExact": {
+      "left": 0.9999999967802882,
+      "right": 3.2197118073374233e-9,
+      "oneTailed": 3.2197118073374233e-9
+    },
+    "conditionalOddsRatio": {
+      "estimate": 14.451968824925803,
+      "fisherConfidenceInterval": {
+        "lower": 5.013623166423638,
+        "upper": 46.68120865635424
+      },
+      "midPConfidenceInterval": {
+        "lower": 5.456250069639179,
+        "upper": 41.65646572279523
+      }
+    }
+  },
+  "comparisons": {
+    "counts": { "rule": "exact" },
+    "finiteResults": {
+      "rule": "absolute",
+      "tolerance": 1e-12,
+      "rationale": "Closed-form binary64 calculations independently reproduced by the recorded SciPy candidate reference; exact-method legacy evidence is tracked separately."
+    },
+    "conditionalOddsRatioResults": {
+      "rule": "absolute",
+      "tolerance": 1e-10,
+      "rationale": "Noncentral-hypergeometric root solving is independently reproduced with SciPy; the tolerance covers binary64 distribution and root-solver implementation differences."
+    }
+  },
+  "review": {
+    "goldenStatus": "candidate-not-approved",
+    "legacyReference": "partial-100-case-fisher-p-values-and-confidence-limits",
+    "independentPythonReference": {
+      "status": "candidate-reproduced",
+      "runtime": "CPython 3.12.10",
+      "platform": "Windows x86_64",
+      "package": "SciPy",
+      "packageVersion": "1.18.1",
+      "functions": ["scipy.stats.contingency.odds_ratio", "scipy.stats.contingency.relative_risk", "scipy.stats.chi2.sf", "scipy.stats.hypergeom", "scipy.stats.nchypergeom_fisher", "scipy.stats.norm.ppf"],
+      "capturedOn": "2026-08-27",
+      "note": "The JupyterLite run separately captures its Pyodide and SciPy versions in notebook provenance."
+    },
+    "statisticalApproval": null,
+    "implementationApproval": null
+  }
+}

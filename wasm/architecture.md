@@ -12,7 +12,7 @@ calculate epidemiologic results itself. Python supports scientific validation,
 test-data generation, agent research, and optional exploratory analysis; it is not
 the primary browser application language or a second trusted statistics engine.
 
-This document distinguishes the code that exists in the current 2 x 2 spike from
+This document distinguishes the code that exists in the current 2 x 2 candidate kernel from
 the intended product architecture.
 
 ## Language standard
@@ -20,7 +20,7 @@ the intended product architecture.
 | Layer | Standard language | Responsibilities |
 |---|---|---|
 | Epi kernel | Rust compiled to WASM | Deterministic epidemiologic calculations, numerical algorithms, and parity-tested result primitives |
-| Product application | TypeScript | UI components, forms, validation, data entry, project state, CSV handling, maps, persistence adapters, synchronization, and tests |
+| Product application | TypeScript | UI components, forms, validation, data entry, project state, tabular import/export, maps, persistence adapters, synchronization, and tests |
 | Scientific development tooling | Python | Independent statistical comparison, synthetic fixture generation, agent evaluation, and research notebooks outside the production browser path |
 | Optional exploratory workspace | Python on Pyodide | User-visible, sandboxed advanced analysis loaded on demand in a Web Worker; never presented as a validated Epi Info result |
 | Optional service integration | Python or Rust | Future report, interoperability, aggregation, or AI-gateway services selected per service requirements |
@@ -98,9 +98,11 @@ application.
 
 ### Browser validation notebook and optional Advanced Analysis
 
-The V0.1 JupyterLite validation lab already uses one Pyodide Python kernel in a
-Web Worker. The notebook calls the deployed Rust/WASM module through Pyodide's
-JavaScript bridge and compares its result with an independent Python reference.
+The V0.4 JupyterLite validation lab uses one Pyodide Python kernel in a Web Worker.
+The notebook derives the potato-salad table from the frozen foodborne corpus,
+calls the deployed Rust/WASM module through Pyodide's JavaScript bridge, and
+compares its point estimates, intervals, chi-square p-values, exact tails,
+conditional odds ratio, and exact odds-ratio limits with SciPy.
 It is a validation demonstration, not a second product statistics engine. The
 [JupyterLite kernel documentation](https://jupyterlite.readthedocs.io/en/stable/howto/configure/kernels.html)
 confirms that its Pyodide kernel executes in a worker, which keeps notebook
@@ -147,6 +149,21 @@ adapters, surveillance aggregation, and model evaluation. Those services remain
 optional boundaries: privileged credentials never enter browser or Pyodide code,
 and a Python service does not silently replace local validated computation.
 
+## Programming views and source authority
+
+The future programming workspace has three synchronized views: **Flow** (Visual
+Epi Info), **Program** (the traditional source editor), and **Output**. Both Flow
+and Program edit the same versioned typed intermediate representation, which
+dispatches validated epidemiologic operations to Rust/WASM.
+
+The complete effective code is always visible in Program. Visual Epi Info cannot
+hide, replace, or become the sole representation of a program. Visual changes are
+previewable as source changes; source changes are reparsed before the flow updates.
+Unsupported or non-round-trippable constructs remain visible and editable as
+preserved source and mark the flow as partial or source-only. Neither view can
+translate a program into arbitrary JavaScript or grant it ambient DOM, network,
+credential, filesystem, database, or process access.
+
 ## Mobile-first, familiarity-preserving UI
 
 New and migrated components use mobile-first CSS: the base layout supports a
@@ -175,6 +192,42 @@ design. The following familiarity contract applies at every viewport size:
 The migration order is Enter Data, project selection/storage, the main menu, Forms,
 Maps, and then analysis workspaces. Each migrated module must be checked at phone,
 tablet, and desktop widths before its old desktop-first rules are removed.
+
+Phase 3A applies this model to the persistent titlebar, application menu, main
+launcher, and module navigation. `demo/styles.css` defines shared palette, surface,
+status, spacing, radius, focus, shell-height, and control-size tokens. Its base
+shell rules target phones; `min-width: 641px` restores tablet composition and
+`min-width: 961px` restores the familiar desktop launcher and left module tree.
+Module-specific workspaces retain transitional responsive rules until their named
+migration phase, preventing a shell refactor from changing Forms, Data, or Maps
+behavior implicitly.
+
+The shell compatibility floor and its C#/XAML/manual evidence are recorded in
+`docs/design/shell-compatibility-inventory.md`. Responsive reflow is classified as
+an adaptation of the same old tree, not a new branch or a retirement.
+
+Phase 3B applies the same rule to Enter Data. The schema remains the single source
+of field prompt and order. A narrow-screen view state in `form-data.ts` switches
+between the existing entry and line-list panels without copying or transforming
+records. The base CSS shows entry first; tablet rules expose both panels in order,
+and desktop rules restore the two-column workspace. Save/import status remains in
+the panel that initiated it, while project storage state remains in the module
+heading. The legacy floor and deferred lifecycle/validation behavior are tracked
+in `docs/design/enter-data-compatibility-inventory.md`.
+
+Phase 3C applies a shared mobile-first dialog shell to project creation and hosted
+storage. Dialog forms are bounded by the dynamic viewport; titles and actions stay
+outside the scrollable body. Supabase presentation separates three feedback
+channels—connection, account, and synchronization—so asynchronous results remain
+next to their initiating controls. A single summary state exposes offline, local,
+pending, connected, synchronized, or failed without treating saved credentials as
+proof of synchronization. Only successful upload or validated download emits the
+synchronized state.
+
+Browser-local storage and Supabase are explicit new branches under the familiar
+project/storage tree, not replacements for legacy project, Access, or SQL Server
+compatibility. Their disposition and safe adapter boundaries are recorded in
+`docs/design/storage-compatibility-inventory.md`.
 
 ## Plugin architecture
 
@@ -218,15 +271,19 @@ with uncertain behavior.
 ```mermaid
 flowchart LR
     U["User"] --> UI["Familiar Epi Info AI UI<br/>HTML and CSS"]
-    UI --> APP["UI controller<br/>app.js"]
-    UI --> DATA["Forms, data entry, CSV<br/>form-data.js"]
+    UI --> APP["Typed UI controller<br/>app.ts"]
+    UI --> DATA["Forms and data entry<br/>form-data.ts"]
+    DATA --> CSVTS["CSV/schema inference<br/>app/forms/csv.ts"]
+    DATA --> PROJECTTS["Project recovery/state<br/>app/forms/project-state.ts"]
+    DATA --> PACKAGE["Portable Project V2<br/>validated open/save envelope"]
+    ACCESS["Legacy Access project<br/>offline migration boundary"] --> PACKAGE
     DATA <--> STORE["Browser localStorage"]
     DATA <--> CSV["CSV files"]
     DATA <--> SYNC["Authenticated project snapshots<br/>supabase-sync.ts"]
     SYNC <--> SUPABASE["Supabase Data API<br/>Postgres + RLS"]
-    UI --> MAPS["Record mapping and geolocation<br/>maps.js + Leaflet"]
+    UI --> MAPS["Record mapping and geolocation<br/>maps.ts + Leaflet adapter"]
     MAPS -. "online basemap tiles" .-> OSM["OpenStreetMap"]
-    APP --> ADAPTER["Engine adapter and result contract<br/>engine.js"]
+    APP --> ADAPTER["Typed engine adapter and result contract<br/>engine.ts"]
     ADAPTER --> WASM["Deterministic numeric core<br/>Rust compiled to epi2x2.wasm"]
     WASM --> ADAPTER
     ADAPTER --> APP
@@ -255,41 +312,61 @@ Source: `engine-rust/src/lib.rs`
 | Risk ratio | `risk_ratio` | Rust/WASM |
 | Odds ratio | `odds_ratio` | Rust/WASM |
 | Risk difference | `risk_difference` | Rust/WASM |
+| Odds-ratio Wald interval | `odds_ratio_ci_lower`, `odds_ratio_ci_upper` | Rust/WASM candidate |
+| Risk-ratio Katz interval | `risk_ratio_ci_lower`, `risk_ratio_ci_upper` | Rust/WASM candidate |
+| Risk-difference unpooled Wald interval | `risk_difference_ci_lower`, `risk_difference_ci_upper` | Rust/WASM candidate |
 | Pearson chi-square statistic | `pearson_chi_square` | Rust/WASM |
 | Mantel-Haenszel chi-square statistic | `mantel_haenszel_chi_square` | Rust/WASM |
 | Yates-corrected chi-square statistic | `yates_chi_square` | Rust/WASM |
+| One-degree-of-freedom chi-square survival probability | `chi_square_p_value` | Rust/WASM candidate |
+| Fisher lower, upper, one-tailed, and probability-ordered two-tailed p-values | `fisher_exact_*` | Rust/WASM candidate; Epi Info `1.000001` ordering tolerance retained |
+| Mid-p lower, upper, and one-tailed p-values | `mid_p_exact_*` | Rust/WASM candidate; half the observed-table probability is removed from each inclusive tail |
+| Conditional maximum-likelihood odds ratio | `conditional_odds_ratio` | Rust/WASM candidate; noncentral-hypergeometric conditional-mean root |
+| Exact Fisher odds-ratio limits | `conditional_odds_ratio_fisher_lower`, `conditional_odds_ratio_fisher_upper` | Rust/WASM candidate; central-tail inversion |
+| Exact mid-p odds-ratio limits | `conditional_odds_ratio_mid_p_lower`, `conditional_odds_ratio_mid_p_upper` | Rust/WASM candidate; half-observed tail inversion |
+| Stratified MH adjusted OR and legacy confidence limits | `stratified_mh_odds_ratio*` | Rust/WASM V0.5 candidate |
+| Stratified MH adjusted RR and legacy confidence limits | `stratified_mh_risk_ratio*` | Rust/WASM V0.5 candidate |
+| Stratified MH corrected/uncorrected association tests | `stratified_mh_chi_square_*` | Rust/WASM V0.5 candidate |
+| Stratified fixed-margin Breslow-Day and Tarone OR homogeneity | `stratified_breslow_day_*` | Rust/WASM V0.6 candidate |
+| Legacy Epi Info-labelled Woolf OR homogeneity | `stratified_legacy_woolf_odds_ratio` | Rust/WASM V0.6 compatibility candidate |
+| Legacy Epi Info-labelled Woolf RR homogeneity | `stratified_legacy_woolf_risk_ratio` | Rust/WASM V0.7 compatibility candidate |
+| General chi-square survival probability | `chi_square_p_value_df` | Rust/WASM V0.6 candidate |
+| Stratified conditional common OR and central Fisher limits | `stratified_conditional_odds_ratio*` | Rust/WASM V0.8 bounded candidate |
 
 The compiled browser artifact is `demo/epi2x2.wasm`. It is deliberately small
 and has no runtime dependencies or operating-system access.
 
-### JavaScript responsibilities today (migration source)
+### TypeScript responsibilities today
 
 | Responsibility | File | Status |
 |---|---|---|
-| Load and instantiate the WASM module | `demo/engine.js` | JavaScript |
-| Validate cell counts and confidence level | `demo/engine.js` | JavaScript |
-| Confidence intervals for RR, OR, and risk difference | `demo/engine.js` | JavaScript |
-| Convert chi-square statistics to p-values | `demo/engine.js` | JavaScript |
-| Fisher exact test | `demo/engine.js` | JavaScript |
-| Expected cell counts and diagnostic warnings | `demo/engine.js` | JavaScript |
-| Assemble the versioned `epi.table2x2` result object | `demo/engine.js` | JavaScript |
-| Read inputs, handle events, and render results | `demo/app.js` | JavaScript |
-| Format numbers, confidence intervals, and interpretation | `demo/app.js` | JavaScript |
-| Copy the result JSON to the clipboard | `demo/app.js` | JavaScript |
-| Form schema designer and field validation | `demo/form-data.js` | JavaScript |
-| Project Explorer, field palette, drag/drop canvas, field positioning, and snap-to-grid preference | `demo/form-data.js` | JavaScript |
-| Project data-store dialog, Supabase Data API connection test, and current project name | `demo/form-data.js` | JavaScript |
-| Schema-driven record entry and line-list rendering | `demo/form-data.js` | JavaScript |
-| Form schema and record persistence in `localStorage` | `demo/form-data.js` | JavaScript |
-| CSV parsing, import mapping, quoting, and export download | `demo/form-data.js` | JavaScript |
-| Form generation and field-type inference from CSV | `demo/form-data.js` | JavaScript |
+| Load, validate, and instantiate the WASM module | `demo/engine.ts` | TypeScript with a confined WASM runtime boundary |
+| Validate cell counts and confidence level | `demo/engine.ts` | TypeScript pending validated Rust migration |
+| Select confidence multiplier and call interval exports | `demo/engine.ts` | TypeScript adapter; interval arithmetic is Rust/WASM |
+| Fisher and mid-p exact result assembly | `demo/engine.ts` | Thin TypeScript adapter over Rust/WASM exact-method exports |
+| Expected counts and warnings | `demo/engine.ts` | TypeScript result diagnostics |
+| Assemble the versioned `epi.table2x2` result object | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript |
+| Assemble the versioned `epi.stratified2x2` request/result and load the synchronous WASM scratch buffer | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; epidemiologic sums and formulas remain Rust |
+| Derive named 2 x 2 strata from current-form records, explicit value mappings, and missing-value rules | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript data adapter; emits an audited request for the Rust operation |
+| Read inputs, handle events, format, render, and copy results | `demo/app.ts` | TypeScript |
+| Form schema designer, Project Explorer, palette, drag/drop, and snap preference | `demo/form-data.ts` | TypeScript |
+| Project data-store dialog, Supabase connection test, record entry, and line list | `demo/form-data.ts` | TypeScript |
+| Typed field rules, calculated-age materialization, and saved-record validation | `app/contracts/validation.ts` + `app/forms/validation.ts` | TypeScript; deterministic product behavior, not epidemiologic kernel computation |
+| Safe allowlisted Check Code statements and entry-time field actions | `app/contracts/check-code.ts` + `app/forms/entry-view.ts` | TypeScript; arbitrary imported code is never evaluated |
+| Completeness, validation issues, duplicate candidates, Recycle Bin, and audit UI | `app/forms/data-quality.ts` + `demo/form-data.ts` | TypeScript; lifecycle data is part of the validated project snapshot |
+| Delimited parsing, CSV export, and schema inference | `app/forms/csv.ts` | TypeScript |
+| CSV, TSV, JSON-record, and Excel `.xlsx` input adapters | `app/forms/importers.ts` | TypeScript with a pinned, browser-only `read-excel-file` boundary |
+| Project snapshot load/recovery boundary | `app/forms/project-state.ts` | TypeScript |
+| Portable project V2 validation and preservation contract | `app/contracts/project-package.ts` | TypeScript |
+| Read-only legacy Access conversion | `scripts/convert-epi-info-access.ps1` | Migration tooling outside the browser runtime |
+| Generic browser-local persistence adapter | `app/storage/browser.ts` | TypeScript |
 | Supabase email/GitHub authentication, typed API responses, validated project snapshot upload/download, and revision conflict checks | `demo/supabase-sync.ts` | TypeScript |
-| Coordinate-field selection and record-to-point filtering | `demo/maps.js` | JavaScript |
-| Interactive map, explicit raster/polygon/line/point pane hierarchy, popups, and viewport control | `demo/maps.js` + Leaflet | JavaScript |
-| Browser-local GeoJSON validation, upload, rendering, and layer controls | `demo/maps.js` + Leaflet | JavaScript |
-| Cumulative case-cluster time lapse from date/time fields | `demo/maps.js` + Leaflet | JavaScript |
-| Configurable H3 indexing, record aggregation, and hexagon layers | `demo/maps.js` + h3-js + Leaflet | JavaScript |
-| One-shot browser geolocation and accuracy display | `demo/maps.js` | JavaScript |
+| Coordinate selection, points, GeoJSON, H3, time lapse, and geolocation | `demo/maps.ts` + `app/contracts/maps.ts` | TypeScript with a confined pinned Leaflet global boundary |
+| Familiar menu behavior and module navigation | `demo/shell.ts` | TypeScript |
+
+No handwritten application-feature JavaScript remains in `demo/`. Generated
+`.js` files in `dist/` are build artifacts. Reviewed pinned vendor JavaScript is
+kept under `demo/vendor/`; the Leaflet global is isolated inside `maps.ts`.
 
 HTML in `demo/index.html` provides the semantic application structure, including
 a main menu that follows the module hierarchy and visual landmarks in the Epi
@@ -304,7 +381,10 @@ wasm/
 |-- migration-plan.md               Phased execution and acceptance gates
 |-- project.md                      Product and system direction
 |-- feasibility-analysis.md         Port feasibility findings
-|-- app/contracts/                  Strict shared TypeScript contracts and runtime snapshot validation
+|-- app/
+|   |-- contracts/                  Strict project, map, and engine contracts
+|   |-- forms/                      Entry, validation, Data Quality, CSV, import, and project-state modules
+|   `-- storage/                    Browser persistence adapter
 |-- scripts/                        Production build and preview tooling
 |-- dist/                           Generated, ignored Pages artifact
 |-- docs/
@@ -319,11 +399,12 @@ wasm/
 `-- demo/
     |-- index.html                   Familiar browser UI structure
     |-- styles.css                   Visual design and responsive layout
-    |-- app.js                       Browser interaction and rendering
-    |-- form-data.js                 Forms, entry, local storage, and CSV
+    |-- app.ts                       Browser interaction and result rendering
+    |-- form-data.ts                 Forms, designer, entry, and composition
     |-- supabase-sync.ts             Typed authenticated Supabase snapshot synchronization
-    |-- maps.js                      Record mapping and browser geolocation
-    |-- engine.js                    JS/WASM boundary and result contract
+    |-- maps.ts                      Typed mapping and Leaflet adapter
+    |-- engine.ts                    Typed WASM boundary and result contract
+    |-- shell.ts                     Familiar menus and module navigation
     |-- epi2x2.wasm                 Compiled Rust artifact
     |-- vendor/                      Pinned Leaflet and h3-js map dependencies
     `-- tests/fixtures/              Future parity-test inputs and results
@@ -348,6 +429,12 @@ wasm/
    results. Promoted fixtures record method, package version, tolerance, and review.
 8. Optional Python execution is sandboxed and visibly exploratory. It cannot claim
    the provenance of a validated Rust-backed `epi.*` operation.
+9. The [legacy capability register](docs/design/legacy-capability-register.md) is
+   the backlog and compatibility floor. New branches, deprecations, and
+   retirements are recorded there in the same change that implements them.
+10. Legacy imports produce a runnable projection plus preserved source metadata
+    and explicit findings. Unsupported behavior is not silently discarded or
+    treated as executable.
 
 ## Migration plan
 
@@ -355,11 +442,13 @@ The detailed, execution-ready plan is maintained in
 [`migration-plan.md`](migration-plan.md). It coordinates the TypeScript, Rust/WASM,
 mobile-first UI, validation, storage, synchronization, CI, and testing work.
 
-The current split is an incremental spike, not the final statistical boundary.
+The current split is an incremental candidate implementation, not the final
+statistical boundary.
 After validation fixtures are agreed, migrate statistical work in this order:
 
 1. Confidence intervals and chi-square p-values.
-2. Fisher exact and other exact methods.
+2. Fisher/mid-p exact tails, conditional-MLE odds ratios, and exact confidence
+   limits are candidate-complete; pathological/performance evidence remains.
 3. Stratified 2 x 2 and Mantel-Haenszel estimates.
 4. Frequencies, means, rates, and sample-size calculations.
 5. Regression, survival, and other advanced analysis modules.
@@ -370,19 +459,21 @@ tools.
 
 ### TypeScript migration
 
-1. Continue migrating `maps.js`, `app.js`, and the decomposed responsibilities in
-   `form-data.js` without changing their user-visible behavior. Supabase
-   synchronization is now TypeScript.
-2. Extend the initial shared contracts beyond project snapshots to validation,
-   map layers, and versioned epidemiologic results.
-3. Reduce `engine.js` and `shell.js` to the smallest practical JavaScript loading
-   boundary; move validation, formatting, and result assembly into TypeScript or
-   Rust according to ownership.
-4. Disallow new feature logic in JavaScript; existing JavaScript remains migration
-   source only.
+Phase 2 is complete: Maps, the controller, forms/data entry, engine adapter,
+shell, and Supabase sync are strict TypeScript. Shared map and epidemiologic
+result contracts are explicit, CSV and browser storage responsibilities have
+begun moving out of the transitional form controller, and no handwritten feature
+JavaScript remains. Further decomposition may continue as reviewable refactors;
+new functionality follows the legacy capability register and later phases.
 
 ## TODO
 
+- [ ] After the core migration phases, add a host-owned declarative walkthrough
+  service for every user-facing page. Page and approved plugin contributions
+  provide versioned step metadata and stable semantic targets; the host owns
+  highlighting, focus, accessibility, responsive presentation, persistence of
+  completion state, and stale-target validation. Walkthroughs never receive
+  project data or unrestricted DOM authority and never mutate workflow state.
 - [ ] Add multi-user, record-level project synchronization.
   - Introduce project membership and roles protected by Row Level Security.
   - Store forms and records as individually versioned rows instead of one
@@ -397,7 +488,8 @@ the application does not merge data entered by different people.
 
 ## Not implemented yet
 
-The current slice includes a project/form tree, drag-and-drop form designer,
+The current slice includes a validated V2 JSON project envelope, familiar File >
+Open Project / Save Project As, an official migrated Sample fixture, a project/form tree, drag-and-drop form designer,
 and line-list proof of concept, but not the full Epi Info project or check-code
 model. The data-store dialog currently creates browser-local demo state; it does
 not create SQL Server or SQLite databases. Project Storage can connect the current
@@ -410,7 +502,8 @@ current form and allows a mapped record to be reopened in Enter Data. Both paths
 support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers with zoom-dependent polygon labels, configurable H3 aggregation layers, cumulative date/time animation, compact layer controls, fullscreen mapping, and browser geolocation. The slice does not
 yet provide external databases, shapefiles, satellite imagery, choropleths, spatial
 analysis, geocoding, or offline basemap packages. The slice also does
-not yet include project files, SQLite/OPFS persistence, dashboards, service-worker
+not yet include the final ZIP/SQLite `.epia` container, direct browser `.mdb`
+import, SQLite/OPFS persistence, dashboards, service-worker
 offline installation, a plugin runtime/catalog, AI tool orchestration, a Pyodide
 Advanced Analysis workspace, Python bindings, or remote services. Those are
 target-architecture components and should not be inferred from this demo.

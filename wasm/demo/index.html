@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=26" />
+    <link rel="stylesheet" href="styles.css?v=29" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=26"></script>
+    <script type="module" src="app.js?v=29"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -34,6 +34,10 @@
       <details id="file-menu" class="legacy-menu">
         <summary aria-haspopup="menu">File</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="File">
+          <button id="file-open-project" type="button" role="menuitem">Open Project...</button>
+          <button id="file-save-project" type="button" role="menuitem">Save Project As...</button>
+          <input id="project-package-open" class="sr-only" type="file" accept=".epia,.json,.epia.json,application/json" />
+          <div class="legacy-menu-separator" role="separator"></div>
           <button id="file-exit" type="button" role="menuitem">Exit</button>
         </div>
       </details>
@@ -50,7 +54,7 @@
           <button type="button" role="menuitem" data-open-module="forms">Create Forms</button>
           <button type="button" role="menuitem" data-open-module="data">Enter Data</button>
           <div class="legacy-menu-heading" role="presentation">Analyze Data</div>
-          <button type="button" role="menuitem" disabled title="Planned for a later phase">Classic</button>
+          <button type="button" role="menuitem" data-open-module="classic">Classic</button>
           <button type="button" role="menuitem" disabled title="Planned for a later phase">Visual Dashboard</button>
           <button type="button" role="menuitem" data-open-module="maps" data-map-context="standalone">Create Maps</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Options...</button>
@@ -76,7 +80,7 @@
 
         <fieldset class="analyze-group">
           <legend>Analyze Data</legend>
-          <button class="legacy-launch-button" type="button" disabled title="Planned for a later slice">Classic</button>
+          <button class="legacy-launch-button" type="button" data-open-module="classic">Classic</button>
           <button class="legacy-launch-button wide-button" type="button" disabled title="Planned for a later slice">Visual Dashboard</button>
         </fieldset>
 
@@ -115,7 +119,7 @@
           <span class="module-icon" aria-hidden="true">▤</span>
           <span>Enter Data</span>
         </button>
-        <button class="module-button" type="button" disabled title="Planned for a later slice">
+        <button class="module-button" type="button" data-module="classic">
           <span class="module-icon" aria-hidden="true">▥</span>
           <span>Visual Dashboard</span>
         </button>
@@ -157,8 +161,8 @@
               <button id="new-project" type="button">New Project</button>
               <button id="project-storage" type="button">Project Storage</button>
               <button id="new-form" type="button">New Form</button>
-              <label class="toolbar-file-button" for="form-csv-import">Create from CSV</label>
-              <input id="form-csv-import" class="sr-only" type="file" accept=".csv,text/csv" />
+              <label class="toolbar-file-button" for="form-csv-import">Create from Data File</label>
+              <input id="form-csv-import" class="sr-only" type="file" accept=".csv,.tsv,.json,.xlsx,text/csv,text/tab-separated-values,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
               <button id="save-form" type="button">Save Form</button>
               <label class="toolbar-toggle" for="snap-to-grid"><input id="snap-to-grid" type="checkbox" checked /> Snap to Grid</label>
               <button type="button" disabled>Check Code</button>
@@ -166,7 +170,13 @@
               <button id="restore-demo" class="danger-text" type="button">Restore Example</button>
             </div>
 
-            <div class="designer-workspace">
+            <div class="designer-view-switcher" aria-label="Form Designer views">
+              <button type="button" data-designer-view="explorer" aria-pressed="false">Project Explorer</button>
+              <button type="button" data-designer-view="canvas" aria-pressed="true">Canvas</button>
+              <button type="button" data-designer-view="properties" aria-pressed="false">Field Properties</button>
+            </div>
+
+            <div class="designer-workspace" data-mobile-designer-view="canvas">
               <aside class="project-explorer" aria-labelledby="project-explorer-title">
                 <div class="pane-title" id="project-explorer-title">Project Explorer</div>
                 <div class="project-tree" role="tree" aria-label="Current project and forms">
@@ -195,19 +205,19 @@
 
               <section class="canvas-pane" aria-labelledby="canvas-title">
                 <div class="pane-title" id="canvas-title">Canvas</div>
-                <div class="canvas-header">
+                <div class="canvas-header" data-designer-section="canvas">
                   <label for="form-name">Form</label>
                   <input id="form-name" type="text" value="Outbreak Case Report Form" maxlength="80" />
                   <span>Drag a field type from Project Explorer onto the canvas.</span>
                 </div>
-                <div id="form-canvas" class="form-canvas" tabindex="0" aria-label="Form design canvas">
+                <div id="form-canvas" class="form-canvas" data-designer-section="canvas" tabindex="0" aria-label="Form design canvas">
                   <div id="canvas-fields"></div>
                 </div>
 
-                <div class="csv-form-builder" aria-labelledby="csv-form-builder-title">
+                <div class="csv-form-builder" data-designer-section="import" aria-labelledby="csv-form-builder-title">
                   <div>
-                    <strong id="csv-form-builder-title">Create form from CSV</strong>
-                    <span>CSV headers become fields. Excel `.xlsx` files must first be saved as CSV UTF-8.</span>
+                    <strong id="csv-form-builder-title">Create form from data file</strong>
+                    <span>CSV, TSV, JSON records, and Excel `.xlsx` columns become fields.</span>
                   </div>
                   <label class="replace-records-option">
                     <input id="import-rows-with-form" type="checkbox" />
@@ -216,11 +226,11 @@
                   <p id="csv-form-status" class="inline-status csv-form-status" role="status"></p>
                 </div>
 
-                <details class="field-properties" open>
+                <details class="field-properties" data-designer-section="properties" open>
                   <summary>Field properties</summary>
                   <div class="table-scroll">
                     <table class="field-table">
-                      <thead><tr><th scope="col">Field name</th><th scope="col">Prompt</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+                      <thead><tr><th scope="col">Field name</th><th scope="col">Prompt</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Tab stop</th><th scope="col">Validation / Check Code</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
                       <tbody id="field-list"></tbody>
                     </table>
                   </div>
@@ -238,26 +248,36 @@
         <section class="module-view" data-module-view="data" hidden aria-labelledby="data-title">
           <div class="enter-module-toolbar" aria-label="Enter Data tools">
             <button id="enter-open-maps" type="button" data-open-module="maps" data-map-context="current-form">Maps</button>
-            <span>Open a map linked to the current form and its records.</span>
+            <button id="enter-data-quality" class="legacy-menu-new-branch" type="button">Data Quality...</button>
+            <span>Open linked tools for the current form and its records.</span>
           </div>
           <div class="workspace-heading">
             <div>
               <p class="eyebrow">ENTER DATA</p>
               <h1 id="data-title">Outbreak Case Report Form</h1>
-              <p>Enter records manually or exchange them as CSV.</p>
+              <p>Enter records manually, import CSV/TSV/JSON/Excel, or export CSV.</p>
             </div>
             <span id="data-storage-badge" class="local-data-badge">Local browser data</span>
           </div>
 
-          <div class="data-entry-grid">
-            <section class="panel entry-form-panel" aria-labelledby="new-record-title">
+          <div class="data-view-switcher" aria-label="Enter Data views">
+            <button id="show-entry-view" type="button" data-entry-view="entry" aria-pressed="true" aria-controls="entry-form-panel">
+              New record
+            </button>
+            <button id="show-records-view" type="button" data-entry-view="records" aria-pressed="false" aria-controls="records-panel">
+              Saved records <span id="mobile-record-count">(0)</span>
+            </button>
+          </div>
+
+          <div id="data-entry-grid" class="data-entry-grid" data-mobile-view="entry">
+            <section id="entry-form-panel" class="panel entry-form-panel" aria-labelledby="new-record-title">
               <div class="panel-heading">
                 <div>
                   <p class="step-label">Record</p>
                   <h2 id="new-record-title">New record</h2>
                 </div>
               </div>
-              <form id="record-form">
+              <form id="record-form" novalidate>
                 <div id="record-fields" class="record-fields"></div>
                 <div class="form-actions">
                   <button class="primary-button" type="submit">Save record</button>
@@ -267,7 +287,7 @@
               </form>
             </section>
 
-            <section class="panel records-panel" aria-labelledby="records-title">
+            <section id="records-panel" class="panel records-panel" aria-labelledby="records-title">
               <div class="panel-heading records-heading">
                 <div>
                   <p class="step-label">Line list</p>
@@ -276,8 +296,9 @@
                 <div class="csv-actions">
                   <a class="text-button sample-link" href="sample-case-data.csv" download>Sample CSV</a>
                   <a class="text-button sample-link" href="examples/foodborne-outbreak-investigation.csv" download>Outbreak test CSV</a>
-                  <label class="secondary-button file-button" for="csv-import">Import CSV</label>
-                  <input id="csv-import" class="sr-only" type="file" accept=".csv,text/csv" />
+                  <a class="text-button sample-link" href="examples/foodborne-outbreak-investigation.xlsx" download>Outbreak test Excel</a>
+                  <label class="secondary-button file-button" for="csv-import">Import Data</label>
+                  <input id="csv-import" class="sr-only" type="file" accept=".csv,.tsv,.json,.xlsx,text/csv,text/tab-separated-values,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
                   <button id="csv-export" class="secondary-button" type="button">Export CSV</button>
                 </div>
               </div>
@@ -309,6 +330,7 @@
                   <button id="map-add-case-cluster" type="button">Case Cluster</button>
                   <button id="map-add-geojson" type="button">GeoJSON Layer...</button>
                   <button id="map-add-h3" type="button">H3 Hexagons...</button>
+                  <button type="button" disabled title="Example fixture included; raster rendering is planned under LEGACY-MAPS-015">GeoTIFF Raster...</button>
                   <button type="button" disabled>Choropleth</button>
                   <button type="button" disabled>Dot Density</button>
                 </div>
@@ -363,13 +385,13 @@
 
         <div class="workspace-heading" data-module-view="statcalc">
           <div>
-            <p class="eyebrow">STATCALC / TABLES</p>
+            <p class="eyebrow">STATCALC</p>
             <h1>Two-by-Two Table</h1>
             <p>Compare illness among exposed and unexposed groups.</p>
           </div>
           <div class="engine-badge" title="Core estimates are calculated by a Rust WebAssembly module in this browser.">
             <span class="engine-dot" aria-hidden="true"></span>
-            <span><strong>WASM engine</strong> Rust spike · contract 0.1</span>
+            <span><strong>WASM engine</strong> Rust candidate · contract 0.4</span>
           </div>
         </div>
 
@@ -495,6 +517,12 @@
                 <strong id="fisher-exact">&lt; 0.0001</strong>
                 <span>Two-tailed p-value</span>
               </article>
+              <article class="metric-card">
+                <p>Conditional odds ratio (MLE)</p>
+                <strong id="conditional-odds-ratio">5.95</strong>
+                <span id="conditional-odds-ratio-fisher-ci">95% exact Fisher CI 2.67–14.39</span>
+                <span id="conditional-odds-ratio-mid-p-ci">95% exact mid-p CI 2.82–13.37</span>
+              </article>
             </div>
 
             <details class="statistics-details" open>
@@ -524,6 +552,16 @@
                       <td id="yates-value">25.35</td>
                       <td id="yates-p">&lt; 0.0001</td>
                     </tr>
+                    <tr>
+                      <th scope="row">Mid-p exact</th>
+                      <td>1-tailed</td>
+                      <td id="mid-p-exact">&lt; 0.0001</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Fisher exact</th>
+                      <td id="fisher-one-tailed">&lt; 0.0001</td>
+                      <td id="fisher-two-tailed">&lt; 0.0001</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -536,6 +574,64 @@
           </section>
         </div>
 
+        <div class="workspace-heading" data-module-view="classic">
+          <div><p class="eyebrow">CLASSIC ANALYSIS / TABLES</p><h1>Tables</h1><p>Control for confounding with stratified 2 x 2 analysis.</p></div>
+          <div class="engine-badge" title="Adjusted estimates and tests are calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rust candidate · contract 0.5</span></div>
+        </div>
+        <section class="panel classic-tables-command" data-module-view="classic" aria-labelledby="classic-tables-command-title">
+          <div class="panel-heading"><div><p class="step-label">TABLES command</p><h2 id="classic-tables-command-title">Select variables from the current form</h2></div><span id="classic-source-name" class="calculation-time">Current project data</span></div>
+          <form id="classic-tables-form">
+            <div class="classic-variable-grid">
+              <label>Exposure variable<select id="classic-exposure-field" required></select></label>
+              <label>Exposed value(s)<select id="classic-exposed-values" multiple size="4" required></select><small>Selected values are exposed; other nonblank values are the reference group.</small></label>
+              <label>Outcome variable<select id="classic-outcome-field" required></select></label>
+              <label>Case value(s)<select id="classic-case-values" multiple size="4" required></select><small>Selected values are cases; other nonblank values are non-cases.</small></label>
+              <label>Stratify by<select id="classic-strata-field" required></select></label>
+              <label>Confidence level<select id="classic-confidence-level"><option value="0.90">90%</option><option value="0.95" selected>95%</option><option value="0.99">99%</option></select></label>
+            </div>
+            <div class="classic-command-preview"><strong>Generated command</strong><code id="classic-generated-command">TABLES</code></div>
+            <div class="form-actions"><button id="classic-run-tables" class="primary-button" type="submit">Run Tables</button></div>
+            <p id="classic-tables-feedback" class="inline-feedback" role="status">Choose variables from the current form. Records with blanks in a selected field are excluded and reported.</p>
+          </form>
+        </section>
+        <section class="panel stratified-panel" data-module-view="classic" aria-labelledby="stratified-title">
+          <div class="panel-heading">
+            <div>
+              <p class="step-label">TABLES output</p>
+              <h2 id="stratified-title">Stratified 2 x 2 (Mantel-Haenszel)</h2>
+            </div>
+            <span class="calculation-time">Adjusted across strata</span>
+          </div>
+          <p>The selected project records populate these auditable stratum tables. You may also edit them manually and recalculate.</p>
+          <form id="stratified-form">
+            <div class="results-table-scroll">
+              <table class="results-table stratified-input-table">
+                <thead><tr><th>Stratum</th><th>Exposed ill (a)</th><th>Exposed well (b)</th><th>Unexposed ill (c)</th><th>Unexposed well (d)</th><th></th></tr></thead>
+                <tbody id="strata-rows">
+                  <tr data-stratum-id="stratum-1"><td><input aria-label="Stratum 1 label" value="Female"></td><td><input aria-label="Stratum 1 a" type="number" min="0" step="1" value="18"></td><td><input aria-label="Stratum 1 b" type="number" min="0" step="1" value="6"></td><td><input aria-label="Stratum 1 c" type="number" min="0" step="1" value="4"></td><td><input aria-label="Stratum 1 d" type="number" min="0" step="1" value="20"></td><td><button class="text-button" type="button" data-remove-stratum>Remove</button></td></tr>
+                  <tr data-stratum-id="stratum-2"><td><input aria-label="Stratum 2 label" value="Male"></td><td><input aria-label="Stratum 2 a" type="number" min="0" step="1" value="18"></td><td><input aria-label="Stratum 2 b" type="number" min="0" step="1" value="6"></td><td><input aria-label="Stratum 2 c" type="number" min="0" step="1" value="4"></td><td><input aria-label="Stratum 2 d" type="number" min="0" step="1" value="20"></td><td><button class="text-button" type="button" data-remove-stratum>Remove</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="stratified-message" class="form-message" role="alert" hidden></div>
+            <div class="form-actions"><button id="add-stratum" class="secondary-button" type="button">Add stratum</button><button class="primary-button" type="submit">Calculate adjusted results</button></div>
+          </form>
+          <div class="metric-grid stratified-results" aria-live="polite">
+            <article class="metric-card"><p>Adjusted OR (MH)</p><strong id="stratified-or">15.00</strong><span id="stratified-or-ci">95% CI 5.51–40.84</span></article>
+            <article class="metric-card"><p>Adjusted RR (MH)</p><strong id="stratified-rr">4.50</strong><span id="stratified-rr-ci">95% CI 2.34–8.65</span></article>
+            <article class="metric-card"><p>Adjusted OR (MLE)</p><strong id="stratified-conditional-or">13.92</strong><span id="stratified-conditional-or-ci">95% exact Fisher CI 4.89–44.32</span></article>
+          </div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Overall association</th><th>Chi-square</th><th>2-tailed p</th></tr></thead><tbody><tr><th>MH Chi-square — uncorrected</th><td id="stratified-mh-value">32.21</td><td id="stratified-mh-p">&lt; 0.0001</td></tr><tr><th>MH Chi-square — corrected</th><td id="stratified-mh-corrected-value">29.95</td><td id="stratified-mh-corrected-p">&lt; 0.0001</td></tr></tbody></table></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Homogeneity tests</th><th>Chi-square</th><th>2-tailed p</th></tr></thead><tbody><tr><th>Breslow-Day-Tarone test for Odds Ratio</th><td id="stratified-bdt-or-value">0.00</td><td id="stratified-bdt-or-p">1.0000</td></tr><tr><th>Breslow-Day test for Odds Ratio <span class="method-qualifier">(legacy Epi Info label)</span></th><td id="stratified-legacy-bd-or-value">0.00</td><td id="stratified-legacy-bd-or-p">1.0000</td></tr><tr><th>Fixed-margin Breslow-Day <span class="method-qualifier">(clarified method)</span></th><td id="stratified-bd-or-value">0.00</td><td id="stratified-bd-or-p">1.0000</td></tr><tr><th>Breslow-Day test for Risk Ratio <span class="method-qualifier">(legacy Epi Info label)</span></th><td id="stratified-legacy-bd-rr-value">0.00</td><td id="stratified-legacy-bd-rr-p">1.0000</td></tr></tbody></table></div>
+          <p class="method-note">The familiar legacy label is retained. Legacy Epi Info computes that row as Woolf weighted log-odds dispersion; the clarified row reports the standard fixed-margin Breslow-Day statistic.</p>
+          <p id="stratified-warnings" class="warnings" hidden></p>
+        </section>
+
+        <footer class="audit-strip" data-module-view="classic">
+          <span><strong>Operation</strong> epi.stratified2x2</span>
+          <span><strong>Status</strong> Candidate · exact adjusted OR and OR/RR homogeneity included</span>
+        </footer>
+
         <footer class="audit-strip" data-module-view="statcalc">
           <span><strong>Operation</strong> epi.table2x2</span>
           <span><strong>Data</strong> stays in this browser</span>
@@ -543,6 +639,130 @@
         </footer>
       </main>
     </div>
+
+    <dialog id="data-quality-dialog" class="legacy-dialog data-quality-dialog" aria-labelledby="data-quality-dialog-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="data-quality-dialog-title">Data Quality Check</strong>
+          <button type="button" data-close-data-quality aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p id="data-quality-summary" role="status"></p>
+          <fieldset>
+            <legend>Field completeness</legend>
+            <div class="table-scroll">
+              <table class="records-table">
+                <thead><tr><th scope="col">Field</th><th scope="col">Present</th><th scope="col">Missing</th><th scope="col">Complete</th><th scope="col">Violations</th></tr></thead>
+                <tbody id="data-quality-fields"></tbody>
+              </table>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Validation and duplicate review</legend>
+            <div class="table-scroll data-quality-issues-scroll">
+              <table class="records-table">
+                <thead><tr><th scope="col">Record</th><th scope="col">Field</th><th scope="col">Rule</th><th scope="col">Issue</th><th scope="col">Suggested resolution</th></tr></thead>
+                <tbody id="data-quality-issues"></tbody>
+              </table>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Duplicate record comparison</legend>
+            <label for="data-quality-duplicate-group">Duplicate candidate</label>
+            <select id="data-quality-duplicate-group"><option value="">No duplicate candidates</option></select>
+            <div class="table-scroll data-quality-compare-scroll">
+              <table class="records-table">
+                <thead><tr><th scope="col">Field</th><th id="data-quality-record-a" scope="col">Record A</th><th id="data-quality-record-b" scope="col">Record B</th></tr></thead>
+                <tbody id="data-quality-comparison"></tbody>
+              </table>
+            </div>
+            <label for="data-quality-delete-reason">Reason for moving a record to the Recycle Bin</label>
+            <input id="data-quality-delete-reason" type="text" maxlength="200" placeholder="Required before deletion" />
+            <div class="data-quality-record-actions">
+              <button id="data-quality-delete-a" type="button" disabled>Move Record A to Recycle Bin</button>
+              <button id="data-quality-delete-b" type="button" disabled>Move Record B to Recycle Bin</button>
+            </div>
+            <p id="data-quality-action-status" class="dialog-note" role="status" aria-live="polite"></p>
+          </fieldset>
+          <fieldset>
+            <legend>Recycle Bin and audit history</legend>
+            <label for="data-quality-deleted-record">Recoverable deleted record</label>
+            <select id="data-quality-deleted-record"><option value="">Recycle Bin is empty</option></select>
+            <button id="data-quality-restore-record" type="button" disabled>Restore selected record</button>
+            <ul id="data-quality-audit-log" class="data-quality-audit-log"><li>No record lifecycle events.</li></ul>
+          </fieldset>
+          <p id="data-quality-limit-note" class="dialog-note"></p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button type="button" data-close-data-quality>Close</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="field-rules-dialog" class="legacy-dialog field-rules-dialog" aria-labelledby="field-rules-dialog-title">
+      <form id="field-rules-form">
+        <div class="legacy-dialog-titlebar">
+          <strong id="field-rules-dialog-title">Field Validation and Check Code</strong>
+          <button type="button" data-close-field-rules aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p>Field: <strong id="field-rules-name"></strong></p>
+          <fieldset>
+            <legend>Validation</legend>
+            <label><input id="field-rule-unique" type="checkbox" /> Value must be unique</label>
+            <div class="field-rule-range">
+              <label for="field-rule-lower">Lower limit</label>
+              <input id="field-rule-lower" type="text" placeholder="Number or YYYY-MM-DD" />
+              <label for="field-rule-upper">Upper limit</label>
+              <input id="field-rule-upper" type="text" placeholder="Number or YYYY-MM-DD" />
+            </div>
+            <label for="field-rule-legal-values">Legal values (one per line)</label>
+            <textarea id="field-rule-legal-values" rows="4"></textarea>
+            <label><input id="field-rule-comment-legal" type="checkbox" /> Allow a comment value outside the list</label>
+            <label for="field-rule-pattern">Pattern (regular expression)</label>
+            <input id="field-rule-pattern" type="text" spellcheck="false" placeholder="Example: ^CASE-[0-9]{3}$" />
+            <fieldset class="nested-fieldset">
+              <legend>Calculated age</legend>
+              <p class="dialog-note">For a Number field, calculate completed years from a source date and an optional as-of date.</p>
+              <label for="field-rule-age-source">Date of birth/source date</label>
+              <select id="field-rule-age-source"><option value="">Do not calculate age</option></select>
+              <label for="field-rule-age-as-of">As-of date</label>
+              <select id="field-rule-age-as-of"><option value="">Today</option></select>
+            </fieldset>
+          </fieldset>
+          <fieldset>
+            <legend>Check Code - After this field</legend>
+            <p class="dialog-note">Safe Phase 4 subset: one validated same-form GOTO or field-state command. Imported arbitrary code is never executed.</p>
+            <label for="field-skip-condition">When</label>
+            <select id="field-skip-condition">
+              <option value="none">No action</option>
+              <option value="always">Always</option>
+              <option value="equals">Value equals</option>
+              <option value="not-equals">Value does not equal</option>
+            </select>
+            <label for="field-skip-value">Comparison value</label>
+            <input id="field-skip-value" type="text" />
+            <label for="field-check-action">Action</label>
+            <select id="field-check-action">
+              <option value="goto">GOTO</option>
+              <option value="enable">ENABLE</option>
+              <option value="disable">DISABLE</option>
+              <option value="hide">HIDE</option>
+              <option value="unhide">UNHIDE</option>
+              <option value="set-required">SET-REQUIRED</option>
+              <option value="set-not-required">SET-NOT-REQUIRED</option>
+            </select>
+            <label for="field-skip-target">Target field</label>
+            <select id="field-skip-target"><option value="">Select destination</option></select>
+          </fieldset>
+          <p id="field-rules-status" class="dialog-note" role="status" aria-live="polite"></p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button class="dialog-primary" type="submit">OK</button>
+          <button type="button" data-close-field-rules>Cancel</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="project-dialog" class="legacy-dialog" aria-labelledby="project-dialog-title">
       <form id="project-dialog-form" method="dialog">
@@ -689,6 +909,11 @@
         </div>
         <div class="legacy-dialog-body">
           <p>Connect and synchronize the current project: <strong id="storage-current-project"></strong></p>
+          <div id="storage-state" class="storage-state" data-state="local" role="status" aria-live="polite">
+            <span class="storage-state-dot" aria-hidden="true"></span>
+            <strong id="storage-state-label">Local</strong>
+            <span id="storage-state-detail" class="storage-state-detail">Working copy is stored in this browser.</span>
+          </div>
 
           <fieldset>
             <legend>Supabase connection</legend>
@@ -719,6 +944,7 @@
               <button id="storage-sign-up" type="button">Create Account</button>
               <button id="storage-sign-out" type="button" disabled>Sign Out</button>
             </div>
+            <p id="storage-account-status" class="dialog-note connection-feedback" role="status" aria-live="polite">Not signed in.</p>
           </fieldset>
 
           <fieldset>
@@ -731,6 +957,7 @@
               <button id="storage-upload" type="button" disabled>Upload Current Project</button>
               <button id="storage-download" type="button" disabled>Download Hosted Copy</button>
             </div>
+            <p id="storage-sync-status" class="dialog-note connection-feedback" role="status" aria-live="polite">No synchronization is running.</p>
             <p class="dialog-note">Use Upload for the initial synchronization of the current CSV-created project.</p>
           </fieldset>
         </div>

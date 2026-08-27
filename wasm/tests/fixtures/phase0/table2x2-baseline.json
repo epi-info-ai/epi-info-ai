@@ -7,10 +7,21 @@
     "confidenceLevel": 0.95
   },
   "contract": {
-    "schemaVersion": "0.1.0",
+    "schemaVersion": "0.4.0",
     "operation": "epi.table2x2",
-    "engineId": "rust-wasm-spike",
-    "engineVersion": "0.1.0"
+    "engineId": "epi-core-wasm",
+    "engineVersion": "0.8.0"
+  },
+  "methods": {
+    "riskRatioConfidenceInterval": "katz-log",
+    "oddsRatioConfidenceInterval": "wald-log",
+    "riskDifferenceConfidenceInterval": "wald-unpooled",
+    "chiSquarePValue": "chi-square-survival-df1-erfc",
+    "fisherExact": "conditional-hypergeometric-probability-ordering-epi-info-1.000001",
+    "midPExact": "conditional-hypergeometric-half-observed",
+    "conditionalOddsRatio": "conditional-noncentral-hypergeometric-mean-root",
+    "fisherExactOddsRatioConfidenceInterval": "conditional-noncentral-hypergeometric-central-tail-inversion",
+    "midPExactOddsRatioConfidenceInterval": "conditional-noncentral-hypergeometric-mid-p-tail-inversion"
   },
   "expected": {
     "totals": {
@@ -23,11 +34,48 @@
     "riskExposed": 0.4,
     "riskUnexposed": 0.1,
     "riskRatio": 4,
+    "riskRatioConfidenceInterval": {
+      "lower": 2.1195280437313433,
+      "upper": 7.548850343037993
+    },
     "oddsRatio": 6,
+    "oddsRatioConfidenceInterval": {
+      "lower": 2.78896987087916,
+      "upper": 12.907991719771363
+    },
     "riskDifference": 0.3,
+    "riskDifferenceConfidenceInterval": {
+      "lower": 0.18740864105851371,
+      "upper": 0.41259135894148635
+    },
     "pearsonChiSquare": 24,
+    "pearsonPValue": 9.63357008643096e-7,
     "mantelHaenszelChiSquare": 23.88,
+    "mantelHaenszelPValue": 1.0253146983968444e-6,
     "yatesChiSquare": 22.426666666666666,
+    "yatesPValue": 2.183216533714855e-6,
+    "fisherExact": {
+      "left": 0.9999999026156627,
+      "right": 6.216702786938701e-7,
+      "oneTailed": 6.216702786938701e-7,
+      "twoTailed": 1.2433405573877404e-6
+    },
+    "midPExact": {
+      "left": 0.9999996404726921,
+      "right": 3.59527308001843e-7,
+      "oneTailed": 3.59527308001843e-7
+    },
+    "conditionalOddsRatio": {
+      "estimate": 5.945773556446019,
+      "fisherConfidenceInterval": {
+        "lower": 2.671638501173804,
+        "upper": 14.389006147072314
+      },
+      "midPConfidenceInterval": {
+        "lower": 2.819551817495208,
+        "upper": 13.369994390605726
+      }
+    },
     "expectedCellCounts": [25, 75, 25, 75]
   },
   "absoluteTolerance": 1e-12
