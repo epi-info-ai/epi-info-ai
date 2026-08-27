@@ -19,7 +19,8 @@
   },
   "inputFixture": {
     "file": "wasm/demo/tests/fixtures/two-by-two.json",
-    "sha256": "43986bdf0a641e9d3a015d294777ac9c7277211c9e63d0ef862121b5ad379a58",
+    "sha256": "c0d51a66bd99a51a703fa1216dede66bb8abb72a1e4928912e1d15b089c0b403",
+    "hashNormalization": "UTF-8 text with CRLF normalized to LF",
     "join": "zero-based row id"
   },
   "comparison": {

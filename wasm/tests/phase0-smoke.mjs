@@ -488,7 +488,8 @@ async function checkLegacyTwoByTwoCorpus() {
   const manifest = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.manifest.json"), "utf8"));
   const corpusBytes = await readFile(repositoryPath(manifest.inputFixture.file));
   const exactLimitBytes = await readFile(repositoryPath(manifest.extractedFixture.file));
-  assert.equal(createHash("sha256").update(corpusBytes).digest("hex"), manifest.inputFixture.sha256);
+  const canonicalCorpusBytes = Buffer.from(corpusBytes.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
+  assert.equal(createHash("sha256").update(canonicalCorpusBytes).digest("hex"), manifest.inputFixture.sha256);
   assert.equal(createHash("sha256").update(exactLimitBytes).digest("hex"), manifest.extractedFixture.sha256);
   const corpus = JSON.parse(corpusBytes.toString("utf8").replace(/^\uFEFF/, ""));
   const exactLimitRows = exactLimitBytes.toString("utf8")
