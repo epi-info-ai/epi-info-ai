@@ -1947,31 +1947,18 @@ mod tests {
         let expected = [(17.0, 17.0), (16.0, 16.0), (20.0, 20.0)];
         for (method, (cases, controls)) in expected.iter().enumerate() {
             assert_eq!(
-                unmatched_case_control_sample_size(
-                    method as f64,
-                    0.0,
-                    0.95,
-                    80.0,
-                    1.0,
-                    0.40,
-                    10.0,
-                ),
+                unmatched_case_control_sample_size(method as f64, 0.0, 0.95, 80.0, 1.0, 0.40, 10.0,),
                 *cases
             );
             assert_eq!(
-                unmatched_case_control_sample_size(
-                    method as f64,
-                    1.0,
-                    0.95,
-                    80.0,
-                    1.0,
-                    0.40,
-                    10.0,
-                ),
+                unmatched_case_control_sample_size(method as f64, 1.0, 0.95, 80.0, 1.0, 0.40, 10.0,),
                 *controls
             );
         }
-        assert_near(unmatched_case_control_case_exposure(0.40, 10.0), 0.869_565_217_391_304);
+        assert_near(
+            unmatched_case_control_case_exposure(0.40, 10.0),
+            0.869_565_217_391_304,
+        );
     }
 
     #[test]
@@ -1979,27 +1966,11 @@ mod tests {
         let expected = [(46.0, 91.0), (47.0, 93.0), (53.0, 106.0)];
         for (method, (cases, controls)) in expected.iter().enumerate() {
             assert_eq!(
-                unmatched_case_control_sample_size(
-                    method as f64,
-                    0.0,
-                    0.95,
-                    80.0,
-                    2.0,
-                    0.20,
-                    3.0,
-                ),
+                unmatched_case_control_sample_size(method as f64, 0.0, 0.95, 80.0, 2.0, 0.20, 3.0,),
                 *cases
             );
             assert_eq!(
-                unmatched_case_control_sample_size(
-                    method as f64,
-                    1.0,
-                    0.95,
-                    80.0,
-                    2.0,
-                    0.20,
-                    3.0,
-                ),
+                unmatched_case_control_sample_size(method as f64, 1.0, 0.95, 80.0, 2.0, 0.20, 3.0,),
                 *controls
             );
         }
@@ -2008,10 +1979,7 @@ mod tests {
             unmatched_case_control_odds_from_exposures(0.20, case_exposure),
             3.0,
         );
-        assert!(
-            unmatched_case_control_sample_size(0.0, 0.0, 0.95, 80.0, 1.0, 0.40, 1.0)
-                .is_nan()
-        );
+        assert!(unmatched_case_control_sample_size(0.0, 0.0, 0.95, 80.0, 1.0, 0.40, 1.0).is_nan());
     }
 
     #[test]
