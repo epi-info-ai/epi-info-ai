@@ -4,8 +4,10 @@ import type {
   DatasetStratifiedTable2x2Derivation,
   DatasetStratifiedTable2x2Request,
   DatasetFrequencyRequest,
+  DatasetMeansRequest,
   FisherExactResult,
   FrequencyResult,
+  MeansResult,
   MidPExactResult,
   StratifiedTable2x2Input,
   StratifiedTable2x2Result,
@@ -70,6 +72,19 @@ interface EpiWasmExports {
   frequency_proportion: WasmNumericFunction;
   frequency_ci_lower: WasmNumericFunction;
   frequency_ci_upper: WasmNumericFunction;
+  means_reset: WasmNumericFunction;
+  means_set_value: WasmNumericFunction;
+  means_prepare: WasmNumericFunction;
+  means_sum: WasmNumericFunction;
+  means_mean: WasmNumericFunction;
+  means_sample_variance: WasmNumericFunction;
+  means_sample_std_dev: WasmNumericFunction;
+  means_minimum: WasmNumericFunction;
+  means_quartile_25: WasmNumericFunction;
+  means_median: WasmNumericFunction;
+  means_quartile_75: WasmNumericFunction;
+  means_maximum: WasmNumericFunction;
+  means_mode: WasmNumericFunction;
 }
 
 function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
@@ -120,6 +135,19 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
     "frequency_proportion",
     "frequency_ci_lower",
     "frequency_ci_upper",
+    "means_reset",
+    "means_set_value",
+    "means_prepare",
+    "means_sum",
+    "means_mean",
+    "means_sample_variance",
+    "means_sample_std_dev",
+    "means_minimum",
+    "means_quartile_25",
+    "means_median",
+    "means_quartile_75",
+    "means_maximum",
+    "means_mode",
     "chi_square_p_value_df",
   ] as const;
   const validated = {} as EpiWasmExports;
@@ -575,5 +603,64 @@ export function deriveFrequency(
     },
     command: `FREQ ${commandField(request.field)}`,
     diagnostics: { warnings },
+  };
+}
+
+function numericMeansValue(value: EpiRecord[string] | undefined): number | null {
+  if (value === null || value === undefined || typeof value === "boolean") return null;
+  if (typeof value === "string" && value.trim().length === 0) return null;
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+export function deriveMeans(
+  records: readonly EpiRecord[],
+  request: DatasetMeansRequest,
+): MeansResult {
+  if (request.field.trim().length === 0) throw new RangeError("Select a numeric variable for MEANS.");
+  const values = records.map((record) => numericMeansValue(record[request.field]))
+    .filter((value): value is number => value !== null);
+  if (values.length < 2) throw new RangeError("MEANS requires at least two numeric observations.");
+  if (values.length > 65_536) throw new RangeError("This candidate MEANS slice is limited to 65,536 observations.");
+  WASM.means_reset();
+  for (const [index, value] of values.entries()) {
+    if (WASM.means_set_value(index, value) !== 1) throw new RangeError("The MEANS kernel rejected an observation.");
+  }
+  if (WASM.means_prepare(values.length) !== 1) throw new RangeError("The MEANS kernel could not prepare the observations.");
+  const statistics = {
+    observations: values.length,
+    total: WASM.means_sum(values.length),
+    mean: WASM.means_mean(values.length),
+    variance: WASM.means_sample_variance(values.length),
+    standardDeviation: WASM.means_sample_std_dev(values.length),
+    minimum: WASM.means_minimum(values.length),
+    quartile25: WASM.means_quartile_25(values.length),
+    median: WASM.means_median(values.length),
+    quartile75: WASM.means_quartile_75(values.length),
+    maximum: WASM.means_maximum(values.length),
+    mode: WASM.means_mode(values.length),
+  };
+  if (!Object.values(statistics).every(Number.isFinite)) {
+    throw new RangeError("The MEANS kernel returned an unavailable statistic.");
+  }
+  const excluded = records.length - values.length;
+  return {
+    schemaVersion: "0.10.0",
+    operation: "epi.means",
+    engine: { id: "epi-core-wasm", version: "0.10.0", operation: "epi.means" },
+    input: { field: request.field, prompt: request.prompt },
+    methods: {
+      variance: "sample-n-minus-one",
+      quartiles: "legacy-epi-info-n-times-p-midpoint-on-integer-rank",
+      mode: "lowest-value-on-frequency-tie",
+    },
+    statistics,
+    totals: {
+      sourceRecords: records.length,
+      includedRecords: values.length,
+      excludedMissingOrNonNumeric: excluded,
+    },
+    command: `MEANS ${commandField(request.field)}`,
+    diagnostics: { warnings: excluded > 0 ? [`${excluded} missing or non-numeric record${excluded === 1 ? " was" : "s were"} excluded.`] : [] },
   };
 }

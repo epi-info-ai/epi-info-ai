@@ -333,6 +333,7 @@ Source: `engine-rust/src/lib.rs`
 | General chi-square survival probability | `chi_square_p_value_df` | Rust/WASM V0.6 candidate |
 | Stratified conditional common OR and central Fisher limits | `stratified_conditional_odds_ratio*` | Rust/WASM V0.8 bounded candidate |
 | Frequency proportion and legacy exact/Wilson category limits | `frequency_proportion`, `frequency_ci_*` | Rust/WASM V0.9 candidate |
+| Single-variable descriptive statistics and legacy rank quartiles/mode | `means_*` | Rust/WASM V0.10 bounded candidate |
 
 The compiled browser artifact is `demo/epi2x2.wasm`. It is deliberately small
 and has no runtime dependencies or operating-system access.
@@ -351,6 +352,7 @@ and has no runtime dependencies or operating-system access.
 | Isolate, cancel, and recover stratified computation | `demo/stratified-worker.ts` + `demo/stratified-worker-client.ts` | Lazy TypeScript Worker boundary with a readiness handshake and watchdog; cancellation terminates the Worker and its private WASM scratch state |
 | Derive named 2 x 2 strata from current-form records, explicit value mappings, and missing-value rules | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript data adapter; emits an audited request for the Rust operation |
 | Group typed current-form categories, sort them, apply missing rules, and assemble `epi.frequency` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; proportions and confidence limits are Rust/WASM |
+| Select finite numeric observations, report exclusions, and assemble `epi.means` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; descriptive formulas, sorting, quartiles, and mode are Rust/WASM |
 | Read inputs, handle events, format, render, and copy results | `demo/app.ts` | TypeScript |
 | Form schema designer, Project Explorer, palette, drag/drop, and snap preference | `demo/form-data.ts` | TypeScript |
 | Project data-store dialog, Supabase connection test, record entry, and line list | `demo/form-data.ts` | TypeScript |

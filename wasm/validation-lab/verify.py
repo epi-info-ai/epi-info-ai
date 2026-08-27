@@ -15,10 +15,12 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-table2x2.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-stratified2x2.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-frequency.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-means.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
 FREQUENCY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json"
+MEANS_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -34,6 +36,10 @@ def verify_notebook() -> None:
         for cell in notebook.cells:
             if cell.cell_type == "code":
                 compile(cell.source, str(notebook_path), "exec", flags=0x2000)
+        source = "\n".join(cell.source for cell in notebook.cells)
+        if "from pyodide.http import pyfetch" in source:
+            assert "wasm_response.buffer()" in source
+            assert "wasm_response.arrayBuffer()" not in source
 
     stratified = nbformat.read(NOTEBOOKS[1], as_version=4)
     source = "\n".join(cell.source for cell in stratified.cells)
@@ -45,6 +51,12 @@ def verify_notebook() -> None:
     assert "foodborne-frequency-v0.9.json" in source
     assert "frequency_ci_lower" in source
     assert "scipy.stats" in source
+
+    means = nbformat.read(NOTEBOOKS[3], as_version=4)
+    source = "\n".join(cell.source for cell in means.cells)
+    assert "foodborne-means-v0.10.json" in source
+    assert "means_sample_variance" in source
+    assert "statistics.variance" in source
 
 
 def verify_stratified_operational_fixture() -> None:
@@ -110,9 +122,20 @@ def verify_foodborne_frequency() -> None:
     assert counts == expected
 
 
+def verify_foodborne_means() -> None:
+    fixture = json.loads(MEANS_FIXTURE.read_text(encoding="utf-8"))
+    data = (REPOSITORY / fixture["dataset"]["file"]).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+    rows = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    ages = [float(row[fixture["request"]["sourceHeader"]]) for row in rows]
+    assert len(ages) == fixture["expected"]["statistics"]["observations"]
+    assert sum(ages) == fixture["expected"]["statistics"]["total"]
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
     verify_foodborne_frequency()
+    verify_foodborne_means()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

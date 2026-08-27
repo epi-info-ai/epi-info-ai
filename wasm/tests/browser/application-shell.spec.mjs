@@ -531,6 +531,32 @@ test("Classic Analysis FREQ derives the foodborne Case Status distribution", asy
   ]);
 });
 
+test("Classic Analysis MEANS derives foodborne Age descriptive statistics", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="classic"]').click();
+  await expect(page.locator("#means-field")).toHaveValue("age");
+  await expect(page.locator("#means-generated-command")).toHaveText("MEANS age");
+  await page.locator("#means-run").click();
+
+  await expect(page.locator("#means-feedback")).toContainText("Included 96 of 96 records; excluded 0");
+  await expect(page.locator("#means-output-title")).toHaveText("Age");
+  await expect(page.locator("#means-observations")).toHaveText("96");
+  await expect(page.locator("#means-total")).toHaveText("3917.0000");
+  await expect(page.locator("#means-mean")).toHaveText("40.8021");
+  await expect(page.locator("#means-variance")).toHaveText("312.6446");
+  await expect(page.locator("#means-std-dev")).toHaveText("17.6818");
+  await expect(page.locator("#means-minimum")).toHaveText("5.0000");
+  await expect(page.locator("#means-quartile-25")).toHaveText("27.5000");
+  await expect(page.locator("#means-median")).toHaveText("40.5000");
+  await expect(page.locator("#means-quartile-75")).toHaveText("54.5000");
+  await expect(page.locator("#means-maximum")).toHaveText("75.0000");
+  await expect(page.locator("#means-mode")).toHaveText("31.0000");
+});
+
 test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ page }) => {
   await page.getByRole("button", { name: "Classic", exact: true }).click();
   const values = [
@@ -652,6 +678,19 @@ test("JupyterLite validation lab V0.9 is part of the Pages artifact", async ({ p
   const frequencyFixture = await frequencyFixtureResponse.json();
   expect(frequencyFixture.expected.includedRecords).toBe(96);
   expect(frequencyFixture.expected.categories.map((category) => category.frequency)).toEqual([22, 52, 16, 6]);
+
+  const meansResponse = await request.get("/validation-lab/files/validate-means.ipynb");
+  expect(meansResponse.ok()).toBe(true);
+  const meansNotebook = await meansResponse.json();
+  expect(JSON.stringify(meansNotebook)).toContain("foodborne-means-v0.10.json");
+  expect(JSON.stringify(meansNotebook)).toContain("means_sample_variance");
+  expect(JSON.stringify(meansNotebook)).toContain("statistics.variance");
+
+  const meansFixtureResponse = await request.get("/validation-fixtures/foodborne-means-v0.10.json");
+  expect(meansFixtureResponse.ok()).toBe(true);
+  const meansFixture = await meansFixtureResponse.json();
+  expect(meansFixture.expected.statistics.mean).toBeCloseTo(40.802083333333336, 12);
+  expect(meansFixture.expected.statistics.median).toBe(40.5);
 });
 
 test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadable", async ({ request }) => {

@@ -550,8 +550,14 @@ must never be translated into arbitrary JavaScript execution.
    legacy exact-under-300/Wilson-at-least-300 confidence limits. The canonical
    foodborne fixture and JupyterLite notebook supply initial independent evidence.
    Multiple variables, `* EXCEPT`, strata, weights, `OUTTABLE`, filters, saved
-   execution, broader corpora, and consolidated G5 review remain open. Means are
-   the next planned Classic Analysis operation slice.
+   execution, broader corpora, and consolidated G5 review remain open.
+   **Candidate V0.10 means slice complete:** one current-form numeric variable
+   now produces the familiar descriptive tables using a bounded Rust/WASM value
+   buffer and an audited legacy quartile/mode contract. The foodborne Age fixture
+   and notebook provide initial independent evidence. Cross-tabs and their t,
+   ANOVA, Bartlett, and Kruskal-Wallis output, strata, weights, `OUTTABLE`,
+   settings, saved execution, Complex Sample Means, broader corpora, and G5 review
+   remain open. Rates or sample-size calculations are the next planned kernel slice.
 5. Regression, survival, and other advanced analysis modules.
 
 ### Required work for every operation

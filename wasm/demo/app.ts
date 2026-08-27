@@ -1,4 +1,4 @@
-import { calculateTable2x2, deriveFrequency, deriveStratifiedTable2x2 } from "./engine.js";
+import { calculateTable2x2, deriveFrequency, deriveMeans, deriveStratifiedTable2x2 } from "./engine.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -12,7 +12,7 @@ import {
 import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
-import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, FrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
+import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, FrequencyResult, MeansResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -229,6 +229,11 @@ const frequencyIncludeMissing = requiredElement<HTMLInputElement>("#frequency-in
 const frequencyFeedback = requiredElement<HTMLElement>("#frequency-feedback");
 const frequencyOutput = requiredElement<HTMLElement>("#frequency-output");
 let lastFrequencyResult: FrequencyResult | null = null;
+const meansForm = requiredElement<HTMLFormElement>("#means-form");
+const meansField = requiredElement<HTMLSelectElement>("#means-field");
+const meansFeedback = requiredElement<HTMLElement>("#means-feedback");
+const meansOutput = requiredElement<HTMLElement>("#means-output");
+let lastMeansResult: MeansResult | null = null;
 let nextStratumId = 3;
 let stratifiedController: AbortController | null = null;
 
@@ -331,6 +336,59 @@ function renderFrequency(result: FrequencyResult): void {
   requiredElement("#frequency-generated-command").textContent = result.command;
   frequencyFeedback.textContent = `Included ${result.totals.includedRecords} of ${result.totals.sourceRecords} records; excluded ${result.totals.excludedMissing} with missing values. ${result.totals.categoryCount} categories.`;
   frequencyOutput.hidden = false;
+}
+
+function updateMeansCommandPreview(): void {
+  const bracket = (name: string) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
+  requiredElement("#means-generated-command").textContent = meansField.value
+    ? `MEANS ${bracket(meansField.value)}`
+    : "MEANS";
+}
+
+function refreshMeansSelector(): void {
+  const source = getCurrentProjectData();
+  requiredElement("#means-source-name").textContent = `${source.formName} · ${source.records.length} records`;
+  const numericFields = source.fields.filter((field) => field.type === "number");
+  if (numericFields.length === 0) {
+    meansField.replaceChildren();
+    meansFeedback.textContent = "The current form has no numeric fields available for MEANS.";
+    meansOutput.hidden = true;
+    return;
+  }
+  const selected = numericFields.some((field) => field.name === meansField.value)
+    ? meansField.value
+    : numericFields.find((field) => /age|duration|amount|count|weight/i.test(`${field.name} ${field.prompt}`))?.name ?? numericFields[0]!.name;
+  meansField.replaceChildren(...numericFields.map((field) => new Option(field.prompt, field.name, false, field.name === selected)));
+  updateMeansCommandPreview();
+  meansFeedback.textContent = "Missing and non-numeric values are excluded and reported.";
+  meansOutput.hidden = lastMeansResult === null;
+}
+
+function renderMeans(result: MeansResult): void {
+  lastMeansResult = result;
+  requiredElement("#means-output-title").textContent = result.input.prompt || result.input.field;
+  const values: Record<string, number> = {
+    "#means-observations": result.statistics.observations,
+    "#means-total": result.statistics.total,
+    "#means-mean": result.statistics.mean,
+    "#means-variance": result.statistics.variance,
+    "#means-std-dev": result.statistics.standardDeviation,
+    "#means-minimum": result.statistics.minimum,
+    "#means-quartile-25": result.statistics.quartile25,
+    "#means-median": result.statistics.median,
+    "#means-quartile-75": result.statistics.quartile75,
+    "#means-maximum": result.statistics.maximum,
+    "#means-mode": result.statistics.mode,
+  };
+  for (const [selector, value] of Object.entries(values)) {
+    requiredElement(selector).textContent = selector === "#means-observations" ? String(value) : value.toFixed(4);
+  }
+  requiredElement("#means-generated-command").textContent = result.command;
+  meansFeedback.textContent = `Included ${result.totals.includedRecords} of ${result.totals.sourceRecords} records; excluded ${result.totals.excludedMissingOrNonNumeric}.`;
+  const warning = requiredElement<HTMLElement>("#means-warnings");
+  warning.textContent = result.diagnostics.warnings.join(" ");
+  warning.hidden = result.diagnostics.warnings.length === 0;
+  meansOutput.hidden = false;
 }
 
 function updateClassicCommandPreview(): void {
@@ -489,6 +547,7 @@ classicStrataField.addEventListener("change", updateClassicCommandPreview);
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="classic"], [data-module="classic"]')) {
   button.addEventListener("click", refreshClassicTablesSelectors);
   button.addEventListener("click", refreshFrequencySelector);
+  button.addEventListener("click", refreshMeansSelector);
 }
 frequencyField.addEventListener("change", updateFrequencyCommandPreview);
 frequencyForm.addEventListener("submit", (event) => {
@@ -504,6 +563,18 @@ frequencyForm.addEventListener("submit", (event) => {
     }));
   } catch (error) {
     frequencyFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate the frequency table.";
+  }
+});
+meansField.addEventListener("change", updateMeansCommandPreview);
+meansForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  try {
+    const source = getCurrentProjectData();
+    const field = source.fields.find((candidate) => candidate.name === meansField.value && candidate.type === "number");
+    if (!field) throw new RangeError("Select a numeric variable from the current form.");
+    renderMeans(deriveMeans(source.records, { field: field.name, prompt: field.prompt }));
+  } catch (error) {
+    meansFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate descriptive statistics.";
   }
 });
 classicTablesForm.addEventListener("submit", (event) => {
@@ -528,6 +599,7 @@ classicTablesForm.addEventListener("submit", (event) => {
 });
 refreshClassicTablesSelectors();
 refreshFrequencySelector();
+refreshMeansSelector();
 
 try {
   initializeFormDataDemo();

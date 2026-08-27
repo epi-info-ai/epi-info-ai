@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=29" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=31"></script>
+    <script type="module" src="app.js?v=32"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -575,8 +575,8 @@
         </div>
 
         <div class="workspace-heading" data-module-view="classic">
-          <div><p class="eyebrow">CLASSIC ANALYSIS</p><h1>Analysis</h1><p>Run familiar FREQ and TABLES commands against the current form.</p></div>
-          <div class="engine-badge" title="Frequency limits and adjusted estimates are calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rust candidates · contracts 0.9 and 0.8</span></div>
+          <div><p class="eyebrow">CLASSIC ANALYSIS</p><h1>Analysis</h1><p>Run familiar FREQ, MEANS, and TABLES commands against the current form.</p></div>
+          <div class="engine-badge" title="Descriptive statistics, frequency limits, and adjusted estimates are calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rust candidates · contracts 0.10, 0.9, and 0.8</span></div>
         </div>
         <section class="panel classic-frequency-command" data-module-view="classic" aria-labelledby="classic-frequency-command-title">
           <div class="panel-heading"><div><p class="step-label">FREQ command</p><h2 id="classic-frequency-command-title">Frequency</h2></div><span id="frequency-source-name" class="calculation-time">Current project data</span></div>
@@ -604,6 +604,21 @@
             <table class="results-table"><thead><tr><th scope="col">Value</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead><tbody id="frequency-confidence-rows"></tbody></table>
           </div>
           <p id="frequency-warnings" class="warnings" hidden></p>
+        </section>
+        <section class="panel classic-means-command" data-module-view="classic" aria-labelledby="classic-means-command-title">
+          <div class="panel-heading"><div><p class="step-label">MEANS command</p><h2 id="classic-means-command-title">Means</h2></div><span id="means-source-name" class="calculation-time">Current project data</span></div>
+          <form id="means-form">
+            <div class="classic-variable-grid"><label>Means of<select id="means-field" required></select></label></div>
+            <div class="classic-command-preview"><strong>Generated command</strong><code id="means-generated-command">MEANS</code></div>
+            <div class="form-actions"><button id="means-run" class="primary-button" type="submit">Run Means</button></div>
+            <p id="means-feedback" class="inline-feedback" role="status">Choose a numeric variable from the current form.</p>
+          </form>
+        </section>
+        <section id="means-output" class="panel" data-module-view="classic" aria-labelledby="means-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">MEANS output</p><h2 id="means-output-title">Means</h2></div><span class="calculation-time">Sample descriptive statistics</span></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Obs</th><th scope="col">Total</th><th scope="col">Mean</th><th scope="col">Variance</th><th scope="col">Std Dev</th></tr></thead><tbody><tr><td id="means-observations"></td><td id="means-total"></td><td id="means-mean"></td><td id="means-variance"></td><td id="means-std-dev"></td></tr></tbody></table></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Minimum</th><th scope="col">25%</th><th scope="col">Median</th><th scope="col">75%</th><th scope="col">Maximum</th><th scope="col">Mode</th></tr></thead><tbody><tr><td id="means-minimum"></td><td id="means-quartile-25"></td><td id="means-median"></td><td id="means-quartile-75"></td><td id="means-maximum"></td><td id="means-mode"></td></tr></tbody></table></div>
+          <p id="means-warnings" class="warnings" hidden></p>
         </section>
         <section class="panel classic-tables-command" data-module-view="classic" aria-labelledby="classic-tables-command-title">
           <div class="panel-heading"><div><p class="step-label">TABLES command</p><h2 id="classic-tables-command-title">Select variables from the current form</h2></div><span id="classic-source-name" class="calculation-time">Current project data</span></div>
@@ -656,7 +671,7 @@
         </section>
 
         <footer class="audit-strip" data-module-view="classic">
-          <span><strong>Operations</strong> epi.frequency · epi.stratified2x2</span>
+          <span><strong>Operations</strong> epi.frequency · epi.means · epi.stratified2x2</span>
           <span><strong>Status</strong> Candidates · consolidated G5 review pending</span>
         </footer>
 

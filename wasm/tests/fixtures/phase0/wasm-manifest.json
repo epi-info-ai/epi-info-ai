@@ -4,7 +4,7 @@
   "size": 21489,
   "engine": {
     "id": "epi-core-wasm",
-    "version": "0.9.0",
+    "version": "0.10.0",
     "operation": "epi.table2x2",
     "schemaVersion": "0.4.0"
   },
@@ -55,6 +55,19 @@
     "chi_square_p_value_df",
     "frequency_proportion",
     "frequency_ci_lower",
-    "frequency_ci_upper"
+    "frequency_ci_upper",
+    "means_reset",
+    "means_set_value",
+    "means_prepare",
+    "means_sum",
+    "means_mean",
+    "means_sample_variance",
+    "means_sample_std_dev",
+    "means_minimum",
+    "means_quartile_25",
+    "means_median",
+    "means_quartile_75",
+    "means_maximum",
+    "means_mode"
   ]
 }

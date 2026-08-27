@@ -46,7 +46,7 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch Epi Info AI](https://epi-info-ai-2859c9.gitpages.cdc.gov/)** — the latest GitLab Pages application build, published from the default branch after CI validation. CDC GitLab authentication may be required by the Pages access policy.
 
-**[Open Validation Lab V0.9](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb)** — opens the current Classic Analysis frequency validation notebook directly. The [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb) and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
+**[Open Validation Lab V0.10](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb)** — opens the current Classic Analysis means validation notebook directly. The [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
 
 Current capabilities include:
 
@@ -73,7 +73,7 @@ pnpm run check
 
 Preview the generated artifact with `pnpm run preview`, then open the URL printed by the command. GitLab Pages publishes this same generated artifact rather than copying the transitional source directly.
 
-GitLab CI also builds the V0.9 JupyterLite lab into `/validation-lab/`. The lab
+GitLab CI also builds the V0.10 JupyterLite lab into `/validation-lab/`. The lab
 derives the canonical potato-salad 2 x 2 table from the frozen 96-record
 foodborne-outbreak corpus, then compares the release Rust/WASM estimates,
 confidence intervals, chi-square p-values, Fisher exact tails, and mid-p tails
@@ -86,6 +86,8 @@ The companion stratified notebook compares deployed WASM Mantel-Haenszel
 estimates and tests with direct independent Python formulas. The frequency
 notebook re-derives the foodborne Case Status distribution and compares the
 deployed exact/Wilson Rust exports with independent SciPy formulas.
+The means notebook re-derives the foodborne Age summaries and independently
+checks the deployed Rust/WASM sample statistics and audited legacy quartiles.
 
 ## Integrated browser test examples
 
@@ -198,6 +200,11 @@ checksums, expected metadata, and combined testing workflow are documented in
   percent, cumulative percent, and candidate legacy exact/Wilson 95% limits.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
+- Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric
+  variable, preserving familiar Obs, Total, Mean, Variance, Std Dev, minimum,
+  quartiles, median, maximum, mode, and generated command output.
+- Fixed Pyodide WASM loading in the frequency and stratified notebooks by using
+  the supported `FetchResponse.buffer()` interface, with a regression assertion.
 
 ## TODO
 
@@ -239,6 +246,10 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Expand Classic Analysis `FREQ` from the V0.9 single-variable slice to multiple
   variables, `* EXCEPT`, strata, weights, `OUTTABLE`, filters, and saved program
   execution. Complete G5 once for all candidate outputs, as planned.
+- Expand Classic Analysis `MEANS` from the V0.10 descriptive slice to cross-tab
+  group summaries, t tests, ANOVA, Bartlett and Kruskal-Wallis tests, strata,
+  weights, `OUTTABLE`, settings, filters, saved execution, and Complex Sample
+  Means under separate reviewed contracts. Keep G5 consolidated.
 - Complete legacy Epi Info and independent review of the Phase 5 V0.4 confidence
   intervals, exact tails, conditional odds ratios, and exact limits; the browser now
   obtains those results from Rust/WASM, but the registry remains `candidate`.

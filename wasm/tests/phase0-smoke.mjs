@@ -65,11 +65,14 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/table2x2-exact-method-contract.md",
     "wasm/docs/validation/stratified-table2x2-method-contract.md",
     "wasm/docs/validation/frequency-method-contract.md",
+    "wasm/docs/validation/means-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
+    "wasm/docs/design/means-compatibility-inventory.md",
     "wasm/docs/design/statcalc-compatibility-inventory.md",
     "wasm/validation-lab/content/validate-table2x2.ipynb",
     "wasm/validation-lab/content/validate-stratified2x2.ipynb",
     "wasm/validation-lab/content/validate-frequency.ipynb",
+    "wasm/validation-lab/content/validate-means.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -82,6 +85,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/stratified-exact-v0.8.json",
     "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json",
     "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json",
+    "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -148,6 +152,13 @@ async function checkRequiredAssetsAndUi() {
     "frequency-run",
     "frequency-rows",
     "frequency-confidence-rows",
+    "means-form",
+    "means-field",
+    "means-run",
+    "means-output",
+    "means-observations",
+    "means-mean",
+    "means-median",
     "strata-rows",
     "add-stratum",
     "calculate-stratified",
@@ -171,7 +182,7 @@ async function checkRequiredAssetsAndUi() {
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
-  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-frequency\.ipynb/);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-means\.ipynb/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])
@@ -536,6 +547,37 @@ async function checkFrequencyContract() {
     field: "value", prompt: "Value", includeMissing: false,
   });
   assert.deepEqual(wilson.categories[0].confidenceInterval, { lower: 1, upper: 1 });
+}
+
+async function checkMeansContract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json",
+  ), "utf8"));
+  const datasetBytes = await readFile(repositoryPath(fixture.dataset.file));
+  assert.equal(createHash("sha256").update(datasetBytes).digest("hex"), fixture.dataset.sha256);
+  const { inferSchemaFromRows, parseCsv } = await import(
+    `${pathToFileURL(repositoryPath("wasm/app/forms/csv.ts")).href}?means=${Date.now()}`
+  );
+  const imported = inferSchemaFromRows("foodborne.csv", parseCsv(datasetBytes.toString("utf8").replace(/^\uFEFF/, "")));
+  const { deriveMeans } = await importEngineWithFileFetch();
+  const result = deriveMeans(imported.records, fixture.request);
+  assert.equal(result.schemaVersion, "0.10.0");
+  assert.equal(result.operation, fixture.operation);
+  assert.equal(result.command, fixture.expected.command);
+  assert.equal(result.totals.sourceRecords, fixture.expected.sourceRecords);
+  assert.equal(result.totals.includedRecords, fixture.expected.includedRecords);
+  assert.equal(result.totals.excludedMissingOrNonNumeric, fixture.expected.excludedMissingOrNonNumeric);
+  for (const [name, expected] of Object.entries(fixture.expected.statistics)) {
+    near(result.statistics[name], expected, 1e-12, `foodborne Age ${name}`);
+  }
+
+  const partial = deriveMeans([{ age: 2 }, { age: "" }, { age: "invalid" }, { age: 4 }], {
+    field: "age", prompt: "Age",
+  });
+  assert.equal(partial.totals.excludedMissingOrNonNumeric, 2);
+  assert.equal(partial.statistics.mean, 3);
+  assert.equal(partial.statistics.variance, 2);
+  assert.throws(() => deriveMeans([{ age: 2 }], { field: "age", prompt: "Age" }), /at least two/);
 }
 
 async function checkFoodborneValidationFixture() {
@@ -1014,6 +1056,7 @@ async function run() {
     ["stratified exact conditional contract", checkStratifiedExactContract],
     ["stratified operational limits and metamorphic contract", checkStratifiedOperationalContract],
     ["foodborne Classic FREQ contract", checkFrequencyContract],
+    ["foodborne Classic MEANS contract", checkMeansContract],
     ["foodborne 2 x 2 validation fixture", checkFoodborneValidationFixture],
     ["legacy 100-case exact 2 x 2 corpus", checkLegacyTwoByTwoCorpus],
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],

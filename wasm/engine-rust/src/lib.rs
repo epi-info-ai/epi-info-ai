@@ -21,6 +21,195 @@ fn valid_confidence_multiplier(z: f64) -> bool {
     z.is_finite() && z > 0.0
 }
 
+const MAX_MEANS_VALUES: usize = 65_536;
+static mut MEANS_VALUES: [f64; MAX_MEANS_VALUES] = [0.0; MAX_MEANS_VALUES];
+static mut MEANS_LENGTH: usize = 0;
+#[cfg(test)]
+static MEANS_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_reset() {
+    unsafe { MEANS_LENGTH = 0 };
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_set_value(index: u32, value: f64) -> u32 {
+    let index = index as usize;
+    let length = unsafe { MEANS_LENGTH };
+    if !value.is_finite() || index != length || index >= MAX_MEANS_VALUES {
+        return 0;
+    }
+    let values = core::ptr::addr_of_mut!(MEANS_VALUES) as *mut f64;
+    unsafe {
+        *values.add(index) = value;
+        MEANS_LENGTH = length + 1;
+    }
+    1
+}
+
+fn means_sift_down(values: *mut f64, mut root: usize, end: usize) {
+    loop {
+        let child = root * 2 + 1;
+        if child >= end {
+            break;
+        }
+        let right = child + 1;
+        let largest = if right < end && unsafe { *values.add(right) > *values.add(child) } {
+            right
+        } else {
+            child
+        };
+        if unsafe { *values.add(root) >= *values.add(largest) } {
+            break;
+        }
+        unsafe { core::ptr::swap(values.add(root), values.add(largest)) };
+        root = largest;
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_prepare(count: u32) -> u32 {
+    let count = count as usize;
+    if count == 0 || count != unsafe { MEANS_LENGTH } {
+        return 0;
+    }
+    let values = core::ptr::addr_of_mut!(MEANS_VALUES) as *mut f64;
+    let mut start = count / 2;
+    while start > 0 {
+        start -= 1;
+        means_sift_down(values, start, count);
+    }
+    let mut end = count;
+    while end > 1 {
+        unsafe { core::ptr::swap(values, values.add(end - 1)) };
+        end -= 1;
+        means_sift_down(values, 0, end);
+    }
+    1
+}
+
+fn valid_means_count(count: u32) -> Option<usize> {
+    let count = count as usize;
+    if count > 0 && count == unsafe { MEANS_LENGTH } {
+        Some(count)
+    } else {
+        None
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_sum(count: u32) -> f64 {
+    let Some(count) = valid_means_count(count) else {
+        return f64::NAN;
+    };
+    let values = core::ptr::addr_of!(MEANS_VALUES) as *const f64;
+    let mut sum = 0.0;
+    for index in 0..count {
+        sum += unsafe { *values.add(index) };
+    }
+    sum
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_mean(count: u32) -> f64 {
+    means_sum(count) / count as f64
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_sample_variance(count: u32) -> f64 {
+    let Some(count) = valid_means_count(count) else {
+        return f64::NAN;
+    };
+    if count < 2 {
+        return f64::NAN;
+    }
+    let mean = means_mean(count as u32);
+    let values = core::ptr::addr_of!(MEANS_VALUES) as *const f64;
+    let mut squared_deviations = 0.0;
+    for index in 0..count {
+        let difference = unsafe { *values.add(index) } - mean;
+        squared_deviations += difference * difference;
+    }
+    squared_deviations / (count - 1) as f64
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_sample_std_dev(count: u32) -> f64 {
+    libm::sqrt(means_sample_variance(count))
+}
+
+fn means_order_statistic(count: u32, fraction: f64) -> f64 {
+    let Some(count) = valid_means_count(count) else {
+        return f64::NAN;
+    };
+    let position = count as f64 * fraction;
+    let values = core::ptr::addr_of!(MEANS_VALUES) as *const f64;
+    if position == libm::floor(position) {
+        let upper = position as usize;
+        0.5 * unsafe { *values.add(upper - 1) + *values.add(upper) }
+    } else {
+        unsafe { *values.add(libm::ceil(position) as usize - 1) }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_minimum(count: u32) -> f64 {
+    if valid_means_count(count).is_some() {
+        unsafe { *(core::ptr::addr_of!(MEANS_VALUES) as *const f64) }
+    } else {
+        f64::NAN
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_quartile_25(count: u32) -> f64 {
+    means_order_statistic(count, 0.25)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_median(count: u32) -> f64 {
+    means_order_statistic(count, 0.5)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_quartile_75(count: u32) -> f64 {
+    means_order_statistic(count, 0.75)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_maximum(count: u32) -> f64 {
+    let Some(count) = valid_means_count(count) else {
+        return f64::NAN;
+    };
+    let values = core::ptr::addr_of!(MEANS_VALUES) as *const f64;
+    unsafe { *values.add(count - 1) }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn means_mode(count: u32) -> f64 {
+    let Some(count) = valid_means_count(count) else {
+        return f64::NAN;
+    };
+    let values = core::ptr::addr_of!(MEANS_VALUES) as *const f64;
+    let mut mode = unsafe { *values };
+    let mut mode_count = 1;
+    let mut current_count = 1;
+    for index in 1..count {
+        let value = unsafe { *values.add(index) };
+        let previous = unsafe { *values.add(index - 1) };
+        if value == previous {
+            current_count += 1;
+        } else {
+            current_count = 1;
+        }
+        if current_count > mode_count {
+            mode = value;
+            mode_count = current_count;
+        }
+    }
+    mode
+}
+
 fn valid_frequency_counts(frequency: f64, total: f64) -> bool {
     frequency.is_finite()
         && total.is_finite()
@@ -1390,6 +1579,50 @@ mod tests {
             assert_near(frequency_ci_lower(frequency, 96.0), lower);
             assert_near(frequency_ci_upper(frequency, 96.0), upper);
         }
+    }
+
+    #[test]
+    fn foodborne_age_means_matches_legacy_descriptive_contract() {
+        let _guard = MEANS_TEST_LOCK.lock().expect("means test lock");
+        let ages = [
+            5.0, 7.0, 8.0, 11.0, 12.0, 14.0, 15.0, 16.0, 16.0, 17.0, 18.0, 19.0,
+            19.0, 20.0, 21.0, 22.0, 23.0, 23.0, 24.0, 25.0, 26.0, 26.0, 27.0,
+            27.0, 28.0, 28.0, 29.0, 29.0, 30.0, 31.0, 31.0, 31.0, 32.0, 33.0,
+            33.0, 34.0, 34.0, 35.0, 35.0, 36.0, 37.0, 37.0, 38.0, 38.0, 38.0,
+            39.0, 39.0, 40.0, 41.0, 41.0, 42.0, 42.0, 42.0, 43.0, 44.0, 44.0,
+            45.0, 45.0, 46.0, 46.0, 47.0, 47.0, 48.0, 48.0, 49.0, 49.0, 50.0,
+            51.0, 52.0, 52.0, 53.0, 54.0, 55.0, 55.0, 56.0, 57.0, 58.0, 58.0,
+            59.0, 59.0, 61.0, 62.0, 63.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0,
+            69.0, 70.0, 71.0, 72.0, 73.0, 74.0, 75.0,
+        ];
+        means_reset();
+        for (index, value) in ages.iter().enumerate() {
+            assert_eq!(means_set_value(index as u32, *value), 1);
+        }
+        assert_eq!(means_prepare(ages.len() as u32), 1);
+        assert_near(means_sum(96), 3917.0);
+        assert_near(means_mean(96), 40.802_083_333_333_336);
+        assert_near(means_sample_variance(96), 312.644_627_192_982_57);
+        assert_near(means_sample_std_dev(96), 17.681_759_731_231_01);
+        assert_eq!(means_minimum(96), 5.0);
+        assert_eq!(means_quartile_25(96), 27.5);
+        assert_eq!(means_median(96), 40.5);
+        assert_eq!(means_quartile_75(96), 54.5);
+        assert_eq!(means_maximum(96), 75.0);
+        assert_eq!(means_mode(96), 31.0);
+    }
+
+    #[test]
+    fn means_rejects_invalid_buffers_and_marks_singleton_variance_unavailable() {
+        let _guard = MEANS_TEST_LOCK.lock().expect("means test lock");
+        means_reset();
+        assert_eq!(means_set_value(1, 2.0), 0);
+        assert_eq!(means_set_value(0, f64::NAN), 0);
+        assert_eq!(means_set_value(0, 2.0), 1);
+        assert_eq!(means_prepare(2), 0);
+        assert_eq!(means_prepare(1), 1);
+        assert!(means_sample_variance(1).is_nan());
+        assert_eq!(means_median(1), 2.0);
     }
 
     #[test]

@@ -394,6 +394,18 @@ discrepancy to its detailed evidence record.
 - Multiple variables, strata, weights, output tables, broader edge corpora, and
   formal approval remain open. G5 is deferred to the consolidated output review.
 
+### V0.10 — Classic Analysis means lab
+
+- `validate-means.ipynb` verifies the canonical foodborne CSV hash and derives
+  all 96 Age observations.
+- Python `statistics` independently anchors total, mean, sample variance, and
+  standard deviation; an explicit legacy-rank implementation anchors quartiles,
+  while a frequency counter with a deterministic tie rule anchors mode.
+- The notebook then calls the deployed bounded Rust/WASM `means_*` exports and
+  compares every descriptive output with the immutable V0.10 fixture.
+- Cross-tab inferential output, broader boundary corpora, and formal approval
+  remain open. G5 stays deferred to the consolidated output review.
+
 ### Later releases
 
 - Extend the corpus to exact tests, rates, sample size, regression, dates/times,

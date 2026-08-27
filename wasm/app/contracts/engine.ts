@@ -213,3 +213,36 @@ export interface DatasetFrequencyRequest {
   prompt: string;
   includeMissing: boolean;
 }
+
+export interface DatasetMeansRequest {
+  field: string;
+  prompt: string;
+}
+
+export interface MeansResult {
+  schemaVersion: "0.10.0";
+  operation: "epi.means";
+  engine: { id: "epi-core-wasm"; version: "0.10.0"; operation: "epi.means" };
+  input: { field: string; prompt: string };
+  methods: {
+    variance: "sample-n-minus-one";
+    quartiles: "legacy-epi-info-n-times-p-midpoint-on-integer-rank";
+    mode: "lowest-value-on-frequency-tie";
+  };
+  statistics: {
+    observations: number;
+    total: number;
+    mean: number;
+    variance: number;
+    standardDeviation: number;
+    minimum: number;
+    quartile25: number;
+    median: number;
+    quartile75: number;
+    maximum: number;
+    mode: number;
+  };
+  totals: { sourceRecords: number; includedRecords: number; excludedMissingOrNonNumeric: number };
+  command: string;
+  diagnostics: { warnings: string[] };
+}

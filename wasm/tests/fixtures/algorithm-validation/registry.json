@@ -108,6 +108,38 @@
         "Complete multiple-variable, EXCEPT, strata, weight, OUTTABLE, filter, and saved-command compatibility.",
         "Complete the consolidated statistical and implementation review across all candidate outputs."
       ]
+    },
+    {
+      "operation": "epi.means",
+      "resultSchemaVersion": "0.10.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "epi-core-wasm",
+        "engineVersion": "0.10.0",
+        "source": "wasm/engine-rust/src/lib.rs"
+      },
+      "gates": {
+        "G0": "passed",
+        "G1": "partial",
+        "G2": "partial",
+        "G3": "passed",
+        "G4": "partial",
+        "G5": "not-started",
+        "G6": "partial"
+      },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json",
+        "wasm/docs/design/means-compatibility-inventory.md",
+        "wasm/docs/validation/means-method-contract.md",
+        "wasm/validation-lab/content/validate-means.ipynb"
+      ],
+      "knownGaps": [
+        "Compare against a reviewed legacy Epi Info output corpus.",
+        "Expand independent pathological, property, tie, and numeric-boundary evidence.",
+        "Complete cross-tabulation, inferential tests, strata, weights, OUTTABLE, settings, filters, and saved-command compatibility.",
+        "Complete the consolidated statistical and implementation review across all candidate outputs."
+      ]
     }
   ]
 }
