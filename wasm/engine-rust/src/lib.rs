@@ -70,11 +70,7 @@ fn binomial_cdf(k: u32, n: u32, probability: f64) -> f64 {
         scaled_sum += libm::exp(term - maximum);
     }
     let result = libm::exp(maximum) * scaled_sum;
-    if result > 1.0 {
-        1.0
-    } else {
-        result
-    }
+    if result > 1.0 { 1.0 } else { result }
 }
 
 fn frequency_exact_limit(frequency: u32, total: u32, upper: bool) -> f64 {
@@ -129,11 +125,8 @@ fn frequency_confidence_limit(frequency: f64, total: f64, upper: bool) -> f64 {
     let z_squared = z * z;
     let denominator = 1.0 + z_squared / total;
     let center = proportion + z_squared / (2.0 * total);
-    let radius = z
-        * libm::sqrt(
-            proportion * (1.0 - proportion) / total
-                + z_squared / (4.0 * total * total),
-        );
+    let radius =
+        z * libm::sqrt(proportion * (1.0 - proportion) / total + z_squared / (4.0 * total * total));
     let result = if upper {
         (center + radius) / denominator
     } else {
