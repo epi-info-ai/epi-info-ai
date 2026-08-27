@@ -1,10 +1,10 @@
 {
   "file": "wasm/demo/epi2x2.wasm",
-  "sha256": "e8343e455cd419ab2b84893d626b08b0b023014c936dbc2cde922a5fe2bded87",
-  "size": 25828,
+  "sha256": "aa4f82c53f474d35355c01b8653d4e5cc27fa37b9f3b7ce4531e343c5ace6cf1",
+  "size": 25987,
   "engine": {
     "id": "epi-core-wasm",
-    "version": "0.13.0",
+    "version": "0.14.0",
     "operation": "epi.table2x2",
     "schemaVersion": "0.4.0"
   },
@@ -74,6 +74,9 @@
     "cohort_exposed_outcome",
     "cohort_odds_from_risk",
     "cohort_odds_from_outcomes",
-    "cohort_sample_size"
+    "cohort_sample_size",
+    "unmatched_case_control_case_exposure",
+    "unmatched_case_control_odds_from_exposures",
+    "unmatched_case_control_sample_size"
   ]
 }
