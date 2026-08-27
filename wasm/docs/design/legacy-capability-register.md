@@ -44,7 +44,7 @@ refer to the same capability.
 | Create Forms / Form Designer | `form-designer-compatibility-inventory.md` | Initial manual/C#/runtime audit complete; Phase 4 gaps and safe skip subset recorded |
 | Enter Data | `enter-data-compatibility-inventory.md` | Initial C#/manual audit and Phase 3B responsive contract recorded |
 | Classic Analysis / Programming IDE | `programming-ide-compatibility-inventory.md` | Legacy IDE floor and ordered future-IDE roadmap recorded; full command inventory pending |
-| Visual Dashboard | Pending | Code-asset and feature inventory pending |
+| Visual Dashboard | `rates-compatibility-inventory.md` | Rates C#/XAML audit and V0.11 bounded COUNT slice recorded; broader gadget inventory pending |
 | Create Maps / Enter Data > Maps | `maps-compatibility-inventory.md` | Initial C# and manual audit complete; gap IDs below |
 | StatCalc / Classic Analysis TABLES | `statcalc-compatibility-inventory.md` | Direct and stratified 2 x 2 floor recorded; candidate MH slice implemented |
 | Storage / project formats | `storage-compatibility-inventory.md` | Initial legacy/browser boundary audit and Phase 3C state contract recorded |
@@ -116,6 +116,14 @@ The detailed floor and closure evidence for `LEGACY-STATCALC-001` and
 `statcalc-compatibility-inventory.md`. Candidate adjusted estimates do not close
 the dataset-selection, exact-stratified, homogeneity, or validation gaps.
 
+## Visual Dashboard gap register
+
+The initial floor and closure evidence for `LEGACY-DASHBOARD-001` through
+`LEGACY-DASHBOARD-010` are maintained in `rates-compatibility-inventory.md`.
+The V0.11 COUNT-based Rates candidate restores a distinct old-tree launcher but
+does not claim parity with the general gadget canvas or the full Rates property
+panels.
+
 ## Change control
 
 - New feature proposals first identify the old-tree parent and either close an
@@ -160,6 +168,7 @@ the dataset-selection, exact-stratified, homogeneity, or validation gaps.
 | REG-0018 | LEGACY-ANALYSIS-005 | Adapted branch: bounded exact adjusted OR inference | Ports the conditional product-hypergeometric CMLE and central Fisher limits with explicit zero/infinity/unavailable states, reviewed support/work limits, pathological and maximum-strata regression evidence, and cancellable Worker isolation; broader reviewed legacy-output parity and consolidated G5 approval remain open | `Strat2X2.vb` audit plus V0.8 evidence packet / 2026-08-27 | Phase 5 V0.8 candidate, operational gaps closed; review gap open |
 | REG-0019 | LEGACY-ANALYSIS-007 | Adapted branch: current-form single-variable FREQ | Adds familiar variable selection and generated `FREQ` syntax, typed category grouping, missing-value control, cumulative output, and candidate legacy exact/Wilson confidence limits; multiple variables, `* EXCEPT`, strata, weights, `OUTTABLE`, filters, saved execution, and consolidated G5 approval remain open | `FrequencyDialog.cs`, `Frequency.cs`, and `freq.vb` audit / 2026-08-27 | Phase 5 V0.9 candidate, parity gaps open |
 | REG-0020 | LEGACY-ANALYSIS-008 | Adapted branch: current-form single-variable MEANS | Adds familiar numeric-variable selection and generated `MEANS` syntax with candidate descriptive statistics and audited legacy quartiles/mode; cross-tabulation, t tests, ANOVA, Bartlett, Kruskal-Wallis, strata, weights, `OUTTABLE`, settings, saved execution, Complex Sample Means, and consolidated G5 approval remain open | `MeansDialog.cs`, `Means.cs`, and `cWorkingTable.cs` audit / 2026-08-27 | Phase 5 V0.10 candidate, parity gaps open |
+| REG-0021 | LEGACY-DASHBOARD-001 through LEGACY-DASHBOARD-010 | Adapted branch: distinct Visual Dashboard Rates candidate | Restores the learned Visual Dashboard path and legacy aggregate-of / PER / aggregate-of shape with COUNT equality and non-missing denominator semantics; all other aggregates, conditions, distinct counts, grouping, sorting, filters, display, export, saved canvas behavior, and consolidated G5 approval remain open | `RatesProperties.xaml(.cs)`, `RatesControl.xaml.cs`, and `RatesParameters.cs` audit / 2026-08-27 | Phase 5 V0.11 candidate, parity gaps open |
 
 No legacy branch is currently approved for deprecation or retirement.
 

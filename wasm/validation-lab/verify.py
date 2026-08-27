@@ -16,11 +16,13 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-stratified2x2.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-frequency.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-means.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-rate.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
 FREQUENCY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json"
 MEANS_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json"
+RATE_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -57,6 +59,12 @@ def verify_notebook() -> None:
     assert "foodborne-means-v0.10.json" in source
     assert "means_sample_variance" in source
     assert "statistics.variance" in source
+
+    rate = nbformat.read(NOTEBOOKS[4], as_version=4)
+    source = "\n".join(cell.source for cell in rate.cells)
+    assert "foodborne-rate-v0.11.json" in source
+    assert "rate_calculate" in source
+    assert "wasm_response.buffer()" in source
 
 
 def verify_stratified_operational_fixture() -> None:
@@ -132,10 +140,26 @@ def verify_foodborne_means() -> None:
     assert sum(ages) == fixture["expected"]["statistics"]["total"]
 
 
+def verify_foodborne_rate() -> None:
+    fixture = json.loads(RATE_FIXTURE.read_text(encoding="utf-8"))
+    data = (REPOSITORY / fixture["dataset"]["file"]).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+    rows = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    request = fixture["request"]
+    eligible = [row for row in rows if row[request["denominatorSourceHeader"]].strip()]
+    numerator = sum(
+        row[request["numeratorSourceHeader"]].strip().casefold() == request["numeratorValue"].casefold()
+        for row in eligible
+    )
+    assert numerator == fixture["expected"]["numerator"]
+    assert len(eligible) == fixture["expected"]["denominator"]
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
     verify_foodborne_frequency()
     verify_foodborne_means()
+    verify_foodborne_rate()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

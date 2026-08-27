@@ -557,6 +557,26 @@ test("Classic Analysis MEANS derives foodborne Age descriptive statistics", asyn
   await expect(page.locator("#means-mode")).toHaveText("31.0000");
 });
 
+test("Visual Dashboard Rates derives the foodborne Confirmed rate", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="dashboard"]').click();
+  await expect(page.getByRole("heading", { name: "Visual Dashboard" })).toBeVisible();
+  await expect(page.locator("#rates-numerator-field")).toHaveValue("case_status");
+  await expect(page.locator("#rates-numerator-value")).toHaveValue("Confirmed");
+  await expect(page.locator("#rates-denominator-field")).toHaveValue("id");
+  await page.locator("#rates-run").click();
+
+  await expect(page.locator("#rates-feedback")).toContainText("Included 96 of 96 records; excluded 0");
+  await expect(page.locator("#rates-numerator")).toHaveText("22");
+  await expect(page.locator("#rates-false-count")).toHaveText("74");
+  await expect(page.locator("#rates-denominator")).toHaveText("96");
+  await expect(page.locator("#rates-value")).toHaveText("22.9167");
+});
+
 test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ page }) => {
   await page.getByRole("button", { name: "Classic", exact: true }).click();
   const values = [
@@ -691,6 +711,17 @@ test("JupyterLite validation lab V0.9 is part of the Pages artifact", async ({ p
   const meansFixture = await meansFixtureResponse.json();
   expect(meansFixture.expected.statistics.mean).toBeCloseTo(40.802083333333336, 12);
   expect(meansFixture.expected.statistics.median).toBe(40.5);
+
+  const rateResponse = await request.get("/validation-lab/files/validate-rate.ipynb");
+  expect(rateResponse.ok()).toBe(true);
+  const rateNotebook = await rateResponse.json();
+  expect(JSON.stringify(rateNotebook)).toContain("foodborne-rate-v0.11.json");
+  expect(JSON.stringify(rateNotebook)).toContain("rate_calculate");
+
+  const rateFixtureResponse = await request.get("/validation-fixtures/foodborne-rate-v0.11.json");
+  expect(rateFixtureResponse.ok()).toBe(true);
+  const rateFixture = await rateFixtureResponse.json();
+  expect(rateFixture.expected).toMatchObject({ numerator: 22, denominator: 96, falseCount: 74 });
 });
 
 test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadable", async ({ request }) => {

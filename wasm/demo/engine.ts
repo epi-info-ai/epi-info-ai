@@ -5,9 +5,11 @@ import type {
   DatasetStratifiedTable2x2Request,
   DatasetFrequencyRequest,
   DatasetMeansRequest,
+  DatasetRateRequest,
   FisherExactResult,
   FrequencyResult,
   MeansResult,
+  RateResult,
   MidPExactResult,
   StratifiedTable2x2Input,
   StratifiedTable2x2Result,
@@ -85,6 +87,7 @@ interface EpiWasmExports {
   means_quartile_75: WasmNumericFunction;
   means_maximum: WasmNumericFunction;
   means_mode: WasmNumericFunction;
+  rate_calculate: WasmNumericFunction;
 }
 
 function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
@@ -148,6 +151,7 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
     "means_quartile_75",
     "means_maximum",
     "means_mode",
+    "rate_calculate",
     "chi_square_p_value_df",
   ] as const;
   const validated = {} as EpiWasmExports;
@@ -662,5 +666,49 @@ export function deriveMeans(
     },
     command: `MEANS ${commandField(request.field)}`,
     diagnostics: { warnings: excluded > 0 ? [`${excluded} missing or non-numeric record${excluded === 1 ? " was" : "s were"} excluded.`] : [] },
+  };
+}
+
+function normalizedRateValue(value: EpiRecord[string] | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized.toLocaleLowerCase() : null;
+}
+
+export function deriveRate(records: readonly EpiRecord[], request: DatasetRateRequest): RateResult {
+  if (!request.numeratorField.trim() || !request.denominatorField.trim()) {
+    throw new RangeError("Select numerator and denominator fields for the rate.");
+  }
+  const target = request.numeratorValue.trim().toLocaleLowerCase();
+  if (!target) throw new RangeError("Select the numerator value to count.");
+  if (!Number.isFinite(request.multiplier) || request.multiplier <= 0) {
+    throw new RangeError("The rate multiplier must be greater than zero.");
+  }
+  let denominator = 0;
+  let numerator = 0;
+  for (const record of records) {
+    if (normalizedRateValue(record[request.denominatorField]) === null) continue;
+    denominator += 1;
+    if (normalizedRateValue(record[request.numeratorField]) === target) numerator += 1;
+  }
+  if (denominator === 0) throw new RangeError("No records have a non-missing denominator value.");
+  const rate = WASM.rate_calculate(numerator, denominator, request.multiplier);
+  if (!Number.isFinite(rate)) throw new RangeError("The rate kernel rejected the derived aggregates.");
+  return {
+    schemaVersion: "0.11.0",
+    operation: "epi.rate",
+    engine: { id: "epi-core-wasm", version: "0.11.0", operation: "epi.rate" },
+    input: request,
+    methods: {
+      numerator: "count-equal-nonmissing",
+      denominator: "count-nonmissing",
+      rate: "numerator-over-denominator-times-multiplier",
+    },
+    aggregates: { numerator, denominator, falseCount: denominator - numerator },
+    rate,
+    totals: { sourceRecords: records.length, excludedDenominatorMissing: records.length - denominator },
+    diagnostics: {
+      warnings: numerator === 0 ? ["No denominator-eligible records matched the selected numerator value."] : [],
+    },
   };
 }

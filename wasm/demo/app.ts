@@ -1,4 +1,4 @@
-import { calculateTable2x2, deriveFrequency, deriveMeans, deriveStratifiedTable2x2 } from "./engine.js";
+import { calculateTable2x2, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2 } from "./engine.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -12,7 +12,7 @@ import {
 import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
-import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, FrequencyResult, MeansResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
+import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, FrequencyResult, MeansResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -234,6 +234,14 @@ const meansField = requiredElement<HTMLSelectElement>("#means-field");
 const meansFeedback = requiredElement<HTMLElement>("#means-feedback");
 const meansOutput = requiredElement<HTMLElement>("#means-output");
 let lastMeansResult: MeansResult | null = null;
+const ratesForm = requiredElement<HTMLFormElement>("#rates-form");
+const ratesNumeratorField = requiredElement<HTMLSelectElement>("#rates-numerator-field");
+const ratesNumeratorValue = requiredElement<HTMLSelectElement>("#rates-numerator-value");
+const ratesDenominatorField = requiredElement<HTMLSelectElement>("#rates-denominator-field");
+const ratesMultiplier = requiredElement<HTMLSelectElement>("#rates-multiplier");
+const ratesFeedback = requiredElement<HTMLElement>("#rates-feedback");
+const ratesOutput = requiredElement<HTMLElement>("#rates-output");
+let lastRateResult: RateResult | null = null;
 let nextStratumId = 3;
 let stratifiedController: AbortController | null = null;
 
@@ -389,6 +397,51 @@ function renderMeans(result: MeansResult): void {
   warning.textContent = result.diagnostics.warnings.join(" ");
   warning.hidden = result.diagnostics.warnings.length === 0;
   meansOutput.hidden = false;
+}
+
+function refreshRatesValueSelector(): void {
+  setValueOptions(ratesNumeratorValue, ratesNumeratorField.value, () => false);
+  if (ratesNumeratorValue.options.length > 0) ratesNumeratorValue.selectedIndex = 0;
+}
+
+function refreshRatesSelectors(): void {
+  const source = getCurrentProjectData();
+  requiredElement("#rates-source-name").textContent = `${source.formName} · ${source.records.length} records`;
+  if (source.fields.length === 0) {
+    ratesNumeratorField.replaceChildren();
+    ratesDenominatorField.replaceChildren();
+    ratesNumeratorValue.replaceChildren();
+    ratesFeedback.textContent = "The current form has no fields available for Rates.";
+    ratesOutput.hidden = true;
+    return;
+  }
+  const numerator = source.fields.some((field) => field.name === ratesNumeratorField.value)
+    ? ratesNumeratorField.value : source.fields.find((field) => field.name === "case_status")?.name ?? source.fields[0].name;
+  const denominator = source.fields.some((field) => field.name === ratesDenominatorField.value)
+    ? ratesDenominatorField.value : source.fields.find((field) => field.name === "id")?.name ?? source.fields[0].name;
+  setFieldOptions(ratesNumeratorField, numerator);
+  setFieldOptions(ratesDenominatorField, denominator);
+  refreshRatesValueSelector();
+  const confirmed = [...ratesNumeratorValue.options].find((option) => /^confirmed$/i.test(option.value));
+  if (confirmed) ratesNumeratorValue.value = confirmed.value;
+  ratesFeedback.textContent = "COUNT aggregation uses denominator records with a non-missing selected field.";
+  ratesOutput.hidden = lastRateResult === null;
+}
+
+function renderRate(result: RateResult): void {
+  lastRateResult = result;
+  requiredElement("#rates-output-title").textContent = result.input.numeratorPrompt || result.input.numeratorField;
+  requiredElement("#rates-description").textContent = `Count of ${result.input.numeratorPrompt} = ${result.input.numeratorValue} per count of ${result.input.denominatorPrompt}`;
+  requiredElement("#rates-numerator").textContent = String(result.aggregates.numerator);
+  requiredElement("#rates-false-count").textContent = String(result.aggregates.falseCount);
+  requiredElement("#rates-denominator").textContent = String(result.aggregates.denominator);
+  requiredElement("#rates-value").textContent = result.rate.toFixed(4);
+  requiredElement("#rates-method").textContent = `per ${new Intl.NumberFormat("en-US").format(result.input.multiplier)}`;
+  ratesFeedback.textContent = `Included ${result.aggregates.denominator} of ${result.totals.sourceRecords} records; excluded ${result.totals.excludedDenominatorMissing} with a missing denominator.`;
+  const warning = requiredElement<HTMLElement>("#rates-warnings");
+  warning.textContent = result.diagnostics.warnings.join(" ");
+  warning.hidden = result.diagnostics.warnings.length === 0;
+  ratesOutput.hidden = false;
 }
 
 function updateClassicCommandPreview(): void {
@@ -549,6 +602,29 @@ for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="
   button.addEventListener("click", refreshFrequencySelector);
   button.addEventListener("click", refreshMeansSelector);
 }
+for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="dashboard"], [data-module="dashboard"]')) {
+  button.addEventListener("click", refreshRatesSelectors);
+}
+ratesNumeratorField.addEventListener("change", refreshRatesValueSelector);
+ratesForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  try {
+    const source = getCurrentProjectData();
+    const numeratorField = source.fields.find((field) => field.name === ratesNumeratorField.value);
+    const denominatorField = source.fields.find((field) => field.name === ratesDenominatorField.value);
+    if (!numeratorField || !denominatorField) throw new RangeError("Select valid fields from the current form.");
+    renderRate(deriveRate(source.records, {
+      numeratorField: numeratorField.name,
+      numeratorPrompt: numeratorField.prompt,
+      numeratorValue: ratesNumeratorValue.value,
+      denominatorField: denominatorField.name,
+      denominatorPrompt: denominatorField.prompt,
+      multiplier: Number(ratesMultiplier.value),
+    }));
+  } catch (error) {
+    ratesFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate the rate.";
+  }
+});
 frequencyField.addEventListener("change", updateFrequencyCommandPreview);
 frequencyForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -600,6 +676,7 @@ classicTablesForm.addEventListener("submit", (event) => {
 refreshClassicTablesSelectors();
 refreshFrequencySelector();
 refreshMeansSelector();
+refreshRatesSelectors();
 
 try {
   initializeFormDataDemo();

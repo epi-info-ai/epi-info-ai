@@ -557,7 +557,15 @@ must never be translated into arbitrary JavaScript execution.
    and notebook provide initial independent evidence. Cross-tabs and their t,
    ANOVA, Bartlett, and Kruskal-Wallis output, strata, weights, `OUTTABLE`,
    settings, saved execution, Complex Sample Means, broader corpora, and G5 review
-   remain open. Rates or sample-size calculations are the next planned kernel slice.
+   remain open. **Candidate V0.11 Visual Dashboard Rates slice complete:** a
+   distinct old-tree Visual Dashboard launcher now exposes the audited
+   aggregate-of / PER / aggregate-of workflow for COUNT equality over a
+   non-missing denominator. Rust/WASM owns the fail-closed ratio-times-multiplier
+   calculation, while the foodborne 22/96 fixture and notebook provide initial
+   independent evidence. Other aggregates, condition builders, distinct counts,
+   grouping, sorting, filters, display/export, saved dashboards, broader corpora,
+   and G5 review remain open. A legacy StatCalc sample-size workflow is the next
+   planned item-4 kernel slice.
 5. Regression, survival, and other advanced analysis modules.
 
 ### Required work for every operation

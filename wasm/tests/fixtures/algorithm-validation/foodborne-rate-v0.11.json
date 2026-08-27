@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "operation": "epi.rate",
+  "operationVersion": "0.11.0",
+  "status": "candidate",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "rows": 96
+  },
+  "request": {
+    "numeratorField": "case_status",
+    "numeratorSourceHeader": "Case Status",
+    "numeratorValue": "Confirmed",
+    "denominatorField": "id",
+    "denominatorSourceHeader": "ID",
+    "multiplier": 100
+  },
+  "expected": {
+    "numerator": 22,
+    "denominator": 96,
+    "falseCount": 74,
+    "excludedDenominatorMissing": 0,
+    "rate": 22.916666666666668
+  },
+  "provenance": {
+    "legacySources": [
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/Controls/GadgetProperties/RatesProperties.xaml",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/Controls/GadgetProperties/RatesProperties.xaml.cs",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/Gadgets/Analysis/RatesControl.xaml.cs",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/Gadgets/RatesParameters.cs"
+    ],
+    "reviewNote": "Counts are frozen from the canonical foodborne CSV. The independent rate anchor is numerator / denominator times multiplier; reviewed legacy-output comparison remains open."
+  }
+}

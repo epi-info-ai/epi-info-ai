@@ -46,7 +46,7 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch Epi Info AI](https://epi-info-ai-2859c9.gitpages.cdc.gov/)** — the latest GitLab Pages application build, published from the default branch after CI validation. CDC GitLab authentication may be required by the Pages access policy.
 
-**[Open Validation Lab V0.10](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb)** — opens the current Classic Analysis means validation notebook directly. The [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
+**[Open Validation Lab V0.11](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-rate.ipynb)** — opens the current Visual Dashboard Rates validation notebook directly. The [means notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb), [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
 
 Current capabilities include:
 
@@ -59,6 +59,7 @@ Current capabilities include:
 - browser-local GeoJSON upload, polygon-label field selection, zoom-dependent interior labels, and label visibility controls;
 - compact map-layer controls, fullscreen mapping, and cumulative date/time animation;
 - configurable Uber H3 resolutions from 0 through 15, with mapped records aggregated into toggleable hexagon layers;
+- a distinct Visual Dashboard Rates candidate using the familiar numerator PER denominator workflow;
 - deterministic 2 x 2 calculations backed by the Rust WebAssembly kernel; and
 - an optional JupyterLite validation lab that compares the deployed Rust/WASM
   calculation with independent Python references without changing the familiar UI.
@@ -73,7 +74,7 @@ pnpm run check
 
 Preview the generated artifact with `pnpm run preview`, then open the URL printed by the command. GitLab Pages publishes this same generated artifact rather than copying the transitional source directly.
 
-GitLab CI also builds the V0.10 JupyterLite lab into `/validation-lab/`. The lab
+GitLab CI also builds the V0.11 JupyterLite lab into `/validation-lab/`. The lab
 derives the canonical potato-salad 2 x 2 table from the frozen 96-record
 foodborne-outbreak corpus, then compares the release Rust/WASM estimates,
 confidence intervals, chi-square p-values, Fisher exact tails, and mid-p tails
@@ -88,6 +89,8 @@ notebook re-derives the foodborne Case Status distribution and compares the
 deployed exact/Wilson Rust exports with independent SciPy formulas.
 The means notebook re-derives the foodborne Age summaries and independently
 checks the deployed Rust/WASM sample statistics and audited legacy quartiles.
+The Rates notebook re-derives the Confirmed-case count per non-missing ID and
+checks the deployed Rust/WASM ratio-times-multiplier operation.
 
 ## Integrated browser test examples
 
@@ -205,6 +208,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   quartiles, median, maximum, mode, and generated command output.
 - Fixed Pyodide WASM loading in the frequency and stratified notebooks by using
   the supported `FetchResponse.buffer()` interface, with a regression assertion.
+- Added the V0.11 Visual Dashboard `Rates` slice as a separate familiar old-tree
+  branch: COUNT of a selected value PER COUNT of a non-missing field, configurable
+  multiplier, familiar output, a fail-closed Rust/WASM kernel, foodborne fixture,
+  browser coverage, and an independent JupyterLite notebook.
 
 ## TODO
 
@@ -250,6 +257,9 @@ checksums, expected metadata, and combined testing workflow are documented in
   group summaries, t tests, ANOVA, Bartlett and Kruskal-Wallis tests, strata,
   weights, `OUTTABLE`, settings, filters, saved execution, and Complex Sample
   Means under separate reviewed contracts. Keep G5 consolidated.
+- Expand Visual Dashboard `Rates` from the V0.11 COUNT slice to the audited
+  aggregate list, condition builders, distinct counts, grouping, sorting,
+  filters, colors, exports, and saved gadget canvas. Keep G5 consolidated.
 - Complete legacy Epi Info and independent review of the Phase 5 V0.4 confidence
   intervals, exact tails, conditional odds ratios, and exact limits; the browser now
   obtains those results from Rust/WASM, but the registry remains `candidate`.

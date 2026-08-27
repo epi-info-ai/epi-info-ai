@@ -334,6 +334,7 @@ Source: `engine-rust/src/lib.rs`
 | Stratified conditional common OR and central Fisher limits | `stratified_conditional_odds_ratio*` | Rust/WASM V0.8 bounded candidate |
 | Frequency proportion and legacy exact/Wilson category limits | `frequency_proportion`, `frequency_ci_*` | Rust/WASM V0.9 candidate |
 | Single-variable descriptive statistics and legacy rank quartiles/mode | `means_*` | Rust/WASM V0.10 bounded candidate |
+| Visual Dashboard rate from validated numerator/denominator aggregates and multiplier | `rate_calculate` | Rust/WASM V0.11 bounded candidate |
 
 The compiled browser artifact is `demo/epi2x2.wasm`. It is deliberately small
 and has no runtime dependencies or operating-system access.

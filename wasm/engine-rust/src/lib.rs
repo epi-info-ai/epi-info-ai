@@ -21,6 +21,23 @@ fn valid_confidence_multiplier(z: f64) -> bool {
     z.is_finite() && z > 0.0
 }
 
+/// Calculates the legacy dashboard rate: numerator / denominator * multiplier.
+#[unsafe(no_mangle)]
+pub extern "C" fn rate_calculate(numerator: f64, denominator: f64, multiplier: f64) -> f64 {
+    if numerator.is_finite()
+        && denominator.is_finite()
+        && multiplier.is_finite()
+        && numerator >= 0.0
+        && denominator > 0.0
+        && numerator <= denominator
+        && multiplier > 0.0
+    {
+        (numerator / denominator) * multiplier
+    } else {
+        f64::NAN
+    }
+}
+
 const MAX_MEANS_VALUES: usize = 65_536;
 static mut MEANS_VALUES: [f64; MAX_MEANS_VALUES] = [0.0; MAX_MEANS_VALUES];
 static mut MEANS_LENGTH: usize = 0;
@@ -1608,6 +1625,20 @@ mod tests {
         assert_eq!(means_quartile_75(96), 54.5);
         assert_eq!(means_maximum(96), 75.0);
         assert_eq!(means_mode(96), 31.0);
+    }
+
+    #[test]
+    fn foodborne_confirmed_case_rate_matches_dashboard_contract() {
+        assert_near(rate_calculate(22.0, 96.0, 100.0), 22.916_666_666_666_668);
+        assert_near(rate_calculate(22.0, 96.0, 1_000.0), 229.166_666_666_666_66);
+    }
+
+    #[test]
+    fn rate_rejects_invalid_counts_and_multiplier() {
+        assert!(rate_calculate(1.0, 0.0, 100.0).is_nan());
+        assert!(rate_calculate(11.0, 10.0, 100.0).is_nan());
+        assert!(rate_calculate(-1.0, 10.0, 100.0).is_nan());
+        assert!(rate_calculate(1.0, 10.0, 0.0).is_nan());
     }
 
     #[test]

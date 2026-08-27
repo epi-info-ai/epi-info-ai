@@ -406,9 +406,19 @@ discrepancy to its detailed evidence record.
 - Cross-tab inferential output, broader boundary corpora, and formal approval
   remain open. G5 stays deferred to the consolidated output review.
 
+### V0.11 — Visual Dashboard Rates lab
+
+- `validate-rate.ipynb` verifies the canonical foodborne CSV hash and derives
+  the 22 Confirmed records among 96 records with a non-missing ID.
+- An independent Python expression anchors 22.916666666666668 per 100 before
+  the notebook calls the deployed Rust/WASM `rate_calculate` export.
+- A zero-denominator check demonstrates the candidate's fail-closed boundary.
+- Full aggregate/condition/grouping behavior, broader boundary corpora, legacy
+  output comparison, and formal approval remain open. G5 stays consolidated.
+
 ### Later releases
 
-- Extend the corpus to exact tests, rates, sample size, regression, dates/times,
+- Extend the corpus to additional rate branches, sample size, regression, dates/times,
   epidemic curves, and programming-workflow fixtures as the corresponding kernel
   operations mature.
 - Add seeded differential/property testing and a permanent discrepancy corpus.

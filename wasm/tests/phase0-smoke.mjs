@@ -66,13 +66,16 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/stratified-table2x2-method-contract.md",
     "wasm/docs/validation/frequency-method-contract.md",
     "wasm/docs/validation/means-method-contract.md",
+    "wasm/docs/validation/rate-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
     "wasm/docs/design/means-compatibility-inventory.md",
+    "wasm/docs/design/rates-compatibility-inventory.md",
     "wasm/docs/design/statcalc-compatibility-inventory.md",
     "wasm/validation-lab/content/validate-table2x2.ipynb",
     "wasm/validation-lab/content/validate-stratified2x2.ipynb",
     "wasm/validation-lab/content/validate-frequency.ipynb",
     "wasm/validation-lab/content/validate-means.ipynb",
+    "wasm/validation-lab/content/validate-rate.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -86,6 +89,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json",
     "wasm/tests/fixtures/algorithm-validation/foodborne-frequency-v0.9.json",
     "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json",
+    "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -159,6 +163,14 @@ async function checkRequiredAssetsAndUi() {
     "means-observations",
     "means-mean",
     "means-median",
+    "rates-form",
+    "rates-numerator-field",
+    "rates-numerator-value",
+    "rates-denominator-field",
+    "rates-multiplier",
+    "rates-run",
+    "rates-output",
+    "rates-value",
     "strata-rows",
     "add-stratum",
     "calculate-stratified",
@@ -182,7 +194,7 @@ async function checkRequiredAssetsAndUi() {
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
-  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-means\.ipynb/);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-rate\.ipynb/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])
@@ -578,6 +590,48 @@ async function checkMeansContract() {
   assert.equal(partial.statistics.mean, 3);
   assert.equal(partial.statistics.variance, 2);
   assert.throws(() => deriveMeans([{ age: 2 }], { field: "age", prompt: "Age" }), /at least two/);
+}
+
+async function checkRateContract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json",
+  ), "utf8"));
+  const datasetBytes = await readFile(repositoryPath(fixture.dataset.file));
+  assert.equal(createHash("sha256").update(datasetBytes).digest("hex"), fixture.dataset.sha256);
+  const { inferSchemaFromRows, parseCsv } = await import(
+    `${pathToFileURL(repositoryPath("wasm/app/forms/csv.ts")).href}?rate=${Date.now()}`
+  );
+  const imported = inferSchemaFromRows("foodborne.csv", parseCsv(datasetBytes.toString("utf8").replace(/^\uFEFF/, "")));
+  const { deriveRate } = await importEngineWithFileFetch();
+  const numerator = imported.schema.fields.find((field) => field.name === fixture.request.numeratorField);
+  const denominator = imported.schema.fields.find((field) => field.name === fixture.request.denominatorField);
+  assert.ok(numerator && denominator);
+  const result = deriveRate(imported.records, {
+    numeratorField: numerator.name,
+    numeratorPrompt: numerator.prompt,
+    numeratorValue: fixture.request.numeratorValue,
+    denominatorField: denominator.name,
+    denominatorPrompt: denominator.prompt,
+    multiplier: fixture.request.multiplier,
+  });
+  assert.equal(result.schemaVersion, "0.11.0");
+  assert.equal(result.operation, fixture.operation);
+  assert.equal(result.aggregates.numerator, fixture.expected.numerator);
+  assert.equal(result.aggregates.denominator, fixture.expected.denominator);
+  assert.equal(result.aggregates.falseCount, fixture.expected.falseCount);
+  assert.equal(result.totals.excludedDenominatorMissing, fixture.expected.excludedDenominatorMissing);
+  near(result.rate, fixture.expected.rate, 1e-12, "foodborne Confirmed rate");
+  const missing = deriveRate([{ status: "Yes", id: "1" }, { status: "Yes", id: "" }], {
+    numeratorField: "status", numeratorPrompt: "Status", numeratorValue: "yes",
+    denominatorField: "id", denominatorPrompt: "ID", multiplier: 100,
+  });
+  assert.equal(missing.aggregates.numerator, 1);
+  assert.equal(missing.aggregates.denominator, 1);
+  assert.equal(missing.rate, 100);
+  assert.throws(() => deriveRate([], {
+    numeratorField: "status", numeratorPrompt: "Status", numeratorValue: "yes",
+    denominatorField: "id", denominatorPrompt: "ID", multiplier: 100,
+  }), /No records/);
 }
 
 async function checkFoodborneValidationFixture() {
@@ -1057,6 +1111,7 @@ async function run() {
     ["stratified operational limits and metamorphic contract", checkStratifiedOperationalContract],
     ["foodborne Classic FREQ contract", checkFrequencyContract],
     ["foodborne Classic MEANS contract", checkMeansContract],
+    ["foodborne Visual Dashboard Rates contract", checkRateContract],
     ["foodborne 2 x 2 validation fixture", checkFoodborneValidationFixture],
     ["legacy 100-case exact 2 x 2 corpus", checkLegacyTwoByTwoCorpus],
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],

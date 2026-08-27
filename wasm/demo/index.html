@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=29" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=32"></script>
+  <script type="module" src="app.js?v=33"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -55,7 +55,7 @@
           <button type="button" role="menuitem" data-open-module="data">Enter Data</button>
           <div class="legacy-menu-heading" role="presentation">Analyze Data</div>
           <button type="button" role="menuitem" data-open-module="classic">Classic</button>
-          <button type="button" role="menuitem" disabled title="Planned for a later phase">Visual Dashboard</button>
+          <button type="button" role="menuitem" data-open-module="dashboard">Visual Dashboard</button>
           <button type="button" role="menuitem" data-open-module="maps" data-map-context="standalone">Create Maps</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Options...</button>
         </div>
@@ -81,7 +81,7 @@
         <fieldset class="analyze-group">
           <legend>Analyze Data</legend>
           <button class="legacy-launch-button" type="button" data-open-module="classic">Classic</button>
-          <button class="legacy-launch-button wide-button" type="button" disabled title="Planned for a later slice">Visual Dashboard</button>
+          <button class="legacy-launch-button wide-button" type="button" data-open-module="dashboard">Visual Dashboard</button>
         </fieldset>
 
         <button class="legacy-launch-button" type="button" data-open-module="maps" data-map-context="standalone">Create Maps</button>
@@ -119,11 +119,11 @@
           <span class="module-icon" aria-hidden="true">▤</span>
           <span>Enter Data</span>
         </button>
-        <button class="module-button" type="button" data-module="classic">
+        <button class="module-button" type="button" data-module="dashboard">
           <span class="module-icon" aria-hidden="true">▥</span>
           <span>Visual Dashboard</span>
         </button>
-        <button class="module-button" type="button" disabled title="Planned for a later slice">
+        <button class="module-button" type="button" data-module="classic">
           <span class="module-icon" aria-hidden="true">›_</span>
           <span>Classic Analysis</span>
         </button>
@@ -573,6 +573,36 @@
             </div>
           </section>
         </div>
+
+        <section class="module-view" data-module-view="dashboard" hidden aria-labelledby="dashboard-title">
+          <div class="workspace-heading">
+            <div><p class="eyebrow">VISUAL DASHBOARD</p><h1 id="dashboard-title">Visual Dashboard</h1><p>Add familiar analysis gadgets to the current data source.</p></div>
+            <div class="engine-badge" title="The rate is calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rates candidate · contract 0.11</span></div>
+          </div>
+          <section class="panel dashboard-rates-gadget" aria-labelledby="rates-title">
+            <div class="panel-heading"><div><p class="step-label">ADD ANALYSIS GADGET</p><h2 id="rates-title">Rates</h2></div><span id="rates-source-name" class="calculation-time">Current project data</span></div>
+            <form id="rates-form">
+              <div class="classic-variable-grid">
+                <label>Aggregate<select disabled><option>Count</option></select></label>
+                <label>of<select id="rates-numerator-field" required></select></label>
+                <label>And where value is<select id="rates-numerator-value" required></select></label>
+                <div class="rate-per-divider" aria-hidden="true"><span>PER</span></div>
+                <label>Aggregate<select disabled><option>Count</option></select></label>
+                <label>of<select id="rates-denominator-field" required></select></label>
+                <label>Rate multiplier<select id="rates-multiplier"><option value="1">1</option><option value="100" selected>100</option><option value="1000">1,000</option><option value="10000">10,000</option><option value="100000">100,000</option></select></label>
+              </div>
+              <p class="compatibility-note">V0.11 candidate: COUNT aggregation only. Conditions, distinct values, grouping, sorting, colors, and other aggregate functions remain compatibility-floor branches.</p>
+              <div class="form-actions"><button id="rates-run" class="primary-button" type="submit">Run Rates</button></div>
+              <p id="rates-feedback" class="inline-feedback" role="status">Choose fields and a numerator value from the current form.</p>
+            </form>
+          </section>
+          <section id="rates-output" class="panel" aria-labelledby="rates-output-title" hidden>
+            <div class="panel-heading"><div><p class="step-label">RATES OUTPUT</p><h2 id="rates-output-title">Rate</h2></div><span id="rates-method" class="calculation-time"></span></div>
+            <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Rate description</th><th scope="col">True count</th><th scope="col">False count</th><th scope="col">Denominator</th><th scope="col">Rate</th></tr></thead><tbody><tr><td id="rates-description"></td><td id="rates-numerator"></td><td id="rates-false-count"></td><td id="rates-denominator"></td><td id="rates-value"></td></tr></tbody></table></div>
+            <p id="rates-warnings" class="warnings" hidden></p>
+          </section>
+          <footer class="audit-strip"><span><strong>Operation</strong> epi.rate</span><span><strong>Candidate</strong> V0.11 · validation pending G5</span></footer>
+        </section>
 
         <div class="workspace-heading" data-module-view="classic">
           <div><p class="eyebrow">CLASSIC ANALYSIS</p><h1>Analysis</h1><p>Run familiar FREQ, MEANS, and TABLES commands against the current form.</p></div>

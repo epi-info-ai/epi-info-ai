@@ -246,3 +246,28 @@ export interface MeansResult {
   command: string;
   diagnostics: { warnings: string[] };
 }
+
+export interface DatasetRateRequest {
+  numeratorField: string;
+  numeratorPrompt: string;
+  numeratorValue: string;
+  denominatorField: string;
+  denominatorPrompt: string;
+  multiplier: number;
+}
+
+export interface RateResult {
+  schemaVersion: "0.11.0";
+  operation: "epi.rate";
+  engine: { id: "epi-core-wasm"; version: "0.11.0"; operation: "epi.rate" };
+  input: DatasetRateRequest;
+  methods: {
+    numerator: "count-equal-nonmissing";
+    denominator: "count-nonmissing";
+    rate: "numerator-over-denominator-times-multiplier";
+  };
+  aggregates: { numerator: number; denominator: number; falseCount: number };
+  rate: number;
+  totals: { sourceRecords: number; excludedDenominatorMissing: number };
+  diagnostics: { warnings: string[] };
+}

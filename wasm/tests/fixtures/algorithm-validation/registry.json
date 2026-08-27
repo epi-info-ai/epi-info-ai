@@ -140,6 +140,38 @@
         "Complete cross-tabulation, inferential tests, strata, weights, OUTTABLE, settings, filters, and saved-command compatibility.",
         "Complete the consolidated statistical and implementation review across all candidate outputs."
       ]
+    },
+    {
+      "operation": "epi.rate",
+      "resultSchemaVersion": "0.11.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "epi-core-wasm",
+        "engineVersion": "0.11.0",
+        "source": "wasm/engine-rust/src/lib.rs"
+      },
+      "gates": {
+        "G0": "passed",
+        "G1": "partial",
+        "G2": "partial",
+        "G3": "passed",
+        "G4": "partial",
+        "G5": "not-started",
+        "G6": "partial"
+      },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json",
+        "wasm/docs/design/rates-compatibility-inventory.md",
+        "wasm/docs/validation/rate-method-contract.md",
+        "wasm/validation-lab/content/validate-rate.ipynb"
+      ],
+      "knownGaps": [
+        "Compare against a reviewed legacy Epi Info Visual Dashboard Rates output corpus.",
+        "Expand independent pathological, property, multiplier, and missing-value evidence.",
+        "Complete aggregate functions, condition builders, distinct counts, grouping, sorting, filters, display, export, and saved-dashboard compatibility.",
+        "Complete the consolidated statistical and implementation review across all candidate outputs."
+      ]
     }
   ]
 }
