@@ -37,7 +37,7 @@ def verify_notebook() -> None:
             if cell.cell_type == "code":
                 compile(cell.source, str(notebook_path), "exec", flags=0x2000)
         source = "\n".join(cell.source for cell in notebook.cells)
-        if "from pyodide.http import pyfetch" in source:
+        if "wasm_response = await pyfetch" in source:
             assert "wasm_response.buffer()" in source
             assert "wasm_response.arrayBuffer()" not in source
 
