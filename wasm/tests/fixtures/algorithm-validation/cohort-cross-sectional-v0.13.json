@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "operation": "epi.sampleSize.cohortCrossSectional",
+  "operationVersion": "0.13.0",
+  "status": "candidate",
+  "cases": [
+    {
+      "id": "legacy-source-example",
+      "input": { "confidenceLevel": 0.95, "powerPercent": 80, "unexposedToExposedRatio": 1, "unexposedOutcomePercent": 5, "oddsRatio": 24 },
+      "derived": { "exposedOutcomePercent": 55.8139534883721, "riskRatio": 11.1627906976744 },
+      "methods": [
+        { "method": "Kelsey", "exposed": 13, "unexposed": 13, "total": 26 },
+        { "method": "Fleiss", "exposed": 12, "unexposed": 12, "total": 24 },
+        { "method": "Fleiss with continuity correction", "exposed": 16, "unexposed": 16, "total": 32 }
+      ]
+    },
+    {
+      "id": "unequal-groups",
+      "input": { "confidenceLevel": 0.95, "powerPercent": 80, "unexposedToExposedRatio": 2, "unexposedOutcomePercent": 10, "oddsRatio": 2 },
+      "derived": { "exposedOutcomePercent": 18.1818181818182, "riskRatio": 1.81818181818182 },
+      "methods": [
+        { "method": "Kelsey", "exposed": 196, "unexposed": 391, "total": 587 },
+        { "method": "Fleiss", "exposed": 205, "unexposed": 410, "total": 615 },
+        { "method": "Fleiss with continuity correction", "exposed": 223, "unexposed": 446, "total": 669 }
+      ]
+    }
+  ],
+  "provenance": {
+    "legacySources": [
+      "wasm/source/Epi-Info-Community-Edition/StatCalc/StatCalcMenu.xaml",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/StatCalc/Cohort.xaml",
+      "wasm/source/Epi-Info-Community-Edition/EpiDashboard/StatCalc/Cohort.xaml.cs"
+    ],
+    "reviewNote": "The first case is the example embedded in CDC's legacy source. Both cases reproduce the audited ANorm, Kelsey, Fleiss, continuity-correction, and ceiling sequence. Broader reviewed legacy-output comparison remains open."
+  }
+}

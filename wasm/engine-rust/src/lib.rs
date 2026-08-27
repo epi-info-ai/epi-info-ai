@@ -119,6 +119,132 @@ pub extern "C" fn population_survey_cluster_size(
     libm::ceil(design_effect * rounded / clusters)
 }
 
+fn cohort_exposed_outcome_value(unexposed_outcome: f64, odds_ratio: f64) -> f64 {
+    unexposed_outcome * odds_ratio / (1.0 + unexposed_outcome * (odds_ratio - 1.0))
+}
+
+/// Converts an odds ratio and unexposed outcome proportion to the exposed outcome proportion.
+#[unsafe(no_mangle)]
+pub extern "C" fn cohort_exposed_outcome(unexposed_outcome: f64, odds_ratio: f64) -> f64 {
+    if !unexposed_outcome.is_finite()
+        || !odds_ratio.is_finite()
+        || unexposed_outcome <= 0.0
+        || unexposed_outcome >= 1.0
+        || odds_ratio <= 0.0
+    {
+        return f64::NAN;
+    }
+    cohort_exposed_outcome_value(unexposed_outcome, odds_ratio)
+}
+
+/// Converts a risk ratio and unexposed outcome proportion to an odds ratio.
+#[unsafe(no_mangle)]
+pub extern "C" fn cohort_odds_from_risk(unexposed_outcome: f64, risk_ratio: f64) -> f64 {
+    let exposed_outcome = unexposed_outcome * risk_ratio;
+    if !unexposed_outcome.is_finite()
+        || !risk_ratio.is_finite()
+        || unexposed_outcome <= 0.0
+        || unexposed_outcome >= 1.0
+        || risk_ratio <= 0.0
+        || exposed_outcome >= 1.0
+    {
+        return f64::NAN;
+    }
+    exposed_outcome * (1.0 - unexposed_outcome)
+        / (unexposed_outcome * (1.0 - exposed_outcome))
+}
+
+/// Converts exposed and unexposed outcome proportions to an odds ratio.
+#[unsafe(no_mangle)]
+pub extern "C" fn cohort_odds_from_outcomes(
+    unexposed_outcome: f64,
+    exposed_outcome: f64,
+) -> f64 {
+    if !unexposed_outcome.is_finite()
+        || !exposed_outcome.is_finite()
+        || unexposed_outcome <= 0.0
+        || unexposed_outcome >= 1.0
+        || exposed_outcome <= 0.0
+        || exposed_outcome >= 1.0
+    {
+        return f64::NAN;
+    }
+    exposed_outcome * (1.0 - unexposed_outcome)
+        / (unexposed_outcome * (1.0 - exposed_outcome))
+}
+
+/// Reproduces the legacy Kelsey/Fleiss cohort and cross-sectional sample sizes.
+#[unsafe(no_mangle)]
+pub extern "C" fn cohort_sample_size(
+    method: f64,
+    group: f64,
+    confidence_level: f64,
+    power_percent: f64,
+    unexposed_to_exposed_ratio: f64,
+    unexposed_outcome: f64,
+    odds_ratio: f64,
+) -> f64 {
+    if !method.is_finite()
+        || !group.is_finite()
+        || !confidence_level.is_finite()
+        || !power_percent.is_finite()
+        || !unexposed_to_exposed_ratio.is_finite()
+        || !unexposed_outcome.is_finite()
+        || !odds_ratio.is_finite()
+        || method < 0.0
+        || method > 2.0
+        || method != libm::floor(method)
+        || group < 0.0
+        || group > 1.0
+        || group != libm::floor(group)
+        || confidence_level <= 0.0
+        || confidence_level >= 1.0
+        || power_percent <= 0.0
+        || power_percent >= 100.0
+        || unexposed_to_exposed_ratio <= 0.0
+        || unexposed_outcome <= 0.0
+        || unexposed_outcome >= 1.0
+        || odds_ratio <= 0.0
+        || odds_ratio == 1.0
+    {
+        return f64::NAN;
+    }
+    let exposed_outcome = cohort_exposed_outcome_value(unexposed_outcome, odds_ratio);
+    let power = power_percent / 100.0;
+    let za = population_survey_anorm(1.0 - confidence_level);
+    let zb = if power < 0.5 {
+        -population_survey_anorm(2.0 * power)
+    } else {
+        population_survey_anorm(2.0 - 2.0 * power)
+    };
+    let ratio = unexposed_to_exposed_ratio;
+    let pbar = (exposed_outcome + ratio * unexposed_outcome) / (1.0 + ratio);
+    let qbar = 1.0 - pbar;
+    let difference = exposed_outcome - unexposed_outcome;
+    let kelsey = (za + zb) * (za + zb) * pbar * qbar * (ratio + 1.0)
+        / (difference * difference * ratio);
+    let fleiss_numerator = za * libm::sqrt((ratio + 1.0) * pbar * qbar)
+        + zb
+            * libm::sqrt(
+                ratio * exposed_outcome * (1.0 - exposed_outcome)
+                    + unexposed_outcome * (1.0 - unexposed_outcome),
+            );
+    let fleiss = fleiss_numerator * fleiss_numerator / (ratio * difference * difference);
+    let correction = 1.0
+        + libm::sqrt(
+            1.0 + 2.0 * (ratio + 1.0) / (fleiss * ratio * libm::fabs(difference)),
+        );
+    let corrected = fleiss * correction * correction / 4.0;
+    let raw = if method == 0.0 {
+        kelsey
+    } else if method == 1.0 {
+        fleiss
+    } else {
+        corrected
+    };
+    libm::ceil(raw * if group == 0.0 { 1.0 } else { ratio })
+}
+
 const MAX_MEANS_VALUES: usize = 65_536;
 static mut MEANS_VALUES: [f64; MAX_MEANS_VALUES] = [0.0; MAX_MEANS_VALUES];
 static mut MEANS_LENGTH: usize = 0;
@@ -1743,6 +1869,45 @@ mod tests {
         assert!(population_survey_cluster_size(0.0, 50.0, 5.0, 1.0, 1.0, 0.95).is_nan());
         assert!(population_survey_cluster_size(1000.0, 50.0, 0.0, 1.0, 1.0, 0.95).is_nan());
         assert!(population_survey_cluster_size(1000.0, 100.0, 5.0, 1.0, 1.0, 0.95).is_nan());
+    }
+
+    #[test]
+    fn cohort_sample_sizes_match_the_legacy_source_example() {
+        let expected = [(13.0, 13.0), (12.0, 12.0), (16.0, 16.0)];
+        for (method, (exposed, unexposed)) in expected.iter().enumerate() {
+            assert_eq!(
+                cohort_sample_size(method as f64, 0.0, 0.95, 80.0, 1.0, 0.05, 24.0),
+                *exposed
+            );
+            assert_eq!(
+                cohort_sample_size(method as f64, 1.0, 0.95, 80.0, 1.0, 0.05, 24.0),
+                *unexposed
+            );
+        }
+    }
+
+    #[test]
+    fn cohort_sample_sizes_support_unequal_groups_and_reject_no_effect() {
+        let expected = [(196.0, 391.0), (205.0, 410.0), (223.0, 446.0)];
+        for (method, (exposed, unexposed)) in expected.iter().enumerate() {
+            assert_eq!(
+                cohort_sample_size(method as f64, 0.0, 0.95, 80.0, 2.0, 0.10, 2.0),
+                *exposed
+            );
+            assert_eq!(
+                cohort_sample_size(method as f64, 1.0, 0.95, 80.0, 2.0, 0.10, 2.0),
+                *unexposed
+            );
+        }
+        assert!(cohort_sample_size(0.0, 0.0, 0.95, 80.0, 1.0, 0.05, 1.0).is_nan());
+    }
+
+    #[test]
+    fn cohort_effect_measure_conversions_are_consistent() {
+        let exposed = cohort_exposed_outcome(0.05, 24.0);
+        assert_near(exposed, 0.558_139_534_883_721);
+        assert_near(cohort_odds_from_outcomes(0.05, exposed), 24.0);
+        assert_near(cohort_odds_from_risk(0.05, exposed / 0.05), 24.0);
     }
 
     #[test]

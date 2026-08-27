@@ -18,6 +18,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-means.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-rate.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-population-survey.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-cohort-cross-sectional.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -25,6 +26,7 @@ FREQUENCY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodb
 MEANS_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json"
 RATE_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json"
 POPULATION_SURVEY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json"
+COHORT_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -54,6 +56,12 @@ def verify_notebook() -> None:
     source = "\n".join(cell.source for cell in frequency.cells)
     assert "foodborne-frequency-v0.9.json" in source
     assert "frequency_ci_lower" in source
+    assert "scipy.stats" in source
+
+    cohort = nbformat.read(NOTEBOOKS[6], as_version=4)
+    source = "\n".join(cell.source for cell in cohort.cells)
+    assert "cohort-cross-sectional-v0.13.json" in source
+    assert "cohort_sample_size" in source
     assert "scipy.stats" in source
 
     means = nbformat.read(NOTEBOOKS[3], as_version=4)
@@ -172,6 +180,16 @@ def verify_population_survey() -> None:
     assert clustered["expected95"]["clusterSize"] * clustered["input"]["clusters"] == clustered["expected95"]["totalSample"]
 
 
+def verify_cohort() -> None:
+    fixture = json.loads(COHORT_FIXTURE.read_text(encoding="utf-8"))
+    assert fixture["cases"][0]["methods"] == [
+        {"method": "Kelsey", "exposed": 13, "unexposed": 13, "total": 26},
+        {"method": "Fleiss", "exposed": 12, "unexposed": 12, "total": 24},
+        {"method": "Fleiss with continuity correction", "exposed": 16, "unexposed": 16, "total": 32},
+    ]
+    assert fixture["cases"][1]["methods"][2]["total"] == 669
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
@@ -179,5 +197,6 @@ if __name__ == "__main__":
     verify_foodborne_means()
     verify_foodborne_rate()
     verify_population_survey()
+    verify_cohort()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

@@ -82,6 +82,10 @@ await cp(
   join(wasmDirectory, "tests/fixtures/algorithm-validation/population-survey-v0.12.json"),
   join(validationFixtureDirectory, "population-survey-v0.12.json"),
 );
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json"),
+  join(validationFixtureDirectory, "cohort-cross-sectional-v0.13.json"),
+);
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));
 const commonOptions = {

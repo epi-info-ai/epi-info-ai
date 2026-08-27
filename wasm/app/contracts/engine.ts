@@ -299,3 +299,28 @@ export interface PopulationSurveyResult {
   rows: PopulationSurveyRow[];
   diagnostics: { warnings: string[] };
 }
+
+export interface CohortSampleSizeInput {
+  confidenceLevel: 0.80 | 0.90 | 0.95 | 0.99 | 0.999 | 0.9999;
+  powerPercent: number;
+  unexposedToExposedRatio: number;
+  unexposedOutcomePercent: number;
+  oddsRatio: number;
+}
+
+export interface CohortSampleSizeMethodResult {
+  method: "Kelsey" | "Fleiss" | "Fleiss with continuity correction";
+  exposed: number;
+  unexposed: number;
+  total: number;
+}
+
+export interface CohortSampleSizeResult {
+  schemaVersion: "0.13.0";
+  operation: "epi.sampleSize.cohortCrossSectional";
+  engine: { id: "epi-core-wasm"; version: "0.13.0"; operation: "epi.sampleSize.cohortCrossSectional" };
+  input: CohortSampleSizeInput;
+  derived: { exposedOutcomePercent: number; riskRatio: number };
+  methods: CohortSampleSizeMethodResult[];
+  diagnostics: { warnings: string[] };
+}

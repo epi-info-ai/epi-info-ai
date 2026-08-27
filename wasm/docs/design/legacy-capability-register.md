@@ -46,7 +46,7 @@ refer to the same capability.
 | Classic Analysis / Programming IDE | `programming-ide-compatibility-inventory.md` | Legacy IDE floor and ordered future-IDE roadmap recorded; full command inventory pending |
 | Visual Dashboard | `rates-compatibility-inventory.md` | Rates C#/XAML audit and V0.11 bounded COUNT slice recorded; broader gadget inventory pending |
 | Create Maps / Enter Data > Maps | `maps-compatibility-inventory.md` | Initial C# and manual audit complete; gap IDs below |
-| StatCalc / Classic Analysis TABLES | `statcalc-compatibility-inventory.md` | Eight-tool StatCalc menu floor recorded; direct/stratified 2 x 2 and Population Survey candidates implemented |
+| StatCalc / Classic Analysis TABLES | `statcalc-compatibility-inventory.md` | Eight-tool StatCalc menu floor recorded; direct/stratified 2 x 2, Population Survey, and Cohort/Cross-Sectional candidates implemented |
 | Storage / project formats | `storage-compatibility-inventory.md` | Initial legacy/browser boundary audit and Phase 3C state contract recorded |
 
 ## Maps gap register
@@ -171,6 +171,7 @@ panels.
 | REG-0020 | LEGACY-ANALYSIS-008 | Adapted branch: current-form single-variable MEANS | Adds familiar numeric-variable selection and generated `MEANS` syntax with candidate descriptive statistics and audited legacy quartiles/mode; cross-tabulation, t tests, ANOVA, Bartlett, Kruskal-Wallis, strata, weights, `OUTTABLE`, settings, saved execution, Complex Sample Means, and consolidated G5 approval remain open | `MeansDialog.cs`, `Means.cs`, and `cWorkingTable.cs` audit / 2026-08-27 | Phase 5 V0.10 candidate, parity gaps open |
 | REG-0021 | LEGACY-DASHBOARD-001 through LEGACY-DASHBOARD-010 | Adapted branch: distinct Visual Dashboard Rates candidate | Restores the learned Visual Dashboard path and legacy aggregate-of / PER / aggregate-of shape with COUNT equality and non-missing denominator semantics; all other aggregates, conditions, distinct counts, grouping, sorting, filters, display, export, saved canvas behavior, and consolidated G5 approval remain open | `RatesProperties.xaml(.cs)`, `RatesControl.xaml.cs`, and `RatesParameters.cs` audit / 2026-08-27 | Phase 5 V0.11 candidate, parity gaps open |
 | REG-0022 | LEGACY-STATCALC-002, LEGACY-STATCALC-003 | Adapted branch: Population Survey sample-size candidate | Restores the first learned StatCalc menu item, legacy defaults/input order, simple-random-sampling guidance, and seven-row cluster/total table using the audited C# calculation sequence; Save as Image, Print, broader corpora, and consolidated G5 approval remain open | `StatCalcMenu.xaml` and `PopulationSurvey.xaml(.cs)` audit / 2026-08-27 | Phase 5 V0.12 candidate, parity gaps open |
+| REG-0023 | LEGACY-STATCALC-004 | Adapted branch: Cohort or Cross-Sectional sample-size candidate | Restores the second learned StatCalc menu item, linked risk/odds/outcome inputs, and exposed/unexposed/total Kelsey and Fleiss output table using the audited C# sequence; Save as Image, Print, broader corpora, and consolidated G5 approval remain open | `StatCalcMenu.xaml` and `Cohort.xaml(.cs)` audit / 2026-08-27 | Phase 5 V0.13 candidate, parity gaps open |
 
 No legacy branch is currently approved for deprecation or retirement.
 

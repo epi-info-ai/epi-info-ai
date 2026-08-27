@@ -427,6 +427,18 @@ discrepancy to its detailed evidence record.
 - Broader legacy corpora, boundary/property evidence, export/print behavior, and
   formal approval remain open. G5 stays consolidated.
 
+### V0.13 — StatCalc Cohort or Cross-Sectional lab
+
+- `validate-cohort-cross-sectional.ipynb` independently translates the audited
+  C# normal-tail, effect-conversion, Kelsey, Fleiss, continuity-correction, and
+  independent group-ceiling sequence.
+- It checks CDC's source-embedded example and an unequal-group design against
+  the deployed Rust/WASM exports, with a no-effect fail-closed check.
+- SciPy provides an independent comparison of the confidence and power normal
+  deviates; it does not replace the deliberately preserved legacy sequence.
+- Broader legacy output, protective-effect, property/boundary, implementation,
+  and statistical review remain open. G5 stays consolidated.
+
 ### Later releases
 
 - Extend the corpus to additional rate and sample-size branches, regression, dates/times,

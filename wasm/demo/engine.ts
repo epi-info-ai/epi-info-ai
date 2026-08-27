@@ -12,6 +12,8 @@ import type {
   RateResult,
   PopulationSurveyInput,
   PopulationSurveyResult,
+  CohortSampleSizeInput,
+  CohortSampleSizeResult,
   MidPExactResult,
   StratifiedTable2x2Input,
   StratifiedTable2x2Result,
@@ -91,6 +93,10 @@ interface EpiWasmExports {
   means_mode: WasmNumericFunction;
   rate_calculate: WasmNumericFunction;
   population_survey_cluster_size: WasmNumericFunction;
+  cohort_exposed_outcome: WasmNumericFunction;
+  cohort_odds_from_risk: WasmNumericFunction;
+  cohort_odds_from_outcomes: WasmNumericFunction;
+  cohort_sample_size: WasmNumericFunction;
 }
 
 function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
@@ -156,6 +162,10 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
     "means_mode",
     "rate_calculate",
     "population_survey_cluster_size",
+    "cohort_exposed_outcome",
+    "cohort_odds_from_risk",
+    "cohort_odds_from_outcomes",
+    "cohort_sample_size",
     "chi_square_p_value_df",
   ] as const;
   const validated = {} as EpiWasmExports;
@@ -759,5 +769,50 @@ export function calculatePopulationSurvey(input: PopulationSurveyInput): Populat
     diagnostics: {
       warnings: input.designEffect === 1 && input.clusters === 1 ? [] : ["Cluster size is rounded up after applying design effect and dividing by the number of clusters."],
     },
+  };
+}
+
+export function cohortEffectFromOdds(unexposedOutcomePercent: number, oddsRatio: number): { exposedOutcomePercent: number; riskRatio: number } {
+  const unexposed = unexposedOutcomePercent / 100;
+  const exposed = WASM.cohort_exposed_outcome(unexposed, oddsRatio);
+  if (!Number.isFinite(exposed)) throw new RangeError("Outcome percentage and odds ratio do not define a valid exposed outcome.");
+  return { exposedOutcomePercent: exposed * 100, riskRatio: exposed / unexposed };
+}
+
+export function cohortOddsFromRisk(unexposedOutcomePercent: number, riskRatio: number): number {
+  const odds = WASM.cohort_odds_from_risk(unexposedOutcomePercent / 100, riskRatio);
+  if (!Number.isFinite(odds)) throw new RangeError("Risk ratio would make the exposed outcome 100% or greater.");
+  return odds;
+}
+
+export function cohortOddsFromOutcomes(unexposedOutcomePercent: number, exposedOutcomePercent: number): number {
+  const odds = WASM.cohort_odds_from_outcomes(unexposedOutcomePercent / 100, exposedOutcomePercent / 100);
+  if (!Number.isFinite(odds)) throw new RangeError("Outcome percentages must both be between 0% and 100%.");
+  return odds;
+}
+
+export function calculateCohortSampleSize(input: CohortSampleSizeInput): CohortSampleSizeResult {
+  if (![0.80, 0.90, 0.95, 0.99, 0.999, 0.9999].includes(input.confidenceLevel)) throw new RangeError("Select a valid confidence level.");
+  if (!(input.powerPercent > 0 && input.powerPercent < 100)) throw new RangeError("Power must be greater than 0% and less than 100%.");
+  if (!(input.unexposedToExposedRatio > 0)) throw new RangeError("The unexposed-to-exposed ratio must be greater than zero.");
+  if (!(input.unexposedOutcomePercent > 0 && input.unexposedOutcomePercent < 100)) throw new RangeError("Outcome in the unexposed group must be between 0% and 100%.");
+  if (!(input.oddsRatio > 0) || input.oddsRatio === 1) throw new RangeError("Odds ratio must be positive and different from 1.");
+  const derived = cohortEffectFromOdds(input.unexposedOutcomePercent, input.oddsRatio);
+  const labels = ["Kelsey", "Fleiss", "Fleiss with continuity correction"] as const;
+  const methods = labels.map((method, methodIndex) => {
+    const args = [methodIndex, input.confidenceLevel, input.powerPercent, input.unexposedToExposedRatio, input.unexposedOutcomePercent / 100, input.oddsRatio] as const;
+    const exposed = WASM.cohort_sample_size(args[0], 0, ...args.slice(1));
+    const unexposed = WASM.cohort_sample_size(args[0], 1, ...args.slice(1));
+    if (!Number.isSafeInteger(exposed) || !Number.isSafeInteger(unexposed)) throw new RangeError("The Cohort kernel rejected these inputs.");
+    return { method, exposed, unexposed, total: exposed + unexposed };
+  });
+  return {
+    schemaVersion: "0.13.0",
+    operation: "epi.sampleSize.cohortCrossSectional",
+    engine: { id: "epi-core-wasm", version: "0.13.0", operation: "epi.sampleSize.cohortCrossSectional" },
+    input,
+    derived,
+    methods,
+    diagnostics: { warnings: [] },
   };
 }

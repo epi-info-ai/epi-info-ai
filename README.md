@@ -46,7 +46,7 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch Epi Info AI](https://epi-info-ai-2859c9.gitpages.cdc.gov/)** — the latest GitLab Pages application build, published from the default branch after CI validation. CDC GitLab authentication may be required by the Pages access policy.
 
-**[Open Validation Lab V0.12](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-population-survey.ipynb)** — opens the current StatCalc Population Survey validation notebook directly. The [Rates notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-rate.ipynb), [means notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb), [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
+**[Open Validation Lab V0.13](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-cohort-cross-sectional.ipynb)** — opens the current StatCalc Cohort or Cross-Sectional validation notebook directly. The [Population Survey notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-population-survey.ipynb), [Rates notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-rate.ipynb), [means notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb), [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
 
 Current capabilities include:
 
@@ -61,6 +61,7 @@ Current capabilities include:
 - configurable Uber H3 resolutions from 0 through 15, with mapped records aggregated into toggleable hexagon layers;
 - a distinct Visual Dashboard Rates candidate using the familiar numerator PER denominator workflow;
 - a StatCalc Population Survey candidate preserving the familiar five inputs and seven-level cluster/total sample table;
+- a StatCalc Cohort or Cross-Sectional candidate with linked effect measures and Kelsey/Fleiss sample-size output;
 - deterministic 2 x 2 calculations backed by the Rust WebAssembly kernel; and
 - an optional JupyterLite validation lab that compares the deployed Rust/WASM
   calculation with independent Python references without changing the familiar UI.
@@ -75,7 +76,7 @@ pnpm run check
 
 Preview the generated artifact with `pnpm run preview`, then open the URL printed by the command. GitLab Pages publishes this same generated artifact rather than copying the transitional source directly.
 
-GitLab CI also builds the V0.12 JupyterLite lab into `/validation-lab/`. The lab
+GitLab CI also builds the V0.13 JupyterLite lab into `/validation-lab/`. The lab
 derives the canonical potato-salad 2 x 2 table from the frozen 96-record
 foodborne-outbreak corpus, then compares the release Rust/WASM estimates,
 confidence intervals, chi-square p-values, Fisher exact tails, and mid-p tails
@@ -95,6 +96,9 @@ checks the deployed Rust/WASM ratio-times-multiplier operation.
 The Population Survey notebook independently translates the audited legacy
 normal approximation and compares all seven defaults plus a clustered design
 with the deployed Rust/WASM sample-size operation.
+The Cohort or Cross-Sectional notebook independently translates the legacy
+effect conversions and Kelsey/Fleiss formulas, checking equal and unequal group
+ratios against the deployed Rust/WASM sample-size operation.
 
 ## Integrated browser test examples
 
@@ -220,6 +224,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   defaults, seven confidence levels, cluster and total sample output, audited
   C# formula sequence in Rust/WASM, strict contracts, browser coverage, and a
   JupyterLite validation notebook with an independent SciPy comparison.
+- Added the V0.13 StatCalc `Cohort or Cross-Sectional` slice with the familiar
+  linked risk/odds/outcome inputs, Kelsey and Fleiss exposed/unexposed/total
+  output, audited Rust/WASM formulas, fixtures, browser coverage, and an
+  independent JupyterLite notebook.
 
 ## TODO
 
@@ -268,8 +276,8 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Expand Visual Dashboard `Rates` from the V0.11 COUNT slice to the audited
   aggregate list, condition builders, distinct counts, grouping, sorting,
   filters, colors, exports, and saved gadget canvas. Keep G5 consolidated.
-- Expand StatCalc beyond the V0.12 Population Survey candidate in legacy menu
-  order, beginning with Cohort or Cross-Sectional and Unmatched Case-Control;
+- Expand StatCalc beyond the V0.12 Population Survey and V0.13 Cohort or
+  Cross-Sectional candidates in legacy menu order, beginning with Unmatched Case-Control;
   retain Chi Square for Trend, 2 x 2 x N, Poisson, Population Binomial, and
   Matched Pair Case-Control as explicit compatibility-floor branches.
 - Complete legacy Epi Info and independent review of the Phase 5 V0.4 confidence

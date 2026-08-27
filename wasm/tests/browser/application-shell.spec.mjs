@@ -597,6 +597,26 @@ test("StatCalc Population Survey preserves the legacy default table and clustere
   await expect(page.locator("#population-survey-rows tr").nth(2)).toHaveText(/95%74740/);
 });
 
+test("StatCalc Cohort or Cross-Sectional preserves sample sizes and linked effects", async ({ page }) => {
+  await page.getByRole("button", { name: "StatCalc", exact: true }).first().click();
+  await page.getByRole("button", { name: "Cohort or Cross-Sectional", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Cohort or Cross-Sectional" })).toBeVisible();
+  await expect(page.locator("#cohort-confidence")).toHaveValue("0.999");
+  await page.locator("#cohort-confidence").selectOption("0.95");
+  await expect(page.locator("#cohort-rows tr")).toHaveCount(3);
+  await expect(page.locator("#cohort-rows tr").nth(0)).toHaveText(/Exposed131216/);
+  await expect(page.locator("#cohort-rows tr").nth(1)).toHaveText(/Unexposed131216/);
+  await expect(page.locator("#cohort-rows tr").nth(2)).toHaveText(/Total262432/);
+
+  await page.locator("#cohort-unexposed-outcome").fill("10");
+  await page.locator("#cohort-ratio").fill("2");
+  await page.locator("#cohort-odds-ratio").fill("2");
+  await page.locator("#cohort-calculate").click();
+  await expect(page.locator("#cohort-risk-ratio")).toHaveValue("1.81818");
+  await expect(page.locator("#cohort-exposed-outcome")).toHaveValue("18.18182");
+  await expect(page.locator("#cohort-rows tr").nth(2)).toHaveText(/Total587615669/);
+});
+
 test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ page }) => {
   await page.getByRole("button", { name: "Classic", exact: true }).click();
   const values = [
@@ -753,6 +773,17 @@ test("JupyterLite validation lab V0.9 is part of the Pages artifact", async ({ p
   expect(populationFixtureResponse.ok()).toBe(true);
   const populationFixture = await populationFixtureResponse.json();
   expect(populationFixture.cases[0].expected.map((row) => row.clusterSize)).toEqual([164, 270, 384, 471, 663, 1082, 1512]);
+
+  const cohortResponse = await request.get("/validation-lab/files/validate-cohort-cross-sectional.ipynb");
+  expect(cohortResponse.ok()).toBe(true);
+  const cohortNotebook = await cohortResponse.json();
+  expect(JSON.stringify(cohortNotebook)).toContain("cohort-cross-sectional-v0.13.json");
+  expect(JSON.stringify(cohortNotebook)).toContain("cohort_sample_size");
+
+  const cohortFixtureResponse = await request.get("/validation-fixtures/cohort-cross-sectional-v0.13.json");
+  expect(cohortFixtureResponse.ok()).toBe(true);
+  const cohortFixture = await cohortFixtureResponse.json();
+  expect(cohortFixture.cases[0].methods.map((method) => method.total)).toEqual([26, 24, 32]);
 });
 
 test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadable", async ({ request }) => {

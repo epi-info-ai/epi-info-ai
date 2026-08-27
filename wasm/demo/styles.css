@@ -2753,7 +2753,9 @@ body.map-fullscreen-fallback {
 }
 
 .population-survey-results td:not(:first-child),
-.population-survey-results th:not(:first-child) {
+.population-survey-results th:not(:first-child),
+.cohort-results td:not(:first-child),
+.cohort-results th:not(:first-child) {
   text-align: right;
 }
 

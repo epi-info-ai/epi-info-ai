@@ -90,6 +90,7 @@ validation-lab-build:
     - test -f wasm/dist/validation-lab/files/validate-means.ipynb
     - test -f wasm/dist/validation-lab/files/validate-rate.ipynb
     - test -f wasm/dist/validation-lab/files/validate-population-survey.ipynb
+    - test -f wasm/dist/validation-lab/files/validate-cohort-cross-sectional.ipynb
   artifacts:
     paths:
       - wasm/dist

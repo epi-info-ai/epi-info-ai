@@ -68,6 +68,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/means-method-contract.md",
     "wasm/docs/validation/rate-method-contract.md",
     "wasm/docs/validation/population-survey-method-contract.md",
+    "wasm/docs/validation/cohort-cross-sectional-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
     "wasm/docs/design/means-compatibility-inventory.md",
     "wasm/docs/design/rates-compatibility-inventory.md",
@@ -78,6 +79,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/content/validate-means.ipynb",
     "wasm/validation-lab/content/validate-rate.ipynb",
     "wasm/validation-lab/content/validate-population-survey.ipynb",
+    "wasm/validation-lab/content/validate-cohort-cross-sectional.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -93,6 +95,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/foodborne-means-v0.10.json",
     "wasm/tests/fixtures/algorithm-validation/foodborne-rate-v0.11.json",
     "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json",
+    "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -182,6 +185,16 @@ async function checkRequiredAssetsAndUi() {
     "population-clusters",
     "population-survey-calculate",
     "population-survey-rows",
+    "cohort-form",
+    "cohort-confidence",
+    "cohort-power",
+    "cohort-ratio",
+    "cohort-unexposed-outcome",
+    "cohort-risk-ratio",
+    "cohort-odds-ratio",
+    "cohort-exposed-outcome",
+    "cohort-calculate",
+    "cohort-rows",
     "strata-rows",
     "add-stratum",
     "calculate-stratified",
@@ -205,7 +218,7 @@ async function checkRequiredAssetsAndUi() {
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
-  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-population-survey\.ipynb/);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-cohort-cross-sectional\.ipynb/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])
@@ -662,6 +675,26 @@ async function checkPopulationSurveyContract() {
   assert.throws(() => calculatePopulationSurvey({ ...defaultCase.input, populationSize: 0 }), /Population size/);
   assert.throws(() => calculatePopulationSurvey({ ...defaultCase.input, expectedFrequencyPercent: 100 }), /Expected frequency/);
   assert.throws(() => calculatePopulationSurvey({ ...defaultCase.input, clusters: 1.5 }), /whole number/);
+}
+
+async function checkCohortSampleSizeContract() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json",
+  ), "utf8"));
+  const { calculateCohortSampleSize, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk } = await importEngineWithFileFetch();
+  for (const testCase of fixture.cases) {
+    const result = calculateCohortSampleSize(testCase.input);
+    assert.equal(result.schemaVersion, "0.13.0");
+    assert.equal(result.operation, fixture.operation);
+    assert.deepEqual(result.methods, testCase.methods);
+    assert.ok(Math.abs(result.derived.exposedOutcomePercent - testCase.derived.exposedOutcomePercent) < 1e-10);
+    assert.ok(Math.abs(result.derived.riskRatio - testCase.derived.riskRatio) < 1e-10);
+  }
+  const source = fixture.cases[0];
+  const effect = cohortEffectFromOdds(source.input.unexposedOutcomePercent, source.input.oddsRatio);
+  assert.ok(Math.abs(cohortOddsFromOutcomes(source.input.unexposedOutcomePercent, effect.exposedOutcomePercent) - 24) < 1e-10);
+  assert.ok(Math.abs(cohortOddsFromRisk(source.input.unexposedOutcomePercent, effect.riskRatio) - 24) < 1e-10);
+  assert.throws(() => calculateCohortSampleSize({ ...source.input, oddsRatio: 1 }), /different from 1/);
 }
 
 async function checkFoodborneValidationFixture() {
@@ -1143,6 +1176,7 @@ async function run() {
     ["foodborne Classic MEANS contract", checkMeansContract],
     ["foodborne Visual Dashboard Rates contract", checkRateContract],
     ["StatCalc Population Survey contract", checkPopulationSurveyContract],
+    ["StatCalc Cohort or Cross-Sectional contract", checkCohortSampleSizeContract],
     ["foodborne 2 x 2 validation fixture", checkFoodborneValidationFixture],
     ["legacy 100-case exact 2 x 2 corpus", checkLegacyTwoByTwoCorpus],
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],

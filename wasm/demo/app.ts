@@ -1,4 +1,4 @@
-import { calculatePopulationSurvey, calculateTable2x2, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2 } from "./engine.js";
+import { calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2 } from "./engine.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -12,7 +12,7 @@ import {
 import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
-import type { BoundaryInterval, BoundaryNumber, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
+import type { BoundaryInterval, BoundaryNumber, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result } from "../app/contracts/engine.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -27,6 +27,8 @@ const warningList = requiredElement<HTMLUListElement>("#warning-list");
 let lastResult: Table2x2Result | null = null;
 const populationSurveyForm = requiredElement<HTMLFormElement>("#population-survey-form");
 const populationSurveyFeedback = requiredElement<HTMLElement>("#population-survey-feedback");
+const cohortForm = requiredElement<HTMLFormElement>("#cohort-form");
+const cohortFeedback = requiredElement<HTMLElement>("#cohort-feedback");
 let currentStatCalcTool = "table2x2";
 
 const cells: Record<Exclude<keyof Table2x2Input, "confidenceLevel">, HTMLInputElement> = {
@@ -216,6 +218,71 @@ function runPopulationSurvey(): void {
   }
 }
 
+function cohortNumber(id: string): number {
+  return Number(requiredElement<HTMLInputElement>(`#${id}`).value);
+}
+
+function parseCohortInput(): CohortSampleSizeInput {
+  return {
+    confidenceLevel: Number(requiredElement<HTMLSelectElement>("#cohort-confidence").value) as CohortSampleSizeInput["confidenceLevel"],
+    powerPercent: cohortNumber("cohort-power"),
+    unexposedToExposedRatio: cohortNumber("cohort-ratio"),
+    unexposedOutcomePercent: cohortNumber("cohort-unexposed-outcome"),
+    oddsRatio: cohortNumber("cohort-odds-ratio"),
+  };
+}
+
+function renderCohort(result: CohortSampleSizeResult): void {
+  const groups = [
+    ["Exposed", ...result.methods.map((method) => method.exposed)],
+    ["Unexposed", ...result.methods.map((method) => method.unexposed)],
+    ["Total", ...result.methods.map((method) => method.total)],
+  ];
+  const rows = groups.map((values) => {
+    const row = document.createElement("tr");
+    values.forEach((value, index) => {
+      const cell = document.createElement(index === 0 ? "th" : "td");
+      cell.textContent = String(value);
+      if (index === 0) cell.setAttribute("scope", "row");
+      row.append(cell);
+    });
+    return row;
+  });
+  requiredElement("#cohort-rows").replaceChildren(...rows);
+  cohortFeedback.textContent = "Calculated Kelsey and Fleiss sample sizes locally.";
+}
+
+function runCohort(): void {
+  try {
+    renderCohort(calculateCohortSampleSize(parseCohortInput()));
+  } catch (error) {
+    cohortFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate cohort sample sizes.";
+  }
+}
+
+let syncingCohortEffects = false;
+function setCohortEffectValues(source: "odds" | "risk" | "outcomes"): void {
+  if (syncingCohortEffects) return;
+  syncingCohortEffects = true;
+  try {
+    const baseline = cohortNumber("cohort-unexposed-outcome");
+    const oddsInput = requiredElement<HTMLInputElement>("#cohort-odds-ratio");
+    const riskInput = requiredElement<HTMLInputElement>("#cohort-risk-ratio");
+    const exposedInput = requiredElement<HTMLInputElement>("#cohort-exposed-outcome");
+    let odds = Number(oddsInput.value);
+    if (source === "risk") odds = cohortOddsFromRisk(baseline, Number(riskInput.value));
+    if (source === "outcomes") odds = cohortOddsFromOutcomes(baseline, Number(exposedInput.value));
+    const effect = cohortEffectFromOdds(baseline, odds);
+    oddsInput.value = String(Math.round(odds * 100000) / 100000);
+    riskInput.value = String(Math.round(effect.riskRatio * 100000) / 100000);
+    exposedInput.value = String(Math.round(effect.exposedOutcomePercent * 100000) / 100000);
+  } catch (error) {
+    cohortFeedback.textContent = error instanceof Error ? error.message : "Unable to link effect measures.";
+  } finally {
+    syncingCohortEffects = false;
+  }
+}
+
 function showStatCalcTool(name: string): void {
   currentStatCalcTool = name;
   for (const view of document.querySelectorAll<HTMLElement>("[data-statcalc-view]")) view.hidden = view.dataset.statcalcView !== name;
@@ -238,6 +305,17 @@ populationSurveyForm.addEventListener("submit", (event) => {
 });
 populationSurveyForm.addEventListener("input", () => {
   if (populationSurveyForm.checkValidity()) runPopulationSurvey();
+});
+cohortForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (cohortForm.reportValidity()) runCohort();
+});
+cohortForm.addEventListener("input", (event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.id === "cohort-risk-ratio") setCohortEffectValues("risk");
+  else if (target.id === "cohort-exposed-outcome") setCohortEffectValues("outcomes");
+  else if (target.id === "cohort-odds-ratio" || target.id === "cohort-unexposed-outcome") setCohortEffectValues("odds");
+  if (cohortForm.checkValidity()) runCohort();
 });
 
 form.addEventListener("submit", (event) => {
@@ -271,6 +349,7 @@ copyJsonButton.addEventListener("click", async () => {
 
 calculate();
 runPopulationSurvey();
+runCohort();
 showStatCalcTool(currentStatCalcTool);
 
 const stratifiedForm = requiredElement<HTMLFormElement>("#stratified-form");

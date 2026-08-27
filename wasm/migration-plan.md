@@ -571,7 +571,13 @@ must never be translated into arbitrary JavaScript execution.
    approximation, finite-population correction, and legacy rounding sequence;
    an immutable fixture and JupyterLite notebook provide initial independent
    evidence. Save/Print, broader corpora, the other StatCalc calculators, and G5
-   remain open. Cohort or Cross-Sectional is the next planned StatCalc branch.
+   remain open. **Candidate V0.13 StatCalc Cohort or Cross-Sectional slice
+   complete:** the second legacy StatCalc menu item now preserves its confidence,
+   power, group-ratio, and linked effect-measure workflow plus the three-method
+   exposed/unexposed/total table. Rust/WASM reproduces the audited Kelsey, Fleiss,
+   and continuity-correction sequence; source-derived fixtures and JupyterLite
+   provide initial independent evidence. Unmatched Case-Control is the next
+   planned StatCalc branch.
 5. Regression, survival, and other advanced analysis modules.
 
 ### Required work for every operation
