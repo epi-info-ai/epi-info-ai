@@ -1,10 +1,10 @@
 {
   "file": "wasm/demo/epi2x2.wasm",
-  "sha256": "59a09c2ef526f231ad3ac84e8e772c4040ce4c07a2b5427f1a2c8ad65c825c01",
-  "size": 23386,
+  "sha256": "def8b16108ca8de1098b338149fdf2b8be6541f959f896a7a3915507bceeaf3e",
+  "size": 23583,
   "engine": {
     "id": "epi-core-wasm",
-    "version": "0.10.0",
+    "version": "0.11.0",
     "operation": "epi.table2x2",
     "schemaVersion": "0.4.0"
   },
@@ -68,6 +68,7 @@
     "means_median",
     "means_quartile_75",
     "means_maximum",
-    "means_mode"
+    "means_mode",
+    "rate_calculate"
   ]
 }
