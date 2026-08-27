@@ -1,6 +1,7 @@
 import type { StratifiedTable2x2Input, StratifiedTable2x2Result } from "../app/contracts/engine.js";
 
 interface WorkerSuccess {
+  type: "result";
   id: number;
   ok: true;
   result: StratifiedTable2x2Result;
@@ -8,12 +9,17 @@ interface WorkerSuccess {
 }
 
 interface WorkerFailure {
+  type: "result";
   id: number;
   ok: false;
   error: { name: string; message: string };
 }
 
-type WorkerResponse = WorkerSuccess | WorkerFailure;
+interface WorkerReady {
+  type: "ready";
+}
+
+type WorkerResponse = WorkerReady | WorkerSuccess | WorkerFailure;
 
 export interface StratifiedWorkerResult {
   result: StratifiedTable2x2Result;
@@ -21,12 +27,14 @@ export interface StratifiedWorkerResult {
 }
 
 interface PendingRequest {
+  input: StratifiedTable2x2Input;
   resolve(value: StratifiedWorkerResult): void;
   reject(error: unknown): void;
-  removeAbortListener(): void;
+  cleanUp(): void;
 }
 
 let worker: Worker | null = null;
+let workerReady = false;
 let nextRequestId = 1;
 const pending = new Map<number, PendingRequest>();
 
@@ -36,7 +44,7 @@ function abortError(message: string): DOMException {
 
 function rejectPending(error: unknown): void {
   for (const request of pending.values()) {
-    request.removeAbortListener();
+    request.cleanUp();
     request.reject(error);
   }
   pending.clear();
@@ -46,6 +54,7 @@ function terminateWorker(error?: Error | DOMException): boolean {
   if (!worker) return false;
   worker.terminate();
   worker = null;
+  workerReady = false;
   if (error) rejectPending(error);
   return true;
 }
@@ -57,10 +66,15 @@ function activeWorker(): Worker {
     name: "epi-info-stratified-analysis",
   });
   worker.addEventListener("message", (event: MessageEvent<WorkerResponse>) => {
+    if (event.data.type === "ready") {
+      workerReady = true;
+      for (const [id, request] of pending) worker?.postMessage({ id, input: request.input });
+      return;
+    }
     const request = pending.get(event.data.id);
     if (!request) return;
     pending.delete(event.data.id);
-    request.removeAbortListener();
+    request.cleanUp();
     if (event.data.ok) {
       request.resolve({ result: event.data.result, durationMs: event.data.durationMs });
     } else {
@@ -84,12 +98,20 @@ export function calculateStratifiedTable2x2InWorker(
   return new Promise<StratifiedWorkerResult>((resolve, reject) => {
     const onAbort = () => terminateWorker(abortError("The stratified analysis was cancelled."));
     options.signal?.addEventListener("abort", onAbort, { once: true });
+    const timeoutId = setTimeout(() => {
+      if (pending.has(id)) terminateWorker(new Error("The stratified-analysis Worker did not respond within 15 seconds."));
+    }, 15_000);
     pending.set(id, {
+      input,
       resolve,
       reject,
-      removeAbortListener: () => options.signal?.removeEventListener("abort", onAbort),
+      cleanUp: () => {
+        clearTimeout(timeoutId);
+        options.signal?.removeEventListener("abort", onAbort);
+      },
     });
-    activeWorker().postMessage({ id, input });
+    const currentWorker = activeWorker();
+    if (workerReady) currentWorker.postMessage({ id, input });
   });
 }
 

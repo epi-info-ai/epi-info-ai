@@ -21,7 +21,9 @@ candidate outputs.
   not a claim about every client device.
 - Browser E2E proves that calculation occurs in a module Worker, an in-flight
   request can be cancelled by terminating that Worker, and a fresh Worker can
-  successfully calculate afterward.
+  successfully calculate afterward. A readiness handshake prevents requests from
+  racing module/WASM initialization, and a 15-second watchdog fails closed rather
+  than leaving the browser controls indefinitely disabled.
 - JupyterLite independently checks the product-hypergeometric anchors and exposes
   the pathological and operational cases for reviewer reproduction.
 
@@ -33,7 +35,7 @@ candidate outputs.
 | Cell value | non-negative whole number; exact inference supports at most 999,999 |
 | Combined exact support width | 4,096 |
 | Exact convolution work | 2,000,000 multiply-adds |
-| Cancellation | terminate the dedicated Worker; the next request creates a clean WASM instance |
+| Cancellation | terminate the dedicated Worker; the next request creates a clean WASM instance after its readiness handshake |
 | CI performance regression guard | 1,024 repeated `1/1/1/1` strata complete or fail closed within 5,000 ms |
 
 The fixed-size Rust scratch workspace is owned by one Worker instance. The UI

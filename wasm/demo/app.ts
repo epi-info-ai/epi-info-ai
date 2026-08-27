@@ -434,7 +434,6 @@ classicTablesForm.addEventListener("submit", (event) => {
   }
 });
 refreshClassicTablesSelectors();
-void calculateStratified();
 
 try {
   initializeFormDataDemo();

@@ -529,6 +529,12 @@ test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ pag
 test("stratified analysis runs in a cancellable Worker and recovers after cancellation", async ({ page }) => {
   const evidence = await page.evaluate(async () => {
     const workerClient = await import("/stratified-worker-client.js");
+    await workerClient.calculateStratifiedTable2x2InWorker({
+      confidenceLevel: 0.95,
+      strata: [
+        { id: "warmup", label: "Warm-up", exposedCases: 1, exposedNonCases: 1, unexposedCases: 1, unexposedNonCases: 1 },
+      ],
+    });
     const input = {
       confidenceLevel: 0.95,
       strata: Array.from({ length: 1024 }, (_, index) => ({

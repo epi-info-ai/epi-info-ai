@@ -23,7 +23,9 @@ The WASM adapter loads strata into a fixed 1,024-table scratch area and calls th
 kernel synchronously without yielding between load and calculation. The browser
 owns that WASM instance inside a dedicated module Worker. Requests are serialized;
 cancellation terminates the Worker and its partially written scratch state, and
-the next request creates a clean instance.
+the next request creates a clean instance. The Worker is started lazily, announces
+readiness only after its WASM dependency and message listener are initialized, and
+is terminated if it does not answer within 15 seconds.
 
 ## OR/RR homogeneity semantics
 

@@ -7,11 +7,15 @@ interface StratifiedWorkerRequest {
 }
 
 type StratifiedWorkerResponse = {
+  type: "ready";
+} | {
+  type: "result";
   id: number;
   ok: true;
   result: StratifiedTable2x2Result;
   durationMs: number;
 } | {
+  type: "result";
   id: number;
   ok: false;
   error: { name: string; message: string };
@@ -27,6 +31,7 @@ workerScope.addEventListener("message", (event) => {
   try {
     const result = calculateStratifiedTable2x2(event.data.input);
     workerScope.postMessage({
+      type: "result",
       id: event.data.id,
       ok: true,
       result,
@@ -34,6 +39,7 @@ workerScope.addEventListener("message", (event) => {
     });
   } catch (error) {
     workerScope.postMessage({
+      type: "result",
       id: event.data.id,
       ok: false,
       error: {
@@ -43,3 +49,7 @@ workerScope.addEventListener("message", (event) => {
     });
   }
 });
+
+// Requests are sent only after this module, its WASM dependency, and the message
+// listener are ready. This makes startup and cancellation deterministic.
+workerScope.postMessage({ type: "ready" });
