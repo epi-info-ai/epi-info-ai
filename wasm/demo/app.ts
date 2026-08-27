@@ -416,9 +416,9 @@ function refreshRatesSelectors(): void {
     return;
   }
   const numerator = source.fields.some((field) => field.name === ratesNumeratorField.value)
-    ? ratesNumeratorField.value : source.fields.find((field) => field.name === "case_status")?.name ?? source.fields[0].name;
+    ? ratesNumeratorField.value : source.fields.find((field) => field.name === "case_status")?.name ?? source.fields[0]!.name;
   const denominator = source.fields.some((field) => field.name === ratesDenominatorField.value)
-    ? ratesDenominatorField.value : source.fields.find((field) => field.name === "id")?.name ?? source.fields[0].name;
+    ? ratesDenominatorField.value : source.fields.find((field) => field.name === "id")?.name ?? source.fields[0]!.name;
   setFieldOptions(ratesNumeratorField, numerator);
   setFieldOptions(ratesDenominatorField, denominator);
   refreshRatesValueSelector();
