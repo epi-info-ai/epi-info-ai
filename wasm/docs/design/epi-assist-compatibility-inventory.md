@@ -21,7 +21,9 @@ the user back to Data Quality, `FREQ`, and Epi Curve using those existing screen
   validation-issue counts only. V0.1 does not give record values to the model.
 - Output: untrusted JSON parsed against a TypeScript allowlist. Unknown actions,
   invented fields, incorrect date-field types, malformed JSON, and empty output
-  fail closed.
+  fail closed. If a response cannot pass this boundary, the UI visibly discards
+  it and may offer deterministic schema-derived actions labeled as a safe fallback;
+  it never repairs or executes the model's malformed action text.
 - Authority: proposals never run automatically. The user selects a reviewed
   action, and the host opens an existing workflow. Granite cannot execute code,
   alter records, call the Rust kernel directly, access storage credentials, or

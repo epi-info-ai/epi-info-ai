@@ -74,9 +74,13 @@ function runAction(action: EpiAssistAction): void {
   requiredElement<HTMLButtonElement>("#epi-curve-run").click();
 }
 
-function renderProposal(proposal: EpiAssistProposal, context: EpiAssistContext, source: "granite" | "guided"): void {
+function renderProposal(proposal: EpiAssistProposal, context: EpiAssistContext, source: "granite" | "guided" | "granite-fallback"): void {
   requiredElement("#epi-assist-result").hidden = false;
-  requiredElement("#epi-assist-result-source").textContent = source === "granite" ? `Local proposal from ${MODEL_LABEL}` : "Deterministic guided suggestions (Granite not used)";
+  requiredElement("#epi-assist-result-source").textContent = source === "granite"
+    ? `Local proposal from ${MODEL_LABEL}`
+    : source === "granite-fallback"
+      ? "Safe guided fallback after an incomplete Granite response"
+      : "Deterministic guided suggestions (Granite not used)";
   requiredElement("#epi-assist-result-summary").textContent = proposal.summary;
   requiredElement("#epi-assist-result-rationale").textContent = proposal.rationale;
   const actions = proposal.actions.map((action) => {
@@ -128,7 +132,12 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
           renderProposal(parseEpiAssistJson(String(event.data.response ?? ""), pendingContext), pendingContext, "granite");
           status.textContent = "Proposal ready. Review an action before running it.";
         } catch (error) {
-          status.textContent = `${error instanceof Error ? error.message : String(error)} No action was enabled.`;
+          if (!pendingContext) {
+            status.textContent = `${error instanceof Error ? error.message : String(error)} No action was enabled.`;
+          } else {
+            renderProposal(buildGuidedProposal(pendingContext), pendingContext, "granite-fallback");
+            status.textContent = `${error instanceof Error ? error.message : String(error)} Granite's text was not trusted; safe schema-derived actions are available below.`;
+          }
         } finally {
           askButton.disabled = !ready;
         }

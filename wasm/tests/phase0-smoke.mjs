@@ -1317,6 +1317,8 @@ async function checkEpiAssistProposalBoundary() {
   assert.throws(() => proposals.parseEpiAssistJson('{"summary":"x","rationale":"y","actions":[{"kind":"execute-code","code":"delete records"}]}', context), /does not allow/);
   assert.throws(() => proposals.parseEpiAssistJson('{"summary":"x","rationale":"y","actions":[{"kind":"run-frequency","fieldName":"invented"}]}', context), /not a field/);
   assert.throws(() => proposals.parseEpiAssistJson('{"summary":"x","rationale":"y","actions":[{"kind":"run-epi-curve","dateField":"case_status"}]}', context), /Date type/);
+  const fallback = proposals.buildGuidedProposal(context);
+  assert.deepEqual(fallback.actions.map((action) => action.kind), ["open-data-quality", "run-frequency", "run-epi-curve"]);
 }
 
 async function run() {
