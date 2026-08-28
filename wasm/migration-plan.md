@@ -580,7 +580,14 @@ must never be translated into arbitrary JavaScript execution.
    calculation, while the foodborne 22/96 fixture and notebook provide initial
    independent evidence. Other aggregates, condition builders, distinct counts,
    grouping, sorting, filters, display/export, saved dashboards, broader corpora,
-   and G5 review remain open. **Candidate V0.12 StatCalc Population Survey slice
+   and G5 review remain open. **V0.16 Visual Dashboard Epi Curve prototype
+   complete:** the familiar Charts branch now exposes main-date, optional
+   grouping, interval/step, x-axis-bound, and missing-value controls; deterministic
+   TypeScript bins feed a browser chart and accessible data table using the
+   canonical foodborne records. Weighting, legacy faceting, complete display and
+   export properties, saved gadget state, the general canvas, and the other chart
+   types remain explicit gaps in `charts-compatibility-inventory.md`.
+   **Candidate V0.12 StatCalc Population Survey slice
    complete:** the first legacy StatCalc menu item now preserves the five inputs,
    defaults, simple-random-sampling guidance, seven confidence levels, cluster
    sizes, and total samples. Rust/WASM reproduces the audited normal-tail

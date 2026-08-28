@@ -627,6 +627,26 @@ test("Visual Dashboard Rates derives the foodborne Confirmed rate", async ({ pag
   await expect(page.locator("#rates-value")).toHaveText("22.9167");
 });
 
+test("Visual Dashboard Epi Curve charts foodborne onset dates by case status", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="dashboard"]').click();
+  await expect(page.locator("#epi-curve-date-field")).toHaveValue("onset_date");
+  await expect(page.locator("#epi-curve-status-field")).toHaveValue("case_status");
+  await page.locator("#epi-curve-run").click();
+
+  await expect(page.locator("#epi-curve-feedback")).toContainText("Plotted 44 of 96 records in 3 intervals");
+  await expect(page.locator("#epi-curve-table-body tr")).toHaveCount(3);
+  await expect(page.locator("#epi-curve-table-body tr").nth(0)).toContainText("Jan 10, 2026");
+  await expect(page.locator("#epi-curve-table-body tr").nth(0)).toContainText("1");
+  await expect(page.locator("#epi-curve-table-body tr").nth(1)).toContainText("32");
+  await expect(page.locator("#epi-curve-table-body tr").nth(2)).toContainText("11");
+  await expect(page.locator("#epi-curve-warnings")).toContainText("52 records have no Onset Date value");
+});
+
 test("StatCalc Population Survey preserves the legacy default table and clustered design", async ({ page }) => {
   await page.getByRole("button", { name: "StatCalc", exact: true }).first().click();
   await page.getByRole("button", { name: "Population Survey", exact: true }).click();

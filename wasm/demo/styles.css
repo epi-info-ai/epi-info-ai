@@ -2794,6 +2794,72 @@ body.map-fullscreen-fallback {
   font-size: 0.88rem;
 }
 
+.epi-curve-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.epi-curve-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.epi-curve-legend li span {
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 1px solid rgb(0 0 0 / 25%);
+}
+
+.epi-curve-plot {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(4.25rem, 1fr);
+  align-items: end;
+  min-height: 20rem;
+  padding: 1rem 0.75rem 0;
+  overflow-x: auto;
+  border: 1px solid #9babb7;
+  border-left: 2px solid #384c5a;
+  border-bottom: 2px solid #384c5a;
+  background: repeating-linear-gradient(to top, transparent 0, transparent 3.9rem, #d8e0e5 4rem);
+}
+
+.epi-curve-bin {
+  display: grid;
+  grid-template-rows: 16rem auto;
+  align-items: end;
+  justify-items: stretch;
+  min-width: 4.25rem;
+  height: 100%;
+}
+
+.epi-curve-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  align-self: end;
+  width: calc(100% - 0.45rem);
+  margin-inline: auto;
+  border: 1px solid rgb(0 0 0 / 25%);
+}
+
+.epi-curve-stack:empty { border: 0; }
+.epi-curve-stack span { min-height: 1px; }
+
+.epi-curve-bin-label {
+  padding: 0.4rem 0.2rem;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.epi-curve-data { margin-top: 1rem; }
+
 .statcalc-tool-chooser {
   display: flex;
   flex-wrap: wrap;

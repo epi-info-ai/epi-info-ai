@@ -335,6 +335,7 @@ Source: `engine-rust/src/lib.rs`
 | Frequency proportion and legacy exact/Wilson category limits | `frequency_proportion`, `frequency_ci_*` | Rust/WASM V0.9 candidate |
 | Single-variable descriptive statistics and legacy rank quartiles/mode | `means_*` | Rust/WASM V0.10 bounded candidate |
 | Visual Dashboard rate from validated numerator/denominator aggregates and multiplier | `rate_calculate` | Rust/WASM V0.11 bounded candidate |
+| Visual Dashboard Epi Curve binning and browser rendering | `app/dashboard/epi-curve.ts`, `demo/app.ts` | TypeScript V0.16 presentation/application slice; not statistical inference |
 | Population Survey cluster size with legacy normal approximation and correction/rounding sequence | `population_survey_cluster_size` | Rust/WASM V0.12 bounded candidate |
 | Cohort/Cross-Sectional effect conversions and Kelsey/Fleiss group sample sizes | `cohort_exposed_outcome`, `cohort_odds_from_*`, `cohort_sample_size` | Rust/WASM V0.13 bounded candidate |
 | Unmatched Case-Control exposure conversions and Kelsey/Fleiss group sample sizes | `unmatched_case_control_*` | Rust/WASM V0.14 bounded candidate |

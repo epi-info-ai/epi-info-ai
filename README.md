@@ -64,7 +64,7 @@ Current capabilities include:
 - configurable Uber H3 resolutions from 0 through 15, with mapped records aggregated into toggleable hexagon layers;
 - live H3 resolution guidance showing how higher resolutions produce smaller hexagons, including approximate average edge length and area;
 - browser-local WGS 84 GeoTIFF upload with bounded downsampling, a population-density color ramp, opacity/visibility/removal controls, and raster-below-vector drawing order;
-- a distinct Visual Dashboard Rates candidate using the familiar numerator PER denominator workflow;
+- distinct Visual Dashboard Rates and Epi Curve slices using familiar gadget-property workflows, including a foodborne onset-date chart and auditable chart-data table;
 - a StatCalc Population Survey candidate preserving the familiar five inputs and seven-level cluster/total sample table;
 - a StatCalc Cohort or Cross-Sectional candidate with linked effect measures and Kelsey/Fleiss sample-size output;
 - a StatCalc Unmatched Case-Control candidate with linked exposure measures and cases/controls sample-size output;
@@ -264,6 +264,11 @@ checksums, expected metadata, and combined testing workflow are documented in
   provider adapter, Enter Data requires explicit result selection before copying
   signed coordinates, and Maps recognizes those fields for Case Cluster. The
   public Nominatim endpoint is demonstration-only, not a production-scale service.
+- Added the V0.16 Visual Dashboard `Epi Curve` slice with familiar main-date,
+  grouping, interval/step, x-axis-bound, and missing-value controls; the canonical
+  foodborne example plots 44 onset dates across three days, reports 52 missing
+  dates, and exposes an accessible chart-data table. The Charts compatibility
+  inventory keeps the remaining legacy chart and gadget behaviors explicit.
 
 ## TODO
 
@@ -315,6 +320,10 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Expand Visual Dashboard `Rates` from the V0.11 COUNT slice to the audited
   aggregate list, condition builders, distinct counts, grouping, sorting,
   filters, colors, exports, and saved gadget canvas. Keep G5 consolidated.
+- Expand Visual Dashboard `Charts` from the V0.16 bounded Epi Curve slice to the
+  general gadget canvas, legacy faceting and weighting, complete display/export
+  properties, saved state, and Column, Line, Area, Pie, Aberration Detection,
+  Pareto, and Scatter branches documented in the Charts compatibility inventory.
 - Expand StatCalc beyond the first three sample-size candidates and Chi Square
   for Trend in legacy menu order; retain 2 x 2 x N, Poisson, Population Binomial, and
   Matched Pair Case-Control as explicit compatibility-floor branches.

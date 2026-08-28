@@ -12,7 +12,9 @@ import {
 import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
+import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
+import type { EpiCurveResult } from "../app/contracts/dashboard.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -546,6 +548,17 @@ const ratesMultiplier = requiredElement<HTMLSelectElement>("#rates-multiplier");
 const ratesFeedback = requiredElement<HTMLElement>("#rates-feedback");
 const ratesOutput = requiredElement<HTMLElement>("#rates-output");
 let lastRateResult: RateResult | null = null;
+const epiCurveForm = requiredElement<HTMLFormElement>("#epi-curve-form");
+const epiCurveDateField = requiredElement<HTMLSelectElement>("#epi-curve-date-field");
+const epiCurveStatusField = requiredElement<HTMLSelectElement>("#epi-curve-status-field");
+const epiCurveInterval = requiredElement<HTMLSelectElement>("#epi-curve-interval");
+const epiCurveStep = requiredElement<HTMLInputElement>("#epi-curve-step");
+const epiCurveStart = requiredElement<HTMLInputElement>("#epi-curve-start");
+const epiCurveEnd = requiredElement<HTMLInputElement>("#epi-curve-end");
+const epiCurveIncludeMissing = requiredElement<HTMLInputElement>("#epi-curve-include-missing");
+const epiCurveFeedback = requiredElement<HTMLElement>("#epi-curve-feedback");
+const epiCurveOutput = requiredElement<HTMLElement>("#epi-curve-output");
+let lastEpiCurveResult: EpiCurveResult | null = null;
 let nextStratumId = 3;
 let stratifiedController: AbortController | null = null;
 
@@ -748,6 +761,95 @@ function renderRate(result: RateResult): void {
   ratesOutput.hidden = false;
 }
 
+const epiCurveColors = ["#087fa4", "#ef9f00", "#6f5797", "#4e8b57", "#bb4d44", "#657985"];
+
+function refreshEpiCurveSelectors(): void {
+  const source = getCurrentProjectData();
+  requiredElement("#epi-curve-source-name").textContent = `${source.formName} · ${source.records.length} records`;
+  const dateFields = source.fields.filter((field) => field.type === "date" || /date|onset/i.test(`${field.name} ${field.prompt}`));
+  if (dateFields.length === 0) {
+    epiCurveDateField.replaceChildren();
+    epiCurveStatusField.replaceChildren(new Option("Do not group", ""));
+    epiCurveFeedback.textContent = "The current form has no date field available for an Epi Curve.";
+    epiCurveOutput.hidden = true;
+    return;
+  }
+  const currentDate = dateFields.some((field) => field.name === epiCurveDateField.value)
+    ? epiCurveDateField.value
+    : dateFields.find((field) => /onset/i.test(`${field.name} ${field.prompt}`))?.name ?? dateFields[0]!.name;
+  epiCurveDateField.replaceChildren(...dateFields.map((field) => new Option(field.prompt, field.name, false, field.name === currentDate)));
+  const currentStatus = source.fields.some((field) => field.name === epiCurveStatusField.value)
+    ? epiCurveStatusField.value
+    : fieldByHint(/case.?status|status|classification/) ?? "";
+  epiCurveStatusField.replaceChildren(
+    new Option("Do not group", "", false, currentStatus === ""),
+    ...source.fields.map((field) => new Option(field.prompt, field.name, false, field.name === currentStatus)),
+  );
+  epiCurveFeedback.textContent = "Choose chart properties, then click Generate Epi Curve.";
+  epiCurveOutput.hidden = lastEpiCurveResult === null;
+}
+
+function renderEpiCurve(result: EpiCurveResult): void {
+  lastEpiCurveResult = result;
+  const maxTotal = Math.max(1, ...result.bins.map((bin) => bin.total));
+  const legend = result.categories.map((category, index) => {
+    const item = document.createElement("li");
+    const swatch = document.createElement("span");
+    swatch.style.backgroundColor = epiCurveColors[index % epiCurveColors.length]!;
+    swatch.setAttribute("aria-hidden", "true");
+    item.append(swatch, document.createTextNode(category));
+    return item;
+  });
+  requiredElement("#epi-curve-legend").replaceChildren(...legend);
+  const bars = result.bins.map((bin) => {
+    const group = document.createElement("div");
+    group.className = "epi-curve-bin";
+    group.setAttribute("role", "img");
+    group.setAttribute("aria-label", `${bin.label}: ${bin.total} record${bin.total === 1 ? "" : "s"}`);
+    const stack = document.createElement("div");
+    stack.className = "epi-curve-stack";
+    stack.style.height = `${Math.max(bin.total === 0 ? 0 : 3, (bin.total / maxTotal) * 100)}%`;
+    for (const [index, category] of result.categories.entries()) {
+      const count = bin.counts[category] ?? 0;
+      if (count === 0) continue;
+      const segment = document.createElement("span");
+      segment.style.flexGrow = String(count);
+      segment.style.backgroundColor = epiCurveColors[index % epiCurveColors.length]!;
+      segment.title = `${category}: ${count}`;
+      stack.append(segment);
+    }
+    const label = document.createElement("span");
+    label.className = "epi-curve-bin-label";
+    label.textContent = bin.label;
+    group.append(stack, label);
+    return group;
+  });
+  requiredElement("#epi-curve-plot").replaceChildren(...bars);
+  const rows = result.bins.map((bin) => {
+    const row = document.createElement("tr");
+    const values = [bin.label, ...result.categories.map((category) => String(bin.counts[category] ?? 0)), String(bin.total)];
+    for (const [index, value] of values.entries()) {
+      const cell = document.createElement(index === 0 ? "th" : "td");
+      if (cell instanceof HTMLTableCellElement && index === 0) cell.scope = "row";
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  });
+  requiredElement("#epi-curve-table-head").replaceChildren(...["Interval", ...result.categories, "Total"].map((label) => {
+    const heading = document.createElement("th");
+    heading.scope = "col";
+    heading.textContent = label;
+    return heading;
+  }));
+  requiredElement("#epi-curve-table-body").replaceChildren(...rows);
+  const warnings = requiredElement<HTMLElement>("#epi-curve-warnings");
+  warnings.textContent = result.diagnostics.warnings.join(" ");
+  warnings.hidden = result.diagnostics.warnings.length === 0;
+  epiCurveFeedback.textContent = `Plotted ${result.totals.includedRecords} of ${result.totals.sourceRecords} records in ${result.bins.length} interval${result.bins.length === 1 ? "" : "s"}.`;
+  epiCurveOutput.hidden = false;
+}
+
 function updateClassicCommandPreview(): void {
   const bracket = (name: string) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
   requiredElement("#classic-generated-command").textContent = classicExposureField.value && classicOutcomeField.value && classicStrataField.value
@@ -908,7 +1010,29 @@ for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="
 }
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="dashboard"], [data-module="dashboard"]')) {
   button.addEventListener("click", refreshRatesSelectors);
+  button.addEventListener("click", refreshEpiCurveSelectors);
 }
+epiCurveForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  try {
+    const source = getCurrentProjectData();
+    const dateField = source.fields.find((field) => field.name === epiCurveDateField.value);
+    const statusField = source.fields.find((field) => field.name === epiCurveStatusField.value);
+    if (!dateField) throw new RangeError("Select a main date variable from the current form.");
+    renderEpiCurve(deriveEpiCurve(source.records, {
+      dateField: dateField.name,
+      datePrompt: dateField.prompt,
+      ...(statusField ? { caseStatusField: statusField.name, caseStatusPrompt: statusField.prompt } : {}),
+      interval: epiCurveInterval.value as "hour" | "day" | "month" | "year",
+      step: Number(epiCurveStep.value),
+      ...(epiCurveStart.value ? { start: epiCurveStart.value } : {}),
+      ...(epiCurveEnd.value ? { end: epiCurveEnd.value } : {}),
+      includeMissing: epiCurveIncludeMissing.checked,
+    }));
+  } catch (error) {
+    epiCurveFeedback.textContent = error instanceof Error ? error.message : "Unable to generate the Epi Curve.";
+  }
+});
 ratesNumeratorField.addEventListener("change", refreshRatesValueSelector);
 ratesForm.addEventListener("submit", (event) => {
   event.preventDefault();

@@ -44,7 +44,7 @@ refer to the same capability.
 | Create Forms / Form Designer | `form-designer-compatibility-inventory.md` | Initial manual/C#/runtime audit complete; Phase 4 gaps and safe skip subset recorded |
 | Enter Data | `enter-data-compatibility-inventory.md` | Initial C#/manual audit and Phase 3B responsive contract recorded |
 | Classic Analysis / Programming IDE | `programming-ide-compatibility-inventory.md` | Legacy IDE floor and ordered future-IDE roadmap recorded; full command inventory pending |
-| Visual Dashboard | `rates-compatibility-inventory.md` | Rates C#/XAML audit and V0.11 bounded COUNT slice recorded; broader gadget inventory pending |
+| Visual Dashboard | `rates-compatibility-inventory.md`, `charts-compatibility-inventory.md` | Rates V0.11 and Epi Curve V0.16 bounded slices recorded; general gadget canvas and broader chart inventory remain open |
 | Create Maps / Enter Data > Maps | `maps-compatibility-inventory.md` | Initial C# and manual audit complete; gap IDs below |
 | StatCalc / Classic Analysis TABLES | `statcalc-compatibility-inventory.md` | Eight-tool StatCalc menu floor recorded; direct/stratified 2 x 2 and the first three sample-size branches implemented as candidates |
 | Storage / project formats | `storage-compatibility-inventory.md` | Initial legacy/browser boundary audit and Phase 3C state contract recorded |
@@ -121,7 +121,9 @@ the dataset-selection, exact-stratified, homogeneity, or validation gaps.
 ## Visual Dashboard gap register
 
 The initial floor and closure evidence for `LEGACY-DASHBOARD-001` through
-`LEGACY-DASHBOARD-010` are maintained in `rates-compatibility-inventory.md`.
+`LEGACY-DASHBOARD-010` are maintained in `rates-compatibility-inventory.md`;
+`LEGACY-DASHBOARD-011` through `LEGACY-DASHBOARD-020` are maintained in
+`charts-compatibility-inventory.md`.
 The V0.11 COUNT-based Rates candidate restores a distinct old-tree launcher but
 does not claim parity with the general gadget canvas or the full Rates property
 panels.
@@ -179,6 +181,7 @@ panels.
 | REG-0027 | LEGACY-FORM-003, LEGACY-MAPS-001 | New branch: coordinate-aware Number validation | Allows a Number field to be designated latitude or longitude, enforces signed decimal-degree range and at least five retained decimal places across entry/import validation, and adds the rule automatically when tabular schema inference recognizes coordinate columns | Demo review / 2026-08-27 | Phase 4/Maps hardening; CRS and directional-notation adapters remain open |
 | REG-0028 | LEGACY-FORM-012, LEGACY-ENTER-010, LEGACY-MAPS-016 | Clarified legacy floor and bounded implementation: acquire coordinates before mapping | Implements the documented Address -> Get Coordinates/GEOCODE -> review/select -> coordinate fields workflow as a four-field template, typed Click statement, provider boundary, failure-without-mutation behavior, and Case Cluster handoff. Map clicks in the inspected desktop implementation add marker/text/zone overlays; click-to-record harvesting remains a possible new branch | Epi Info 7 User Guide plus `Geo_Location.xml`, `GuiMediator.IEnterCheckCode.cs`, `Rule_Geocode.cs`, geocode-result dialog, and map-control audit / 2026-08-28 | Desktop parity candidate; approved scalable provider, provenance, fuller result semantics, and user review open |
 | REG-0029 | LEGACY-ENTER-010, LEGACY-MAPS-014, LEGACY-MAPS-016 | New branches: resilient coordinate acquisition without geocoding | Keeps manual/imported coordinates available, adapts permission-gated browser GPS, and reserves a click-map picker over online/cached/blank maps; never fabricates a geocode and always exposes acquisition status/provenance | Demo review / 2026-08-27 | Design recorded; entry workflow not started |
+| REG-0030 | LEGACY-DASHBOARD-011 through LEGACY-DASHBOARD-020 | Adapted branch: bounded Visual Dashboard Epi Curve | Restores the familiar main-date, grouping, interval/step, bounds, and missing-value entry path with a browser-rendered stacked histogram and accessible data table; stacking is provisional and does not replace legacy faceting, while weighting, chart properties, export, persistence, the general gadget canvas, and all other chart types remain open | `DashboardControl.xaml`, `ChartControl.xaml(.cs)`, and `HistogramChartProperties.xaml(.cs)` audit / 2026-08-28 | Phase 5 V0.16 prototype, parity gaps open |
 
 No legacy branch is currently approved for deprecation or retirement.
 

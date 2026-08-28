@@ -599,6 +599,31 @@
             <div><p class="eyebrow">VISUAL DASHBOARD</p><h1 id="dashboard-title">Visual Dashboard</h1><p>Add familiar analysis gadgets to the current data source.</p></div>
             <div class="engine-badge" title="The rate is calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rates candidate · contract 0.11</span></div>
           </div>
+          <section class="panel dashboard-epi-curve-gadget" aria-labelledby="epi-curve-title">
+            <div class="panel-heading"><div><p class="step-label">ADD CHART GADGET</p><h2 id="epi-curve-title">Epi Curve</h2></div><span id="epi-curve-source-name" class="calculation-time">Current project data</span></div>
+            <form id="epi-curve-form">
+              <div class="classic-variable-grid">
+                <label>Chart type<select disabled><option>Epi Curve</option></select></label>
+                <label>Main date variable<select id="epi-curve-date-field" required></select></label>
+                <label>One graph for each value of<select id="epi-curve-status-field"></select></label>
+                <label>Interval<select id="epi-curve-interval"><option value="hour">Hour</option><option value="day" selected>Day</option><option value="month">Month</option><option value="year">Year</option></select></label>
+                <label>Step<input id="epi-curve-step" type="number" min="1" max="365" step="1" value="1" required></label>
+                <label>X-axis start<input id="epi-curve-start" type="date"></label>
+                <label>X-axis end<input id="epi-curve-end" type="date"></label>
+                <label class="checkbox-option"><input id="epi-curve-include-missing" type="checkbox"> Include missing group values</label>
+              </div>
+              <p class="compatibility-note">Legacy-compatible starting branch: Epi Curve with Hour, Day, Month, and Year intervals. Weighting, faceting, custom colors, and additional legacy chart types remain in the compatibility registry.</p>
+              <div class="form-actions"><button id="epi-curve-run" class="primary-button" type="submit">Generate Epi Curve</button></div>
+              <p id="epi-curve-feedback" class="inline-feedback" role="status">Choose a date field from the current form.</p>
+            </form>
+          </section>
+          <section id="epi-curve-output" class="panel" aria-labelledby="epi-curve-output-title" hidden>
+            <div class="panel-heading"><div><p class="step-label">CHART OUTPUT</p><h2 id="epi-curve-output-title">Epi Curve</h2></div><span class="calculation-time">Record count by interval</span></div>
+            <ul id="epi-curve-legend" class="epi-curve-legend" aria-label="Chart legend"></ul>
+            <div id="epi-curve-plot" class="epi-curve-plot" aria-label="Epi Curve plot"></div>
+            <details class="epi-curve-data"><summary>View chart data</summary><div class="results-table-scroll"><table class="results-table"><thead><tr id="epi-curve-table-head"></tr></thead><tbody id="epi-curve-table-body"></tbody></table></div></details>
+            <p id="epi-curve-warnings" class="warnings" hidden></p>
+          </section>
           <section class="panel dashboard-rates-gadget" aria-labelledby="rates-title">
             <div class="panel-heading"><div><p class="step-label">ADD ANALYSIS GADGET</p><h2 id="rates-title">Rates</h2></div><span id="rates-source-name" class="calculation-time">Current project data</span></div>
             <form id="rates-form">
