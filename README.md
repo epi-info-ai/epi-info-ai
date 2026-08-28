@@ -274,6 +274,11 @@ checksums, expected metadata, and combined testing workflow are documented in
 
 ## TODO
 
+- Mirror the pinned `Epi-Info-Community-Edition` legacy-source submodule into a
+  CDC GitLab archival repository, preserving upstream commit provenance and
+  license/history; update the submodule URL to the CDC-controlled mirror and
+  document an optional shallow checkout so ordinary builds, CI, and demos do not
+  download the approximately 260 MiB legacy working tree.
 - Add a reusable, optional UI walkthrough to every user-facing page after the
   core migration phases are complete:
   - launch from the page Help control and allow replay at any time;
