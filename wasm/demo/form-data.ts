@@ -87,7 +87,7 @@ interface SupabaseConnectionConfig {
   providers: { email: boolean; github: boolean };
 }
 
-const FIELD_TYPES: FieldType[] = ["text", "text-uppercase", "multiline", "unique-id", "number", "phone", "date", "time", "checkbox", "yes-no", "option"];
+const FIELD_TYPES: FieldType[] = ["text", "text-uppercase", "multiline", "unique-id", "number", "phone", "date", "time", "checkbox", "yes-no", "option", "command-button"];
 const DEFAULT_SCHEMA: FormSchema = {
   name: "Outbreak Case Report Form",
   fields: [
@@ -349,14 +349,17 @@ function updateRulesButton(row: HTMLTableRowElement): void {
   const button = requiredControl(row, '[data-part="rules"]');
   const rules = JSON.parse(row.dataset.rules || "[]") as FieldValidationRule[];
   const checkCode = JSON.parse(row.dataset.checkCode || "{}") as FieldCheckCode;
-  const count = rules.length + (checkCode.after?.length ?? 0);
-  button.textContent = count > 0 ? `Rules (${count})` : "Rules...";
+  const count = rules.length + (checkCode.after?.length ?? 0) + (checkCode.click?.length ?? 0);
+  button.textContent = checkCode.click?.some((statement) => statement.kind === "geocode")
+    ? "GEOCODE Click"
+    : count > 0 ? `Rules (${count})` : "Rules...";
+  button.disabled = requiredControl(row, '[data-part="type"]').value === "command-button";
 }
 
 function fieldRuleCapabilities(type: FieldType) {
   const textLike = ["text", "text-uppercase", "multiline", "unique-id", "phone"].includes(type);
   return {
-    unique: !["checkbox", "yes-no", "option"].includes(type),
+    unique: !["checkbox", "yes-no", "option", "command-button"].includes(type),
     range: type === "number" || type === "date",
     legal: textLike || type === "yes-no" || type === "option",
     pattern: textLike,
@@ -648,6 +651,12 @@ function renderProjectTree() {
 
 function canvasControl(field: FieldDefinition): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement {
   if (field.type === "multiline") return document.createElement("textarea");
+  if (field.type === "command-button") {
+    const button = document.createElement("input");
+    button.type = "button";
+    button.value = field.prompt;
+    return button;
+  }
   if (field.type === "yes-no" || field.type === "option") {
     const select = document.createElement("select");
     const option = document.createElement("option");
@@ -715,7 +724,7 @@ function fieldFromPalette(type: FieldType, x: number, y: number): FieldDefinitio
   const labels: Record<FieldType, string> = {
     text: "Text field", "text-uppercase": "Uppercase text", multiline: "Notes",
     "unique-id": "Unique identifier", number: "Number", phone: "Phone number",
-    date: "Date", time: "Time", checkbox: "Checkbox", "yes-no": "Yes / No", option: "Option",
+    date: "Date", time: "Time", checkbox: "Checkbox", "yes-no": "Yes / No", option: "Option", "command-button": "Command Button",
   };
   const baseName = normalizeFieldName(labels[type] || "New field");
   const used = new Set(schema.fields.map((field) => field.name));
@@ -725,6 +734,55 @@ function fieldFromPalette(type: FieldType, x: number, y: number): FieldDefinitio
   const field: FieldDefinition = { name, prompt: labels[type] || "New field", type, required: false, tabStop: true, x, y };
   if (type === "unique-id") field.rules = [{ kind: "unique" }];
   return field;
+}
+
+function geolocationTemplateFields(): FieldDefinition[] {
+  const used = new Set(schema.fields.map((field) => field.name));
+  let suffix = "";
+  let sequence = 2;
+  while ([`address${suffix}`, `get_coordinates${suffix}`, `latitude${suffix}`, `longitude${suffix}`].some((name) => used.has(name))) {
+    suffix = `_${sequence++}`;
+  }
+  const addressField = `address${suffix}`;
+  const buttonField = `get_coordinates${suffix}`;
+  const latitudeField = `latitude${suffix}`;
+  const longitudeField = `longitude${suffix}`;
+  return [
+    { name: addressField, prompt: "Address", type: "multiline", required: false, tabStop: true, x: 36, y: 30 },
+    {
+      name: buttonField,
+      prompt: "Get Coordinates",
+      type: "command-button",
+      required: false,
+      tabStop: true,
+      x: 36,
+      y: 102,
+      checkCode: {
+        version: 1,
+        click: [{ kind: "geocode", addressField, latitudeField, longitudeField }],
+      },
+    },
+    {
+      name: latitudeField,
+      prompt: "Latitude",
+      type: "number",
+      required: false,
+      tabStop: true,
+      x: 300,
+      y: 30,
+      rules: [{ kind: "coordinate", axis: "latitude", minimumDecimalPlaces: 5 }],
+    },
+    {
+      name: longitudeField,
+      prompt: "Longitude",
+      type: "number",
+      required: false,
+      tabStop: true,
+      x: 300,
+      y: 82,
+      rules: [{ kind: "coordinate", axis: "longitude", minimumDecimalPlaces: 5 }],
+    },
+  ];
 }
 
 function renderEntryForm() {
@@ -956,7 +1014,7 @@ async function importDataFile(file: File): Promise<void> {
   const importedFile = await readTabularFile(file);
   const rows = importedFile.rows;
   const headers = rows[0]!.map((header) => normalizeFieldName(header));
-  const expected = schema.fields.map((field) => field.name);
+  const expected = schema.fields.filter((field) => field.type !== "command-button").map((field) => field.name);
   const missing = expected.filter((name) => !headers.includes(name));
   if (missing.length > 0) throw new Error(`Missing column${missing.length === 1 ? "" : "s"}: ${missing.join(", ")}.`);
 
@@ -1099,6 +1157,20 @@ export function initializeFormDataDemo() {
     }
     schema.fields.push(fieldFromPalette("text", snapCoordinate(36), snapCoordinate(30 + schema.fields.length * 52)));
     renderDesigner();
+  });
+
+  requiredElement("#add-geolocation-template").addEventListener("click", () => {
+    try {
+      schema = schemaFromDesigner();
+    } catch {
+      // Preserve the last valid schema while another property row is mid-edit.
+    }
+    schema.fields.push(...geolocationTemplateFields());
+    syncCurrentForm();
+    renderDesigner();
+    renderEntryForm();
+    renderRecords();
+    requiredElement("#form-status").textContent = "Geo-location template added: Address, Get Coordinates, Latitude, and Longitude. This matches the legacy GEOCODE field template.";
   });
 
   requiredElement("#field-list").addEventListener("input", () => {

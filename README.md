@@ -51,6 +51,9 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 Current capabilities include:
 
 - drag-and-drop form design with optional snap-to-grid behavior;
+- the familiar Geo-location form template (Address, Get Coordinates, Latitude,
+  Longitude), explicit geocode-result review/selection, and current-form Case
+  Cluster handoff;
 - automatic form and record creation from CSV, TSV, JSON records, and Excel `.xlsx`, plus CSV export;
 - browser-local projects with optional authenticated Supabase snapshot synchronization;
 - validated File > Open Project and Save Project As using a portable V2 package,
@@ -256,6 +259,11 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Added a bounded WGS 84 GeoTIFF raster demo using the included WorldPop example,
   plus H3 size guidance, a sticky desktop module tree, type-aware field-rule UI,
   and a bundled/cache-busted stratified Worker to prevent the observed failure.
+- Restored the first legacy desktop Geo-location vertical slice: Form Designer
+  adds the official four-field template, its typed Click Check Code invokes a
+  provider adapter, Enter Data requires explicit result selection before copying
+  signed coordinates, and Maps recognizes those fields for Case Cluster. The
+  public Nominatim endpoint is demonstration-only, not a production-scale service.
 
 ## TODO
 
@@ -281,7 +289,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   Data Quality, and record-lifecycle modules before expanding legacy parity.
 - Add explicit coordinate reference system detection and reprojection for imported spatial data; current case coordinates and GeoJSON are expected in WGS 84 longitude/latitude.
 - Expand GeoTIFF beyond the bounded WGS 84 first-band demo with deterministic reprojection, multiband styling, legends, persisted layer definitions, and richer nodata controls.
-- Add offline basemap packages, choropleths, spatial analysis, geocoding, and additional legacy map workflows.
+- Replace the demonstration Nominatim geocoder with an approved, configurable
+  provider/backend for production scale, privacy controls, rate limits, audit,
+  and service-independent test fixtures; then extend legacy GEOCODE compatibility.
+- Add offline basemap packages, choropleths, spatial analysis, and additional legacy map workflows.
 - Replace `localStorage` project persistence with SQLite WASM and OPFS.
 - Implement the versioned plugin runtime, capability API, permissions, and plugin catalog described in the architecture plan.
 - Execute the algorithm validation standard: complete provenance review of the

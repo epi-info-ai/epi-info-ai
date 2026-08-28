@@ -25,9 +25,17 @@ export interface SafeFieldActionStatement {
 
 export type SafeCheckCodeStatement = SafeGotoStatement | SafeFieldActionStatement;
 
+export interface SafeGeocodeStatement {
+  kind: "geocode";
+  addressField: string;
+  latitudeField: string;
+  longitudeField: string;
+}
+
 export interface FieldCheckCode {
   version?: typeof CHECK_CODE_VERSION;
   after?: SafeCheckCodeStatement[];
+  click?: SafeGeocodeStatement[];
 }
 
 function fail(path: string, message: string): never {
@@ -92,6 +100,28 @@ export function validateFieldCheckCode(value: unknown, path = "checkCode"): Fiel
         resultStatement.when = when;
       }
       return resultStatement;
+    });
+  }
+  if (source.click !== undefined) {
+    if (!Array.isArray(source.click)) fail(`${path}.click`, "must be an array");
+    if (source.click.length > 1) fail(`${path}.click`, "supports one command-button statement in this browser subset");
+    result.click = source.click.map((item, index) => {
+      const itemPath = `${path}.click[${index}]`;
+      if (typeof item !== "object" || item === null || Array.isArray(item)) fail(itemPath, "must be an object");
+      const statement = item as Record<string, unknown>;
+      if (statement.kind !== "geocode") fail(`${itemPath}.kind`, "must be geocode");
+      const fieldName = (key: "addressField" | "latitudeField" | "longitudeField") => {
+        if (typeof statement[key] !== "string" || statement[key].trim() === "") {
+          fail(`${itemPath}.${key}`, "must be a non-empty field name");
+        }
+        return statement[key].trim();
+      };
+      return {
+        kind: "geocode",
+        addressField: fieldName("addressField"),
+        latitudeField: fieldName("latitudeField"),
+        longitudeField: fieldName("longitudeField"),
+      };
     });
   }
   return result;

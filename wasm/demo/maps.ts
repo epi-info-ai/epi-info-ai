@@ -405,18 +405,19 @@ function populateFieldSelectors(data: MapDataSource): Pick<InferredMapFields, "l
   const longitude = requiredElement("#map-longitude-field");
   const label = requiredElement("#map-label-field");
   const previous = { latitude: latitude.value, longitude: longitude.value, label: label.value };
-  const inferred = inferMapFields(data.fields);
-  const fieldOptions = data.fields.map((field) => option(field.name, `${field.prompt} (${field.name})`));
+  const dataFields = data.fields.filter((field) => field.type !== "command-button");
+  const inferred = inferMapFields(dataFields);
+  const fieldOptions = dataFields.map((field) => option(field.name, `${field.prompt} (${field.name})`));
   latitude.replaceChildren(option("", "Select latitude"), ...fieldOptions.map((item) => item.cloneNode(true)));
   longitude.replaceChildren(option("", "Select longitude"), ...fieldOptions.map((item) => item.cloneNode(true)));
   label.replaceChildren(option("", "No label"), ...fieldOptions.map((item) => item.cloneNode(true)));
-  latitude.value = data.fields.some((field) => field.name === previous.latitude)
+  latitude.value = dataFields.some((field) => field.name === previous.latitude)
     ? previous.latitude
     : inferred.latitude;
-  longitude.value = data.fields.some((field) => field.name === previous.longitude)
+  longitude.value = dataFields.some((field) => field.name === previous.longitude)
     ? previous.longitude
     : inferred.longitude;
-  label.value = data.fields.some((field) => field.name === previous.label)
+  label.value = dataFields.some((field) => field.name === previous.label)
     ? previous.label
     : inferred.label;
   return { latitude: latitude.value, longitude: longitude.value, label: label.value };

@@ -1,6 +1,7 @@
 import type { EpiRecord, FieldDefinition, FormSchema } from "../contracts/core.js";
-import type { SafeCheckCodeStatement, SafeGotoStatement } from "../contracts/check-code.js";
+import type { SafeCheckCodeStatement, SafeGeocodeStatement, SafeGotoStatement } from "../contracts/check-code.js";
 import type { FieldValidationIssue, FieldValidationRule, LegalValuesRule, PatternRule, RangeRule } from "../contracts/validation.js";
+import { geocodeAddress, type GeocodeCandidate } from "./geocoding.ts";
 import { materializeCalculatedFields } from "./validation.ts";
 
 export type EntryView = "entry" | "records";
@@ -17,6 +18,67 @@ function rule<T extends FieldValidationRule>(field: FieldDefinition, kind: Field
 
 function appendOptions(select: HTMLSelectElement, values: readonly string[]): void {
   select.append(new Option("Select", ""), ...values.map((value) => new Option(value, value)));
+}
+
+function namedEntryControl(name: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null {
+  const control = requiredElement<HTMLFormElement>("#record-form").elements.namedItem(name);
+  return control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement
+    ? control
+    : null;
+}
+
+function acceptGeocodeCandidate(statement: SafeGeocodeStatement, candidate: GeocodeCandidate): void {
+  const latitude = namedEntryControl(statement.latitudeField);
+  const longitude = namedEntryControl(statement.longitudeField);
+  if (!latitude || !longitude) throw new Error("The GEOCODE coordinate fields are unavailable.");
+  latitude.value = candidate.latitude.toFixed(7);
+  longitude.value = candidate.longitude.toFixed(7);
+  latitude.dispatchEvent(new Event("input", { bubbles: true }));
+  longitude.dispatchEvent(new Event("input", { bubbles: true }));
+  requiredElement<HTMLDialogElement>("#geocode-results-dialog").close("accepted");
+  requiredElement<HTMLElement>("#record-status").textContent = `Coordinates selected: ${latitude.value}, ${longitude.value}. Save the record to retain them.`;
+}
+
+function showGeocodeResults(statement: SafeGeocodeStatement, query: string, candidates: readonly GeocodeCandidate[]): void {
+  requiredElement<HTMLElement>("#geocode-query").textContent = `Address: ${query}`;
+  const list = requiredElement<HTMLElement>("#geocode-results-list");
+  list.replaceChildren(...candidates.map((candidate) => {
+    const item = document.createElement("article");
+    item.className = "geocode-result";
+    item.setAttribute("role", "listitem");
+    const address = document.createElement("strong");
+    address.textContent = candidate.formattedAddress;
+    const details = document.createElement("span");
+    details.textContent = `${candidate.confidence} confidence · ${candidate.quality} · ${candidate.latitude.toFixed(7)}, ${candidate.longitude.toFixed(7)}`;
+    const select = document.createElement("button");
+    select.type = "button";
+    select.textContent = "Select";
+    select.addEventListener("click", () => acceptGeocodeCandidate(statement, candidate));
+    item.append(address, details, select);
+    return item;
+  }));
+  requiredElement<HTMLElement>("#geocode-results-status").textContent = candidates.length === 0
+    ? "No matching address was returned. Keep or enter coordinates manually, or try again when a configured geocoding service is available."
+    : `${candidates.length} possible match${candidates.length === 1 ? "" : "es"}. Select one to accept its coordinates.`;
+  requiredElement<HTMLDialogElement>("#geocode-results-dialog").showModal();
+}
+
+async function runGeocode(statement: SafeGeocodeStatement, button: HTMLButtonElement): Promise<void> {
+  const address = namedEntryControl(statement.addressField)?.value.trim() ?? "";
+  const status = requiredElement<HTMLElement>("#record-status");
+  button.disabled = true;
+  status.textContent = "Searching for possible address matches…";
+  try {
+    const candidates = await geocodeAddress(address);
+    showGeocodeResults(statement, address, candidates);
+    status.textContent = candidates.length > 0
+      ? "Review the geocoding results and select the intended location."
+      : "No address matches were returned; existing coordinates were not changed.";
+  } catch (error) {
+    status.textContent = `${error instanceof Error ? error.message : "The geocoding service is unavailable."} Existing coordinates were not changed; manual or imported coordinates can still be used.`;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function conditionMatches(statement: SafeCheckCodeStatement, value: string): boolean {
@@ -56,7 +118,20 @@ function applyFieldAction(statement: Exclude<SafeCheckCodeStatement, SafeGotoSta
   else if (statement.action === "set-not-required") target.required = false;
 }
 
-function entryControl(field: FieldDefinition): HTMLLabelElement {
+function entryControl(field: FieldDefinition): HTMLElement {
+  if (field.type === "command-button") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "record-field record-command-field";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.name = field.name;
+    button.textContent = field.prompt;
+    const geocode = field.checkCode?.click?.find((statement) => statement.kind === "geocode");
+    if (geocode) button.addEventListener("click", () => void runGeocode(geocode, button));
+    else button.disabled = true;
+    wrapper.append(button);
+    return wrapper;
+  }
   const wrapper = document.createElement("label");
   wrapper.className = "record-field";
   wrapper.append(document.createTextNode(field.prompt));
@@ -150,10 +225,11 @@ export function renderEntryForm(schema: FormSchema): void {
 }
 
 export function renderRecords(schema: FormSchema, records: readonly EpiRecord[]): void {
+  const dataFields = schema.fields.filter((field) => field.type !== "command-button");
   requiredElement("#record-count").textContent = `(${records.length})`;
   requiredElement("#mobile-record-count").textContent = `(${records.length})`;
   const headerRow = document.createElement("tr");
-  for (const field of schema.fields) {
+  for (const field of dataFields) {
     const cell = document.createElement("th");
     cell.scope = "col";
     cell.textContent = field.prompt;
@@ -165,7 +241,7 @@ export function renderRecords(schema: FormSchema, records: readonly EpiRecord[])
   if (records.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = Math.max(1, schema.fields.length);
+    cell.colSpan = Math.max(1, dataFields.length);
     cell.className = "empty-state";
     cell.textContent = "No records yet. Save a record or import a data file.";
     row.append(cell);
@@ -174,7 +250,7 @@ export function renderRecords(schema: FormSchema, records: readonly EpiRecord[])
   }
   body.replaceChildren(...records.map((record) => {
     const row = document.createElement("tr");
-    for (const field of schema.fields) {
+    for (const field of dataFields) {
       const cell = document.createElement("td");
       cell.textContent = String(record[field.name] ?? "");
       row.append(cell);
@@ -197,7 +273,7 @@ export function initializeEntryView(): void {
 }
 
 export function collectEntryRecord(form: HTMLFormElement, schema: FormSchema): EpiRecord {
-  return Object.fromEntries(schema.fields.map((field) => {
+  return Object.fromEntries(schema.fields.filter((field) => field.type !== "command-button").map((field) => {
     const control = form.elements.namedItem(field.name);
     if (control instanceof HTMLInputElement && control.type === "checkbox") return [field.name, control.checked];
     if (control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement) {

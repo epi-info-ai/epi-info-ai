@@ -1092,7 +1092,8 @@ select {
 }
 
 .tree-node,
-.field-palette button {
+.field-palette button,
+.template-palette button {
   display: block;
   width: 100%;
   min-height: 1.55rem;
@@ -1123,7 +1124,9 @@ select {
 .tree-form.selected,
 .tree-form:hover,
 .field-palette button:hover,
-.field-palette button:focus-visible {
+.field-palette button:focus-visible,
+.template-palette button:hover,
+.template-palette button:focus-visible {
   color: #073d66;
   background: #dcecf5;
   border-color: #aac7d7;
@@ -1135,6 +1138,10 @@ select {
 
 .field-palette button:active {
   cursor: grabbing;
+}
+
+.template-palette button {
+  cursor: pointer;
 }
 
 .canvas-pane {
@@ -1417,6 +1424,43 @@ select {
 
 .data-quality-dialog {
   max-width: 70rem;
+}
+
+.geocode-results-dialog {
+  max-width: 46rem;
+}
+
+.geocode-results-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.geocode-result {
+  display: grid;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  padding: 0.65rem;
+  background: white;
+  border: 1px solid #bdc9cf;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.geocode-result strong,
+.geocode-result span {
+  min-width: 0;
+  grid-column: 1;
+}
+
+.geocode-result span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.geocode-result button {
+  min-height: var(--control-min-size);
+  padding: 0.35rem 0.8rem;
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 
 .data-quality-issues-scroll {
@@ -2284,6 +2328,20 @@ body.map-fullscreen-fallback {
 .record-field {
   display: grid;
   gap: 0.35rem;
+}
+
+.record-command-field {
+  align-content: end;
+}
+
+.record-command-field button {
+  min-height: var(--control-min-size);
+  padding: 0.5rem 0.8rem;
+  font-weight: 700;
+  color: #17384b;
+  background: linear-gradient(#fff, #e4e8ea);
+  border: 1px solid #8899a3;
+  border-radius: 0.25rem;
 }
 
 .records-heading {

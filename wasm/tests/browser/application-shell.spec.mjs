@@ -439,6 +439,55 @@ test("production artifact opens Maps and initializes Leaflet", async ({ page }) 
   await expect(page.getByText("Add Data Layer", { exact: true })).toBeVisible();
 });
 
+test("legacy Geo-location template geocodes only after explicit result selection", async ({ page }) => {
+  await page.route("https://nominatim.openstreetmap.org/search**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          display_name: "123 Main Street, Toledo, Lucas County, Ohio, USA",
+          lat: "41.6528",
+          lon: "-83.5379",
+          importance: 0.8,
+          category: "place",
+          type: "house",
+        },
+      ]),
+    });
+  });
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.getByRole("button", { name: "New Project", exact: true }).click();
+  const projectDialog = page.getByRole("dialog", { name: "Create a Project Data Store" });
+  await projectDialog.getByLabel("Database name").fill("Geolocation parity test");
+  await projectDialog.getByRole("button", { name: "Create", exact: true }).click();
+
+  await page.getByRole("button", { name: "Geo-location", exact: true }).click();
+  await expect(page.locator("#form-status")).toContainText("legacy GEOCODE field template");
+  await page.getByRole("button", { name: "Enter Data", exact: true }).last().click();
+  await page.getByLabel("Address", { exact: true }).fill("123 Main Street, Toledo, Ohio");
+  await page.getByRole("button", { name: "Get Coordinates", exact: true }).click();
+
+  const results = page.getByRole("dialog", { name: "Geocode Results" });
+  await expect(results).toBeVisible();
+  const recordForm = page.locator("#record-form");
+  await expect(recordForm.getByLabel("Latitude", { exact: true })).toHaveValue("");
+  await expect(recordForm.getByLabel("Longitude", { exact: true })).toHaveValue("");
+  await results.getByRole("button", { name: "Select", exact: true }).click();
+  await expect(recordForm.getByLabel("Latitude", { exact: true })).toHaveValue("41.6528000");
+  await expect(recordForm.getByLabel("Longitude", { exact: true })).toHaveValue("-83.5379000");
+  await page.getByRole("button", { name: "Save record" }).click();
+  await expect(page.locator("#record-status")).toContainText("Record saved locally");
+
+  await page.locator("#enter-open-maps").click();
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await page.getByRole("button", { name: "Case Cluster", exact: true }).click();
+  const caseCluster = page.locator("#case-cluster-dialog");
+  await expect(caseCluster).toBeVisible();
+  await expect(page.locator("#map-latitude-field")).toHaveValue("latitude");
+  await expect(page.locator("#map-longitude-field")).toHaveValue("longitude");
+});
+
 test("StatCalc renders legacy-named Rust/WASM Fisher and mid-p results", async ({ page }) => {
   await page.locator('[data-open-module="statcalc"]').click();
   await page.locator("#exposed-cases").fill("21");

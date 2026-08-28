@@ -444,6 +444,22 @@ suggested resolution.
 - Recoverable deletion and an audit event; do not reproduce an unguarded permanent
   delete command in the browser UI.
 
+### Geo-location parity slice
+
+Preserve the official Form Designer Geo-location template and desktop workflow:
+Address -> Get Coordinates command button -> `GEOCODE Address, Latitude,
+Longitude` -> result review/selection -> signed coordinate fields -> Enter Data
+Maps/Case Cluster. The first browser candidate uses a typed Click statement and
+provider boundary; it never changes coordinate fields on service failure or
+before explicit selection. Manual/imported coordinates stay usable.
+
+The direct public Nominatim adapter is limited to the light GitLab Pages demo and
+is not the target service for a large deployment. Before parity closure, provide
+approved configurable infrastructure, privacy and audit controls, provider
+policy/capacity handling, richer legacy result semantics, acquisition provenance,
+and experienced-user review. Browser GPS and any click-map coordinate picker are
+separately registered adaptations/new branches, not substitutes for this path.
+
 ### Exit gate
 
 The manual's core Data Quality Check workflow is represented by tested validation

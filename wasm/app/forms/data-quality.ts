@@ -34,7 +34,8 @@ function isMissing(value: RecordValue | undefined): boolean {
 
 export function buildDataQualityReport(formId: string, schema: FormSchema, records: readonly EpiRecord[]): DataQualityReport {
   const issues = validateRecords(formId, schema, records);
-  const fields = schema.fields.map((field) => {
+  const dataFields = schema.fields.filter((field) => field.type !== "command-button");
+  const fields = dataFields.map((field) => {
     const missing = records.filter((record) => isMissing(record[field.name])).length;
     const present = records.length - missing;
     return {
@@ -64,7 +65,7 @@ export function buildDataQualityReport(formId: string, schema: FormSchema, recor
   }
   const exact = new Map<string, number[]>();
   for (const [index, record] of records.entries()) {
-    const signature = JSON.stringify(schema.fields.map((field) => record[field.name] ?? null));
+    const signature = JSON.stringify(dataFields.map((field) => record[field.name] ?? null));
     exact.set(signature, [...(exact.get(signature) ?? []), index]);
   }
   for (const [, recordIndexes] of exact) {

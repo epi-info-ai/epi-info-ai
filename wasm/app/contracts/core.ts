@@ -14,7 +14,8 @@ export type FieldType =
   | "time"
   | "checkbox"
   | "yes-no"
-  | "option";
+  | "option"
+  | "command-button";
 
 export type RecordValue = string | number | boolean | null;
 export type EpiRecord = Record<string, RecordValue>;
@@ -105,6 +106,7 @@ const FIELD_TYPES: ReadonlySet<FieldType> = new Set([
   "checkbox",
   "yes-no",
   "option",
+  "command-button",
 ]);
 
 export class ProjectSnapshotValidationError extends Error {
@@ -172,8 +174,8 @@ function fieldDefinitionAt(value: unknown, path: string): FieldDefinition {
       }
       if (rule.kind === "calculated-age" && result.type !== "number") fail(rulePath, "calculated-age rules require a Number field");
       if (rule.kind === "coordinate" && result.type !== "number") fail(rulePath, "coordinate rules require a Number field");
-      if (rule.kind === "unique" && ["checkbox", "yes-no", "option"].includes(result.type)) {
-        fail(rulePath, "unique rules are not available for categorical Boolean or Option fields");
+      if (rule.kind === "unique" && ["checkbox", "yes-no", "option", "command-button"].includes(result.type)) {
+        fail(rulePath, "unique rules are not available for Boolean, Option, or Command Button fields");
       }
     }
   }
@@ -197,6 +199,32 @@ function validateCheckCodeTargets(fields: readonly FieldDefinition[], path: stri
       if (!byName.has(target)) fail(`${path}.${field.name}.checkCode`, `goto target ${JSON.stringify(target)} does not exist`);
       if (target === field.name) fail(`${path}.${field.name}.checkCode`, "cannot goto the same field");
       if (statement.kind === "goto" && byName.get(target)?.tabStop === false) fail(`${path}.${field.name}.checkCode`, `goto target ${JSON.stringify(target)} has its tab stop disabled`);
+    }
+    const geocodeStatements = field.checkCode?.click ?? [];
+    if (geocodeStatements.length > 0 && field.type !== "command-button") {
+      fail(`${path}.${field.name}.checkCode.click`, "GEOCODE Click requires a Command Button field");
+    }
+    for (const statement of geocodeStatements) {
+      const address = byName.get(statement.addressField);
+      const latitude = byName.get(statement.latitudeField);
+      const longitude = byName.get(statement.longitudeField);
+      if (!address || !["text", "text-uppercase", "multiline"].includes(address.type)) {
+        fail(`${path}.${field.name}.checkCode.click`, `GEOCODE address field ${JSON.stringify(statement.addressField)} must be a text field`);
+      }
+      if (!latitude || latitude.type !== "number") {
+        fail(`${path}.${field.name}.checkCode.click`, `GEOCODE latitude field ${JSON.stringify(statement.latitudeField)} must be a Number field`);
+      }
+      if (!longitude || longitude.type !== "number") {
+        fail(`${path}.${field.name}.checkCode.click`, `GEOCODE longitude field ${JSON.stringify(statement.longitudeField)} must be a Number field`);
+      }
+      const latitudeRule = latitude.rules?.find((rule) => rule.kind === "coordinate");
+      const longitudeRule = longitude.rules?.find((rule) => rule.kind === "coordinate");
+      if (latitudeRule?.kind !== "coordinate" || latitudeRule.axis !== "latitude") {
+        fail(`${path}.${field.name}.checkCode.click`, "GEOCODE latitude target must use the Latitude coordinate rule");
+      }
+      if (longitudeRule?.kind !== "coordinate" || longitudeRule.axis !== "longitude") {
+        fail(`${path}.${field.name}.checkCode.click`, "GEOCODE longitude target must use the Longitude coordinate rule");
+      }
     }
     const calculations = field.rules?.filter((rule) => rule.kind === "calculated-age") ?? [];
     for (const calculation of calculations) {

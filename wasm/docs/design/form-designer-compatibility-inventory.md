@@ -35,7 +35,7 @@ narrow this floor.
 | LEGACY-FORM-009 | Preview/test through Enter Data | MakeView-to-Enter workflow | Form Designer opens Enter Data | Preserve schema order and validation behavior across both modules. |
 | LEGACY-FORM-010 | Create/import forms from existing data | legacy project/data adapters | CSV, TSV, JSON records, and `.xlsx` adapters | New browser branch under the familiar form-creation workflow; legacy project/data adapters remain open. |
 | LEGACY-FORM-011 | Phone form-design workflow | No equivalent desktop-era layout | Wide canvas currently overflows narrow screens | New responsive adaptation: retain the old tree and canvas on wide screens; use focused explorer/canvas/properties views on phones. |
-| LEGACY-FORM-012 | Geo-location template with Address, Get Coordinates, Latitude, and Longitude | User Guide Geo-location template; `GEOCODE` Check Code command and dialog | Coordinate Number validation only; no address/geocode template | Preserve the template and learned Check Code path: Address -> Get Coordinates -> result review/Accept -> coordinate fields. Provider and privacy behavior must be browser-safe and explicit. |
+| LEGACY-FORM-012 | Geo-location template with Address, Get Coordinates, Latitude, and Longitude | User Guide Geo-location template; `GEOCODE` Check Code command and dialog | Four-field template, Command Button type, typed `GEOCODE` Click statement, coordinate validation, and Enter Data handoff are implemented | Bounded parity candidate. Add reusable template persistence, full Check Code editor representation, approved production provider configuration, and experienced-user review before closure. |
 
 ## Skip-pattern implementation floor
 
@@ -75,6 +75,8 @@ optional equals/not-equals condition on that field, and same-form field target.
 - Loop protection and deterministic behavior after project restore.
 - Required/range/legal/pattern/unique parity for manual and imported records.
 - Phone/tablet/desktop Form Designer composition without lost fields or rules.
+- Geo-location template contract, explicit result selection, coordinate precision,
+  failure-without-mutation behavior, and Case Cluster field handoff.
 
 Phase 4 completes the tested browser-safe vertical slice without declaring any
 `LEGACY-FORM-*` gap parity-complete.

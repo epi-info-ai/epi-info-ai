@@ -44,6 +44,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/supabase-sync.ts",
     "wasm/app/contracts/core.ts",
     "wasm/app/contracts/project-package.ts",
+    "wasm/app/forms/geocoding.ts",
     "wasm/demo/epi2x2.wasm",
     "wasm/demo/sample-case-data.csv",
     "wasm/demo/sample-map-layer.geojson",
@@ -127,6 +128,9 @@ async function checkRequiredAssetsAndUi() {
     "save-form",
     "snap-to-grid",
     "record-form",
+    "add-geolocation-template",
+    "geocode-results-dialog",
+    "geocode-results-list",
     "field-rules-dialog",
     "field-rule-age-source",
     "field-check-action",
@@ -1067,6 +1071,29 @@ async function checkFormValidationContracts() {
   }).forms[0].schema;
   assert.equal(validation.validateRecord("form", coordinateSchema, { latitude: "+41.65280", longitude: "-83.53790" }, 0).length, 0);
 
+  const geocodeSchema = {
+    name: "Legacy Geo-location template",
+    fields: [
+      { name: "address", prompt: "Address", type: "multiline", required: false },
+      { name: "get_coordinates", prompt: "Get Coordinates", type: "command-button", required: false, checkCode: { version: 1, click: [{ kind: "geocode", addressField: "address", latitudeField: "latitude", longitudeField: "longitude" }] } },
+      { name: "latitude", prompt: "Latitude", type: "number", required: false, rules: [{ kind: "coordinate", axis: "latitude", minimumDecimalPlaces: 5 }] },
+      { name: "longitude", prompt: "Longitude", type: "number", required: false, rules: [{ kind: "coordinate", axis: "longitude", minimumDecimalPlaces: 5 }] },
+    ],
+  };
+  const geocodeProject = contracts.validateProjectSnapshot({
+    version: 1,
+    name: "Geocode project",
+    currentFormId: "geocode",
+    forms: [{ id: "geocode", schema: geocodeSchema, records: [] }],
+  });
+  assert.equal(geocodeProject.forms[0].schema.fields[1].checkCode.click[0].kind, "geocode");
+  assert.throws(() => contracts.validateProjectSnapshot({
+    version: 1,
+    name: "Invalid geocode project",
+    currentFormId: "geocode",
+    forms: [{ id: "geocode", schema: { ...geocodeSchema, fields: geocodeSchema.fields.map((field) => field.name === "latitude" ? { ...field, type: "text", rules: undefined } : field) }, records: [] }],
+  }), /latitude field.*Number/i);
+
   const skipSchema = {
     name: "Skip form",
     fields: [
@@ -1142,6 +1169,36 @@ async function checkFormValidationContracts() {
   });
   assert.equal(lifecycle.forms[0].deletedRecords[0].reason, "Confirmed duplicate");
   assert.equal(lifecycle.auditLog[0].action, "record-deleted");
+}
+
+async function checkGeocodingProviderBoundary() {
+  const geocoding = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/geocoding.ts")).href}?geocode=${Date.now()}`);
+  let requestedUrl = "";
+  const candidates = await geocoding.geocodeAddress("123 Main Street, Toledo, Ohio", {
+    fetchImpl: async (url) => {
+      requestedUrl = String(url);
+      return new Response(JSON.stringify([{
+        display_name: "123 Main Street, Toledo, Lucas County, Ohio, USA",
+        lat: "41.6528",
+        lon: "-83.5379",
+        importance: 0.8,
+        category: "place",
+        type: "house",
+      }]), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+  assert.match(requestedUrl, /format=jsonv2/);
+  assert.match(requestedUrl, /limit=7/);
+  assert.match(requestedUrl, /q=123\+Main\+Street/);
+  assert.deepEqual(candidates[0], {
+    formattedAddress: "123 Main Street, Toledo, Lucas County, Ohio, USA",
+    confidence: "High",
+    quality: "place: house",
+    latitude: 41.6528,
+    longitude: -83.5379,
+    provider: "OpenStreetMap Nominatim",
+  });
+  await assert.rejects(() => geocoding.geocodeAddress(" ", { fetchImpl: async () => new Response("[]") }), /Enter an address/);
 }
 
 async function checkSampleProjectPackage() {
@@ -1248,6 +1305,7 @@ async function run() {
     ["map coordinate filtering", checkMapFixture],
     ["Supabase RLS setup contract", checkSupabaseSetupContract],
     ["form validation contracts", checkFormValidationContracts],
+    ["legacy GEOCODE provider boundary", checkGeocodingProviderBoundary],
     ["portable Sample project package", checkSampleProjectPackage],
     ["algorithm validation registry", checkAlgorithmValidationRegistry],
     ["JupyterLite validation lab source", checkValidationLabSource],

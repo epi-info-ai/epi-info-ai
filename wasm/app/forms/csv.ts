@@ -73,7 +73,7 @@ function escapeCsv(value: RecordValue | undefined): string {
 }
 
 export function serializeCsv(schemaDefinition: FormSchema, dataRecords: EpiRecord[]): string {
-  const headers = schemaDefinition.fields.map((field) => field.name);
+  const headers = schemaDefinition.fields.filter((field) => field.type !== "command-button").map((field) => field.name);
   const lines = [headers.map(escapeCsv).join(",")];
   for (const record of dataRecords) {
     lines.push(headers.map((header) => escapeCsv(record[header])).join(","));

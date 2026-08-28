@@ -363,6 +363,7 @@ and has no runtime dependencies or operating-system access.
 | Project data-store dialog, Supabase connection test, record entry, and line list | `demo/form-data.ts` | TypeScript |
 | Typed field rules, calculated-age materialization, signed decimal-degree coordinate precision, and saved-record validation | `app/contracts/validation.ts` + `app/forms/validation.ts` | TypeScript; deterministic product behavior, not epidemiologic kernel computation |
 | Safe allowlisted Check Code statements and entry-time field actions | `app/contracts/check-code.ts` + `app/forms/entry-view.ts` | TypeScript; arbitrary imported code is never evaluated |
+| Legacy `GEOCODE` Click command, provider response validation, explicit result selection, and coordinate-field mutation | `app/contracts/check-code.ts` + `app/forms/geocoding.ts` + `app/forms/entry-view.ts` | TypeScript; provider-neutral contract with a demonstration-only OpenStreetMap Nominatim adapter |
 | Completeness, validation issues, duplicate candidates, Recycle Bin, and audit UI | `app/forms/data-quality.ts` + `demo/form-data.ts` | TypeScript; lifecycle data is part of the validated project snapshot |
 | Delimited parsing, CSV export, and schema inference | `app/forms/csv.ts` | TypeScript |
 | CSV, TSV, JSON-record, and Excel `.xlsx` input adapters | `app/forms/importers.ts` | TypeScript with a pinned, browser-only `read-excel-file` boundary |
@@ -509,9 +510,9 @@ whole-project snapshot rather than normalized form and record tables. The Maps s
 launch contexts separate: Main Menu -> Create Maps opens a standalone map with a
 project/form data-source selector, while Enter Data -> Maps links the map to the
 current form and allows a mapped record to be reopened in Enter Data. Both paths
-support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers with zoom-dependent polygon labels, configurable H3 aggregation layers, cumulative date/time animation, compact layer controls, fullscreen mapping, and browser geolocation. The slice does not
+support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers with zoom-dependent polygon labels, configurable H3 aggregation layers, cumulative date/time animation, compact layer controls, fullscreen mapping, and browser geolocation. Form Designer and Enter Data also include a bounded legacy Geo-location/`GEOCODE` path with explicit candidate selection and Case Cluster handoff. Its direct public Nominatim adapter is suitable only for light demonstration use: a production deployment needs an approved configurable provider or server-side boundary with privacy, capacity, policy, and audit controls. The slice does not
 yet provide external databases, shapefiles, satellite imagery, choropleths, spatial
-analysis, geocoding, or offline basemap packages. The slice also does
+analysis, full legacy geocoding parity, or offline basemap packages. The slice also does
 not yet include the final ZIP/SQLite `.epia` container, direct browser `.mdb`
 import, SQLite/OPFS persistence, dashboards, service-worker
 offline installation, a plugin runtime/catalog, AI tool orchestration, a Pyodide

@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=32" />
+    <link rel="stylesheet" href="styles.css?v=33" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=37"></script>
+  <script type="module" src="app.js?v=38"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -198,8 +198,15 @@
                     <button type="button" draggable="true" data-field-type="checkbox">☑ Checkbox</button>
                     <button type="button" draggable="true" data-field-type="yes-no">⊕ Yes/No</button>
                     <button type="button" draggable="true" data-field-type="option">◉ Option</button>
+                    <button type="button" draggable="true" data-field-type="command-button">▣ Command Button</button>
                   </div>
-                  <div class="tree-node tree-folder" role="treeitem">▸ Templates</div>
+                  <div class="tree-node tree-folder" role="treeitem" aria-expanded="true">▾ Templates</div>
+                  <div class="tree-branch template-palette" role="group" aria-label="Rapid form design templates">
+                    <div class="tree-node tree-folder" role="treeitem" aria-expanded="true">▾ Fields</div>
+                    <div class="tree-branch">
+                      <button id="add-geolocation-template" type="button">Geo-location</button>
+                    </div>
+                  </div>
                 </div>
               </aside>
 
@@ -843,6 +850,25 @@
         </footer>
       </main>
     </div>
+
+    <dialog id="geocode-results-dialog" class="legacy-dialog geocode-results-dialog" aria-labelledby="geocode-results-dialog-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="geocode-results-dialog-title">Geocode Results</strong>
+          <button value="cancel" aria-label="Close">×</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p id="geocode-query"></p>
+          <p class="dialog-note">Choose a result to copy its signed latitude and longitude into the form. No coordinates are saved until you select a result and then save the record.</p>
+          <div id="geocode-results-list" class="geocode-results-list" role="list"></div>
+          <p id="geocode-results-status" class="dialog-note" role="status" aria-live="polite"></p>
+          <p class="dialog-note geocode-attribution">Demo lookup sends the entered address to <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> through Nominatim. Manual or imported coordinates remain available when that service is unavailable.</p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button value="cancel">Cancel</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="data-quality-dialog" class="legacy-dialog data-quality-dialog" aria-labelledby="data-quality-dialog-title">
       <form method="dialog">
