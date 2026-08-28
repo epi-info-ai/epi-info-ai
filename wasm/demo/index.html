@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=33" />
+    <link rel="stylesheet" href="styles.css?v=34" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=38"></script>
+  <script type="module" src="app.js?v=39"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -25,6 +25,7 @@
         <span>Tools for public health practice</span>
       </div>
       <div class="titlebar-actions" aria-label="Project status">
+        <button class="epi-assist-launch" type="button" data-open-epi-assist><span aria-hidden="true">AI</span> Epi Assist</button>
         <span class="offline-status"><span aria-hidden="true"></span>Local demo</span>
         <button class="icon-button" type="button" aria-label="Help">?</button>
       </div>
@@ -57,6 +58,8 @@
           <button type="button" role="menuitem" data-open-module="classic">Classic</button>
           <button type="button" role="menuitem" data-open-module="dashboard">Visual Dashboard</button>
           <button type="button" role="menuitem" data-open-module="maps" data-map-context="standalone">Create Maps</button>
+          <div class="legacy-menu-separator" role="separator"></div>
+          <button type="button" role="menuitem" data-open-epi-assist>Epi Assist (local Granite)...</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Options...</button>
         </div>
       </details>
@@ -893,6 +896,49 @@
           <button value="cancel">Cancel</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="epi-assist-dialog" class="legacy-dialog epi-assist-dialog" aria-labelledby="epi-assist-title">
+      <div class="legacy-dialog-frame">
+        <header class="legacy-dialog-titlebar">
+          <div>
+            <span class="new-branch-label">New branch</span>
+            <strong id="epi-assist-title">Epi Assist</strong>
+          </div>
+          <button type="button" data-close-epi-assist aria-label="Close">x</button>
+        </header>
+        <div class="legacy-dialog-content epi-assist-content">
+          <section class="epi-assist-model" aria-labelledby="epi-assist-model-title">
+            <div>
+              <h2 id="epi-assist-model-title">Local IBM Granite</h2>
+              <p>Granite 4.0 350M Instruct · WebGPU · approximately 709 MB for the selected fp16 model files.</p>
+            </div>
+            <span class="local-only-badge">Local inference</span>
+          </section>
+          <p class="epi-assist-privacy"><strong>Your prompt and project data stay in this browser.</strong> First use retrieves model weights from the model host and stores them in browser cache when supported. Epi Assist supplies only field definitions and aggregate quality counts—not record values—to Granite.</p>
+          <div class="form-actions epi-assist-model-actions">
+            <button id="epi-assist-load" class="primary-button" type="button">Load Granite</button>
+            <button id="epi-assist-guided" type="button">Preview without AI</button>
+          </div>
+          <p id="epi-assist-status" class="dialog-note" role="status" aria-live="polite">Granite is not loaded. Loading is always user initiated.</p>
+          <label for="epi-assist-prompt"><strong>What would you like to review?</strong></label>
+          <textarea id="epi-assist-prompt" rows="4" maxlength="1200" placeholder="Example: Find the fields with the most missing data, then suggest a frequency and an epidemic curve."></textarea>
+          <div class="form-actions">
+            <button id="epi-assist-ask" class="primary-button" type="button" disabled>Ask local Granite</button>
+          </div>
+          <section id="epi-assist-result" class="epi-assist-result" hidden aria-labelledby="epi-assist-result-summary">
+            <p id="epi-assist-result-source" class="epi-assist-result-source"></p>
+            <h2 id="epi-assist-result-summary"></h2>
+            <p id="epi-assist-result-rationale"></p>
+            <h3>Reviewed actions</h3>
+            <p>Each button opens an existing Epi Info AI workflow. Nothing runs until you select it.</p>
+            <ul id="epi-assist-actions"></ul>
+          </section>
+        </div>
+        <footer class="legacy-dialog-actions">
+          <button type="button" data-close-epi-assist>Close</button>
+        </footer>
+      </div>
     </dialog>
 
     <dialog id="data-quality-dialog" class="legacy-dialog data-quality-dialog" aria-labelledby="data-quality-dialog-title">

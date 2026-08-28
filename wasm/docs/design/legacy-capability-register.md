@@ -48,6 +48,7 @@ refer to the same capability.
 | Create Maps / Enter Data > Maps | `maps-compatibility-inventory.md` | Initial C# and manual audit complete; gap IDs below |
 | StatCalc / Classic Analysis TABLES | `statcalc-compatibility-inventory.md` | Eight-tool StatCalc menu floor recorded; direct/stratified 2 x 2 and the first three sample-size branches implemented as candidates |
 | Storage / project formats | `storage-compatibility-inventory.md` | Initial legacy/browser boundary audit and Phase 3C state contract recorded |
+| Tools / Epi Assist (new branch) | `epi-assist-compatibility-inventory.md` | Local Granite V0.1 proposal and reviewed-action boundary implemented; production governance and distribution open |
 
 ## Maps gap register
 
@@ -182,6 +183,7 @@ panels.
 | REG-0028 | LEGACY-FORM-012, LEGACY-ENTER-010, LEGACY-MAPS-016 | Clarified legacy floor and bounded implementation: acquire coordinates before mapping | Implements the documented Address -> Get Coordinates/GEOCODE -> review/select -> coordinate fields workflow as a four-field template, typed Click statement, provider boundary, failure-without-mutation behavior, and Case Cluster handoff. Map clicks in the inspected desktop implementation add marker/text/zone overlays; click-to-record harvesting remains a possible new branch | Epi Info 7 User Guide plus `Geo_Location.xml`, `GuiMediator.IEnterCheckCode.cs`, `Rule_Geocode.cs`, geocode-result dialog, and map-control audit / 2026-08-28 | Desktop parity candidate; approved scalable provider, provenance, fuller result semantics, and user review open |
 | REG-0029 | LEGACY-ENTER-010, LEGACY-MAPS-014, LEGACY-MAPS-016 | New branches: resilient coordinate acquisition without geocoding | Keeps manual/imported coordinates available, adapts permission-gated browser GPS, and reserves a click-map picker over online/cached/blank maps; never fabricates a geocode and always exposes acquisition status/provenance | Demo review / 2026-08-27 | Design recorded; entry workflow not started |
 | REG-0030 | LEGACY-DASHBOARD-011 through LEGACY-DASHBOARD-020 | Adapted branch: bounded Visual Dashboard Epi Curve | Restores the familiar main-date, grouping, interval/step, bounds, and missing-value entry path with a browser-rendered stacked histogram and accessible data table; stacking is provisional and does not replace legacy faceting, while weighting, chart properties, export, persistence, the general gadget canvas, and all other chart types remain open | `DashboardControl.xaml`, `ChartControl.xaml(.cs)`, and `HistogramChartProperties.xaml(.cs)` audit / 2026-08-28 | Phase 5 V0.16 prototype, parity gaps open |
+| REG-0031 | LEGACY-AI-001 through LEGACY-AI-006 | New branch: Epi Assist with local IBM Granite | Adds user-initiated browser-local inference and typed, reviewed handoffs to existing Data Quality, FREQ, and Epi Curve workflows; it does not replace familiar screens or deterministic Rust/TypeScript operations | Project direction / 2026-08-28 | V0.1 prototype; distribution, device, security, privacy, and governance gaps open |
 
 No legacy branch is currently approved for deprecation or retirement.
 

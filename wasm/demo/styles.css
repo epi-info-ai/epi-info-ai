@@ -3070,6 +3070,126 @@ body.map-fullscreen-fallback {
   }
 }
 
+.epi-assist-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid rgb(255 255 255 / 58%);
+  border-radius: 1rem;
+  padding: 0.35rem 0.7rem;
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+  font: inherit;
+  font-weight: 700;
+}
+
+.epi-assist-launch span,
+.new-branch-label {
+  border-radius: 0.75rem;
+  padding: 0.1rem 0.35rem;
+  color: #102f44;
+  background: #f4ad00;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.epi-assist-dialog {
+  width: min(44rem, calc(100vw - 1rem));
+  max-height: calc(100dvh - 1rem);
+}
+
+.epi-assist-dialog .legacy-dialog-titlebar > div {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.epi-assist-content {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.epi-assist-content h2,
+.epi-assist-content h3,
+.epi-assist-content p {
+  margin-block: 0;
+}
+
+.epi-assist-model {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+  border: 1px solid #9fb8c7;
+  padding: 0.8rem;
+  background: #edf7fa;
+}
+
+.local-only-badge {
+  flex: none;
+  border-radius: 1rem;
+  padding: 0.3rem 0.55rem;
+  color: #075131;
+  background: #d8f4e4;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.epi-assist-privacy {
+  border-left: 0.25rem solid #087fa4;
+  padding: 0.65rem 0.8rem;
+  background: #f2f8fb;
+}
+
+.epi-assist-content textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.epi-assist-result {
+  border-top: 1px solid #b9cad4;
+  padding-top: 0.85rem;
+}
+
+.epi-assist-result-source {
+  color: #536a78;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.epi-assist-result ul {
+  display: grid;
+  gap: 0.55rem;
+  padding-left: 1.35rem;
+}
+
+.assistant-focus-row {
+  outline: 3px solid #f4ad00;
+  outline-offset: -2px;
+  background: #fff5cc !important;
+}
+
+@media (max-width: 640px) {
+  .epi-assist-launch {
+    padding-inline: 0.5rem;
+  }
+
+  .epi-assist-launch:not(:focus) {
+    font-size: 0;
+  }
+
+  .epi-assist-launch span {
+    font-size: 0.7rem;
+  }
+
+  .epi-assist-model {
+    display: grid;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

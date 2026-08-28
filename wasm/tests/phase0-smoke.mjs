@@ -37,12 +37,16 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/app.ts",
     "wasm/demo/engine.ts",
     "wasm/demo/form-data.ts",
+    "wasm/demo/epi-assist.ts",
+    "wasm/demo/epi-assist-worker.ts",
     "wasm/demo/maps.ts",
     "wasm/demo/shell.ts",
     "wasm/demo/stratified-worker.ts",
     "wasm/demo/stratified-worker-client.ts",
     "wasm/demo/supabase-sync.ts",
     "wasm/app/contracts/core.ts",
+    "wasm/app/contracts/assistant.ts",
+    "wasm/app/assistant/proposals.ts",
     "wasm/app/contracts/project-package.ts",
     "wasm/app/forms/geocoding.ts",
     "wasm/demo/epi2x2.wasm",
@@ -138,6 +142,11 @@ async function checkRequiredAssetsAndUi() {
     "data-quality-duplicate-group",
     "data-quality-deleted-record",
     "data-quality-audit-log",
+    "epi-assist-dialog",
+    "epi-assist-load",
+    "epi-assist-guided",
+    "epi-assist-ask",
+    "epi-assist-actions",
     "csv-import",
     "csv-export",
     "enter-open-maps",
@@ -1283,6 +1292,33 @@ async function checkValidationLabSource() {
   }
 }
 
+async function checkEpiAssistProposalBoundary() {
+  const proposals = await import(`${pathToFileURL(repositoryPath("wasm/app/assistant/proposals.ts")).href}?assistant=${Date.now()}`);
+  const context = {
+    version: 1,
+    projectName: "Outbreak Project",
+    formName: "Case Form",
+    recordCount: 10,
+    fields: [
+      { name: "case_status", prompt: "Case Status", type: "text", missing: 1, missingPercent: 10, violations: 0 },
+      { name: "onset_date", prompt: "Onset Date", type: "date", missing: 2, missingPercent: 20, violations: 0 },
+    ],
+  };
+  const accepted = proposals.parseEpiAssistJson(JSON.stringify({
+    summary: "Review the outbreak",
+    rationale: "Use established workflows.",
+    actions: [
+      { kind: "open-data-quality", fieldNames: ["onset_date"] },
+      { kind: "run-frequency", fieldName: "case_status" },
+      { kind: "run-epi-curve", dateField: "onset_date", groupField: "case_status" },
+    ],
+  }), context);
+  assert.equal(accepted.actions.length, 3);
+  assert.throws(() => proposals.parseEpiAssistJson('{"summary":"x","rationale":"y","actions":[{"kind":"execute-code","code":"delete records"}]}', context), /does not allow/);
+  assert.throws(() => proposals.parseEpiAssistJson('{"summary":"x","rationale":"y","actions":[{"kind":"run-frequency","fieldName":"invented"}]}', context), /not a field/);
+  assert.throws(() => proposals.parseEpiAssistJson('{"summary":"x","rationale":"y","actions":[{"kind":"run-epi-curve","dateField":"case_status"}]}', context), /Date type/);
+}
+
 async function run() {
   const checks = [
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
@@ -1309,6 +1345,7 @@ async function run() {
     ["portable Sample project package", checkSampleProjectPackage],
     ["algorithm validation registry", checkAlgorithmValidationRegistry],
     ["JupyterLite validation lab source", checkValidationLabSource],
+    ["Epi Assist typed proposal allowlist", checkEpiAssistProposalBoundary],
   ];
 
   for (const [name, check] of checks) {

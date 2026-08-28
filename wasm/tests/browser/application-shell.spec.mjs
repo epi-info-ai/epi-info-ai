@@ -971,3 +971,16 @@ test("Maps uploads and renders the WorldPop GeoTIFF below vector panes", async (
   await expect(page.locator(".leaflet-image-layer")).toBeVisible();
   await expect(page.locator("#map-status")).toContainText("beneath vector layers");
 });
+
+test("Epi Assist previews reviewed actions without loading or contacting a model", async ({ page }) => {
+  await page.getByRole("button", { name: /Epi Assist/ }).first().click();
+  await expect(page.getByRole("dialog", { name: "Epi Assist" })).toBeVisible();
+  await expect(page.locator("#epi-assist-status")).toContainText("not loaded");
+  await expect(page.getByText("Your prompt and project data stay in this browser.")).toBeVisible();
+  await page.locator("#epi-assist-guided").click();
+  await expect(page.locator("#epi-assist-result-source")).toContainText("Granite not used");
+  await expect(page.locator("#epi-assist-actions button").first()).toBeVisible();
+  await page.locator("#epi-assist-actions button").filter({ hasText: "Run Frequency" }).click();
+  await expect(page.getByRole("heading", { name: "Analysis" })).toBeVisible();
+  await expect(page.locator("#frequency-output")).toBeVisible();
+});

@@ -26,6 +26,7 @@ delivery work needed to make those migrations safe.
 | Current synchronization unit | Single-user whole-project snapshot; not a collaborative merge model |
 | Deployment | Static GitLab Pages artifact built and tested in GitLab CI |
 | AI | Optional orchestration only; never the source of statistical results |
+| Local AI prototype | IBM Granite 4.0 350M Instruct in a WebGPU Worker; explicit loading, aggregate-only context, typed allowlisted proposals, and user-reviewed actions |
 | Plugins | Versioned, capability-based, sandboxed packages; core workflows never depend on plugins |
 
 ## Migration principles
@@ -662,6 +663,30 @@ source round-trips unchanged and cannot acquire ambient browser or operating-sys
 capabilities. Visual Epi Info cannot meet this gate unless every flow exposes its
 effective code in the traditional editor and reports partial/source-only conversion
 without hiding or discarding source.
+
+## Phase 5C - Epi Assist local-AI new branch
+
+V0.1 attaches a new Tools > Epi Assist branch to the familiar tree. IBM Granite
+4.0 350M Instruct runs in a dedicated WebGPU Worker after an explicit model-load
+action. The model receives field metadata and aggregate quality counts, not record
+values, and may propose only host-validated handoffs to Data Quality, Classic
+Analysis `FREQ`, and Visual Dashboard Epi Curve. Every action remains visible and
+requires user approval; deterministic results continue to come from the existing
+application operations and Rust/WASM kernel.
+
+The implementation and remaining distribution, performance, security, privacy,
+and governance gates are maintained in the
+[Epi Assist new-branch inventory](docs/design/epi-assist-compatibility-inventory.md).
+Do not describe local inference as a fully offline deployment until model artifacts
+are integrity-pinned and delivered from an approved or packaged source.
+
+### Exit gate
+
+The branch is eligible beyond prototype only after model artifacts and versions
+are pinned, supported-device budgets pass, malformed/adversarial output fails
+closed, proposal provenance is auditable, privacy/security/accessibility/model
+governance reviews approve the path, and Epi Assist can be disabled without
+changing any core workflow or result.
 
 ## Phase 6 - Plugin platform foundation
 

@@ -45,6 +45,8 @@ git submodule update --init --recursive
 - SQLite WASM and OPFS for browser-local project data
 - Explicit import, export, backup, and audit history
 - Optional AI that calls deterministic tools and is never required for core operation
+- Local IBM Granite prototype with explicit model loading, aggregate-only context,
+  typed reviewed actions, and no inference API
 
 ## Browser demo
 
@@ -71,6 +73,10 @@ Current capabilities include:
 - live H3 resolution guidance showing how higher resolutions produce smaller hexagons, including approximate average edge length and area;
 - browser-local WGS 84 GeoTIFF upload with bounded downsampling, a population-density color ramp, opacity/visibility/removal controls, and raster-below-vector drawing order;
 - distinct Visual Dashboard Rates and Epi Curve slices using familiar gadget-property workflows, including a foodborne onset-date chart and auditable chart-data table;
+- a Tools > Epi Assist **new branch** that can run IBM Granite 4.0 350M Instruct
+  locally in a WebGPU Worker and propose reviewed handoffs to Data Quality,
+  Classic `FREQ`, and Epi Curve; the non-AI preview demonstrates the same handoff
+  without loading a model;
 - a StatCalc Population Survey candidate preserving the familiar five inputs and seven-level cluster/total sample table;
 - a StatCalc Cohort or Cross-Sectional candidate with linked effect measures and Kelsey/Fleiss sample-size output;
 - a StatCalc Unmatched Case-Control candidate with linked exposure measures and cases/controls sample-size output;
@@ -98,6 +104,14 @@ candidate goldens. It is
 a transparent validation demonstration and does not replace the algorithm gates or
 appear in the Epi Info workflow menus. Its current Pyodide runtime and scientific
 packages are fetched on demand, so the first notebook run requires network access.
+
+The Epi Assist prototype likewise distinguishes local inference from offline
+distribution. Its first user-initiated load retrieves approximately 709 MB of
+Granite fp16 model files from the model host and enables browser caching. Prompts,
+record values, and project content are not sent to an inference API; V0.1 sends
+only field metadata and aggregate quality counts into the local Worker. See the
+[Epi Assist new-branch inventory](wasm/docs/design/epi-assist-compatibility-inventory.md)
+for the allowlist and production-readiness gates.
 The companion stratified notebook compares deployed WASM Mantel-Haenszel
 estimates and tests with direct independent Python formulas. The frequency
 notebook re-derives the foodborne Case Status distribution and compares the

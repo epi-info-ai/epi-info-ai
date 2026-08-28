@@ -7,7 +7,7 @@ face and workflow while replacing the desktop implementation with modern web
 components. Deterministic epidemiologic calculations belong in a WebAssembly
 (WASM) engine. TypeScript is the default language for application features, while
 a deliberately small JavaScript layer loads the application and connects the WASM
-artifact to the browser. AI is a future, optional orchestration layer and must not
+artifact to the browser. AI is an optional orchestration layer and must not
 calculate epidemiologic results itself. Python supports scientific validation,
 test-data generation, agent research, and optional exploratory analysis; it is not
 the primary browser application language or a second trusted statistics engine.
@@ -27,6 +27,7 @@ the intended product architecture.
 | Runtime glue | JavaScript | Minimal bootstrapping and WASM/module loading where plain JavaScript materially simplifies browser startup |
 | Presentation | HTML and CSS | Semantic application shell, familiar Epi Info layout, responsive styling, and accessibility structure |
 | Third-party browser libraries | Pinned vendor JavaScript | Leaflet, h3-js, and other reviewed dependencies that are not maintained as project source |
+| Optional local AI | TypeScript Worker + IBM Granite ONNX/WebGPU | Natural-language proposals over minimized context; typed host actions only, never statistical authority |
 
 New product feature modules must be written in TypeScript. Handwritten JavaScript
 must remain small, dependency-free where practical, and contain no epidemiologic
@@ -447,6 +448,27 @@ wasm/
 10. Legacy imports produce a runnable projection plus preserved source metadata
     and explicit findings. Unsupported behavior is not silently discarded or
     treated as executable.
+11. Local-model output is untrusted input. It crosses a strict TypeScript parser
+    and action allowlist, never receives ambient DOM/storage/network authority,
+    and never runs without a separate user action.
+
+## Local AI boundary
+
+The Epi Assist V0.1 new branch runs IBM Granite 4.0 350M Instruct through
+Transformers.js in a dedicated WebGPU Worker. Loading is explicit because the
+selected fp16 model files are approximately 709 MB. Browser caching is requested,
+but the first load retrieves weights from the configured model host; therefore
+"local inference" is accurate while "fully offline distribution" remains a
+separate deployment gate.
+
+The ordinary application builds a minimized context containing form/project
+names, field names/prompts/types, record count, missing counts and percentages,
+and validation-issue counts. It excludes record values. Granite returns a JSON
+proposal, not commands or calculation results. The host accepts only three typed
+actions in V0.1: focus Data Quality, run an existing Frequency, or run an existing
+Epi Curve. Unknown actions and fields, wrong date types, malformed responses, and
+model failures enable nothing. See the
+[Epi Assist inventory](docs/design/epi-assist-compatibility-inventory.md).
 
 ## Migration plan
 
@@ -516,6 +538,6 @@ yet provide external databases, shapefiles, satellite imagery, choropleths, spat
 analysis, full legacy geocoding parity, or offline basemap packages. The slice also does
 not yet include the final ZIP/SQLite `.epia` container, direct browser `.mdb`
 import, SQLite/OPFS persistence, dashboards, service-worker
-offline installation, a plugin runtime/catalog, AI tool orchestration, a Pyodide
+offline installation, a plugin runtime/catalog, production-governed AI orchestration, a Pyodide
 Advanced Analysis workspace, Python bindings, or remote services. Those are
 target-architecture components and should not be inferred from this demo.

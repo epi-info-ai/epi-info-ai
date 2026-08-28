@@ -19,6 +19,10 @@ const requiredFiles = [
   "styles.css",
   "app.js",
   "app.js.map",
+  "epi-assist.js",
+  "epi-assist.js.map",
+  "epi-assist-worker.js",
+  "epi-assist-worker.js.map",
   "engine.js",
   "engine.js.map",
   "form-data.js",
@@ -62,8 +66,8 @@ const requiredFiles = [
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=38["']/);
-assert.match(html, /href=["']styles\.css\?v=33["']/);
+assert.match(html, /src=["']app\.js\?v=39["']/);
+assert.match(html, /href=["']styles\.css\?v=34["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);
 assert.match(html, /id=["']file-exit["']/);
@@ -79,6 +83,7 @@ const app = await requireFile("app.js");
 assert.match(app, /initializeMaps/);
 assert.match(app, /initializeFormDataDemo/);
 assert.match(app, /initializeSupabaseSync/);
+assert.match(app, /initializeEpiAssist/);
 assert.match(app, /calculateStratifiedTable2x2InWorker/);
 assert.match(app, /deriveFrequency/);
 assert.match(app, /deriveMeans/);

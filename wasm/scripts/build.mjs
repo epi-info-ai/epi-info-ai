@@ -11,6 +11,8 @@ const validationFixtureDirectory = join(outputDirectory, "validation-fixtures");
 const maintainedModules = [
   "app",
   "engine",
+  "epi-assist",
+  "epi-assist-worker",
   "form-data",
   "maps",
   "shell",
@@ -18,7 +20,7 @@ const maintainedModules = [
   "stratified-worker-client",
   "supabase-sync",
 ];
-const bundledModules = new Set(["app", "form-data", "maps", "stratified-worker", "supabase-sync"]);
+const bundledModules = new Set(["app", "epi-assist", "epi-assist-worker", "form-data", "maps", "stratified-worker", "supabase-sync"]);
 
 async function existingSource(baseName) {
   for (const extension of [".ts", ".js"]) {

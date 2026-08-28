@@ -1,4 +1,5 @@
 import { calculateChiSquareTrend, calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, calculateUnmatchedCaseControl, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2, unmatchedCaseExposureFromOdds, unmatchedOddsFromExposures } from "./engine.js";
+import { initializeEpiAssist } from "./epi-assist.js";
 import {
   applyHostedProjectSnapshot,
   getCurrentProjectSnapshot,
@@ -1108,6 +1109,7 @@ refreshRatesSelectors();
 
 try {
   initializeFormDataDemo();
+  initializeEpiAssist(getCurrentProjectData);
   initializeMaps(getCurrentProjectData, getProjectDataSources, showRecordInEnter);
   initializeSupabaseSync({
     getSnapshot: () => {

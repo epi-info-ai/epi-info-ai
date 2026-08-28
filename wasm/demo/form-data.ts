@@ -808,6 +808,7 @@ function renderDataQuality(): void {
   requiredElement("#data-quality-summary").textContent = `${report.recordCount} record${report.recordCount === 1 ? "" : "s"}; ${report.issues.length} validation issue${report.issues.length === 1 ? "" : "s"}; ${report.duplicateGroups.length} duplicate candidate group${report.duplicateGroups.length === 1 ? "" : "s"}.`;
   const fieldRows = report.fields.map((field) => {
     const row = document.createElement("tr");
+    row.dataset.fieldName = field.fieldName;
     const missingPercent = report.recordCount === 0 ? 0 : (field.missing / report.recordCount) * 100;
     row.dataset.missingSeverity = missingPercent >= 50 ? "high" : missingPercent > 0 ? "some" : "none";
     for (const value of [field.prompt, field.present]) {
