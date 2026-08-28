@@ -2861,6 +2861,42 @@ body.map-fullscreen-fallback {
   margin: 0.45rem 0 0;
 }
 
+.classic-program-editor-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid #8198aa;
+  border-top: 0;
+  background: #eef4f7;
+  color: #405767;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+}
+
+.classic-program-live-status {
+  border-left: 3px solid #b45309;
+  background: #fff8e6;
+  color: #6b3b00;
+  font-size: 0.86rem;
+  margin: 0.55rem 0 0;
+  padding: 0.45rem 0.65rem;
+}
+
+.classic-program-live-status[data-valid="true"] {
+  border-left-color: #278341;
+  background: #eff9f1;
+  color: #245c31;
+}
+
+@media (max-width: 520px) {
+  .classic-program-editor-status {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+}
+
 .classic-program-editor .classic-command-preview pre {
   background: transparent;
   border: 0;

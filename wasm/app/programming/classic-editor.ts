@@ -1,16 +1,40 @@
 import { acceptCompletion, autocompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { indentWithTab } from "@codemirror/commands";
-import { StreamLanguage, syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { defaultHighlightStyle, indentUnit, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
+import { linter, lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
+import { Compartment, EditorState } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { minimalSetup } from "codemirror";
 import type { FieldDefinition } from "../contracts/core.js";
+import { ClassicProgramDiagnostic, parseBoundedClassicProgram } from "./classic-program.js";
 
 export interface ClassicProgramEditor {
   getValue(): string;
   setValue(value: string): void;
+  setLineNumbers(visible: boolean): void;
+  setTabSettings(tabSize: ClassicProgramTabSize, indentWithTabs: boolean): void;
+  refreshDiagnostics(): void;
   focus(): void;
   destroy(): void;
+}
+
+export type ClassicProgramTabSize = 2 | 4 | 8;
+
+export interface ClassicProgramEditorPreferences {
+  lineNumbers: boolean;
+  tabSize: ClassicProgramTabSize;
+  indentWithTabs: boolean;
+}
+
+export interface ClassicProgramCursorPosition {
+  line: number;
+  column: number;
+}
+
+export interface ClassicProgramLintStatus {
+  valid: boolean;
+  message: string;
+  line?: number;
 }
 
 const epiInfoLanguage = StreamLanguage.define({
@@ -94,15 +118,49 @@ export function createClassicProgramEditor(
   parent: HTMLElement,
   initialValue: string,
   getFields: () => readonly FieldDefinition[],
+  preferences: ClassicProgramEditorPreferences,
+  onCursorPosition?: (position: ClassicProgramCursorPosition) => void,
+  onLintStatus?: (status: ClassicProgramLintStatus) => void,
 ): ClassicProgramEditor {
+  const lineNumberConfiguration = new Compartment();
+  const tabConfiguration = new Compartment();
+  const tabExtensions = (tabSize: ClassicProgramTabSize, indentWithTabs: boolean) => [
+    EditorState.tabSize.of(tabSize),
+    indentUnit.of(indentWithTabs ? "\t" : " ".repeat(tabSize)),
+  ];
+  const collectDiagnostics = (editorView: EditorView): Diagnostic[] => {
+    try {
+      parseBoundedClassicProgram(editorView.state.doc.toString(), getFields());
+      onLintStatus?.({ valid: true, message: "Program syntax is valid for the safe V0.1 command set." });
+      return [];
+    } catch (error) {
+      const diagnostic = error instanceof ClassicProgramDiagnostic ? error : null;
+      const requestedLine = diagnostic?.line ?? 1;
+      const lineNumber = Math.max(1, Math.min(requestedLine, editorView.state.doc.lines));
+      const line = editorView.state.doc.line(lineNumber);
+      const message = diagnostic ? diagnostic.message.replace(/^Line \d+:\s*/, "") : "Unable to validate this program.";
+      onLintStatus?.({ valid: false, message, line: lineNumber });
+      return [{
+        from: line.from,
+        to: Math.max(line.from + 1, line.to),
+        severity: "error",
+        message,
+      }];
+    }
+  };
+  const liveSyntaxLinter = linter(collectDiagnostics, { delay: 350 });
   const view = new EditorView({
     parent,
     state: EditorState.create({
       doc: initialValue,
       extensions: [
         minimalSetup,
+        lineNumberConfiguration.of(preferences.lineNumbers ? lineNumbers() : []),
+        tabConfiguration.of(tabExtensions(preferences.tabSize, preferences.indentWithTabs)),
         epiInfoLanguage,
         syntaxHighlighting(defaultHighlightStyle),
+        liveSyntaxLinter,
+        lintGutter(),
         autocompletion({ activateOnTyping: true, override: [createCompletionSource(getFields)] }),
         keymap.of([
           { key: "Tab", run: acceptCompletion },
@@ -113,6 +171,12 @@ export function createClassicProgramEditor(
           "aria-describedby": "classic-program-completion-help",
           spellcheck: "false",
         }),
+        EditorView.updateListener.of((update) => {
+          if (!onCursorPosition || (!update.selectionSet && !update.docChanged)) return;
+          const cursor = update.state.selection.main.head;
+          const line = update.state.doc.lineAt(cursor);
+          onCursorPosition({ line: line.number, column: cursor - line.from + 1 });
+        }),
       ],
     }),
   });
@@ -121,6 +185,15 @@ export function createClassicProgramEditor(
     getValue: () => view.state.doc.toString(),
     setValue(value) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+    },
+    setLineNumbers(visible) {
+      view.dispatch({ effects: lineNumberConfiguration.reconfigure(visible ? lineNumbers() : []) });
+    },
+    setTabSettings(tabSize, indentWithTabs) {
+      view.dispatch({ effects: tabConfiguration.reconfigure(tabExtensions(tabSize, indentWithTabs)) });
+    },
+    refreshDiagnostics() {
+      view.dispatch(setDiagnostics(view.state, collectDiagnostics(view)));
     },
     focus: () => view.focus(),
     destroy: () => view.destroy(),

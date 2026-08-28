@@ -275,6 +275,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   numeric fields from the current form; `TO`, `FREQ`, and `STRATAVAR=` suggestions
   remain schema-aware and feed the unchanged typed parser rather than executing
   editor or model-generated code directly.
+- Added Program Editor line numbers, live `Ln/Col` status, persistent 2/4/8-column
+  and tabs/spaces settings under View, and debounced live syntax diagnostics from
+  the same bounded parser. Live checks mark and explain invalid source but never
+  execute it.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric

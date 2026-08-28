@@ -27,6 +27,20 @@ Representative taught sequences and their promotion states are maintained in the
 [programming curriculum corpus](programming-curriculum-corpus.md), rather than
 being inferred repeatedly from prose during implementation.
 
+## Legacy parser architecture
+
+The legacy language is not parsed with ASN.1 (Abstract Syntax Notation One). Its
+Analysis and Enter grammars are authored as GOLD Parser `.grm` files, compiled
+into embedded `.cgt` grammar tables, and loaded through Calitha GOLD Parser
+Engine's LALR parser. On acceptance, the interpreter converts nonterminal tokens
+into typed `AnalysisRule`/Enter rule objects and executes that rule structure.
+The source tree also contains `cAST`/heterogeneous AST classes, but the reviewed
+Analysis execution path is more accurately described as **LALR parse tree to
+interpreter rule objects**, not a portable, serialized AST contract. This is a
+valuable migration asset, but the browser should define its own versioned typed
+AST/IR rather than porting the desktop parser's UI, process, and reflection
+assumptions wholesale.
+
 ## Legacy floor and future gap register
 
 | Gap ID | Old IDE capability / learned workflow | Current browser state | Future IDE closure or new branch |
@@ -39,10 +53,10 @@ being inferred repeatedly from prose during implementation.
 | LEGACY-PROGRAM-006 | Save and compose reusable programs with `RUNPGM` | Package can carry multiple programs; no composition | Resolve project/package program references safely, reject cycles, cap nesting, and preserve call provenance. |
 | LEGACY-PROGRAM-007 | Analysis language for data management, statistics, graphs, reports, variables, conditions, and functions | Only individual prototype features exist outside a PGM interpreter | Build a complete command inventory. Dispatch validated epidemiologic operations to Rust and keep orchestration/output in TypeScript. |
 | LEGACY-PROGRAM-008 | Check Code tree, event blocks, generated command dialogs, direct source editing, verification, and Enter execution | Phase 4 exposes one typed field After statement and preserves arbitrary source without executing it | Expand by reviewed event and command subsets while retaining the full editor path and unsupported-source visibility. |
-| LEGACY-PROGRAM-009 | Syntax verification and invalid-reference reporting | V0.1 provides line-numbered syntax, symbol, type, range, and unsupported-command diagnostics for its bounded grammar | Expand to a versioned language service with source ranges, actionable diagnostics, and full compatibility classification. |
+| LEGACY-PROGRAM-009 | Syntax verification and invalid-reference reporting | V0.1 now runs the bounded parser after a short typing pause, marks the affected line in the editor gutter, underlines its source range, and reports valid/invalid status without execution | Expand to a versioned language service with precise token ranges, actionable diagnostics, quick fixes, and full compatibility classification. |
 | LEGACY-PROGRAM-010 | Dataset/project context, standard/global/permanent variables, selection/sort state, and output routing | No program session model | Define an explicit, serializable execution session; adapt permanent state to scoped project/user storage with audit and reset controls. |
 | LEGACY-PROGRAM-011 | Desktop integration through filesystem paths, `EXECUTE`, DLL objects, external Python/R processes, SQL, and printers | Not executed | Block ambient OS/process access. Replace only with permissioned file pickers, mediated plugins/services, validated Pyodide labs, safe database adapters, and browser print/export. |
-| LEGACY-PROGRAM-012 | Basic rich-text presentation; command dialogs provide the principal legacy variable/option guidance rather than modern inline IntelliSense | CodeMirror supplies syntax highlighting plus schema-aware completion for V0.1 `RECODE`, `TO`, `FREQ`, and `STRATAVAR`; `RECODE` offers only current numeric fields | **New branch:** retain familiar command dialogs while expanding bracket/block matching, indentation, folding, command completion, signature help, and hover documentation. |
+| LEGACY-PROGRAM-012 | Basic rich-text presentation; the legacy `RichTextBox` accepts tabs and carries leading spaces/tabs to the next line, but the audited source exposes no line-number gutter, column ruler, or configured tab width; command dialogs provide the principal variable/option guidance | CodeMirror supplies syntax highlighting, line numbers, `Ln/Col` status, persistent 2/4/8-column tab width and tabs/spaces preferences, plus schema-aware completion for V0.1 `RECODE`, `TO`, `FREQ`, and `STRATAVAR` | **New branch:** retain familiar command dialogs while expanding bracket/block matching, folding, command completion, signature help, and hover documentation. |
 | LEGACY-PROGRAM-013 | Run-time errors and Output feedback | Not implemented | **New branch:** inline diagnostics, warnings before run, data/schema preview, quick navigation to errors, and explainable compatibility messages. |
 | LEGACY-PROGRAM-014 | Program execution produces output | Browser-local V0.1 history records Program Editor verify/run/reject attempts; unified origins and immutable output references remain open | **New branch:** immutable run history recording source hash, project revision, input selection, engine/plugin versions, results, warnings, duration, and cancellation. |
 | LEGACY-PROGRAM-015 | Sample programs and training exercises | Official Sample PGM and course references are preserved | **New branch:** first-class program tests using reviewed fixtures, expected outputs/tolerances, native/WASM parity, and regression reports. |

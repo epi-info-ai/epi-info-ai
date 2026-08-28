@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=38" />
+    <link rel="stylesheet" href="styles.css?v=39" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=46"></script>
+  <script type="module" src="app.js?v=47"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -46,6 +46,15 @@
         <summary aria-haspopup="menu">View</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="View">
           <button id="view-status-bar" type="button" role="menuitemcheckbox" aria-checked="true">&#10003; Status Bar</button>
+          <div class="legacy-menu-separator" role="separator"></div>
+          <div class="legacy-menu-heading" role="presentation">Program Editor</div>
+          <button id="view-program-line-numbers" type="button" role="menuitemcheckbox" aria-checked="true">&#10003; Line Numbers</button>
+          <button id="view-program-indent-tabs" type="button" role="menuitemcheckbox" aria-checked="true">&#10003; Indent with Tabs</button>
+          <div class="legacy-menu-heading" role="presentation">Tab Width</div>
+          <button type="button" role="menuitemradio" aria-checked="false" data-program-tab-size="2">2 columns</button>
+          <button type="button" role="menuitemradio" aria-checked="true" data-program-tab-size="4">&#10003; 4 columns</button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-program-tab-size="8">8 columns</button>
+          <div class="legacy-menu-separator" role="separator"></div>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Epi Info Logs</button>
         </div>
       </details>
@@ -661,7 +670,9 @@
           <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
           <p id="classic-program-source-label" class="classic-program-label"><strong>Program</strong></p>
           <div id="classic-program-source" class="classic-program-source" aria-labelledby="classic-program-source-label"></div>
+          <div class="classic-program-editor-status" aria-label="Program Editor status"><span id="classic-program-cursor-position">Ln 1, Col 1</span><span id="classic-program-tab-status">Tab width 4 · Tabs</span></div>
           <p id="classic-program-completion-help" class="classic-program-completion-help">Command Assist: after <code>RECODE</code>, eligible numeric fields appear automatically. Use arrow keys and Enter or Tab to insert a suggestion; Ctrl+Space opens suggestions manually.</p>
+          <p id="classic-program-live-status" class="classic-program-live-status" role="status">Live syntax check is starting.</p>
           <div class="form-actions">
             <button id="classic-program-load-age-example" type="button">Load Age Groups Example</button>
             <button id="classic-program-verify" type="button">Verify Program</button>

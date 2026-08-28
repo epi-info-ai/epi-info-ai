@@ -360,7 +360,7 @@ and has no runtime dependencies or operating-system access.
 | Derive named 2 x 2 strata from current-form records, explicit value mappings, and missing-value rules | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript data adapter; emits an audited request for the Rust operation |
 | Group typed current-form categories, sort them, apply missing rules, and assemble `epi.frequency` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; proportions and confidence limits are Rust/WASM |
 | Parse and apply the bounded `DEFINE TEXTINPUT -> numeric RECODE -> FREQ [STRATAVAR]` program plan | `app/programming/classic-program.ts` | TypeScript parser/orchestrator; source is never evaluated |
-| Edit and highlight bounded Epi Info source and offer context/type-aware form-field completion | `app/programming/classic-editor.ts` | TypeScript + CodeMirror 6 presentation assistance; suggestions have no execution authority |
+| Edit and highlight bounded Epi Info source; show line/column and configurable indentation; offer schema-aware completion; run live syntax diagnostics | `app/programming/classic-editor.ts` | TypeScript + CodeMirror 6 presentation assistance over the same typed parser; suggestions and diagnostics have no execution authority |
 | Store the browser-local V0.1 command history contract | `app/programming/run-history.ts` | TypeScript; unified origins and immutable hosted provenance remain open |
 | Select finite numeric observations, report exclusions, and assemble `epi.means` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; descriptive formulas, sorting, quartiles, and mode are Rust/WASM |
 | Read inputs, handle events, format, render, and copy results | `demo/app.ts` | TypeScript |

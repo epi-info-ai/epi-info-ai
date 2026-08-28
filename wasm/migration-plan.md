@@ -942,3 +942,10 @@ parser, while offering current-form, type-filtered variables after `RECODE` and
 context-aware suggestions for `TO`, `FREQ`, and `STRATAVAR`. This is registered
 as a new branch: it extends the legacy command-dialog guidance and does not claim
 that the desktop IDE provided modern inline IntelliSense parity.
+
+The same new branch now adds visible line numbers, `Ln/Col` cursor status, and
+browser-local 2/4/8-column plus tabs/spaces preferences under the familiar View
+menu. A debounced live check calls the bounded parser, marks the affected line,
+and reports validity without executing source. The audited desktop `RichTextBox`
+accepted tabs and copied indentation but exposed no line-number gutter, column
+ruler, or explicit tab-width setting.

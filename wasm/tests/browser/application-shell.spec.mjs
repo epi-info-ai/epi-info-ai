@@ -621,6 +621,22 @@ test("Program Editor safely runs the taught age-group RECODE and records history
 
   await page.locator('[data-module="classic"]').click();
   await expect(page.locator("#classic-program-source-name")).toContainText("96 records");
+  await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeVisible();
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await page.locator("#view-menu summary").click();
+  await page.locator("#view-program-line-numbers").click();
+  await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeHidden();
+  await page.locator("#view-program-line-numbers").click();
+  await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeVisible();
+  await page.locator('[data-program-tab-size="8"]').click();
+  await page.locator("#view-program-indent-tabs").click();
+  await page.locator("#view-menu summary").click();
+  await expect(page.locator("#classic-program-tab-status")).toHaveText("Tab width 8 · Spaces");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.program-editor-preferences.v1")))).toEqual({
+    lineNumbers: true,
+    tabSize: 8,
+    indentWithTabs: false,
+  });
   const editor = page.locator("#classic-program-source .cm-content");
   await editor.fill("RECODE ");
   const completionList = page.locator("#classic-program-source .cm-tooltip-autocomplete");
@@ -652,6 +668,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#classic-program-history-count")).toHaveText("2");
 
   await editor.fill(`${await editor.innerText()}\nEXECUTE "malware.exe"`);
+  await expect(page.locator("#classic-program-live-status")).toContainText("Unsupported command: EXECUTE");
   await page.locator("#classic-program-run").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Unsupported command: EXECUTE");
   await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");

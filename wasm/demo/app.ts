@@ -14,7 +14,7 @@ import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
-import { createClassicProgramEditor } from "../app/programming/classic-editor.js";
+import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
@@ -534,6 +534,30 @@ const classicExposedValues = requiredElement<HTMLSelectElement>("#classic-expose
 const classicCaseValues = requiredElement<HTMLSelectElement>("#classic-case-values");
 const classicConfidenceLevel = requiredElement<HTMLSelectElement>("#classic-confidence-level");
 const classicFeedback = requiredElement<HTMLElement>("#classic-tables-feedback");
+const CLASSIC_PROGRAM_PREFERENCES_KEY = "epi-info-ai.program-editor-preferences.v1";
+function readClassicProgramPreferences(): ClassicProgramEditorPreferences {
+  try {
+    const value = JSON.parse(localStorage.getItem(CLASSIC_PROGRAM_PREFERENCES_KEY) ?? "null") as Partial<ClassicProgramEditorPreferences> | null;
+    const tabSize = value?.tabSize === 2 || value?.tabSize === 4 || value?.tabSize === 8 ? value.tabSize : 4;
+    return {
+      lineNumbers: value?.lineNumbers ?? true,
+      tabSize,
+      indentWithTabs: value?.indentWithTabs ?? true,
+    };
+  } catch {
+    return { lineNumbers: true, tabSize: 4, indentWithTabs: true };
+  }
+}
+
+let classicProgramPreferences = readClassicProgramPreferences();
+function saveClassicProgramPreferences(): void {
+  try {
+    localStorage.setItem(CLASSIC_PROGRAM_PREFERENCES_KEY, JSON.stringify(classicProgramPreferences));
+  } catch {
+    // The editor remains usable when browser preference storage is unavailable.
+  }
+}
+
 const AGE_GROUP_PROGRAM = `DEFINE AgeGroup TEXTINPUT
 RECODE Age TO AgeGroup
   LOVALUE - 4 = "0-4"
@@ -547,9 +571,56 @@ const classicProgramEditor = createClassicProgramEditor(
   requiredElement<HTMLElement>("#classic-program-source"),
   AGE_GROUP_PROGRAM,
   () => getCurrentProjectData().fields,
+  classicProgramPreferences,
+  ({ line, column }) => {
+    requiredElement("#classic-program-cursor-position").textContent = `Ln ${line}, Col ${column}`;
+  },
+  ({ valid, message, line }) => {
+    const status = requiredElement<HTMLElement>("#classic-program-live-status");
+    status.dataset.valid = String(valid);
+    status.textContent = valid ? `✓ ${message}` : `Syntax issue${line ? ` on line ${line}` : ""}: ${message}`;
+  },
 );
 const classicProgramFeedback = requiredElement<HTMLElement>("#classic-program-feedback");
 const classicProgramOutput = requiredElement<HTMLElement>("#classic-program-output");
+const classicProgramLineNumbersButton = requiredElement<HTMLButtonElement>("#view-program-line-numbers");
+const classicProgramIndentTabsButton = requiredElement<HTMLButtonElement>("#view-program-indent-tabs");
+
+function renderClassicProgramPreferences(): void {
+  classicProgramLineNumbersButton.setAttribute("aria-checked", String(classicProgramPreferences.lineNumbers));
+  classicProgramLineNumbersButton.textContent = `${classicProgramPreferences.lineNumbers ? "✓ " : ""}Line Numbers`;
+  classicProgramIndentTabsButton.setAttribute("aria-checked", String(classicProgramPreferences.indentWithTabs));
+  classicProgramIndentTabsButton.textContent = `${classicProgramPreferences.indentWithTabs ? "✓ " : ""}Indent with Tabs`;
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-program-tab-size]")) {
+    const selected = Number(button.dataset.programTabSize) === classicProgramPreferences.tabSize;
+    button.setAttribute("aria-checked", String(selected));
+    button.textContent = `${selected ? "✓ " : ""}${button.dataset.programTabSize} columns`;
+  }
+  requiredElement("#classic-program-tab-status").textContent = `Tab width ${classicProgramPreferences.tabSize} · ${classicProgramPreferences.indentWithTabs ? "Tabs" : "Spaces"}`;
+}
+
+function persistAndApplyClassicProgramPreferences(): void {
+  saveClassicProgramPreferences();
+  classicProgramEditor.setLineNumbers(classicProgramPreferences.lineNumbers);
+  classicProgramEditor.setTabSettings(classicProgramPreferences.tabSize, classicProgramPreferences.indentWithTabs);
+  renderClassicProgramPreferences();
+}
+
+classicProgramLineNumbersButton.addEventListener("click", () => {
+  classicProgramPreferences = { ...classicProgramPreferences, lineNumbers: !classicProgramPreferences.lineNumbers };
+  persistAndApplyClassicProgramPreferences();
+});
+classicProgramIndentTabsButton.addEventListener("click", () => {
+  classicProgramPreferences = { ...classicProgramPreferences, indentWithTabs: !classicProgramPreferences.indentWithTabs };
+  persistAndApplyClassicProgramPreferences();
+});
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-program-tab-size]")) {
+  button.addEventListener("click", () => {
+    classicProgramPreferences = { ...classicProgramPreferences, tabSize: Number(button.dataset.programTabSize) as ClassicProgramTabSize };
+    persistAndApplyClassicProgramPreferences();
+  });
+}
+renderClassicProgramPreferences();
 const frequencyForm = requiredElement<HTMLFormElement>("#frequency-form");
 const frequencyField = requiredElement<HTMLSelectElement>("#frequency-field");
 const frequencyStrataField = requiredElement<HTMLSelectElement>("#frequency-strata-field");
@@ -771,6 +842,7 @@ function runClassicProgram(verifyOnly: boolean): void {
 function refreshClassicProgramContext(): void {
   const source = getCurrentProjectData();
   requiredElement("#classic-program-source-name").textContent = `${source.formName} · ${source.records.length} records`;
+  classicProgramEditor.refreshDiagnostics();
 }
 
 function renderFrequency(result: FrequencyResult): void {
