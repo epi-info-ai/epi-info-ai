@@ -113,7 +113,7 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
 
   const ensureWorker = () => {
     if (worker) return worker;
-    worker = new Worker(new URL("./epi-assist-worker.js", import.meta.url), { type: "module" });
+    worker = new Worker(new URL("./epi-assist-worker.js?v=2", import.meta.url), { type: "module" });
     worker.addEventListener("message", (event: MessageEvent<Record<string, unknown>>) => {
       if (event.data.type === "status") status.textContent = String(event.data.message ?? "Working locally…");
       if (event.data.type === "progress") {
