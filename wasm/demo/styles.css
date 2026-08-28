@@ -1467,6 +1467,41 @@ select {
   max-height: 18rem;
 }
 
+.data-quality-missing-cell {
+  min-width: 7.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-quality-missing-count {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.data-quality-missing-bar {
+  display: block;
+  width: 100%;
+  height: 0.42rem;
+  overflow: hidden;
+  border-radius: 0.2rem;
+  background: #dbe3e8;
+}
+
+.data-quality-missing-bar > span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: #d27a00;
+}
+
+#data-quality-fields tr[data-missing-severity="high"] .data-quality-missing-bar > span {
+  background: #b64337;
+}
+
+#data-quality-fields tr[data-missing-severity="none"] .data-quality-missing-bar {
+  background: #edf1f3;
+}
+
 .data-quality-dialog fieldset > label,
 .data-quality-dialog fieldset > select,
 .data-quality-dialog fieldset > input[type="text"] {

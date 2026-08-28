@@ -150,7 +150,9 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Completed the Phase 4 validation and Data Quality slice: typed field rules,
   auditable calculated age, safe allowlisted Check Code field actions, validation
   across entry/import/restore, duplicate comparison, and an audited recoverable
-  Recycle Bin.
+  Recycle Bin. Field completeness now includes proportional Missing mini-bars
+  with quiet zero, amber partial, and red high-missingness states while retaining
+  exact counts and accessible percentage metadata.
 - Hardened field validation so rule choices match the field data type. Number
   fields can be designated latitude or longitude, with signed decimal-degree
   ranges and at least five retained decimal places enforced before records save

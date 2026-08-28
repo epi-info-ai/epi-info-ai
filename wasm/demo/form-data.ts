@@ -808,7 +808,32 @@ function renderDataQuality(): void {
   requiredElement("#data-quality-summary").textContent = `${report.recordCount} record${report.recordCount === 1 ? "" : "s"}; ${report.issues.length} validation issue${report.issues.length === 1 ? "" : "s"}; ${report.duplicateGroups.length} duplicate candidate group${report.duplicateGroups.length === 1 ? "" : "s"}.`;
   const fieldRows = report.fields.map((field) => {
     const row = document.createElement("tr");
-    for (const value of [field.prompt, field.present, field.missing, `${(field.completeness * 100).toFixed(1)}%`, field.violations]) {
+    const missingPercent = report.recordCount === 0 ? 0 : (field.missing / report.recordCount) * 100;
+    row.dataset.missingSeverity = missingPercent >= 50 ? "high" : missingPercent > 0 ? "some" : "none";
+    for (const value of [field.prompt, field.present]) {
+      const cell = document.createElement("td");
+      cell.textContent = String(value);
+      row.append(cell);
+    }
+    const missingCell = document.createElement("td");
+    missingCell.className = "data-quality-missing-cell";
+    const missingCount = document.createElement("span");
+    missingCount.className = "data-quality-missing-count";
+    missingCount.textContent = String(field.missing);
+    const missingBar = document.createElement("span");
+    missingBar.className = "data-quality-missing-bar";
+    missingBar.setAttribute("role", "progressbar");
+    missingBar.setAttribute("aria-label", `${field.prompt}: ${field.missing} of ${report.recordCount} records missing`);
+    missingBar.setAttribute("aria-valuemin", "0");
+    missingBar.setAttribute("aria-valuemax", "100");
+    missingBar.setAttribute("aria-valuenow", missingPercent.toFixed(1));
+    missingBar.title = `${missingPercent.toFixed(1)}% missing`;
+    const missingFill = document.createElement("span");
+    missingFill.style.width = `${missingPercent}%`;
+    missingBar.append(missingFill);
+    missingCell.append(missingCount, missingBar);
+    row.append(missingCell);
+    for (const value of [`${(field.completeness * 100).toFixed(1)}%`, field.violations]) {
       const cell = document.createElement("td");
       cell.textContent = String(value);
       row.append(cell);

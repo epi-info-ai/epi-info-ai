@@ -267,6 +267,28 @@ test("Data Quality summarizes completeness and presents a recoverable lifecycle"
   await expect(dialog.getByRole("button", { name: "Restore selected record" })).toBeDisabled();
 });
 
+test("Data Quality missingness bars focus attention on incomplete foodborne fields", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="data"]').click();
+  await page.getByRole("button", { name: "Data Quality..." }).click();
+
+  const onsetBar = page.getByRole("progressbar", { name: "Onset Date: 52 of 96 records missing" });
+  await expect(onsetBar).toHaveAttribute("aria-valuenow", "54.2");
+  await expect(onsetBar.locator("span")).toHaveAttribute("style", /54\.166/);
+  await expect(onsetBar.locator("xpath=ancestor::tr")).toHaveAttribute("data-missing-severity", "high");
+
+  const vomitingBar = page.getByRole("progressbar", { name: "Vomiting: 2 of 96 records missing" });
+  await expect(vomitingBar).toHaveAttribute("aria-valuenow", "2.1");
+  await expect(vomitingBar.locator("xpath=ancestor::tr")).toHaveAttribute("data-missing-severity", "some");
+
+  const idBar = page.getByRole("progressbar", { name: "ID: 0 of 96 records missing" });
+  await expect(idBar).toHaveAttribute("aria-valuenow", "0.0");
+  await expect(idBar.locator("xpath=ancestor::tr")).toHaveAttribute("data-missing-severity", "none");
+});
+
 test("Data Quality compares duplicates and supports audited delete and restore", async ({ page }) => {
   const projectPackage = {
     format: "epi-info-ai-project", version: 2, exportedAt: "2026-08-27T12:00:00.000Z",

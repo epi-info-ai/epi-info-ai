@@ -59,7 +59,9 @@ and desktop layouts retain both panels. It also uploads TSV, JSON, and a real
 `.xlsx` workbook through the shared schema-inference path. Pure delimited/JSON and
 snapshot contracts remain covered by the Phase 0 checks. Phase 4 browser tests
 also cover calculated age, safe field-state actions, Data Quality review, and the
-audited Recycle Bin lifecycle. The geolocation parity test mocks the external
+audited Recycle Bin lifecycle. Field completeness uses accessible proportional
+mini-bars in the Missing column to expose zero, partial, and at-least-50-percent
+missingness without replacing the exact count. The geolocation parity test mocks the external
 provider and verifies that coordinates remain blank before selection, retain
 seven decimal places after selection, save as record data, and preselect the
 Case Cluster latitude/longitude fields.
