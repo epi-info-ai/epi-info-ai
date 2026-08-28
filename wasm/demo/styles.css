@@ -2808,12 +2808,57 @@ body.map-fullscreen-fallback {
 
 .classic-program-source {
   box-sizing: border-box;
-  font-family: Consolas, "Courier New", monospace;
-  line-height: 1.45;
   margin-top: 0.35rem;
   min-height: 18rem;
-  tab-size: 2;
   width: 100%;
+}
+
+.classic-program-source .cm-editor {
+  min-height: 18rem;
+  border: 1px solid #8198aa;
+  background: #fff;
+  color: #102f45;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.95rem;
+}
+
+.classic-program-source .cm-editor.cm-focused {
+  border-color: var(--epi-blue);
+  box-shadow: 0 0 0 2px rgba(0, 121, 168, 0.2);
+  outline: 0;
+}
+
+.classic-program-source .cm-scroller {
+  min-height: 18rem;
+  line-height: 1.45;
+  overflow: auto;
+}
+
+.classic-program-source .cm-content {
+  min-height: 18rem;
+  padding: 0.55rem 0;
+  caret-color: #102f45;
+}
+
+.classic-program-source .cm-gutters {
+  background: #eef4f7;
+  border-right: 1px solid #c3d1db;
+  color: #597080;
+}
+
+.classic-program-source .cm-tooltip-autocomplete {
+  border: 1px solid #7892a5;
+  box-shadow: 0 0.4rem 1rem rgba(16, 47, 69, 0.2);
+}
+
+.classic-program-label {
+  margin-bottom: 0;
+}
+
+.classic-program-completion-help {
+  color: #506271;
+  font-size: 0.82rem;
+  margin: 0.45rem 0 0;
 }
 
 .classic-program-editor .classic-command-preview pre {

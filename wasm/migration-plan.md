@@ -935,3 +935,10 @@ Visual Epi Info box-and-connection view begins against the same intermediate
 representation; effective source remains visible beside it from the start. Thus
 the IDE starts after the demo-readiness pass, before returning to the remaining
 Poisson, Population Binomial, and Matched Pair StatCalc branches.
+
+Phase 5B now also has a bounded CodeMirror 6 Command Assist prototype. It keeps
+the traditional source visible and executable only through the existing typed
+parser, while offering current-form, type-filtered variables after `RECODE` and
+context-aware suggestions for `TO`, `FREQ`, and `STRATAVAR`. This is registered
+as a new branch: it extends the legacy command-dialog guidance and does not claim
+that the desktop IDE provided modern inline IntelliSense parity.

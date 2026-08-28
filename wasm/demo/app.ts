@@ -14,6 +14,7 @@ import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
+import { createClassicProgramEditor } from "../app/programming/classic-editor.js";
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
@@ -533,7 +534,20 @@ const classicExposedValues = requiredElement<HTMLSelectElement>("#classic-expose
 const classicCaseValues = requiredElement<HTMLSelectElement>("#classic-case-values");
 const classicConfidenceLevel = requiredElement<HTMLSelectElement>("#classic-confidence-level");
 const classicFeedback = requiredElement<HTMLElement>("#classic-tables-feedback");
-const classicProgramSource = requiredElement<HTMLTextAreaElement>("#classic-program-source");
+const AGE_GROUP_PROGRAM = `DEFINE AgeGroup TEXTINPUT
+RECODE Age TO AgeGroup
+  LOVALUE - 4 = "0-4"
+  4 - 17 = "5-17"
+  17 - 44 = "18-44"
+  44 - 64 = "45-64"
+  64 - HIVALUE = "65+"
+END
+FREQ AgeGroup STRATAVAR=Sex`;
+const classicProgramEditor = createClassicProgramEditor(
+  requiredElement<HTMLElement>("#classic-program-source"),
+  AGE_GROUP_PROGRAM,
+  () => getCurrentProjectData().fields,
+);
 const classicProgramFeedback = requiredElement<HTMLElement>("#classic-program-feedback");
 const classicProgramOutput = requiredElement<HTMLElement>("#classic-program-output");
 const frequencyForm = requiredElement<HTMLFormElement>("#frequency-form");
@@ -570,16 +584,6 @@ const epiCurveOutput = requiredElement<HTMLElement>("#epi-curve-output");
 let lastEpiCurveResult: EpiCurveResult | null = null;
 let nextStratumId = 3;
 let stratifiedController: AbortController | null = null;
-
-const AGE_GROUP_PROGRAM = `DEFINE AgeGroup TEXTINPUT
-RECODE Age TO AgeGroup
-  LOVALUE - 4 = "0-4"
-  4 - 17 = "5-17"
-  17 - 44 = "18-44"
-  44 - 64 = "45-64"
-  64 - HIVALUE = "65+"
-END
-FREQ AgeGroup STRATAVAR=Sex`;
 
 function selectedValues(select: HTMLSelectElement): string[] {
   return [...select.selectedOptions].map((option) => option.value);
@@ -683,7 +687,7 @@ function recordProgramRun(entry: Omit<ProgramRunHistoryEntry, "version" | "id" |
 
 function validateProgram(): { plan: BoundedClassicProgramPlan; source: ReturnType<typeof getCurrentProjectData> } {
   const source = getCurrentProjectData();
-  const plan = parseBoundedClassicProgram(classicProgramSource.value, source.fields);
+  const plan = parseBoundedClassicProgram(classicProgramEditor.getValue(), source.fields);
   requiredElement("#classic-program-canonical-source").textContent = plan.canonicalSource;
   requiredElement<HTMLElement>("#classic-program-canonical").hidden = false;
   return { plan, source };
@@ -737,7 +741,7 @@ function runClassicProgram(verifyOnly: boolean): void {
       recordProgramRun({
         origin: "user-program", status: "verified", planVersion: validated.plan.version,
         projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
-        source: classicProgramSource.value, canonicalSource: validated.plan.canonicalSource,
+        source: classicProgramEditor.getValue(), canonicalSource: validated.plan.canonicalSource,
         summary: "Verified DEFINE → RECODE → FREQ plan without execution.", diagnostics: [],
       });
       return;
@@ -748,7 +752,7 @@ function runClassicProgram(verifyOnly: boolean): void {
     recordProgramRun({
       origin: "user-program", status: "succeeded", planVersion: validated.plan.version,
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
-      source: classicProgramSource.value, canonicalSource: validated.plan.canonicalSource,
+      source: classicProgramEditor.getValue(), canonicalSource: validated.plan.canonicalSource,
       summary: `Produced ${output.rows} frequency rows from ${output.included} included records.`, diagnostics: [],
     });
   } catch (error) {
@@ -759,7 +763,7 @@ function runClassicProgram(verifyOnly: boolean): void {
     recordProgramRun({
       origin: "user-program", status: "failed", planVersion: CLASSIC_PROGRAM_PLAN_VERSION,
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
-      source: classicProgramSource.value, summary: "Program rejected before execution.", diagnostics: [message],
+      source: classicProgramEditor.getValue(), summary: "Program rejected before execution.", diagnostics: [message],
     });
   }
 }
@@ -1185,10 +1189,10 @@ classicOutcomeField.addEventListener("change", () => {
 });
 classicStrataField.addEventListener("change", updateClassicCommandPreview);
 requiredElement("#classic-program-load-age-example").addEventListener("click", () => {
-  classicProgramSource.value = AGE_GROUP_PROGRAM;
+  classicProgramEditor.setValue(AGE_GROUP_PROGRAM);
   classicProgramFeedback.textContent = "Loaded the bounded age-group example. Verify the cut points before running.";
   requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
-  classicProgramSource.focus();
+  classicProgramEditor.focus();
 });
 requiredElement("#classic-program-verify").addEventListener("click", () => runClassicProgram(true));
 requiredElement("#classic-program-run").addEventListener("click", () => runClassicProgram(false));

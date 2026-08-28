@@ -621,6 +621,16 @@ test("Program Editor safely runs the taught age-group RECODE and records history
 
   await page.locator('[data-module="classic"]').click();
   await expect(page.locator("#classic-program-source-name")).toContainText("96 records");
+  const editor = page.locator("#classic-program-source .cm-content");
+  await editor.fill("RECODE ");
+  const completionList = page.locator("#classic-program-source .cm-tooltip-autocomplete");
+  await expect(completionList).toBeVisible();
+  await expect(completionList).toContainText("age");
+  await expect(completionList).not.toContainText("sex");
+  await editor.press("a");
+  await editor.press("Enter");
+  await expect(editor).toContainText("RECODE age");
+  await page.locator("#classic-program-load-age-example").click();
   await page.locator("#classic-program-verify").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Program verified");
   await expect(page.locator("#classic-program-canonical-source")).toContainText("FREQ AgeGroup STRATAVAR=sex");
@@ -641,7 +651,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   ]);
   await expect(page.locator("#classic-program-history-count")).toHaveText("2");
 
-  await page.locator("#classic-program-source").fill(`${await page.locator("#classic-program-source").inputValue()}\nEXECUTE "malware.exe"`);
+  await editor.fill(`${await editor.innerText()}\nEXECUTE "malware.exe"`);
   await page.locator("#classic-program-run").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Unsupported command: EXECUTE");
   await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");

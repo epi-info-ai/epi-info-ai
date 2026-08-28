@@ -270,6 +270,11 @@ checksums, expected metadata, and combined testing workflow are documented in
   STRATAVAR=Sex` program against the foodborne data, inspect trusted canonical
   source and structured output, and review local run history. Unsupported commands
   such as `EXECUTE` are rejected before anything runs.
+- Upgraded that bounded Program Editor to CodeMirror 6 with Epi Info syntax
+  highlighting and deterministic Command Assist. Typing `RECODE ` offers only
+  numeric fields from the current form; `TO`, `FREQ`, and `STRATAVAR=` suggestions
+  remain schema-aware and feed the unchanged typed parser rather than executing
+  editor or model-generated code directly.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric
