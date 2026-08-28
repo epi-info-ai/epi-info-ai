@@ -495,6 +495,11 @@ but also the learned Epi Info programming workflows that compose commands into
 repeatable investigations. Use the following CDC materials as behavioral evidence
 and sources for acceptance fixtures:
 
+The classified source list and promotion workflow are maintained in the
+[programming curriculum corpus](docs/design/programming-curriculum-corpus.md) and
+its machine-readable registry. Curriculum priority describes representative user
+workflows; legacy source and grammar still decide detailed semantics.
+
 - The [Epi Info Community Health Assessment Tutorial](https://www.cdc.gov/epiinfo/pdfs/eihat/EIHATFull.pdf)
   provides a two-hour intermediate Check Code lesson covering the Program Editor,
   `IF/THEN/ELSE`, `GOTO`, skip patterns, `ASSIGN`, `YEARS`, and `DIALOG`.

@@ -78,6 +78,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/unmatched-case-control-method-contract.md",
     "wasm/docs/validation/chi-square-trend-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
+    "wasm/docs/design/programming-curriculum-corpus.md",
     "wasm/docs/design/means-compatibility-inventory.md",
     "wasm/docs/design/rates-compatibility-inventory.md",
     "wasm/docs/design/statcalc-compatibility-inventory.md",
@@ -94,6 +95,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
     "wasm/tests/fixtures/algorithm-validation/registry.json",
+    "wasm/tests/fixtures/programming-curriculum/registry.json",
     "wasm/demo/tests/fixtures/two-by-two.json",
     "wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.csv",
     "wasm/tests/fixtures/algorithm-validation/legacy-two-by-two-exact-limits.manifest.json",
@@ -1284,6 +1286,27 @@ async function checkAlgorithmValidationRegistry() {
   }
 }
 
+async function checkProgrammingCurriculumRegistry() {
+  const registry = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/programming-curriculum/registry.json",
+  ), "utf8"));
+  const allowedEvidence = new Set(["taught-workflow", "command-reference-example", "official-sample-program", "legacy-implementation"]);
+  const allowedStates = new Set(["catalogued", "transcribed", "parsed", "executable", "parity-candidate", "reviewed"]);
+  assert.equal(registry.schemaVersion, "1.0.0");
+  assert.ok(Array.isArray(registry.examples) && registry.examples.length >= 7);
+  assert.equal(new Set(registry.examples.map((example) => example.id)).size, registry.examples.length,
+    "curriculum example IDs must be unique");
+  for (const example of registry.examples) {
+    assert.match(example.id, /^CURR-(CHECK|PGM)-[0-9]{3}$/);
+    assert.ok(allowedEvidence.has(example.evidenceClass), `${example.id} has an invalid evidence class`);
+    assert.ok(allowedStates.has(example.state), `${example.id} has an invalid promotion state`);
+    assert.match(example.source, /^https:\/\//);
+    assert.ok(Array.isArray(example.commands) && example.commands.length > 0);
+    assert.ok(Array.isArray(example.workflow) && example.workflow.length > 0);
+    assert.ok(typeof example.executionPolicy === "string" && example.executionPolicy.length > 0);
+  }
+}
+
 async function checkValidationLabSource() {
   const notebook = JSON.parse(await readFile(repositoryPath("wasm/validation-lab/content/validate-table2x2.ipynb"), "utf8"));
   assert.equal(notebook.nbformat, 4);
@@ -1372,6 +1395,7 @@ async function run() {
     ["legacy GEOCODE provider boundary", checkGeocodingProviderBoundary],
     ["portable Sample project package", checkSampleProjectPackage],
     ["algorithm validation registry", checkAlgorithmValidationRegistry],
+    ["programming curriculum registry", checkProgrammingCurriculumRegistry],
     ["JupyterLite validation lab source", checkValidationLabSource],
     ["Epi Assist typed proposal allowlist", checkEpiAssistProposalBoundary],
   ];

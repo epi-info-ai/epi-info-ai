@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "Representative Epi Info programming workflows taught in official CDC materials",
+  "examples": [
+    {
+      "id": "CURR-CHECK-001",
+      "title": "Check Code skip pattern",
+      "evidenceClass": "taught-workflow",
+      "source": "https://www.cdc.gov/epiinfo/pdfs/eihat/EIHATFull.pdf",
+      "commands": ["IF", "ELSE", "GOTO"],
+      "workflow": ["field-event", "condition", "same-form-navigation"],
+      "executionPolicy": "allowlisted",
+      "state": "catalogued"
+    },
+    {
+      "id": "CURR-CHECK-002",
+      "title": "Calculate age from date of birth",
+      "evidenceClass": "taught-workflow",
+      "source": "https://www.cdc.gov/epiinfo/pdfs/eihat/EIHATFull.pdf",
+      "commands": ["ASSIGN", "YEARS"],
+      "workflow": ["field-event", "typed-expression", "calculated-field"],
+      "executionPolicy": "allowlisted",
+      "state": "catalogued"
+    },
+    {
+      "id": "CURR-CHECK-003",
+      "title": "Data-entry notification",
+      "evidenceClass": "taught-workflow",
+      "source": "https://www.cdc.gov/epiinfo/pdfs/eihat/EIHATFull.pdf",
+      "commands": ["DIALOG"],
+      "workflow": ["field-event", "user-feedback"],
+      "executionPolicy": "browser-adapted",
+      "state": "catalogued"
+    },
+    {
+      "id": "CURR-PGM-001",
+      "title": "NIOSH industry and occupation recoding",
+      "evidenceClass": "taught-workflow",
+      "source": "https://archive.cdc.gov/www_cdc_gov/niosh/topics/coding/epiinfo.html",
+      "commands": ["READ", "DEFINE", "RECODE", "FREQ", "WRITE"],
+      "workflow": ["open-data", "derive-categories", "verify-frequency", "export"],
+      "executionPolicy": "mixed-allowlisted-and-browser-adapted",
+      "state": "catalogued"
+    },
+    {
+      "id": "CURR-PGM-002",
+      "title": "Saved program composition and selected execution",
+      "evidenceClass": "taught-workflow",
+      "source": "https://www.cdc.gov/epiinfo/user-guide/classic-analysis/userdefinedcommands.html",
+      "commands": ["RUNPGM"],
+      "workflow": ["generate-or-edit", "save-or-open", "run-selection-or-all", "compose-program"],
+      "executionPolicy": "bounded-project-programs-only",
+      "state": "catalogued"
+    },
+    {
+      "id": "CURR-PGM-003",
+      "title": "Sample line listing",
+      "evidenceClass": "command-reference-example",
+      "source": "https://www.cdc.gov/epiinfo/user-guide/command-reference/analysis-commands-list.html",
+      "commands": ["READ", "LIST"],
+      "workflow": ["open-data", "structured-output"],
+      "executionPolicy": "allowlisted",
+      "state": "catalogued"
+    },
+    {
+      "id": "CURR-PGM-004",
+      "title": "Sample outbreak analysis with routed output",
+      "evidenceClass": "command-reference-example",
+      "source": "https://www.cdc.gov/epiinfo/user-guide/command-reference/analysis-commands-execute.html",
+      "commands": ["READ", "ROUTEOUT", "SET", "TABLES", "MEANS", "CLOSEOUT", "EXECUTE"],
+      "workflow": ["open-data", "configure-output", "analyze", "close-output", "open-result"],
+      "executionPolicy": "execute-command-blocked-or-adapted",
+      "state": "catalogued"
+    }
+  ]
+}

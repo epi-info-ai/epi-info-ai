@@ -23,6 +23,10 @@ Primary legacy evidence includes:
 - `Epi.Core.EnterInterpreter/grammar/EpiInfo.Enter.Grammar.grm` and its rules; and
 - the official User Guide, training corpus, and preserved Sample `Statistics.pgm`.
 
+Representative taught sequences and their promotion states are maintained in the
+[programming curriculum corpus](programming-curriculum-corpus.md), rather than
+being inferred repeatedly from prose during implementation.
+
 ## Legacy floor and future gap register
 
 | Gap ID | Old IDE capability / learned workflow | Current browser state | Future IDE closure or new branch |
@@ -109,6 +113,9 @@ version, generated/source program hash, inputs, engines, outputs, and warnings.
 - Extract the complete Classic Analysis and Check Code command, function, event,
   dialog, and variable-scope inventories from grammar, rules, UI resources, manual,
   Sample assets, and training exercises.
+- Classify official training examples in the curriculum registry and preserve
+  their full command sequence, instructional goal, browser safety policy, and
+  expected typed plan before implementing isolated commands.
 - Classify each capability as preserve, adapt, blocked, deferred, or new branch.
 - Create parser fixtures for valid, malformed, ambiguous, and unsupported source.
 

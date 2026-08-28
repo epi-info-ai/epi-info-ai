@@ -255,6 +255,10 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Extended FREQ with one typed `STRATAVAR` field and within-stratum output. The
   same safe plan lets Epi Assist map “age by sex” to the inspectable command
   `FREQ age STRATAVAR=sex` without executing model-authored program text.
+- Added a provenance-tracked programming curriculum corpus that classifies the
+  representative Check Code and Classic Analysis command sequences taught in CDC
+  tutorials, the NIOSH recoding lesson, command-reference examples, and Sample
+  programs for progressive parser and execution acceptance tests.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric
