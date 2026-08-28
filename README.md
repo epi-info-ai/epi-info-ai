@@ -111,6 +111,8 @@ Granite fp16 model files from the model host and enables browser caching. Prompt
 record values, and project content are not sent to an inference API; V0.1 sends
 only field metadata and aggregate quality counts into the local Worker. See the
 [Epi Assist new-branch inventory](wasm/docs/design/epi-assist-compatibility-inventory.md)
+
+[AI enablement lessons learned](wasm/ai-lessons-learned.md)
 for the allowlist and production-readiness gates.
 The companion stratified notebook compares deployed WASM Mantel-Haenszel
 estimates and tests with direct independent Python formulas. The frequency

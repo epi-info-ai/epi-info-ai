@@ -33,6 +33,7 @@ async function assertFile(relativePath) {
 async function checkRequiredAssetsAndUi() {
   const requiredFiles = [
     "wasm/demo/index.html",
+    "wasm/ai-lessons-learned.md",
     "wasm/demo/styles.css",
     "wasm/demo/app.ts",
     "wasm/demo/engine.ts",
