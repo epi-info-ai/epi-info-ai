@@ -1016,6 +1016,7 @@ capability-labelled execution planner tracked above.
 
 The Program Editor also exposes three reviewed runnable examples over the
 foodborne form: life-stage age groups by Sex, broad age bands by Case Status, and
-an overall decade distribution. Selection loads ordinary editable source; examples
-receive no execution privilege beyond the same AST, field checks, and bounded plan
-used for user-authored source.
+an overall decade distribution. The versioned catalog resides beside, identifies,
+and checksums the foodborne dataset rather than acting as a global language catalog.
+Selection loads ordinary editable source; examples receive no execution privilege
+beyond the same AST, field checks, and bounded plan used for user-authored source.

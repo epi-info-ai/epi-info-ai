@@ -35,6 +35,15 @@ the browser and CI regression fixture for native Excel `.xlsx` parsing.
 
 SHA-256: `ED94C4201ABD251304DB8B3FDDF3C8733BBC46D46BBBCB0F115B7804C6740B9D`
 
+[`foodborne-outbreak-investigation.programs.json`](foodborne-outbreak-investigation.programs.json)
+is the versioned program catalog owned by this example dataset. It binds itself to
+the CSV filename, SHA-256, and 96-record expectation and supplies three visible,
+editable Program Editor exercises using the dataset's `Age`, `Sex`, and
+`case_status` fields. The catalog is validated before use, and its source receives
+no execution privilege beyond the ordinary AST and bounded planner.
+
+SHA-256: `A05410D99F11FD938AEDFBA9387C44E91FC18521EBF29124A72A66BD678ACA21`
+
 ## City of Toledo neighborhoods
 
 [`city-of-toledo-neighborhoods.geojson`](city-of-toledo-neighborhoods.geojson) is a

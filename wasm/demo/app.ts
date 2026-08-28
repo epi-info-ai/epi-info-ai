@@ -16,7 +16,7 @@ import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
 import { CLASSIC_AST_VERSION } from "../app/programming/classic-ast.js";
 import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
-import { CLASSIC_PROGRAM_EXAMPLES, classicProgramExampleById } from "../app/programming/classic-examples.js";
+import { loadClassicProgramExampleCatalog, type ClassicProgramExample } from "../app/programming/classic-examples.js";
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
@@ -560,13 +560,13 @@ function saveClassicProgramPreferences(): void {
   }
 }
 
-const defaultClassicProgramExample = CLASSIC_PROGRAM_EXAMPLES[0]!;
 const classicProgramExampleSelect = requiredElement<HTMLSelectElement>("#classic-program-example");
 const classicProgramExampleDescription = requiredElement<HTMLElement>("#classic-program-example-description");
-classicProgramExampleSelect.replaceChildren(...CLASSIC_PROGRAM_EXAMPLES.map((example) => new Option(example.title, example.id)));
+const classicProgramLoadExampleButton = requiredElement<HTMLButtonElement>("#classic-program-load-example");
+let classicProgramExamples: readonly ClassicProgramExample[] = [];
 const classicProgramEditor = createClassicProgramEditor(
   requiredElement<HTMLElement>("#classic-program-source"),
-  defaultClassicProgramExample.source,
+  "// Loading Foodborne Outbreak Investigation example programs…",
   () => getCurrentProjectData().fields,
   classicProgramPreferences,
   ({ line, column }) => {
@@ -583,25 +583,46 @@ const classicProgramOutput = requiredElement<HTMLElement>("#classic-program-outp
 const classicProgramLineNumbersButton = requiredElement<HTMLButtonElement>("#view-program-line-numbers");
 const classicProgramIndentTabsButton = requiredElement<HTMLButtonElement>("#view-program-indent-tabs");
 
-function selectedClassicProgramExample() {
-  return classicProgramExampleById(classicProgramExampleSelect.value) ?? defaultClassicProgramExample;
+function selectedClassicProgramExample(): ClassicProgramExample | undefined {
+  return classicProgramExamples.find((example) => example.id === classicProgramExampleSelect.value);
 }
 
 function renderClassicProgramExampleDescription(): void {
   const example = selectedClassicProgramExample();
+  if (!example) {
+    classicProgramExampleDescription.textContent = "The Foodborne Outbreak Investigation program catalog is unavailable.";
+    return;
+  }
   classicProgramExampleDescription.textContent = `${example.description} Required fields: ${example.requiredFields.join(", ")}.`;
 }
 
-function loadSelectedClassicProgramExample(): void {
+function loadSelectedClassicProgramExample(focusEditor = true): void {
   const example = selectedClassicProgramExample();
+  if (!example) return;
   classicProgramEditor.setValue(example.source);
   classicProgramFeedback.textContent = `Loaded “${example.title}”. Review the visible source and cut points before running.`;
   requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
   classicProgramOutput.hidden = true;
-  classicProgramEditor.focus();
+  if (focusEditor) classicProgramEditor.focus();
 }
 
-renderClassicProgramExampleDescription();
+async function initializeClassicProgramExamples(): Promise<void> {
+  try {
+    const catalog = await loadClassicProgramExampleCatalog(new URL("./examples/foodborne-outbreak-investigation.programs.json", import.meta.url));
+    classicProgramExamples = catalog.programs;
+    classicProgramExampleSelect.replaceChildren(...catalog.programs.map((example) => new Option(example.title, example.id)));
+    classicProgramExampleSelect.disabled = false;
+    classicProgramLoadExampleButton.disabled = false;
+    renderClassicProgramExampleDescription();
+    loadSelectedClassicProgramExample(false);
+    classicProgramFeedback.textContent = `Loaded ${catalog.programs.length} programs packaged with the Foodborne Outbreak Investigation example dataset.`;
+  } catch (error) {
+    classicProgramExampleSelect.replaceChildren(new Option("Foodborne program catalog unavailable", ""));
+    classicProgramExampleDescription.textContent = error instanceof Error ? error.message : "Unable to load the foodborne program catalog.";
+  }
+}
+
+void initializeClassicProgramExamples();
 
 function renderClassicProgramPreferences(): void {
   classicProgramLineNumbersButton.setAttribute("aria-checked", String(classicProgramPreferences.lineNumbers));
@@ -1278,7 +1299,7 @@ classicOutcomeField.addEventListener("change", () => {
 });
 classicStrataField.addEventListener("change", updateClassicCommandPreview);
 classicProgramExampleSelect.addEventListener("change", renderClassicProgramExampleDescription);
-requiredElement("#classic-program-load-example").addEventListener("click", loadSelectedClassicProgramExample);
+classicProgramLoadExampleButton.addEventListener("click", () => loadSelectedClassicProgramExample());
 requiredElement("#classic-program-verify").addEventListener("click", () => runClassicProgram(true));
 requiredElement("#classic-program-run").addEventListener("click", () => runClassicProgram(false));
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="classic"], [data-module="classic"]')) {

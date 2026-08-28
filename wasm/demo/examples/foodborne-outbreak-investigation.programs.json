@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "dataset": {
+    "id": "foodborne-outbreak-investigation",
+    "file": "foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96
+  },
+  "programs": [
+    {
+      "id": "life-stage-by-sex",
+      "title": "Life-stage age groups by sex",
+      "description": "Groups Age into five public-health life stages and runs FREQ within Sex.",
+      "requiredFields": ["Age", "Sex"],
+      "source": "DEFINE AgeGroup TEXTINPUT\nRECODE Age TO AgeGroup\n  LOVALUE - 4 = \"0-4\"\n  4 - 17 = \"5-17\"\n  17 - 44 = \"18-44\"\n  44 - 64 = \"45-64\"\n  64 - HIVALUE = \"65+\"\nEND\nFREQ AgeGroup STRATAVAR=Sex"
+    },
+    {
+      "id": "age-band-by-case-status",
+      "title": "Broad age bands by case status",
+      "description": "Compares child, adult, and older-adult bands within the foodborne Case Status categories.",
+      "requiredFields": ["Age", "case_status"],
+      "source": "DEFINE BroadAgeGroup TEXTINPUT\nRECODE Age TO BroadAgeGroup\n  LOVALUE - 17 = \"0-17\"\n  17 - 64 = \"18-64\"\n  64 - HIVALUE = \"65+\"\nEND\nFREQ BroadAgeGroup STRATAVAR=case_status"
+    },
+    {
+      "id": "age-decades",
+      "title": "Age distribution by decade",
+      "description": "Creates decade-width age categories and runs an overall frequency table without stratification.",
+      "requiredFields": ["Age"],
+      "source": "DEFINE AgeDecade TEXTINPUT\nRECODE Age TO AgeDecade\n  LOVALUE - 9 = \"0-9\"\n  9 - 19 = \"10-19\"\n  19 - 29 = \"20-29\"\n  29 - 39 = \"30-39\"\n  39 - 49 = \"40-49\"\n  49 - 59 = \"50-59\"\n  59 - 69 = \"60-69\"\n  69 - HIVALUE = \"70+\"\nEND\nFREQ AgeDecade"
+    }
+  ]
+}

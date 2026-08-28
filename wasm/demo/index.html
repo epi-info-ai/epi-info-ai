@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=40" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=49"></script>
+  <script type="module" src="app.js?v=50"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -669,11 +669,11 @@
           <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><span id="classic-program-source-name" class="calculation-time">Current project data</span></div>
           <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
           <fieldset class="classic-program-examples">
-            <legend>Example programs</legend>
+            <legend>Foodborne illness example programs</legend>
             <div class="classic-program-example-controls">
               <label for="classic-program-example">Choose an example</label>
-              <select id="classic-program-example"></select>
-              <button id="classic-program-load-example" type="button">Load Example</button>
+              <select id="classic-program-example" disabled><option>Loading foodborne examples…</option></select>
+              <button id="classic-program-load-example" type="button" disabled>Load Example</button>
             </div>
             <p id="classic-program-example-description" class="classic-program-example-description"></p>
           </fieldset>

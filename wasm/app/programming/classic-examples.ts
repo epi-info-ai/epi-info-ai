@@ -1,3 +1,5 @@
+export const CLASSIC_PROGRAM_CATALOG_VERSION = 1 as const;
+
 export interface ClassicProgramExample {
   id: string;
   title: string;
@@ -6,55 +8,82 @@ export interface ClassicProgramExample {
   source: string;
 }
 
-export const CLASSIC_PROGRAM_EXAMPLES: readonly ClassicProgramExample[] = [
-  {
-    id: "life-stage-by-sex",
-    title: "Life-stage age groups by sex",
-    description: "Groups Age into five public-health life stages and runs FREQ within Sex.",
-    requiredFields: ["Age", "Sex"],
-    source: `DEFINE AgeGroup TEXTINPUT
-RECODE Age TO AgeGroup
-  LOVALUE - 4 = "0-4"
-  4 - 17 = "5-17"
-  17 - 44 = "18-44"
-  44 - 64 = "45-64"
-  64 - HIVALUE = "65+"
-END
-FREQ AgeGroup STRATAVAR=Sex`,
-  },
-  {
-    id: "age-band-by-case-status",
-    title: "Broad age bands by case status",
-    description: "Compares child, adult, and older-adult bands within the foodborne Case Status categories.",
-    requiredFields: ["Age", "case_status"],
-    source: `DEFINE BroadAgeGroup TEXTINPUT
-RECODE Age TO BroadAgeGroup
-  LOVALUE - 17 = "0-17"
-  17 - 64 = "18-64"
-  64 - HIVALUE = "65+"
-END
-FREQ BroadAgeGroup STRATAVAR=case_status`,
-  },
-  {
-    id: "age-decades",
-    title: "Age distribution by decade",
-    description: "Creates decade-width age categories and runs an overall frequency table without stratification.",
-    requiredFields: ["Age"],
-    source: `DEFINE AgeDecade TEXTINPUT
-RECODE Age TO AgeDecade
-  LOVALUE - 9 = "0-9"
-  9 - 19 = "10-19"
-  19 - 29 = "20-29"
-  29 - 39 = "30-39"
-  39 - 49 = "40-49"
-  49 - 59 = "50-59"
-  59 - 69 = "60-69"
-  69 - HIVALUE = "70+"
-END
-FREQ AgeDecade`,
-  },
-] as const;
+export interface ClassicProgramExampleCatalog {
+  schemaVersion: typeof CLASSIC_PROGRAM_CATALOG_VERSION;
+  dataset: {
+    id: string;
+    file: string;
+    sha256: string;
+    recordCount: number;
+  };
+  programs: ClassicProgramExample[];
+}
 
-export function classicProgramExampleById(id: string): ClassicProgramExample | undefined {
-  return CLASSIC_PROGRAM_EXAMPLES.find((example) => example.id === id);
+export class ClassicProgramCatalogError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClassicProgramCatalogError";
+  }
+}
+
+function objectValue(value: unknown, path: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new ClassicProgramCatalogError(`${path} must be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function stringValue(value: unknown, path: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new ClassicProgramCatalogError(`${path} must be a non-empty string.`);
+  return value;
+}
+
+export function validateClassicProgramExampleCatalog(value: unknown): ClassicProgramExampleCatalog {
+  const catalog = objectValue(value, "catalog");
+  if (catalog.schemaVersion !== CLASSIC_PROGRAM_CATALOG_VERSION) {
+    throw new ClassicProgramCatalogError(`catalog.schemaVersion must be ${CLASSIC_PROGRAM_CATALOG_VERSION}.`);
+  }
+  const dataset = objectValue(catalog.dataset, "catalog.dataset");
+  if (typeof dataset.recordCount !== "number" || !Number.isSafeInteger(dataset.recordCount) || dataset.recordCount < 0) {
+    throw new ClassicProgramCatalogError("catalog.dataset.recordCount must be a non-negative integer.");
+  }
+  const sha256 = stringValue(dataset.sha256, "catalog.dataset.sha256");
+  if (!/^[a-f0-9]{64}$/i.test(sha256)) throw new ClassicProgramCatalogError("catalog.dataset.sha256 must be a SHA-256 digest.");
+  if (!Array.isArray(catalog.programs) || catalog.programs.length === 0) {
+    throw new ClassicProgramCatalogError("catalog.programs must contain at least one program.");
+  }
+  const ids = new Set<string>();
+  const programs = catalog.programs.map((item, index): ClassicProgramExample => {
+    const program = objectValue(item, `catalog.programs[${index}]`);
+    const id = stringValue(program.id, `catalog.programs[${index}].id`);
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) throw new ClassicProgramCatalogError(`catalog.programs[${index}].id must be a kebab-case identifier.`);
+    if (ids.has(id)) throw new ClassicProgramCatalogError(`catalog.programs contains duplicate id ${JSON.stringify(id)}.`);
+    ids.add(id);
+    if (!Array.isArray(program.requiredFields) || program.requiredFields.length === 0) {
+      throw new ClassicProgramCatalogError(`catalog.programs[${index}].requiredFields must contain at least one field.`);
+    }
+    return {
+      id,
+      title: stringValue(program.title, `catalog.programs[${index}].title`),
+      description: stringValue(program.description, `catalog.programs[${index}].description`),
+      requiredFields: program.requiredFields.map((field, fieldIndex) => stringValue(field, `catalog.programs[${index}].requiredFields[${fieldIndex}]`)),
+      source: stringValue(program.source, `catalog.programs[${index}].source`).replace(/\r\n?/g, "\n"),
+    };
+  });
+  return {
+    schemaVersion: CLASSIC_PROGRAM_CATALOG_VERSION,
+    dataset: {
+      id: stringValue(dataset.id, "catalog.dataset.id"),
+      file: stringValue(dataset.file, "catalog.dataset.file"),
+      sha256: sha256.toLowerCase(),
+      recordCount: dataset.recordCount,
+    },
+    programs,
+  };
+}
+
+export async function loadClassicProgramExampleCatalog(url: URL | string): Promise<ClassicProgramExampleCatalog> {
+  const response = await fetch(url);
+  if (!response.ok) throw new ClassicProgramCatalogError(`Unable to load example program catalog (${response.status}).`);
+  return validateClassicProgramExampleCatalog(await response.json() as unknown);
 }
