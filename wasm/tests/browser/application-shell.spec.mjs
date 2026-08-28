@@ -646,11 +646,23 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await editor.press("a");
   await editor.press("Enter");
   await expect(editor).toContainText("RECODE age");
-  await page.locator("#classic-program-load-age-example").click();
+  await expect(page.locator("#classic-program-example option")).toHaveCount(3);
+  await page.locator("#classic-program-example").selectOption("age-band-by-case-status");
+  await expect(page.locator("#classic-program-example-description")).toContainText("Case Status");
+  await page.locator("#classic-program-load-example").click();
+  await expect(editor).toContainText("DEFINE BroadAgeGroup TEXTINPUT");
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed DEFINE → RECODE → FREQ for 96 records");
+  await expect(page.locator("#classic-program-output-title")).toHaveText("BroadAgeGroup by case_status");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+
+  await page.locator("#classic-program-example").selectOption("life-stage-by-sex");
+  await page.locator("#classic-program-load-example").click();
   await page.locator("#classic-program-verify").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Program verified");
   await expect(page.locator("#classic-program-canonical-source")).toContainText("FREQ AgeGroup STRATAVAR=sex");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("2");
 
   await page.locator("#classic-program-run").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Executed DEFINE → RECODE → FREQ for 96 records");
@@ -665,7 +677,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
     "Male5-17510.4%97.9%3.5%22.7%",
     "Male65+12.1%100.0%0.1%11.1%",
   ]);
-  await expect(page.locator("#classic-program-history-count")).toHaveText("2");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("3");
 
   await editor.fill(`${await editor.innerText()}\nEXECUTE "malware.exe"`);
   await expect(page.locator("#classic-program-live-status")).toContainText("Unsupported command: EXECUTE");
@@ -673,7 +685,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#classic-program-feedback")).toContainText("Unsupported command: EXECUTE");
   await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
   await expect(page.locator("#classic-program-output")).toBeHidden();
-  await expect(page.locator("#classic-program-history-count")).toHaveText("3");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("4");
 });
 
 test("Classic Analysis MEANS derives foodborne Age descriptive statistics", async ({ page }) => {

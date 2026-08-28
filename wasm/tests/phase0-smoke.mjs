@@ -673,6 +673,17 @@ FREQ AgeGroup STRATAVAR=Sex`;
   ]);
   assert.throws(() => programming.parseBoundedClassicProgram(`${source}\nEXECUTE "malware.exe"`, imported.schema.fields), /Unsupported command/);
   assert.throws(() => programming.parseBoundedClassicProgram(source.replace("Age TO", "Sex TO"), imported.schema.fields), /must be a Number field/);
+
+  const examples = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-examples.ts")).href}?examples=${Date.now()}`);
+  assert.deepEqual(examples.CLASSIC_PROGRAM_EXAMPLES.map(({ id }) => id), [
+    "life-stage-by-sex", "age-band-by-case-status", "age-decades",
+  ]);
+  for (const example of examples.CLASSIC_PROGRAM_EXAMPLES) {
+    const examplePlan = programming.parseBoundedClassicProgram(example.source, imported.schema.fields);
+    const exampleData = programming.applyBoundedClassicProgram(imported.records, examplePlan);
+    assert.equal(exampleData.records.length, 96, `${example.id} must preserve the foodborne record count`);
+    assert.ok(exampleData.records.some((record) => typeof record[examplePlan.recode.targetField] === "string"), `${example.id} must derive categories`);
+  }
 }
 
 async function checkMeansContract() {

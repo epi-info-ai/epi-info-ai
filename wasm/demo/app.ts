@@ -16,6 +16,7 @@ import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
 import { CLASSIC_AST_VERSION } from "../app/programming/classic-ast.js";
 import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
+import { CLASSIC_PROGRAM_EXAMPLES, classicProgramExampleById } from "../app/programming/classic-examples.js";
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
@@ -559,18 +560,13 @@ function saveClassicProgramPreferences(): void {
   }
 }
 
-const AGE_GROUP_PROGRAM = `DEFINE AgeGroup TEXTINPUT
-RECODE Age TO AgeGroup
-  LOVALUE - 4 = "0-4"
-  4 - 17 = "5-17"
-  17 - 44 = "18-44"
-  44 - 64 = "45-64"
-  64 - HIVALUE = "65+"
-END
-FREQ AgeGroup STRATAVAR=Sex`;
+const defaultClassicProgramExample = CLASSIC_PROGRAM_EXAMPLES[0]!;
+const classicProgramExampleSelect = requiredElement<HTMLSelectElement>("#classic-program-example");
+const classicProgramExampleDescription = requiredElement<HTMLElement>("#classic-program-example-description");
+classicProgramExampleSelect.replaceChildren(...CLASSIC_PROGRAM_EXAMPLES.map((example) => new Option(example.title, example.id)));
 const classicProgramEditor = createClassicProgramEditor(
   requiredElement<HTMLElement>("#classic-program-source"),
-  AGE_GROUP_PROGRAM,
+  defaultClassicProgramExample.source,
   () => getCurrentProjectData().fields,
   classicProgramPreferences,
   ({ line, column }) => {
@@ -586,6 +582,26 @@ const classicProgramFeedback = requiredElement<HTMLElement>("#classic-program-fe
 const classicProgramOutput = requiredElement<HTMLElement>("#classic-program-output");
 const classicProgramLineNumbersButton = requiredElement<HTMLButtonElement>("#view-program-line-numbers");
 const classicProgramIndentTabsButton = requiredElement<HTMLButtonElement>("#view-program-indent-tabs");
+
+function selectedClassicProgramExample() {
+  return classicProgramExampleById(classicProgramExampleSelect.value) ?? defaultClassicProgramExample;
+}
+
+function renderClassicProgramExampleDescription(): void {
+  const example = selectedClassicProgramExample();
+  classicProgramExampleDescription.textContent = `${example.description} Required fields: ${example.requiredFields.join(", ")}.`;
+}
+
+function loadSelectedClassicProgramExample(): void {
+  const example = selectedClassicProgramExample();
+  classicProgramEditor.setValue(example.source);
+  classicProgramFeedback.textContent = `Loaded “${example.title}”. Review the visible source and cut points before running.`;
+  requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
+  classicProgramOutput.hidden = true;
+  classicProgramEditor.focus();
+}
+
+renderClassicProgramExampleDescription();
 
 function renderClassicProgramPreferences(): void {
   classicProgramLineNumbersButton.setAttribute("aria-checked", String(classicProgramPreferences.lineNumbers));
@@ -1261,12 +1277,8 @@ classicOutcomeField.addEventListener("change", () => {
   updateClassicCommandPreview();
 });
 classicStrataField.addEventListener("change", updateClassicCommandPreview);
-requiredElement("#classic-program-load-age-example").addEventListener("click", () => {
-  classicProgramEditor.setValue(AGE_GROUP_PROGRAM);
-  classicProgramFeedback.textContent = "Loaded the bounded age-group example. Verify the cut points before running.";
-  requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
-  classicProgramEditor.focus();
-});
+classicProgramExampleSelect.addEventListener("change", renderClassicProgramExampleDescription);
+requiredElement("#classic-program-load-example").addEventListener("click", loadSelectedClassicProgramExample);
 requiredElement("#classic-program-verify").addEventListener("click", () => runClassicProgram(true));
 requiredElement("#classic-program-run").addEventListener("click", () => runClassicProgram(false));
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="classic"], [data-module="classic"]')) {

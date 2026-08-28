@@ -2855,6 +2855,32 @@ body.map-fullscreen-fallback {
   margin-bottom: 0;
 }
 
+.classic-program-examples {
+  margin: 1rem 0;
+  padding: 0.8rem;
+}
+
+.classic-program-examples legend,
+.classic-program-example-controls label {
+  font-weight: 700;
+}
+
+.classic-program-example-controls {
+  display: grid;
+  grid-template-columns: auto minmax(14rem, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.classic-program-example-controls select {
+  min-width: 0;
+}
+
+.classic-program-example-description {
+  color: #506271;
+  margin: 0.55rem 0 0;
+}
+
 .classic-program-completion-help {
   color: #506271;
   font-size: 0.82rem;
@@ -2890,6 +2916,11 @@ body.map-fullscreen-fallback {
 }
 
 @media (max-width: 520px) {
+  .classic-program-example-controls {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
   .classic-program-editor-status {
     align-items: flex-start;
     flex-direction: column;

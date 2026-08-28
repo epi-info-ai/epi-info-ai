@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=39" />
+    <link rel="stylesheet" href="styles.css?v=40" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=48"></script>
+  <script type="module" src="app.js?v=49"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -668,13 +668,21 @@
         <section class="panel classic-program-editor" data-module-view="classic" aria-labelledby="classic-program-title">
           <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><span id="classic-program-source-name" class="calculation-time">Current project data</span></div>
           <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
+          <fieldset class="classic-program-examples">
+            <legend>Example programs</legend>
+            <div class="classic-program-example-controls">
+              <label for="classic-program-example">Choose an example</label>
+              <select id="classic-program-example"></select>
+              <button id="classic-program-load-example" type="button">Load Example</button>
+            </div>
+            <p id="classic-program-example-description" class="classic-program-example-description"></p>
+          </fieldset>
           <p id="classic-program-source-label" class="classic-program-label"><strong>Program</strong></p>
           <div id="classic-program-source" class="classic-program-source" aria-labelledby="classic-program-source-label"></div>
           <div class="classic-program-editor-status" aria-label="Program Editor status"><span id="classic-program-cursor-position">Ln 1, Col 1</span><span id="classic-program-tab-status">Tab width 4 · Tabs</span></div>
           <p id="classic-program-completion-help" class="classic-program-completion-help">Command Assist: after <code>RECODE</code>, eligible numeric fields appear automatically. Use arrow keys and Enter or Tab to insert a suggestion; Ctrl+Space opens suggestions manually.</p>
           <p id="classic-program-live-status" class="classic-program-live-status" role="status">Live syntax check is starting.</p>
           <div class="form-actions">
-            <button id="classic-program-load-age-example" type="button">Load Age Groups Example</button>
             <button id="classic-program-verify" type="button">Verify Program</button>
             <button id="classic-program-run" class="primary-button" type="button">Run Commands</button>
           </div>

@@ -284,6 +284,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   `IF`, and `SELECT`, including typed expressions and nested conditional blocks.
   The editor can validate this broader syntax, while execution remains restricted
   to the previously reviewed `DEFINE -> RECODE -> FREQ` demonstration.
+- Added three selectable, editable, and runnable foodborne Program Editor examples:
+  life-stage groups by Sex, broad age bands by Case Status, and an overall age-by-
+  decade distribution. Every example uses the reviewed AST-to-plan path, displays
+  its required fields, and remains visible for review before Verify or Run.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric
