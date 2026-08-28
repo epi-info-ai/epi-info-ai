@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=36" />
+    <link rel="stylesheet" href="styles.css?v=37" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=44"></script>
+  <script type="module" src="app.js?v=45"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -656,6 +656,38 @@
           <div><p class="eyebrow">CLASSIC ANALYSIS</p><h1>Analysis</h1><p>Run familiar FREQ, MEANS, and TABLES commands against the current form.</p></div>
           <div class="engine-badge" title="Descriptive statistics, frequency limits, and adjusted estimates are calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rust candidates · contracts 0.10, 0.9, and 0.8</span></div>
         </div>
+        <section class="panel classic-program-editor" data-module-view="classic" aria-labelledby="classic-program-title">
+          <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><span id="classic-program-source-name" class="calculation-time">Current project data</span></div>
+          <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
+          <label for="classic-program-source"><strong>Program</strong></label>
+          <textarea id="classic-program-source" class="classic-program-source" rows="14" spellcheck="false">DEFINE AgeGroup TEXTINPUT
+RECODE Age TO AgeGroup
+  LOVALUE - 4 = "0-4"
+  4 - 17 = "5-17"
+  17 - 44 = "18-44"
+  44 - 64 = "45-64"
+  64 - HIVALUE = "65+"
+END
+FREQ AgeGroup STRATAVAR=Sex</textarea>
+          <div class="form-actions">
+            <button id="classic-program-load-age-example" type="button">Load Age Groups Example</button>
+            <button id="classic-program-verify" type="button">Verify Program</button>
+            <button id="classic-program-run" class="primary-button" type="button">Run Commands</button>
+          </div>
+          <p id="classic-program-feedback" class="inline-feedback" role="status">Load the foodborne form, then verify or run this bounded program.</p>
+          <div id="classic-program-canonical" class="classic-command-preview" hidden><strong>Validated effective program</strong><pre id="classic-program-canonical-source"></pre></div>
+        </section>
+        <section id="classic-program-output" class="panel" data-module-view="classic" aria-labelledby="classic-program-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">PROGRAM OUTPUT</p><h2 id="classic-program-output-title">AgeGroup frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Stratum</th><th scope="col">Age group</th><th scope="col">Frequency</th><th scope="col">Percent</th><th scope="col">Cum. Percent</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead><tbody id="classic-program-output-rows"></tbody></table></div>
+        </section>
+        <section class="panel" data-module-view="classic" aria-labelledby="classic-program-history-title">
+          <details id="classic-program-history">
+            <summary id="classic-program-history-title">Command history (<span id="classic-program-history-count">0</span>)</summary>
+            <p class="compatibility-note">Local V0.1 history records verification and execution from this Program Editor. Manual, Visual Epi Info, Epi Assist, and plugin origins join this same contract in later slices.</p>
+            <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Time</th><th scope="col">Origin</th><th scope="col">Status</th><th scope="col">Command</th><th scope="col">Summary</th></tr></thead><tbody id="classic-program-history-rows"></tbody></table></div>
+          </details>
+        </section>
         <section class="panel classic-frequency-command" data-module-view="classic" aria-labelledby="classic-frequency-command-title">
           <div class="panel-heading"><div><p class="step-label">FREQ command</p><h2 id="classic-frequency-command-title">Frequency</h2></div><span id="frequency-source-name" class="calculation-time">Current project data</span></div>
           <form id="frequency-form">

@@ -613,6 +613,42 @@ test("Classic Analysis FREQ derives the foodborne Case Status distribution", asy
   await expect(page.locator("#frequency-stratified-rows")).toContainText("Male");
 });
 
+test("Program Editor safely runs the taught age-group RECODE and records history", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="classic"]').click();
+  await expect(page.locator("#classic-program-source-name")).toContainText("96 records");
+  await page.locator("#classic-program-verify").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Program verified");
+  await expect(page.locator("#classic-program-canonical-source")).toContainText("FREQ AgeGroup STRATAVAR=sex");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed DEFINE → RECODE → FREQ for 96 records");
+  await expect(page.locator("#classic-program-output-rows tr")).toHaveCount(8);
+  expect(await page.locator("#classic-program-output-rows tr").allTextContents()).toEqual([
+    "Female18-442041.7%41.7%27.6%56.8%",
+    "Female45-641327.1%68.8%15.3%41.8%",
+    "Female5-17510.4%79.2%3.5%22.7%",
+    "Female65+1020.8%100.0%10.5%35.0%",
+    "Male18-442654.2%54.2%39.2%68.6%",
+    "Male45-641633.3%87.5%20.4%48.4%",
+    "Male5-17510.4%97.9%3.5%22.7%",
+    "Male65+12.1%100.0%0.1%11.1%",
+  ]);
+  await expect(page.locator("#classic-program-history-count")).toHaveText("2");
+
+  await page.locator("#classic-program-source").fill(`${await page.locator("#classic-program-source").inputValue()}\nEXECUTE "malware.exe"`);
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Unsupported command: EXECUTE");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
+  await expect(page.locator("#classic-program-output")).toBeHidden();
+  await expect(page.locator("#classic-program-history-count")).toHaveText("3");
+});
+
 test("Classic Analysis MEANS derives foodborne Age descriptive statistics", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();

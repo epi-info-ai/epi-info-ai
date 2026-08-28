@@ -2806,6 +2806,32 @@ body.map-fullscreen-fallback {
   overflow-wrap: anywhere;
 }
 
+.classic-program-source {
+  box-sizing: border-box;
+  font-family: Consolas, "Courier New", monospace;
+  line-height: 1.45;
+  margin-top: 0.35rem;
+  min-height: 18rem;
+  tab-size: 2;
+  width: 100%;
+}
+
+.classic-program-editor .classic-command-preview pre {
+  background: transparent;
+  border: 0;
+  font-family: Consolas, "Courier New", monospace;
+  margin: 0.5rem 0 0;
+  overflow: auto;
+  padding: 0;
+  white-space: pre;
+}
+
+#classic-program-history summary {
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
 .rate-per-divider {
   grid-column: 1 / -1;
   display: flex;

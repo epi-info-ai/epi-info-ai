@@ -34,6 +34,7 @@ silently resolved, with the inspected release and evidence cited.
 | Saved program composition | generate/edit -> save/open `.pgm7` -> selected/full run -> `RUNPGM` | IDE persistence, bounded composition, selection execution, and run-history fixture |
 | Sample line listing | `READ -> LIST` including selected fields and `* EXCEPT` | Dataset session and structured Output fixture |
 | Sample outbreak analysis | `READ -> TABLES ... STRATAVAR -> MEANS` with routed output | Multi-command orchestration over validated operations; desktop `EXECUTE` remains blocked/adapted |
+| Age-range analysis | `DEFINE -> RECODE age ranges -> FREQ ... STRATAVAR` | First executable bounded Program Editor fixture over the foodborne data |
 
 ## Promotion into executable fixtures
 

@@ -48,6 +48,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/contracts/core.ts",
     "wasm/app/contracts/assistant.ts",
     "wasm/app/assistant/proposals.ts",
+    "wasm/app/programming/classic-program.ts",
+    "wasm/app/programming/run-history.ts",
     "wasm/app/contracts/project-package.ts",
     "wasm/app/forms/geocoding.ts",
     "wasm/demo/epi2x2.wasm",
@@ -72,6 +74,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/stratified-table2x2-method-contract.md",
     "wasm/docs/validation/frequency-method-contract.md",
     "wasm/docs/validation/stratified-frequency-method-contract.md",
+    "wasm/docs/validation/classic-program-v0.1-contract.md",
     "wasm/docs/validation/means-method-contract.md",
     "wasm/docs/validation/rate-method-contract.md",
     "wasm/docs/validation/population-survey-method-contract.md",
@@ -639,6 +642,34 @@ async function checkFrequencyContract() {
   assert.equal(stratified.command, "FREQ age STRATAVAR=sex");
   assert.deepEqual(stratified.strata.map((stratum) => [stratum.value, stratum.result.totals.sourceRecords]), [["Female", 48], ["Male", 48]]);
   assert.equal(stratified.strata.reduce((total, stratum) => total + stratum.result.totals.includedRecords, 0), 96);
+
+  const programming = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program.ts")).href}?program=${Date.now()}`);
+  const source = `DEFINE AgeGroup TEXTINPUT
+RECODE Age TO AgeGroup
+LOVALUE - 4 = "0-4"
+4 - 17 = "5-17"
+17 - 44 = "18-44"
+44 - 64 = "45-64"
+64 - HIVALUE = "65+"
+END
+FREQ AgeGroup STRATAVAR=Sex`;
+  const plan = programming.parseBoundedClassicProgram(source, imported.schema.fields);
+  assert.equal(plan.version, "0.1.0");
+  assert.equal(plan.recode.sourceField, "age");
+  assert.equal(plan.frequency.stratifyBy, "sex");
+  assert.match(plan.canonicalSource, /FREQ AgeGroup STRATAVAR=sex$/);
+  const applied = programming.applyBoundedClassicProgram(imported.records, plan);
+  const grouped = deriveStratifiedFrequency(applied.records, {
+    field: plan.frequency.field, prompt: plan.frequency.field, includeMissing: false,
+    stratifyBy: plan.frequency.stratifyBy, stratifyPrompt: plan.frequency.stratifyBy,
+  });
+  assert.deepEqual(grouped.strata.flatMap((stratum) => stratum.result.categories.map((category) =>
+    [stratum.value, category.value, category.frequency])), [
+    ["Female", "18-44", 20], ["Female", "45-64", 13], ["Female", "5-17", 5], ["Female", "65+", 10],
+    ["Male", "18-44", 26], ["Male", "45-64", 16], ["Male", "5-17", 5], ["Male", "65+", 1],
+  ]);
+  assert.throws(() => programming.parseBoundedClassicProgram(`${source}\nEXECUTE "malware.exe"`, imported.schema.fields), /Unsupported command/);
+  assert.throws(() => programming.parseBoundedClassicProgram(source.replace("Age TO", "Sex TO"), imported.schema.fields), /must be a Number field/);
 }
 
 async function checkMeansContract() {

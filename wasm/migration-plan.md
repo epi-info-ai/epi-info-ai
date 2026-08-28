@@ -641,6 +641,15 @@ browser IDE is the roadmap for this phase. The complete capability floor, stable
 gap IDs, new branches, six implementation waves, and closure rules are maintained
 in the [programming IDE compatibility inventory](docs/design/programming-ide-compatibility-inventory.md).
 
+**First executable V0.1 slice complete:** Classic Analysis now exposes visible
+editable source, Verify Program, Run Commands, trusted canonical output, structured
+frequency results, and browser-local history for the ordered
+`DEFINE TEXTINPUT -> numeric RECODE -> FREQ [STRATAVAR]` shape. The canonical
+foodborne AgeGroup-by-Sex program is covered end to end. An appended `EXECUTE`
+command is rejected with a line diagnostic and no output. This does not complete
+the familiar workspace, program persistence, general parser, selected execution,
+or unified history requirements.
+
 ### Delivery order
 
 1. Complete the command/function/event/dialog inventory and executable fixtures.

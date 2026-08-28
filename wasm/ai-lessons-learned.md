@@ -140,6 +140,18 @@ privacy, security, or production readiness.
 - **Privacy:** exact user prompts remain local by default. A future learning event
   may include only an approved, previewed and redacted derivative.
 
+### 2026-08-28 — Typed plans can safely bridge source and tools
+
+- **Observation:** the CDC-taught age-range workflow needs multiple commands:
+  `DEFINE`, `RECODE`, and `FREQ`, not a larger single Frequency tool.
+- **Decision:** the first Program Editor parser accepts only that bounded ordered
+  shape, resolves fields and types, generates trusted canonical source, and sends
+  only the final frequency operation to the existing validated engine.
+- **Safety result:** appending `EXECUTE "malware.exe"` produces a line-numbered
+  rejection before any operation runs. The source is never evaluated as code.
+- **AI implication:** future Granite multi-step proposals should target this same
+  typed plan. They do not need or receive a general program-execution tool.
+
 ## Required evaluation layers
 
 - **Contract tests:** every model action is known, typed, field-grounded, bounded,

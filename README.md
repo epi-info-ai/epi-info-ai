@@ -265,6 +265,11 @@ checksums, expected metadata, and combined testing workflow are documented in
   prompt/tool/context versions, model ID/revision, WebGPU dtype, Transformers.js
   version, and generation settings. Prompts stay local by default; the current
   mutable model revision remains a production TODO.
+- Added the first executable Classic Analysis Program Editor slice. Users can
+  verify and run the CDC-taught `DEFINE AgeGroup -> RECODE Age -> FREQ AgeGroup
+  STRATAVAR=Sex` program against the foodborne data, inspect trusted canonical
+  source and structured output, and review local run history. Unsupported commands
+  such as `EXECUTE` are rejected before anything runs.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric

@@ -14,8 +14,11 @@ import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
+import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
+import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 import type { EpiCurveResult } from "../app/contracts/dashboard.js";
+import type { EpiRecord } from "../app/contracts/core.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -530,6 +533,9 @@ const classicExposedValues = requiredElement<HTMLSelectElement>("#classic-expose
 const classicCaseValues = requiredElement<HTMLSelectElement>("#classic-case-values");
 const classicConfidenceLevel = requiredElement<HTMLSelectElement>("#classic-confidence-level");
 const classicFeedback = requiredElement<HTMLElement>("#classic-tables-feedback");
+const classicProgramSource = requiredElement<HTMLTextAreaElement>("#classic-program-source");
+const classicProgramFeedback = requiredElement<HTMLElement>("#classic-program-feedback");
+const classicProgramOutput = requiredElement<HTMLElement>("#classic-program-output");
 const frequencyForm = requiredElement<HTMLFormElement>("#frequency-form");
 const frequencyField = requiredElement<HTMLSelectElement>("#frequency-field");
 const frequencyStrataField = requiredElement<HTMLSelectElement>("#frequency-strata-field");
@@ -564,6 +570,16 @@ const epiCurveOutput = requiredElement<HTMLElement>("#epi-curve-output");
 let lastEpiCurveResult: EpiCurveResult | null = null;
 let nextStratumId = 3;
 let stratifiedController: AbortController | null = null;
+
+const AGE_GROUP_PROGRAM = `DEFINE AgeGroup TEXTINPUT
+RECODE Age TO AgeGroup
+  LOVALUE - 4 = "0-4"
+  4 - 17 = "5-17"
+  17 - 44 = "18-44"
+  44 - 64 = "45-64"
+  64 - HIVALUE = "65+"
+END
+FREQ AgeGroup STRATAVAR=Sex`;
 
 function selectedValues(select: HTMLSelectElement): string[] {
   return [...select.selectedOptions].map((option) => option.value);
@@ -636,6 +652,121 @@ function refreshFrequencySelector(): void {
 
 function percent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
+}
+
+function renderProgramHistory(): void {
+  const history = readProgramRunHistory();
+  requiredElement("#classic-program-history-count").textContent = String(history.length);
+  const rows = history.slice(0, 20).map((entry) => {
+    const row = document.createElement("tr");
+    const command = entry.canonicalSource?.split("\n").at(-1) ?? entry.source.split("\n").find((line) => line.trim()) ?? "";
+    for (const value of [
+      new Date(entry.occurredAt).toLocaleString(),
+      entry.origin,
+      entry.status,
+      command,
+      entry.summary,
+    ]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  });
+  requiredElement("#classic-program-history-rows").replaceChildren(...rows);
+}
+
+function recordProgramRun(entry: Omit<ProgramRunHistoryEntry, "version" | "id" | "occurredAt">): void {
+  appendProgramRunHistory(entry);
+  renderProgramHistory();
+}
+
+function validateProgram(): { plan: BoundedClassicProgramPlan; source: ReturnType<typeof getCurrentProjectData> } {
+  const source = getCurrentProjectData();
+  const plan = parseBoundedClassicProgram(classicProgramSource.value, source.fields);
+  requiredElement("#classic-program-canonical-source").textContent = plan.canonicalSource;
+  requiredElement<HTMLElement>("#classic-program-canonical").hidden = false;
+  return { plan, source };
+}
+
+function renderProgramFrequency(plan: BoundedClassicProgramPlan, records: EpiRecord[]): { rows: number; included: number } {
+  const request = { field: plan.frequency.field, prompt: plan.frequency.field, includeMissing: false };
+  const result = plan.frequency.stratifyBy
+    ? deriveStratifiedFrequency(records, {
+      ...request,
+      stratifyBy: plan.frequency.stratifyBy,
+      stratifyPrompt: plan.frequency.stratifyBy,
+    })
+    : deriveFrequency(records, request);
+  const strata = result.operation === "epi.frequency.stratified"
+    ? result.strata.map((stratum) => ({ label: stratum.value, result: stratum.result }))
+    : [{ label: "All records", result }];
+  const rows = strata.flatMap((stratum) => stratum.result.categories.map((category) => {
+    const row = document.createElement("tr");
+    for (const value of [
+      stratum.label,
+      category.value,
+      String(category.frequency),
+      percent(category.percent),
+      percent(category.cumulativePercent),
+      percent(category.confidenceInterval.lower),
+      percent(category.confidenceInterval.upper),
+    ]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  }));
+  requiredElement("#classic-program-output-rows").replaceChildren(...rows);
+  requiredElement("#classic-program-output-title").textContent = `${plan.frequency.field}${plan.frequency.stratifyBy ? ` by ${plan.frequency.stratifyBy}` : ""}`;
+  classicProgramOutput.hidden = false;
+  return {
+    rows: rows.length,
+    included: strata.reduce((total, stratum) => total + stratum.result.totals.includedRecords, 0),
+  };
+}
+
+function runClassicProgram(verifyOnly: boolean): void {
+  let project = getCurrentProjectData();
+  try {
+    const validated = validateProgram();
+    project = validated.source;
+    if (verifyOnly) {
+      classicProgramFeedback.textContent = "Program verified. Three allowlisted statements produced a typed V0.1 execution plan; nothing was run.";
+      recordProgramRun({
+        origin: "user-program", status: "verified", planVersion: validated.plan.version,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: classicProgramSource.value, canonicalSource: validated.plan.canonicalSource,
+        summary: "Verified DEFINE → RECODE → FREQ plan without execution.", diagnostics: [],
+      });
+      return;
+    }
+    const applied = applyBoundedClassicProgram(project.records, validated.plan);
+    const output = renderProgramFrequency(validated.plan, applied.records);
+    classicProgramFeedback.textContent = `Executed DEFINE → RECODE → FREQ for ${output.included} records and produced ${output.rows} output rows. The current form was not modified.`;
+    recordProgramRun({
+      origin: "user-program", status: "succeeded", planVersion: validated.plan.version,
+      projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+      source: classicProgramSource.value, canonicalSource: validated.plan.canonicalSource,
+      summary: `Produced ${output.rows} frequency rows from ${output.included} included records.`, diagnostics: [],
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to verify the program.";
+    classicProgramFeedback.textContent = `${message} Nothing was run.`;
+    classicProgramOutput.hidden = true;
+    requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
+    recordProgramRun({
+      origin: "user-program", status: "failed", planVersion: CLASSIC_PROGRAM_PLAN_VERSION,
+      projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+      source: classicProgramSource.value, summary: "Program rejected before execution.", diagnostics: [message],
+    });
+  }
+}
+
+function refreshClassicProgramContext(): void {
+  const source = getCurrentProjectData();
+  requiredElement("#classic-program-source-name").textContent = `${source.formName} · ${source.records.length} records`;
 }
 
 function renderFrequency(result: FrequencyResult): void {
@@ -1053,7 +1184,16 @@ classicOutcomeField.addEventListener("change", () => {
   updateClassicCommandPreview();
 });
 classicStrataField.addEventListener("change", updateClassicCommandPreview);
+requiredElement("#classic-program-load-age-example").addEventListener("click", () => {
+  classicProgramSource.value = AGE_GROUP_PROGRAM;
+  classicProgramFeedback.textContent = "Loaded the bounded age-group example. Verify the cut points before running.";
+  requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
+  classicProgramSource.focus();
+});
+requiredElement("#classic-program-verify").addEventListener("click", () => runClassicProgram(true));
+requiredElement("#classic-program-run").addEventListener("click", () => runClassicProgram(false));
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="classic"], [data-module="classic"]')) {
+  button.addEventListener("click", refreshClassicProgramContext);
   button.addEventListener("click", refreshClassicTablesSelectors);
   button.addEventListener("click", refreshFrequencySelector);
   button.addEventListener("click", refreshMeansSelector);
@@ -1167,6 +1307,8 @@ classicTablesForm.addEventListener("submit", (event) => {
   }
 });
 refreshClassicTablesSelectors();
+refreshClassicProgramContext();
+renderProgramHistory();
 refreshFrequencySelector();
 refreshMeansSelector();
 refreshRatesSelectors();

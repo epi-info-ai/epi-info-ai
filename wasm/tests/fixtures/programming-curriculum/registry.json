@@ -71,6 +71,16 @@
       "workflow": ["open-data", "configure-output", "analyze", "close-output", "open-result"],
       "executionPolicy": "execute-command-blocked-or-adapted",
       "state": "catalogued"
+    },
+    {
+      "id": "CURR-PGM-005",
+      "title": "Create and analyze age ranges",
+      "evidenceClass": "command-reference-example",
+      "source": "https://www.cdc.gov/epiinfo/user-guide/command-reference/analysis-commands-recode.html",
+      "commands": ["DEFINE", "RECODE", "FREQ"],
+      "workflow": ["define-derived-variable", "recode-numeric-ranges", "frequency-by-strata"],
+      "executionPolicy": "allowlisted-bounded-v0.1",
+      "state": "executable"
     }
   ]
 }
