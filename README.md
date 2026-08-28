@@ -16,7 +16,13 @@ Project materials currently live in [`wasm/`](wasm/):
 - [`docs/design/maps-compatibility-inventory.md`](wasm/docs/design/maps-compatibility-inventory.md) - C# Maps assets, manual behaviors, browser status, and adaptation decisions;
 - [`docs/reference/`](wasm/docs/reference/) - official historical reference material.
 
-The upstream Epi Info Community Edition source is tracked as a submodule under `wasm/source/Epi-Info-Community-Edition` for behavioral and algorithmic reference.
+The Epi Info Community Edition source is tracked as an optional submodule under
+`wasm/source/Epi-Info-Community-Edition` for behavioral and algorithmic reference.
+Its complete upstream history is mirrored in the private CDC GitLab project
+[`epi-info-community-edition`](https://git.cdc.gov/epi-info-ai/epi-info-community-edition),
+while the submodule remains pinned to reviewed upstream commit `4cd353c6`.
+Ordinary application builds, CI, and demos do not require the approximately
+260 MiB working-tree checkout; initialize it only for legacy audits.
 
 Clone it with:
 
@@ -274,11 +280,6 @@ checksums, expected metadata, and combined testing workflow are documented in
 
 ## TODO
 
-- Mirror the pinned `Epi-Info-Community-Edition` legacy-source submodule into a
-  CDC GitLab archival repository, preserving upstream commit provenance and
-  license/history; update the submodule URL to the CDC-controlled mirror and
-  document an optional shallow checkout so ordinary builds, CI, and demos do not
-  download the approximately 260 MiB legacy working tree.
 - Add a reusable, optional UI walkthrough to every user-facing page after the
   core migration phases are complete:
   - launch from the page Help control and allow replay at any time;
