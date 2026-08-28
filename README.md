@@ -261,6 +261,10 @@ checksums, expected metadata, and combined testing workflow are documented in
   representative Check Code and Classic Analysis command sequences taught in CDC
   tutorials, the NIOSH recoding lesson, command-reference examples, and Sample
   programs for progressive parser and execution acceptance tests.
+- Epi Assist now exposes local AI run details: exact user/system prompts,
+  prompt/tool/context versions, model ID/revision, WebGPU dtype, Transformers.js
+  version, and generation settings. Prompts stay local by default; the current
+  mutable model revision remains a production TODO.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric

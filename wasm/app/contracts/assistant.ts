@@ -29,3 +29,18 @@ export interface EpiAssistProposal {
   rationale: string;
   actions: EpiAssistAction[];
 }
+
+export interface EpiAssistRunMetadata {
+  schemaVersion: "1.0.0";
+  model: {
+    id: string;
+    revision: string;
+    device: "webgpu";
+    dtype: "fp16";
+  };
+  runtime: { name: "transformers.js"; version: string };
+  prompt: { systemVersion: string; system: string; user: string };
+  toolSchemaVersion: string;
+  contextVersion: typeof EPI_ASSIST_CONTEXT_VERSION;
+  generation: { maxNewTokens: number; doSample: false; returnFullText: false };
+}

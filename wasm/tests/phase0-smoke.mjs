@@ -151,6 +151,10 @@ async function checkRequiredAssetsAndUi() {
     "epi-assist-guided",
     "epi-assist-ask",
     "epi-assist-actions",
+    "epi-assist-run-details",
+    "epi-assist-run-model",
+    "epi-assist-run-user-prompt",
+    "epi-assist-run-system-prompt",
     "csv-import",
     "csv-export",
     "enter-open-maps",
@@ -1369,6 +1373,15 @@ async function checkEpiAssistProposalBoundary() {
   assert.deepEqual(partial.actions.map((action) => action.kind), ["run-frequency"]);
   assert.match(partial.rationale, /1 other call was discarded/);
   assert.throws(() => proposals.parseEpiAssistToolCalls('<tool_call>{"name":"run_frequency","arguments":{"field_name":"invented"}}</tool_call>', context), /No Granite tool call passed validation/);
+
+  const workerSource = await readFile(repositoryPath("wasm/demo/epi-assist-worker.ts"), "utf8");
+  for (const provenanceMarker of [
+    'MODEL_REVISION = "main"',
+    'RUNTIME_VERSION = "3.7.5"',
+    'SYSTEM_PROMPT_VERSION = "epi-assist-system-v1"',
+    'TOOL_SCHEMA_VERSION = "epi-assist-tools-v2"',
+    "prompt: { systemVersion: SYSTEM_PROMPT_VERSION, system: SYSTEM_PROMPT, user: event.data.prompt }",
+  ]) assert.ok(workerSource.includes(provenanceMarker), `Epi Assist must retain ${provenanceMarker}`);
 }
 
 async function run() {

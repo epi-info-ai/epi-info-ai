@@ -1,5 +1,5 @@
 import { buildGuidedProposal, parseEpiAssistToolCalls } from "../app/assistant/proposals.ts";
-import { EPI_ASSIST_CONTEXT_VERSION, type EpiAssistAction, type EpiAssistContext, type EpiAssistProposal } from "../app/contracts/assistant.ts";
+import { EPI_ASSIST_CONTEXT_VERSION, type EpiAssistAction, type EpiAssistContext, type EpiAssistProposal, type EpiAssistRunMetadata } from "../app/contracts/assistant.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
 import { buildDataQualityReport } from "../app/forms/data-quality.ts";
 
@@ -77,7 +77,29 @@ function runAction(action: EpiAssistAction): void {
   requiredElement<HTMLButtonElement>("#epi-curve-run").click();
 }
 
-function renderProposal(proposal: EpiAssistProposal, context: EpiAssistContext, source: "granite" | "guided" | "granite-fallback"): void {
+function isRunMetadata(value: unknown): value is EpiAssistRunMetadata {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<EpiAssistRunMetadata>;
+  return candidate.schemaVersion === "1.0.0"
+    && typeof candidate.model?.id === "string"
+    && typeof candidate.model.revision === "string"
+    && typeof candidate.prompt?.system === "string"
+    && typeof candidate.prompt.user === "string";
+}
+
+function renderRunMetadata(metadata?: EpiAssistRunMetadata): void {
+  const details = requiredElement<HTMLDetailsElement>("#epi-assist-run-details");
+  details.hidden = !metadata;
+  details.open = false;
+  if (!metadata) return;
+  requiredElement("#epi-assist-run-model").textContent = `${metadata.model.id} @ ${metadata.model.revision} · ${metadata.model.device}/${metadata.model.dtype}`;
+  requiredElement("#epi-assist-run-runtime").textContent = `${metadata.runtime.name} ${metadata.runtime.version} · ${metadata.prompt.systemVersion} · ${metadata.toolSchemaVersion}`;
+  requiredElement("#epi-assist-run-user-prompt").textContent = metadata.prompt.user;
+  requiredElement("#epi-assist-run-system-prompt").textContent = metadata.prompt.system;
+  requiredElement("#epi-assist-run-generation").textContent = JSON.stringify(metadata.generation, null, 2);
+}
+
+function renderProposal(proposal: EpiAssistProposal, context: EpiAssistContext, source: "granite" | "guided" | "granite-fallback", metadata?: EpiAssistRunMetadata): void {
   requiredElement("#epi-assist-result").hidden = false;
   requiredElement("#epi-assist-result-source").textContent = source === "granite"
     ? `Local proposal from ${MODEL_LABEL}`
@@ -86,6 +108,7 @@ function renderProposal(proposal: EpiAssistProposal, context: EpiAssistContext, 
       : "Deterministic guided suggestions (Granite not used)";
   requiredElement("#epi-assist-result-summary").textContent = proposal.summary;
   requiredElement("#epi-assist-result-rationale").textContent = proposal.rationale;
+  renderRunMetadata(metadata);
   const actions = proposal.actions.map((action) => {
     const item = document.createElement("li");
     const button = document.createElement("button");
@@ -116,7 +139,7 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
 
   const ensureWorker = () => {
     if (worker) return worker;
-    worker = new Worker(new URL("./epi-assist-worker.js?v=3", import.meta.url), { type: "module" });
+    worker = new Worker(new URL("./epi-assist-worker.js?v=4", import.meta.url), { type: "module" });
     worker.addEventListener("message", (event: MessageEvent<Record<string, unknown>>) => {
       if (event.data.type === "status") status.textContent = String(event.data.message ?? "Working locally…");
       if (event.data.type === "progress") {
@@ -132,7 +155,8 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
       if (event.data.type === "result") {
         try {
           if (!pendingContext) throw new Error("The current form context is no longer available.");
-          renderProposal(parseEpiAssistToolCalls(String(event.data.response ?? ""), pendingContext), pendingContext, "granite");
+          const metadata = isRunMetadata(event.data.metadata) ? event.data.metadata : undefined;
+          renderProposal(parseEpiAssistToolCalls(String(event.data.response ?? ""), pendingContext), pendingContext, "granite", metadata);
           status.textContent = "Proposal ready. Review an action before running it.";
         } catch (error) {
           if (!pendingContext) {

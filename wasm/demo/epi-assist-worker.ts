@@ -1,6 +1,13 @@
 import { env, pipeline } from "@huggingface/transformers";
+import type { EpiAssistRunMetadata } from "../app/contracts/assistant.ts";
 
 const MODEL_ID = "onnx-community/granite-4.0-350m-ONNX-web";
+const MODEL_REVISION = "main";
+const RUNTIME_VERSION = "3.7.5";
+const SYSTEM_PROMPT_VERSION = "epi-assist-system-v1";
+const TOOL_SCHEMA_VERSION = "epi-assist-tools-v2";
+const MAX_NEW_TOKENS = 360;
+const SYSTEM_PROMPT = "You are Epi Assist inside Epi Info AI. Use only the supplied aggregate context and call one or more supplied tools that match the request. Call every requested tool separately. Use exact field enum values. Do not calculate results, invent fields, change data, emit code, or answer with ordinary prose.";
 type WorkerRequest = { type: "load" } | { type: "generate"; prompt: string; context: unknown };
 type GraniteTokenizer = {
   apply_chat_template: (messages: Array<{ role: string; content: string }>, options: Record<string, unknown>) => unknown;
@@ -22,6 +29,7 @@ async function loadModel(): Promise<GraniteGenerator> {
   send("status", { message: "Downloading or opening cached Granite model files…" });
   const createPipeline = pipeline as unknown as (...arguments_: unknown[]) => Promise<GraniteGenerator>;
   generator = await createPipeline("text-generation", MODEL_ID, {
+    revision: MODEL_REVISION,
     device: "webgpu",
     dtype: "fp16",
     progress_callback: (progress: { status?: string; file?: string; progress?: number }) => send("progress", progress),
@@ -99,17 +107,25 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
       const model = await loadModel();
       if (event.data.type === "load") return;
       send("status", { message: "Granite is preparing a local proposal…" });
-      const system = "You are Epi Assist inside Epi Info AI. Use only the supplied aggregate context and call one or more supplied tools that match the request. Call every requested tool separately. Use exact field enum values. Do not calculate results, invent fields, change data, emit code, or answer with ordinary prose.";
       const user = `${event.data.prompt}\n\nCURRENT AGGREGATE CONTEXT:\n${JSON.stringify(event.data.context)}`;
       const rendered = model.tokenizer.apply_chat_template([
-        { role: "system", content: system },
+        { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: user },
       ], { tools: toolDefinitions(event.data.context), tokenize: false, add_generation_prompt: true });
       if (typeof rendered !== "string") throw new Error("Granite's tool-aware chat template did not render text.");
-      const result = await model(rendered, { max_new_tokens: 360, do_sample: false, return_full_text: false });
+      const result = await model(rendered, { max_new_tokens: MAX_NEW_TOKENS, do_sample: false, return_full_text: false });
       const response = resultText(result);
       if (!response) throw new Error("Granite returned an empty response.");
-      send("result", { response });
+      const metadata: EpiAssistRunMetadata = {
+        schemaVersion: "1.0.0",
+        model: { id: MODEL_ID, revision: MODEL_REVISION, device: "webgpu", dtype: "fp16" },
+        runtime: { name: "transformers.js", version: RUNTIME_VERSION },
+        prompt: { systemVersion: SYSTEM_PROMPT_VERSION, system: SYSTEM_PROMPT, user: event.data.prompt },
+        toolSchemaVersion: TOOL_SCHEMA_VERSION,
+        contextVersion: 1,
+        generation: { maxNewTokens: MAX_NEW_TOKENS, doSample: false, returnFullText: false },
+      };
+      send("result", { response, metadata });
     } catch (error) {
       send("error", { message: error instanceof Error ? error.message : String(error) });
     }

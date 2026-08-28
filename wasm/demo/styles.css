@@ -3166,6 +3166,21 @@ body.map-fullscreen-fallback {
   padding-left: 1.35rem;
 }
 
+.epi-assist-run-details {
+  border-top: 1px solid #c9d7df;
+  margin-top: 0.8rem;
+  padding-top: 0.65rem;
+}
+
+.epi-assist-run-details pre {
+  background: #f4f7f9;
+  border: 1px solid #c9d7df;
+  max-height: 10rem;
+  overflow: auto;
+  padding: 0.55rem;
+  white-space: pre-wrap;
+}
+
 .assistant-focus-row {
   outline: 3px solid #f4ad00;
   outline-offset: -2px;

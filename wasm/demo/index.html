@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=35" />
+    <link rel="stylesheet" href="styles.css?v=36" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=43"></script>
+  <script type="module" src="app.js?v=44"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -939,6 +939,17 @@
             <h3>Reviewed actions</h3>
             <p>Each button opens an existing Epi Info AI workflow. Nothing runs until you select it.</p>
             <ul id="epi-assist-actions"></ul>
+            <details id="epi-assist-run-details" class="epi-assist-run-details" hidden>
+              <summary>AI run details</summary>
+              <p><strong>Model</strong><br><span id="epi-assist-run-model"></span></p>
+              <p><strong>Runtime and prompt schemas</strong><br><span id="epi-assist-run-runtime"></span></p>
+              <p><strong>User prompt (local history only)</strong></p>
+              <pre id="epi-assist-run-user-prompt"></pre>
+              <p><strong>System prompt</strong></p>
+              <pre id="epi-assist-run-system-prompt"></pre>
+              <p><strong>Generation settings</strong></p>
+              <pre id="epi-assist-run-generation"></pre>
+            </details>
           </section>
         </div>
         <footer class="legacy-dialog-actions">

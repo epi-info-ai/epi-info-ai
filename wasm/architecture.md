@@ -484,7 +484,10 @@ All operation entry points append to one run-history contract. Manual dialogs,
 traditional Program source, Visual Epi Info flows, and reviewed Epi Assist plans
 record the same canonical command, typed-plan schema version, origin, approval
 state when applicable, project/dataset revision, engine and application versions,
-timestamp, outcome, diagnostics, and immutable output/provenance reference. The
+timestamp, outcome, diagnostics, and immutable output/provenance reference. AI
+entries additionally retain the exact user prompt locally, model ID and immutable
+revision, device/dtype, runtime version, exact versioned system prompt, tool/context
+schema versions, and generation settings. The
 origin remains visible (`manual`, `user-program`, `visual-flow`, `epi-assist`, or
 `plugin`) without changing calculation semantics.
 

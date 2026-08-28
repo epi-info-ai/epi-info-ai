@@ -33,6 +33,11 @@ the user back to Data Quality, `FREQ`, and Epi Curve using those existing screen
   action, and the host opens an existing workflow. Granite cannot execute code,
   alter records, call the Rust kernel directly, access storage credentials, or
   make network requests through a host tool.
+- Provenance: every model result exposes its exact local user and system prompts,
+  prompt/tool/context schema versions, model ID/revision, WebGPU dtype, runtime
+  version, and generation settings. User prompts remain local by default. The
+  prototype's mutable `main` model revision must be replaced by an approved pinned
+  revision and artifact hashes before production claims.
 
 The model choice follows IBM's [Granite 4.0 model documentation](https://www.ibm.com/granite/docs/models/granite4-0)
 and [official Granite WebGPU demonstration](https://huggingface.co/spaces/ibm-granite/Granite-4.0-WebGPU).

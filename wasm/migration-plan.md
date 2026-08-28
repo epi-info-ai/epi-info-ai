@@ -655,6 +655,8 @@ in the [programming IDE compatibility inventory](docs/design/programming-ide-com
    Worker cancellation, structured Output, and immutable run provenance.
    Append every operation to one command history, whether it originated in a
    manual dialog, user program, visual flow, reviewed AI plan, or approved plugin.
+   For AI origins, retain the exact prompt locally plus model/revision, runtime,
+   prompt/tool/context schema versions, generation settings, and approval outcome.
 5. Expand through the Check Code course, NIOSH data-management exercise, and
    official Sample `Statistics.pgm` as their underlying operations pass validation.
 6. Add the modern branches—program tests, richer language assistance, debugger,

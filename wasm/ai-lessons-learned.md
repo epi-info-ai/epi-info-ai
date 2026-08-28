@@ -22,6 +22,9 @@ privacy, security, or production readiness.
 5. **Audit history and learning telemetry are different systems.** Project run
    history is authoritative local provenance. It is not silently uploaded or used
    as a direct training source.
+6. **AI runs need exact provenance.** Record the user prompt locally together
+   with model ID/revision, dtype/device, runtime version, system-prompt version and
+   text, tool-schema version, context-schema version, and generation settings.
 
 ## Observations and decisions
 
@@ -123,12 +126,29 @@ privacy, security, or production readiness.
   actions, abstention quality, latency, memory, download size, and user edits—not
   conversational fluency alone.
 
+### 2026-08-28 — Prompt and model provenance must travel together
+
+- **Observation:** a proposal cannot be reproduced or compared if the recorded
+  history says only “Granite” or retains only the user's question.
+- **Decision:** V0.1 exposes local AI run details containing model
+  `onnx-community/granite-4.0-350m-ONNX-web`, its requested revision, WebGPU/fp16,
+  Transformers.js version, exact system and user prompts, prompt/tool/context
+  schema versions, and deterministic generation settings.
+- **Caution:** the current model revision is `main`, which is mutable and therefore
+  insufficient for a production provenance claim. Pin an approved immutable model
+  revision and artifact hashes before production or formal evaluation.
+- **Privacy:** exact user prompts remain local by default. A future learning event
+  may include only an approved, previewed and redacted derivative.
+
 ## Required evaluation layers
 
 - **Contract tests:** every model action is known, typed, field-grounded, bounded,
   and independently validated.
 - **Plan fixtures:** representative questions map to an expected typed plan or a
   deliberate abstention, including paraphrases and adversarial prompts.
+- **Provenance fixtures:** prompt text/version, model ID/revision, runtime, tool
+  schema, context schema, and generation settings are complete and internally
+  consistent.
 - **Source fixtures:** typed plans render deterministic canonical Epi Info source.
 - **Operation fixtures:** the same plan invokes the same validated TypeScript and
   Rust/WASM operation as the manual workflow.
