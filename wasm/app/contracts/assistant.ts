@@ -21,7 +21,7 @@ export interface EpiAssistContext {
 
 export type EpiAssistAction =
   | { kind: "open-data-quality"; fieldNames: string[] }
-  | { kind: "run-frequency"; fieldName: string }
+  | { kind: "run-frequency"; fieldName: string; stratifyBy?: string }
   | { kind: "run-epi-curve"; dateField: string; groupField?: string };
 
 export interface EpiAssistProposal {

@@ -22,7 +22,12 @@ function parseAction(value: unknown, context: EpiAssistContext): EpiAssistAction
     return { kind: value.kind, fieldNames: value.fieldNames.slice(0, 10).map((name) => knownField(context, name, "Data Quality field")) };
   }
   if (value.kind === "run-frequency") {
-    return { kind: value.kind, fieldName: knownField(context, value.fieldName, "Frequency field") };
+    const fieldName = knownField(context, value.fieldName, "Frequency field");
+    const stratifyBy = value.stratifyBy === undefined || value.stratifyBy === ""
+      ? undefined
+      : knownField(context, value.stratifyBy, "Frequency stratification field");
+    if (stratifyBy === fieldName) throw new TypeError("The Frequency and stratification fields must be different.");
+    return { kind: value.kind, fieldName, ...(stratifyBy ? { stratifyBy } : {}) };
   }
   if (value.kind === "run-epi-curve") {
     const dateField = knownField(context, value.dateField, "Epi Curve date field");
@@ -62,7 +67,11 @@ function toolAction(value: unknown, context: EpiAssistContext): EpiAssistAction 
     return parseAction({ kind: "open-data-quality", fieldNames: argumentsValue.field_names }, context);
   }
   if (name === "run_frequency") {
-    return parseAction({ kind: "run-frequency", fieldName: argumentsValue.field_name }, context);
+    return parseAction({
+      kind: "run-frequency",
+      fieldName: argumentsValue.field_name,
+      ...(argumentsValue.stratify_by === undefined ? {} : { stratifyBy: argumentsValue.stratify_by }),
+    }, context);
   }
   if (name === "run_epi_curve") {
     return parseAction({

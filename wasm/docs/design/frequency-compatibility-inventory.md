@@ -2,8 +2,9 @@
 
 This inventory defines the legacy floor for the browser `FREQ` workflow. It is
 based on `FrequencyDialog.cs`, `Frequency.cs`, and `StatisticsRepository/freq.vb`
-in the vendored Epi Info Community Edition source. The V0.9 implementation is a
-candidate slice, not a claim of feature parity or statistical approval.
+in the vendored Epi Info Community Edition source. The V0.9 implementation and
+V0.9.1 single-stratifier extension are candidate slices, not claims of feature
+parity or statistical approval.
 
 ## Legacy workflow and output floor
 
@@ -30,7 +31,8 @@ branch.
 | Include/exclude missing values | Candidate | Broader typed/missing corpus |
 | Multiple variables | Open gap | Preserve per-variable output sequence |
 | `FREQ * EXCEPT ...` | Open gap | Variable-list and exclusion UI |
-| `STRATAVAR` | Open gap | Stratified frequency contract and output |
+| One `STRATAVAR` field | V0.9.1 candidate | Broader corpus, legacy-output comparison, consolidated G5 review |
+| Multiple stratification variables | Open gap | Preserve legacy variable-list semantics and output nesting |
 | `WEIGHTVAR` | Open gap | Weight semantics and validation |
 | `OUTTABLE` | Open gap | Portable project-table destination |
 | Save Only / program execution | Open gap | Integrate with the future traditional and visual IDEs |
@@ -38,3 +40,14 @@ branch.
 
 No row is deprecated. These open branches remain part of the compatibility
 floor under the legacy capability register.
+
+## V0.9.1 bounded stratification
+
+The current form may select one frequency variable and one different
+stratification variable. The browser renders the familiar command
+`FREQ field STRATAVAR=strata`, partitions typed records by the selected strata,
+and applies the existing V0.9 frequency operation independently within each
+stratum. Percentages, cumulative percentages, and confidence limits therefore
+use the within-stratum denominator. This is also the safe host operation used by
+a reviewed Epi Assist request such as “age by sex”; the model does not execute
+the rendered command.

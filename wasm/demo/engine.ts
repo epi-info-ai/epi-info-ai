@@ -8,6 +8,7 @@ import type {
   DatasetRateRequest,
   FisherExactResult,
   FrequencyResult,
+  StratifiedFrequencyResult,
   MeansResult,
   RateResult,
   PopulationSurveyInput,
@@ -640,6 +641,62 @@ export function deriveFrequency(
       categoryCount: categories.length,
     },
     command: `FREQ ${commandField(request.field)}`,
+    diagnostics: { warnings },
+  };
+}
+
+export function deriveStratifiedFrequency(
+  records: readonly EpiRecord[],
+  request: DatasetFrequencyRequest & { stratifyBy: string; stratifyPrompt: string },
+): StratifiedFrequencyResult {
+  if (!request.stratifyBy.trim()) throw new RangeError("Select a stratification variable.");
+  if (request.stratifyBy === request.field) throw new RangeError("The frequency and stratification variables must be different.");
+  const groups = new Map<string, { value: string; missing: boolean; records: EpiRecord[]; rank: number; numericValue: number | null }>();
+  let excludedMissingStrata = 0;
+  for (const record of records) {
+    const candidate = groupedFrequencyValue(record[request.stratifyBy]);
+    if (candidate.missing && !request.includeMissing) {
+      excludedMissingStrata += 1;
+      continue;
+    }
+    const existing = groups.get(candidate.key);
+    if (existing) existing.records.push(record);
+    else groups.set(candidate.key, { ...candidate, records: [record] });
+  }
+  const ordered = [...groups.values()].sort((left, right) => {
+    if (left.rank !== right.rank) return left.rank - right.rank;
+    if (left.numericValue !== null && right.numericValue !== null) return left.numericValue - right.numericValue;
+    return left.value.localeCompare(right.value, "en-US");
+  });
+  if (!ordered.length) throw new RangeError("No records remain after applying the stratification missing-value setting.");
+  const strata = ordered.map((stratum) => ({
+    value: stratum.value,
+    missing: stratum.missing,
+    result: deriveFrequency(stratum.records, request),
+  }));
+  const warnings = excludedMissingStrata
+    ? [`${excludedMissingStrata} record${excludedMissingStrata === 1 ? "" : "s"} with a missing stratification value were excluded.`]
+    : [];
+  return {
+    schemaVersion: "0.9.1",
+    operation: "epi.frequency.stratified",
+    engine: { id: "epi-core-wasm", version: "0.9.1", operation: "epi.frequency.stratified" },
+    input: {
+      field: request.field,
+      prompt: request.prompt,
+      includeMissing: request.includeMissing,
+      confidenceLevel: 0.95,
+      stratifyBy: request.stratifyBy,
+      stratifyPrompt: request.stratifyPrompt,
+    },
+    strata,
+    totals: {
+      sourceRecords: records.length,
+      includedRecords: records.length - excludedMissingStrata,
+      excludedMissingStrata,
+      stratumCount: strata.length,
+    },
+    command: `FREQ ${commandField(request.field)} STRATAVAR=${commandField(request.stratifyBy)}`,
     diagnostics: { warnings },
   };
 }

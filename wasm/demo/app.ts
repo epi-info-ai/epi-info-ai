@@ -1,4 +1,4 @@
-import { calculateChiSquareTrend, calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, calculateUnmatchedCaseControl, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedTable2x2, unmatchedCaseExposureFromOdds, unmatchedOddsFromExposures } from "./engine.js";
+import { calculateChiSquareTrend, calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, calculateUnmatchedCaseControl, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedFrequency, deriveStratifiedTable2x2, unmatchedCaseExposureFromOdds, unmatchedOddsFromExposures } from "./engine.js";
 import { initializeEpiAssist } from "./epi-assist.js";
 import {
   applyHostedProjectSnapshot,
@@ -14,7 +14,7 @@ import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
-import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
+import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 import type { EpiCurveResult } from "../app/contracts/dashboard.js";
 
 function requiredElement<T extends Element>(selector: string): T {
@@ -532,10 +532,12 @@ const classicConfidenceLevel = requiredElement<HTMLSelectElement>("#classic-conf
 const classicFeedback = requiredElement<HTMLElement>("#classic-tables-feedback");
 const frequencyForm = requiredElement<HTMLFormElement>("#frequency-form");
 const frequencyField = requiredElement<HTMLSelectElement>("#frequency-field");
+const frequencyStrataField = requiredElement<HTMLSelectElement>("#frequency-strata-field");
 const frequencyIncludeMissing = requiredElement<HTMLInputElement>("#frequency-include-missing");
 const frequencyFeedback = requiredElement<HTMLElement>("#frequency-feedback");
 const frequencyOutput = requiredElement<HTMLElement>("#frequency-output");
 let lastFrequencyResult: FrequencyResult | null = null;
+let lastStratifiedFrequencyResult: StratifiedFrequencyResult | null = null;
 const meansForm = requiredElement<HTMLFormElement>("#means-form");
 const meansField = requiredElement<HTMLSelectElement>("#means-field");
 const meansFeedback = requiredElement<HTMLElement>("#means-feedback");
@@ -597,8 +599,19 @@ function setFieldOptions(select: HTMLSelectElement, selected: string): void {
 function updateFrequencyCommandPreview(): void {
   const bracket = (name: string) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
   requiredElement("#frequency-generated-command").textContent = frequencyField.value
-    ? `FREQ ${bracket(frequencyField.value)}`
+    ? `FREQ ${bracket(frequencyField.value)}${frequencyStrataField.value ? ` STRATAVAR=${bracket(frequencyStrataField.value)}` : ""}`
     : "FREQ";
+}
+
+function refreshFrequencyStrataSelector(): void {
+  const source = getCurrentProjectData();
+  const selected = source.fields.some((field) => field.name === frequencyStrataField.value && field.name !== frequencyField.value)
+    ? frequencyStrataField.value
+    : "";
+  frequencyStrataField.replaceChildren(
+    new Option("Do not stratify", "", false, !selected),
+    ...source.fields.filter((field) => field.name !== frequencyField.value).map((field) => new Option(field.prompt, field.name, false, field.name === selected)),
+  );
 }
 
 function refreshFrequencySelector(): void {
@@ -614,9 +627,11 @@ function refreshFrequencySelector(): void {
     ? frequencyField.value
     : fieldByHint(/case.?status|outcome|ill/) ?? source.fields[0]!.name;
   setFieldOptions(frequencyField, selected);
+  refreshFrequencyStrataSelector();
   updateFrequencyCommandPreview();
   frequencyFeedback.textContent = "Values shown come from the current form. Missing values are excluded unless requested.";
   frequencyOutput.hidden = lastFrequencyResult === null;
+  requiredElement<HTMLElement>("#frequency-stratified-output").hidden = lastStratifiedFrequencyResult === null;
 }
 
 function percent(value: number): string {
@@ -625,6 +640,7 @@ function percent(value: number): string {
 
 function renderFrequency(result: FrequencyResult): void {
   lastFrequencyResult = result;
+  lastStratifiedFrequencyResult = null;
   const exact = result.totals.includedRecords < 300;
   const method = exact ? "Exact" : "Wilson";
   requiredElement("#frequency-output-title").textContent = result.input.prompt || result.input.field;
@@ -662,6 +678,39 @@ function renderFrequency(result: FrequencyResult): void {
   requiredElement("#frequency-generated-command").textContent = result.command;
   frequencyFeedback.textContent = `Included ${result.totals.includedRecords} of ${result.totals.sourceRecords} records; excluded ${result.totals.excludedMissing} with missing values. ${result.totals.categoryCount} categories.`;
   frequencyOutput.hidden = false;
+  requiredElement<HTMLElement>("#frequency-stratified-output").hidden = true;
+}
+
+function renderStratifiedFrequency(result: StratifiedFrequencyResult): void {
+  lastFrequencyResult = null;
+  lastStratifiedFrequencyResult = result;
+  const rows = result.strata.flatMap((stratum) => stratum.result.categories.map((category) => {
+    const row = document.createElement("tr");
+    for (const value of [
+      stratum.value,
+      category.value,
+      String(category.frequency),
+      percent(category.percent),
+      percent(category.cumulativePercent),
+      percent(category.confidenceInterval.lower),
+      percent(category.confidenceInterval.upper),
+    ]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  }));
+  requiredElement("#frequency-stratified-rows").replaceChildren(...rows);
+  requiredElement("#frequency-stratified-title").textContent = `${result.input.prompt} by ${result.input.stratifyPrompt}`;
+  const warnings = [result.diagnostics.warnings, ...result.strata.map((stratum) => stratum.result.diagnostics.warnings)].flat();
+  const warning = requiredElement<HTMLElement>("#frequency-stratified-warnings");
+  warning.textContent = warnings.join(" ");
+  warning.hidden = warnings.length === 0;
+  requiredElement("#frequency-generated-command").textContent = result.command;
+  frequencyFeedback.textContent = `Produced ${result.strata.length} strata from ${result.totals.includedRecords} of ${result.totals.sourceRecords} records. Percentages and cumulative percentages are within each stratum.`;
+  frequencyOutput.hidden = true;
+  requiredElement<HTMLElement>("#frequency-stratified-output").hidden = false;
 }
 
 function updateMeansCommandPreview(): void {
@@ -1054,18 +1103,33 @@ ratesForm.addEventListener("submit", (event) => {
     ratesFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate the rate.";
   }
 });
-frequencyField.addEventListener("change", updateFrequencyCommandPreview);
+frequencyField.addEventListener("change", () => {
+  refreshFrequencyStrataSelector();
+  updateFrequencyCommandPreview();
+});
+frequencyStrataField.addEventListener("change", updateFrequencyCommandPreview);
 frequencyForm.addEventListener("submit", (event) => {
   event.preventDefault();
   try {
     const source = getCurrentProjectData();
     const field = source.fields.find((candidate) => candidate.name === frequencyField.value);
     if (!field) throw new RangeError("Select a frequency variable from the current form.");
-    renderFrequency(deriveFrequency(source.records, {
-      field: field.name,
-      prompt: field.prompt,
-      includeMissing: frequencyIncludeMissing.checked,
-    }));
+    const strata = source.fields.find((candidate) => candidate.name === frequencyStrataField.value);
+    if (strata) {
+      renderStratifiedFrequency(deriveStratifiedFrequency(source.records, {
+        field: field.name,
+        prompt: field.prompt,
+        includeMissing: frequencyIncludeMissing.checked,
+        stratifyBy: strata.name,
+        stratifyPrompt: strata.prompt,
+      }));
+    } else {
+      renderFrequency(deriveFrequency(source.records, {
+        field: field.name,
+        prompt: field.prompt,
+        includeMissing: frequencyIncludeMissing.checked,
+      }));
+    }
   } catch (error) {
     frequencyFeedback.textContent = error instanceof Error ? error.message : "Unable to calculate the frequency table.";
   }

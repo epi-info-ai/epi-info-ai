@@ -26,7 +26,9 @@ the user back to Data Quality, `FREQ`, and Epi Curve using those existing screen
   types, malformed arguments, and incomplete calls are discarded independently,
   allowing an earlier valid call to survive a truncated later call. If none pass,
   the UI may offer deterministic schema-derived actions labeled as a safe fallback;
-  it never repairs or executes malformed model text.
+  it never repairs or executes malformed model text. A question is mapped to a
+  versioned typed action first. The host may render familiar Epi Info source from
+  that action for inspection, but model-authored source is never an execution input.
 - Authority: proposals never run automatically. The user selects a reviewed
   action, and the host opens an existing workflow. Granite cannot execute code,
   alter records, call the Rust kernel directly, access storage credentials, or
@@ -44,13 +46,22 @@ gates.
 |---|---|---|---|
 | LEGACY-AI-001 | Tools | Visible Epi Assist entry, local-model disclosure, explicit load, status and failure feedback | Prototype |
 | LEGACY-AI-002 | Enter Data > Data Quality | Focus a named field in the existing completeness report | Prototype |
-| LEGACY-AI-003 | Classic Analysis > FREQ | Select a real current-form field and run the existing deterministic frequency operation | Prototype |
+| LEGACY-AI-003 | Classic Analysis > FREQ | Select a real current-form field and optional different single `STRATAVAR`, show the canonical command, and run the existing deterministic frequency operation | Prototype |
 | LEGACY-AI-004 | Visual Dashboard > Epi Curve | Select a typed date field and optional real grouping field, then run the existing chart operation | Prototype |
 | LEGACY-AI-005 | Cross-cutting security | Aggregate-only context, strict proposal parser, action allowlist, user approval and fail-closed errors | Prototype |
 | LEGACY-AI-006 | Model distribution | Approved CDC-hosted model artifacts, integrity/version pinning, cache/offline policy, device budgets and fallback | Open |
 
 The **Preview without AI** button is a deterministic demonstration of the same
 reviewed-action handoff. It is labeled as not using Granite and makes no AI claim.
+
+## Question-to-program boundary
+
+The intended path is `question -> validated typed analysis plan -> canonical Epi
+Info source -> validated host operation -> output`. The source view preserves the
+learned programming workflow and later synchronizes with the traditional and
+visual IDEs. It is not a general-purpose execution channel: free-form model text,
+unknown commands, invented fields, and unsupported clauses fail closed before
+the host operation can be selected.
 
 ## Closure evidence still required
 

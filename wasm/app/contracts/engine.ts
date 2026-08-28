@@ -208,6 +208,17 @@ export interface FrequencyResult {
   diagnostics: { warnings: string[] };
 }
 
+export interface StratifiedFrequencyResult {
+  schemaVersion: "0.9.1";
+  operation: "epi.frequency.stratified";
+  engine: { id: "epi-core-wasm"; version: "0.9.1"; operation: "epi.frequency.stratified" };
+  input: FrequencyInput & { stratifyBy: string; stratifyPrompt: string };
+  strata: Array<{ value: string; missing: boolean; result: FrequencyResult }>;
+  totals: { sourceRecords: number; includedRecords: number; excludedMissingStrata: number; stratumCount: number };
+  command: string;
+  diagnostics: { warnings: string[] };
+}
+
 export interface DatasetFrequencyRequest {
   field: string;
   prompt: string;

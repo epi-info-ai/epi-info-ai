@@ -70,6 +70,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/table2x2-exact-method-contract.md",
     "wasm/docs/validation/stratified-table2x2-method-contract.md",
     "wasm/docs/validation/frequency-method-contract.md",
+    "wasm/docs/validation/stratified-frequency-method-contract.md",
     "wasm/docs/validation/means-method-contract.md",
     "wasm/docs/validation/rate-method-contract.md",
     "wasm/docs/validation/population-survey-method-contract.md",
@@ -182,10 +183,13 @@ async function checkRequiredAssetsAndUi() {
     "classic-run-tables",
     "frequency-form",
     "frequency-field",
+    "frequency-strata-field",
     "frequency-include-missing",
     "frequency-run",
     "frequency-rows",
     "frequency-confidence-rows",
+    "frequency-stratified-output",
+    "frequency-stratified-rows",
     "means-form",
     "means-field",
     "means-run",
@@ -588,7 +592,7 @@ async function checkFrequencyContract() {
   );
   const parsedRows = parseCsv(datasetBytes.toString("utf8").replace(/^\uFEFF/, ""));
   const imported = inferSchemaFromRows("foodborne.csv", parsedRows);
-  const { deriveFrequency } = await importEngineWithFileFetch();
+  const { deriveFrequency, deriveStratifiedFrequency } = await importEngineWithFileFetch();
   const result = deriveFrequency(imported.records, {
     field: fixture.request.field,
     prompt: fixture.request.prompt,
@@ -621,6 +625,13 @@ async function checkFrequencyContract() {
     field: "value", prompt: "Value", includeMissing: false,
   });
   assert.deepEqual(wilson.categories[0].confidenceInterval, { lower: 1, upper: 1 });
+  const stratified = deriveStratifiedFrequency(imported.records, {
+    field: "age", prompt: "Age", includeMissing: false, stratifyBy: "sex", stratifyPrompt: "Sex",
+  });
+  assert.equal(stratified.operation, "epi.frequency.stratified");
+  assert.equal(stratified.command, "FREQ age STRATAVAR=sex");
+  assert.deepEqual(stratified.strata.map((stratum) => [stratum.value, stratum.result.totals.sourceRecords]), [["Female", 48], ["Male", 48]]);
+  assert.equal(stratified.strata.reduce((total, stratum) => total + stratum.result.totals.includedRecords, 0), 96);
 }
 
 async function checkMeansContract() {
@@ -1302,6 +1313,8 @@ async function checkEpiAssistProposalBoundary() {
     fields: [
       { name: "case_status", prompt: "Case Status", type: "text", missing: 1, missingPercent: 10, violations: 0 },
       { name: "onset_date", prompt: "Onset Date", type: "date", missing: 2, missingPercent: 20, violations: 0 },
+      { name: "age", prompt: "Age", type: "number", missing: 0, missingPercent: 0, violations: 0 },
+      { name: "sex", prompt: "Sex", type: "text", missing: 0, missingPercent: 0, violations: 0 },
     ],
   };
   const accepted = proposals.parseEpiAssistJson(JSON.stringify({
@@ -1321,9 +1334,10 @@ async function checkEpiAssistProposalBoundary() {
   assert.deepEqual(fallback.actions.map((action) => action.kind), ["open-data-quality", "run-frequency", "run-epi-curve"]);
   const toolCalls = proposals.parseEpiAssistToolCalls(`
 <tool_call>{"name":"open_data_quality","arguments":{"field_names":["onset_date"]}}</tool_call>
-<tool_call>{"name":"run_frequency","arguments":{"field_name":"case_status"}}</tool_call>
+<tool_call>{"name":"run_frequency","arguments":{"field_name":"age","stratify_by":"sex"}}</tool_call>
 <tool_call>{"name":"run_epi_curve","arguments":{"date_field":"onset_date","group_field":"case_status"}}</tool_call>`, context);
   assert.deepEqual(toolCalls.actions.map((action) => action.kind), ["open-data-quality", "run-frequency", "run-epi-curve"]);
+  assert.deepEqual(toolCalls.actions[1], { kind: "run-frequency", fieldName: "age", stratifyBy: "sex" });
   const partial = proposals.parseEpiAssistToolCalls(`
 <tool_call>{"name":"run_frequency","arguments":{"field_name":"case_status"}}</tool_call>
 <tool_call>{"name":"execute_code","arguments":{"code":"delete records"}}</tool_call>

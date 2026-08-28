@@ -643,8 +643,13 @@ in the [programming IDE compatibility inventory](docs/design/programming-ide-com
    `.pgm7` exchange, find/replace, and open/save paths.
 3. Add the versioned parser, typed intermediate representation, command generation,
    language service, and precise unsupported-command diagnostics.
+   Natural-language and Visual Epi Info inputs must produce this typed model first;
+   only trusted code renders canonical Epi Info source. Never execute arbitrary
+   model-authored program text.
 4. Execute the first safe PGM slice with bounded `RUNPGM`, dataset/session state,
    Worker cancellation, structured Output, and immutable run provenance.
+   Append every operation to one command history, whether it originated in a
+   manual dialog, user program, visual flow, reviewed AI plan, or approved plugin.
 5. Expand through the Check Code course, NIOSH data-management exercise, and
    official Sample `Statistics.pgm` as their underlying operations pass validation.
 6. Add the modern branches—program tests, richer language assistance, debugger,
@@ -687,6 +692,14 @@ are pinned, supported-device budgets pass, malformed/adversarial output fails
 closed, proposal provenance is auditable, privacy/security/accessibility/model
 governance reviews approve the path, and Epi Assist can be disabled without
 changing any core workflow or result.
+
+Cross-instance learning is a later governance slice, separate from project and
+run-history synchronization. It requires explicit user/organization opt-in,
+approved minimization and redaction, a preview of transmitted metadata, a
+CDC-controlled authenticated intake and quarantine service, retention/deletion
+controls, and human promotion into versioned evaluation or fine-tuning corpora.
+Raw project history and live synchronized records must never feed training
+directly.
 
 ## Phase 6 - Plugin platform foundation
 

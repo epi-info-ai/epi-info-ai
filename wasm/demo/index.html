@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=35" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=42"></script>
+  <script type="module" src="app.js?v=43"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -661,12 +661,18 @@
           <form id="frequency-form">
             <div class="classic-variable-grid">
               <label>Frequency of<select id="frequency-field" required></select></label>
+              <label>Stratify by<select id="frequency-strata-field"><option value="">Do not stratify</option></select></label>
               <label class="checkbox-option"><input id="frequency-include-missing" type="checkbox"> Include missing values</label>
             </div>
             <div class="classic-command-preview"><strong>Generated command</strong><code id="frequency-generated-command">FREQ</code></div>
             <div class="form-actions"><button id="frequency-run" class="primary-button" type="submit">Run Frequency</button></div>
             <p id="frequency-feedback" class="inline-feedback" role="status">Choose a variable from the current form.</p>
           </form>
+        </section>
+        <section id="frequency-stratified-output" class="panel" data-module-view="classic" aria-labelledby="frequency-stratified-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">FREQ STRATAVAR output</p><h2 id="frequency-stratified-title">Stratified Frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Stratum</th><th scope="col">Value</th><th scope="col">Frequency</th><th scope="col">Percent</th><th scope="col">Cum. Percent</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead><tbody id="frequency-stratified-rows"></tbody></table></div>
+          <p id="frequency-stratified-warnings" class="warnings" hidden></p>
         </section>
         <section id="frequency-output" class="panel" data-module-view="classic" aria-labelledby="frequency-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label">FREQ output</p><h2 id="frequency-output-title">Frequency</h2></div><span id="frequency-method" class="calculation-time">Exact 95% confidence limits</span></div>

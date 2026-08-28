@@ -252,6 +252,9 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Added the V0.9 Classic Analysis `FREQ` slice for one current-form variable:
   familiar command preview, typed categories, optional missing values, frequency,
   percent, cumulative percent, and candidate legacy exact/Wilson 95% limits.
+- Extended FREQ with one typed `STRATAVAR` field and within-stratum output. The
+  same safe plan lets Epi Assist map “age by sex” to the inspectable command
+  `FREQ age STRATAVAR=sex` without executing model-authored program text.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric
@@ -294,6 +297,15 @@ checksums, expected metadata, and combined testing workflow are documented in
 
 ## TODO
 
+- Implement the unified, append-only command history for manual dialogs, user
+  programs, Visual Epi Info flows, reviewed Epi Assist plans, and approved
+  plugins, with canonical source, origin, approval, revision, engine, status,
+  diagnostics, and immutable output provenance.
+- Design and obtain approval for optional cross-instance learning events as a
+  separate pipeline: minimized/redacted metadata, transmission preview and
+  consent, authenticated CDC intake, quarantine, retention controls, and human
+  promotion to versioned evaluation/training corpora. Never train directly from
+  raw project history or live synchronization storage.
 - Add a reusable, optional UI walkthrough to every user-facing page after the
   core migration phases are complete:
   - launch from the page Help control and allow replay at any time;
@@ -332,8 +344,9 @@ checksums, expected metadata, and combined testing workflow are documented in
   evidence is now implemented; add familiar multiple-stratifier/weight/filter
   support and broader reviewed legacy-output corpora without removing the direct
   StatCalc branch. Complete G5 once for the consolidated set of candidate outputs.
-- Expand Classic Analysis `FREQ` from the V0.9 single-variable slice to multiple
-  variables, `* EXCEPT`, strata, weights, `OUTTABLE`, filters, and saved program
+- Expand Classic Analysis `FREQ` from the V0.9/V0.9.1 single-variable and
+  single-stratifier slices to multiple variables, `* EXCEPT`, multiple strata,
+  weights, `OUTTABLE`, filters, and saved program
   execution. Complete G5 once for all candidate outputs, as planned.
 - Expand Classic Analysis `MEANS` from the V0.10 descriptive slice to cross-tab
   group summaries, t tests, ANOVA, Bartlett and Kruskal-Wallis tests, strata,

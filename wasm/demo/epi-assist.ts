@@ -35,7 +35,7 @@ function contextFrom(source: MapDataSource): EpiAssistContext {
 function actionLabel(action: EpiAssistAction, context: EpiAssistContext): string {
   const prompt = (name: string) => context.fields.find((field) => field.name === name)?.prompt ?? name;
   if (action.kind === "open-data-quality") return `Open Data Quality${action.fieldNames.length ? `: ${action.fieldNames.map(prompt).join(", ")}` : ""}`;
-  if (action.kind === "run-frequency") return `Run Frequency: ${prompt(action.fieldName)}`;
+  if (action.kind === "run-frequency") return `Run Frequency: ${prompt(action.fieldName)}${action.stratifyBy ? ` by ${prompt(action.stratifyBy)}` : ""}`;
   return `Generate Epi Curve: ${prompt(action.dateField)}${action.groupField ? ` by ${prompt(action.groupField)}` : ""}`;
 }
 
@@ -59,8 +59,11 @@ function runAction(action: EpiAssistAction): void {
   if (action.kind === "run-frequency") {
     clickModule("classic");
     const field = requiredElement<HTMLSelectElement>("#frequency-field");
+    const strata = requiredElement<HTMLSelectElement>("#frequency-strata-field");
     field.value = action.fieldName;
     field.dispatchEvent(new Event("change", { bubbles: true }));
+    strata.value = action.stratifyBy ?? "";
+    strata.dispatchEvent(new Event("change", { bubbles: true }));
     requiredElement<HTMLButtonElement>("#frequency-run").click();
     return;
   }
@@ -113,7 +116,7 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
 
   const ensureWorker = () => {
     if (worker) return worker;
-    worker = new Worker(new URL("./epi-assist-worker.js?v=2", import.meta.url), { type: "module" });
+    worker = new Worker(new URL("./epi-assist-worker.js?v=3", import.meta.url), { type: "module" });
     worker.addEventListener("message", (event: MessageEvent<Record<string, unknown>>) => {
       if (event.data.type === "status") status.textContent = String(event.data.message ?? "Working locally…");
       if (event.data.type === "progress") {

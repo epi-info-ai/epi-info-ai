@@ -601,6 +601,16 @@ test("Classic Analysis FREQ derives the foodborne Case Status distribution", asy
     "Probable9.8%25.6%",
     "Suspected2.3%13.1%",
   ]);
+
+  await page.locator("#frequency-field").selectOption("age");
+  await page.locator("#frequency-strata-field").selectOption("sex");
+  await expect(page.locator("#frequency-generated-command")).toHaveText("FREQ age STRATAVAR=sex");
+  await page.locator("#frequency-run").click();
+  await expect(page.locator("#frequency-stratified-title")).toHaveText("Age by Sex");
+  await expect(page.locator("#frequency-feedback")).toContainText("Produced 2 strata from 96 of 96 records");
+  await expect(page.locator("#frequency-stratified-rows tr")).toHaveCount(82);
+  await expect(page.locator("#frequency-stratified-rows")).toContainText("Female");
+  await expect(page.locator("#frequency-stratified-rows")).toContainText("Male");
 });
 
 test("Classic Analysis MEANS derives foodborne Age descriptive statistics", async ({ page }) => {

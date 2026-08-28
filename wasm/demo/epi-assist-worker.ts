@@ -67,7 +67,10 @@ function toolDefinitions(context: unknown): unknown[] {
         description: "Run the existing Classic Analysis FREQ operation for one current-form field.",
         parameters: {
           type: "object",
-          properties: { field_name: { type: "string", enum: fieldNames } },
+          properties: {
+            field_name: { type: "string", enum: fieldNames },
+            stratify_by: { type: "string", enum: fieldNames, description: "Optional field used for STRATAVAR, such as Sex in age by sex." },
+          },
           required: ["field_name"],
         },
       },
