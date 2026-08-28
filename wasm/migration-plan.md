@@ -674,6 +674,62 @@ or unified history requirements.
    Program, and Output remain synchronized, and the complete effective source is
    always inspectable in the traditional Program Editor.
 
+### Interpreter modernization workstream
+
+The browser interpreter is a compatibility migration, not a mechanical C# port.
+Legacy `.grm`/`.cgt` grammar tables and interpreter rules remain primary evidence,
+while the maintained browser boundary becomes explicit and independently testable:
+
+`source -> TypeScript parser -> versioned typed AST -> semantic validator ->
+auditable execution plan -> TypeScript services and Rust/WASM epi kernel`.
+
+Manual dialogs, directly edited source, Visual Epi Info, Epi Assist, and approved
+plugins must all enter through the same AST/plan boundary. No origin receives a
+more permissive executor. In particular, a successfully parsed program is not
+automatically executable.
+
+| Component | Required contract | Current state | Next acceptance boundary |
+|---|---|---|---|
+| Legacy grammar evidence | Trace each supported production and semantic decision to GOLD grammar, rule object, User Guide, or fixture | Analysis grammar/parser architecture audited | Add command-by-command production and ambiguity fixtures |
+| Lexer/parser | Deterministic parsing, nested blocks, error recovery, and precise source ranges without evaluation | TypeScript AST V0.1 parses `READ`, `FREQ`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`; expressions include literals, identifiers, calls, unary/binary operators, and nested `IF` blocks | Expand legacy syntax variants and return multiple recoverable diagnostics |
+| Typed AST | Discriminated, versioned nodes with source spans; JSON-safe serialization and migration rules | `classic-ast.ts` defines AST `0.1.0`; every statement/expression carries a source span | Publish JSON schema, canonical serializer, comments/trivia policy, and AST compatibility tests |
+| Name and type resolution | Resolve fields/variables/scopes case-insensitively; reject missing, ambiguous, or type-invalid references | Existing bounded executor resolves the one executable `DEFINE -> RECODE -> FREQ` program | Add a standalone schema-aware semantic pass for all eight parsed command families |
+| Canonical source | Generate stable, reviewable Epi Info source without discarding unsupported text | Existing bounded plan canonicalizes its executable program | Add AST printer and parse-print-parse equivalence fixtures |
+| Execution planner | Lower only validated AST into a versioned allowlisted plan with declared capabilities and effects | Existing bounded program plan is the sole executable subset | Define plan nodes for dataset read/filter, variable mutation, recode, frequency, and tables; reject every unregistered node |
+| Session/runtime | Explicit dataset, selection, variables, output, limits, cancellation, and rollback; no ambient DOM/OS authority | Current form data and bounded run are isolated but no general session exists | Introduce serializable session V0.1 and transactional statement boundaries |
+| Operation adapters | TypeScript orchestrates data/UI/storage; validated epidemiologic operations dispatch to Rust/WASM contracts | `FREQ` and `TABLES` operations already exist outside the general interpreter | Bind planner nodes to existing typed operations without duplicating statistical formulas |
+| Audit/provenance | Record source/AST/plan versions, origin, inputs, project revision, approvals, results, warnings, and engine versions | Browser-local bounded run history exists | Unify manual, program, visual, AI, and plugin histories and add immutable export |
+| Compatibility validation | Differential legacy/browser fixtures, metamorphic checks, hostile-input tests, and curriculum programs | AST parser has a 27th Phase 0 check covering all eight initial commands and fail-closed unsupported input | Promote legacy Sample/training programs progressively; no parity claim without reviewed output comparisons |
+| IDE language service | Parse without execution; expose syntax, semantic, and compatibility diagnostics plus completion | CodeMirror live checks the AST; only the existing three-statement shape receives field validation and execution eligibility | Add token-precise multi-diagnostics, hover/signature help, folding, and quick fixes |
+
+#### Tracked implementation sequence
+
+1. Freeze grammar-derived positive, negative, and ambiguity fixtures for the first
+   eight commands and expressions used by them.
+2. Stabilize AST `0.1`, its JSON schema, source-span rules, canonical printer, and
+   parse/serialize/parse tests before any second execution path is added.
+3. Implement schema-aware name, scope, and type resolution as a pure pass that
+   produces diagnostics and an annotated AST without changing project data.
+4. Define a capability-labelled execution-plan schema. Planning fails closed when
+   any AST node, function, option, data source, or effect lacks a registered lowerer.
+5. Add an explicit transactional program session with resource limits, selection
+   state, standard/global/permanent variables, cancellation, and rollback.
+6. Bind safe plans to existing TypeScript data operations and Rust/WASM statistical
+   contracts. Never translate statistical formulas into the parser or UI layer.
+7. Append one provenance event for verification, planning, approval, execution,
+   rejection, cancellation, and output, regardless of whether the origin is manual,
+   textual, visual, AI-assisted, or plugin-provided.
+8. Differentially validate each promoted command against legacy Epi Info and the
+   curriculum corpus; document adaptations, new branches, and retirements in the
+   capability register before expanding execution authority.
+9. Only after semantics stabilize, add selected-statement execution, debugger/replay,
+   visual round-tripping, and AI drafting over the same AST and plan contracts.
+
+**Current security boundary:** AST V0.1 broadens syntax understanding only. The
+runtime still executes exclusively the previously reviewed `DEFINE TEXTINPUT ->
+numeric RECODE -> FREQ [STRATAVAR]` plan. `READ`, `TABLES`, `ASSIGN`, `IF`, and
+`SELECT` AST nodes cannot yet mutate data or invoke operations.
+
 ### Exit gate
 
 An experienced user can recognize the Classic Analysis programming workflow,
@@ -945,7 +1001,15 @@ that the desktop IDE provided modern inline IntelliSense parity.
 
 The same new branch now adds visible line numbers, `Ln/Col` cursor status, and
 browser-local 2/4/8-column plus tabs/spaces preferences under the familiar View
-menu. A debounced live check calls the bounded parser, marks the affected line,
-and reports validity without executing source. The audited desktop `RichTextBox`
+menu. A debounced live check calls the typed parser and, for the executable shape,
+the bounded field validator; it marks the affected line and reports validity
+without executing source. The audited desktop `RichTextBox`
 accepted tabs and copied indentation but exposed no line-number gutter, column
 ruler, or explicit tab-width setting.
+
+The interpreter-modernization slice has now started with typed AST `0.1.0` and a
+source-span parser for the first eight command families. The existing bounded
+executor is lowered from this AST, while every broader parsed program remains
+syntax-only. The next interpreter slice is the standalone schema-aware semantic
+resolver and diagnostic model, followed by canonical printing and the
+capability-labelled execution planner tracked above.

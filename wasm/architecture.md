@@ -165,6 +165,28 @@ preserved source and mark the flow as partial or source-only. Neither view can
 translate a program into arbitrary JavaScript or grant it ambient DOM, network,
 credential, filesystem, database, or process access.
 
+The first maintained language boundary is `app/programming/classic-ast.ts`. It
+defines AST version `0.1.0`, source spans, typed expressions, and statement nodes
+for `READ`, `FREQ`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`.
+CodeMirror may parse this broader subset for diagnostics, but parsing does not
+grant execution authority. `classic-program.ts` remains the narrower reviewed
+lowerer/executor for the existing `DEFINE -> RECODE -> FREQ` demonstration until
+semantic validation and capability-labelled planning are implemented.
+
+```text
+source / dialog / visual flow / reviewed AI proposal
+                         |
+                         v
+              versioned TypeScript AST
+                         |
+            semantic and capability checks
+                         |
+                         v
+              auditable execution plan
+                   /             \
+          TypeScript services   Rust/WASM epi kernel
+```
+
 ## Mobile-first, familiarity-preserving UI
 
 New and migrated components use mobile-first CSS: the base layout supports a
@@ -360,6 +382,7 @@ and has no runtime dependencies or operating-system access.
 | Derive named 2 x 2 strata from current-form records, explicit value mappings, and missing-value rules | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript data adapter; emits an audited request for the Rust operation |
 | Group typed current-form categories, sort them, apply missing rules, and assemble `epi.frequency` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; proportions and confidence limits are Rust/WASM |
 | Parse and apply the bounded `DEFINE TEXTINPUT -> numeric RECODE -> FREQ [STRATAVAR]` program plan | `app/programming/classic-program.ts` | TypeScript parser/orchestrator; source is never evaluated |
+| Parse the initial Classic language surface into versioned typed statements/expressions with source spans | `app/programming/classic-ast.ts` | TypeScript AST/parser V0.1; syntax-only support for eight command families does not authorize execution |
 | Edit and highlight bounded Epi Info source; show line/column and configurable indentation; offer schema-aware completion; run live syntax diagnostics | `app/programming/classic-editor.ts` | TypeScript + CodeMirror 6 presentation assistance over the same typed parser; suggestions and diagnostics have no execution authority |
 | Store the browser-local V0.1 command history contract | `app/programming/run-history.ts` | TypeScript; unified origins and immutable hosted provenance remain open |
 | Select finite numeric observations, report exclusions, and assemble `epi.means` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; descriptive formulas, sorting, quartiles, and mode are Rust/WASM |

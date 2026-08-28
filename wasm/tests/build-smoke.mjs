@@ -66,7 +66,7 @@ const requiredFiles = [
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=47["']/);
+assert.match(html, /src=["']app\.js\?v=48["']/);
 assert.match(html, /href=["']styles\.css\?v=39["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);

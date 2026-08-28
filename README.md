@@ -277,8 +277,13 @@ checksums, expected metadata, and combined testing workflow are documented in
   editor or model-generated code directly.
 - Added Program Editor line numbers, live `Ln/Col` status, persistent 2/4/8-column
   and tabs/spaces settings under View, and debounced live syntax diagnostics from
-  the same bounded parser. Live checks mark and explain invalid source but never
-  execute it.
+  the maintained typed parser plus bounded field validation for the executable
+  demonstration. Live checks mark and explain invalid source but never execute it.
+- Started the modern interpreter boundary with a versioned TypeScript AST and
+  source-span parser for `READ`, `FREQ`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`,
+  `IF`, and `SELECT`, including typed expressions and nested conditional blocks.
+  The editor can validate this broader syntax, while execution remains restricted
+  to the previously reviewed `DEFINE -> RECODE -> FREQ` demonstration.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric

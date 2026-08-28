@@ -657,6 +657,7 @@ END
 FREQ AgeGroup STRATAVAR=Sex`;
   const plan = programming.parseBoundedClassicProgram(source, imported.schema.fields);
   assert.equal(plan.version, "0.1.0");
+  assert.equal(plan.astVersion, "0.1.0");
   assert.equal(plan.recode.sourceField, "age");
   assert.equal(plan.frequency.stratifyBy, "sex");
   assert.match(plan.canonicalSource, /FREQ AgeGroup STRATAVAR=sex$/);
@@ -1417,6 +1418,53 @@ async function checkEpiAssistProposalBoundary() {
   ]) assert.ok(workerSource.includes(provenanceMarker), `Epi Assist must retain ${provenanceMarker}`);
 }
 
+async function checkClassicProgramAst() {
+  const parser = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-ast.ts")).href}?ast=${Date.now()}`);
+  const source = `READ {Projects\\Sample\\Sample.prj}:Oswego
+DEFINE AgeGroup TEXTINPUT
+ASSIGN AgeGroup = "Unknown"
+RECODE Age TO AgeGroup
+  LOVALUE - 4 = "0-4"
+  4 - 17 = "5-17"
+  ELSE = "Adult"
+END
+SELECT Sex = "Female" AND Age >= 18
+IF Age >= 18 THEN
+  FREQ AgeGroup STRATAVAR=Sex WEIGHTVAR=Weight
+ELSE
+  TABLES Exposure Ill STRATAVAR=Sex STATISTICS=FISHER
+END`;
+  const ast = parser.parseClassicProgram(source);
+  assert.equal(ast.type, "Program");
+  assert.equal(ast.astVersion, "0.1.0");
+  assert.deepEqual(ast.body.map((statement) => statement.type), [
+    "ReadStatement", "DefineStatement", "AssignStatement", "RecodeStatement", "SelectStatement", "IfStatement",
+  ]);
+  assert.deepEqual(ast.body[0].target, {
+    kind: "external-table", source: "{Projects\\Sample\\Sample.prj}", table: "Oswego", raw: "{Projects\\Sample\\Sample.prj}:Oswego",
+  });
+  assert.equal(ast.body[1].variableType, "TEXTINPUT");
+  assert.equal(ast.body[2].value.type, "Literal");
+  assert.equal(ast.body[3].clauses.length, 3);
+  assert.equal(ast.body[3].clauses[0].type, "RecodeValueClause");
+  assert.equal(ast.body[4].expression.type, "BinaryExpression");
+  assert.equal(ast.body[4].expression.operator, "AND");
+  assert.deepEqual(ast.body[5].consequent.map((statement) => statement.type), ["FrequencyStatement"]);
+  assert.deepEqual(ast.body[5].alternate.map((statement) => statement.type), ["TablesStatement"]);
+  assert.deepEqual(ast.body[5].consequent[0].options.stratifyBy.map(({ name }) => name), ["Sex"]);
+  assert.equal(ast.body[5].consequent[0].options.weightBy.name, "Weight");
+  assert.equal(ast.body[5].alternate[0].options.statistics, "FISHER");
+  assert.equal(ast.body[5].span.end.line, 14);
+
+  const selectionForms = parser.parseClassicProgram("FREQ * EXCEPT Secret NOWRAP\nSELECT\nCANCEL SELECT");
+  assert.equal(selectionForms.body[0].selection.kind, "all-except");
+  assert.equal(selectionForms.body[1].mode, "clear");
+  assert.equal(selectionForms.body[2].mode, "cancel");
+  assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
+  assert.throws(() => parser.parseClassicProgram("IF Age > 10 THEN\nFREQ Age"), /IF is missing END/);
+  assert.throws(() => parser.parseClassicProgram("ASSIGN Age = (10 + 2"), /closing parenthesis/);
+}
+
 async function run() {
   const checks = [
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
@@ -1445,6 +1493,7 @@ async function run() {
     ["programming curriculum registry", checkProgrammingCurriculumRegistry],
     ["JupyterLite validation lab source", checkValidationLabSource],
     ["Epi Assist typed proposal allowlist", checkEpiAssistProposalBoundary],
+    ["versioned Classic Program AST", checkClassicProgramAst],
   ];
 
   for (const [name, check] of checks) {

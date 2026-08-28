@@ -14,6 +14,7 @@ import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
+import { CLASSIC_AST_VERSION } from "../app/programming/classic-ast.js";
 import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
@@ -810,7 +811,7 @@ function runClassicProgram(verifyOnly: boolean): void {
     if (verifyOnly) {
       classicProgramFeedback.textContent = "Program verified. Three allowlisted statements produced a typed V0.1 execution plan; nothing was run.";
       recordProgramRun({
-        origin: "user-program", status: "verified", planVersion: validated.plan.version,
+        origin: "user-program", status: "verified", planVersion: validated.plan.version, astVersion: validated.plan.astVersion,
         projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
         source: classicProgramEditor.getValue(), canonicalSource: validated.plan.canonicalSource,
         summary: "Verified DEFINE → RECODE → FREQ plan without execution.", diagnostics: [],
@@ -821,7 +822,7 @@ function runClassicProgram(verifyOnly: boolean): void {
     const output = renderProgramFrequency(validated.plan, applied.records);
     classicProgramFeedback.textContent = `Executed DEFINE → RECODE → FREQ for ${output.included} records and produced ${output.rows} output rows. The current form was not modified.`;
     recordProgramRun({
-      origin: "user-program", status: "succeeded", planVersion: validated.plan.version,
+      origin: "user-program", status: "succeeded", planVersion: validated.plan.version, astVersion: validated.plan.astVersion,
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
       source: classicProgramEditor.getValue(), canonicalSource: validated.plan.canonicalSource,
       summary: `Produced ${output.rows} frequency rows from ${output.included} included records.`, diagnostics: [],
@@ -832,7 +833,7 @@ function runClassicProgram(verifyOnly: boolean): void {
     classicProgramOutput.hidden = true;
     requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
     recordProgramRun({
-      origin: "user-program", status: "failed", planVersion: CLASSIC_PROGRAM_PLAN_VERSION,
+      origin: "user-program", status: "failed", planVersion: CLASSIC_PROGRAM_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
       source: classicProgramEditor.getValue(), summary: "Program rejected before execution.", diagnostics: [message],
     });

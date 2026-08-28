@@ -6,6 +6,7 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { minimalSetup } from "codemirror";
 import type { FieldDefinition } from "../contracts/core.js";
+import { ClassicSyntaxError, parseClassicProgram } from "./classic-ast.js";
 import { ClassicProgramDiagnostic, parseBoundedClassicProgram } from "./classic-program.js";
 
 export interface ClassicProgramEditor {
@@ -40,9 +41,9 @@ export interface ClassicProgramLintStatus {
 const epiInfoLanguage = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
-    if (stream.match(/^(?:DEFINE|RECODE|TO|END|FREQ|TEXTINPUT)\b/i)) return "keyword";
-    if (stream.match(/^STRATAVAR\b/i)) return "propertyName";
-    if (stream.match(/^(?:LOVALUE|HIVALUE)\b/i)) return "atom";
+    if (stream.match(/^(?:READ|FREQ|TABLES|RECODE|TO|DEFINE|ASSIGN|IF|THEN|ELSE|END|SELECT|CANCEL|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
+    if (stream.match(/^(?:STRATAVAR|WEIGHTVAR|OUTTABLE|PSUVAR|STATISTICS|COLUMNSIZE)\b/i)) return "propertyName";
+    if (stream.match(/^(?:LOVALUE|HIVALUE|TRUE|FALSE|YES|NO|NOWRAP|ONEISYES|FISHER|NONE)\b/i)) return "atom";
     if (stream.match(/^"(?:[^"]|"")*"?/)) return "string";
     if (stream.match(/^-?\d+(?:\.\d+)?/)) return "number";
     if (stream.match(/^(?:=|-)/)) return "operator";
@@ -104,9 +105,14 @@ function createCompletionSource(getFields: () => readonly FieldDefinition[]) {
     const command = /^\s*([A-Za-z]*)$/.exec(before);
     if (command && (context.explicit || command[1]!.length > 0)) {
       return completionResult(context.pos - command[1]!.length, [
+        { label: "READ", detail: "open a data source", type: "keyword" },
         { label: "DEFINE", detail: "declare a variable", type: "keyword" },
+        { label: "ASSIGN", detail: "set a variable value", type: "keyword" },
+        { label: "IF", detail: "conditionally run statements", type: "keyword" },
         { label: "RECODE", detail: "group numeric values", type: "keyword" },
         { label: "FREQ", detail: "frequency table", type: "keyword" },
+        { label: "TABLES", detail: "cross-tabulation", type: "keyword" },
+        { label: "SELECT", detail: "filter records", type: "keyword" },
       ]);
     }
 
@@ -130,15 +136,26 @@ export function createClassicProgramEditor(
   ];
   const collectDiagnostics = (editorView: EditorView): Diagnostic[] => {
     try {
-      parseBoundedClassicProgram(editorView.state.doc.toString(), getFields());
-      onLintStatus?.({ valid: true, message: "Program syntax is valid for the safe V0.1 command set." });
+      const source = editorView.state.doc.toString();
+      const ast = parseClassicProgram(source);
+      const executableShape = ast.body.length === 3
+        && ast.body[0]?.type === "DefineStatement"
+        && ast.body[1]?.type === "RecodeStatement"
+        && ast.body[2]?.type === "FrequencyStatement";
+      if (executableShape) parseBoundedClassicProgram(source, getFields());
+      onLintStatus?.({
+        valid: true,
+        message: executableShape
+          ? "Program syntax is valid, and fields are valid for the safe V0.1 executor."
+          : `Program syntax is valid AST ${ast.astVersion}; execution remains disabled for this command sequence.`,
+      });
       return [];
     } catch (error) {
-      const diagnostic = error instanceof ClassicProgramDiagnostic ? error : null;
+      const diagnostic = error instanceof ClassicProgramDiagnostic || error instanceof ClassicSyntaxError ? error : null;
       const requestedLine = diagnostic?.line ?? 1;
       const lineNumber = Math.max(1, Math.min(requestedLine, editorView.state.doc.lines));
       const line = editorView.state.doc.line(lineNumber);
-      const message = diagnostic ? diagnostic.message.replace(/^Line \d+:\s*/, "") : "Unable to validate this program.";
+      const message = diagnostic ? diagnostic.message.replace(/^Line \d+(?:, column \d+)?:\s*/, "") : "Unable to validate this program.";
       onLintStatus?.({ valid: false, message, line: lineNumber });
       return [{
         from: line.from,

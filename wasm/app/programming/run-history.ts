@@ -11,6 +11,7 @@ export interface ProgramRunHistoryEntry {
   origin: RunOrigin;
   status: RunStatus;
   planVersion: string;
+  astVersion?: string;
   projectName: string;
   formName: string;
   sourceRecords: number;

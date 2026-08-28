@@ -41,6 +41,17 @@ valuable migration asset, but the browser should define its own versioned typed
 AST/IR rather than porting the desktop parser's UI, process, and reflection
 assumptions wholesale.
 
+Browser AST V0.1 now establishes that contract in
+`app/programming/classic-ast.ts`. It uses discriminated statement and expression
+nodes, an explicit `0.1.0` version, and source spans. The initial parser recognizes
+`READ`, `FREQ`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`, including
+nested conditional blocks and the expression operators needed by those commands.
+This is a syntax milestone only: the existing bounded
+`DEFINE -> RECODE -> FREQ` plan remains the sole executable program shape. The
+semantic resolver, canonical AST printer, capability-labelled planner, program
+session, and differential parity corpus are tracked as separate acceptance gates
+in the migration plan.
+
 ## Legacy floor and future gap register
 
 | Gap ID | Old IDE capability / learned workflow | Current browser state | Future IDE closure or new branch |
@@ -51,9 +62,9 @@ assumptions wholesale.
 | LEGACY-PROGRAM-004 | Command tree and command-specific dialogs generate editable source | V0.1 parser produces trusted canonical source for one DEFINE/RECODE/FREQ shape; general generators remain open | Inventory every command/dialog; implement typed generators that produce canonical source without hiding it. |
 | LEGACY-PROGRAM-005 | Run the full PGM or selected commands and append results to Output | V0.1 runs the complete bounded DEFINE/RECODE/FREQ program and rejects every other shape | Expand parser, selected/full run, cancellation, structured output, and deterministic state transitions. |
 | LEGACY-PROGRAM-006 | Save and compose reusable programs with `RUNPGM` | Package can carry multiple programs; no composition | Resolve project/package program references safely, reject cycles, cap nesting, and preserve call provenance. |
-| LEGACY-PROGRAM-007 | Analysis language for data management, statistics, graphs, reports, variables, conditions, and functions | Only individual prototype features exist outside a PGM interpreter | Build a complete command inventory. Dispatch validated epidemiologic operations to Rust and keep orchestration/output in TypeScript. |
+| LEGACY-PROGRAM-007 | Analysis language for data management, statistics, graphs, reports, variables, conditions, and functions | Typed AST/parser V0.1 recognizes eight initial command families, but only one bounded three-statement plan executes | Build the complete command inventory, semantic resolver, planner, and session. Dispatch validated epidemiologic operations to Rust and keep orchestration/output in TypeScript. |
 | LEGACY-PROGRAM-008 | Check Code tree, event blocks, generated command dialogs, direct source editing, verification, and Enter execution | Phase 4 exposes one typed field After statement and preserves arbitrary source without executing it | Expand by reviewed event and command subsets while retaining the full editor path and unsupported-source visibility. |
-| LEGACY-PROGRAM-009 | Syntax verification and invalid-reference reporting | V0.1 now runs the bounded parser after a short typing pause, marks the affected line in the editor gutter, underlines its source range, and reports valid/invalid status without execution | Expand to a versioned language service with precise token ranges, actionable diagnostics, quick fixes, and full compatibility classification. |
+| LEGACY-PROGRAM-009 | Syntax verification and invalid-reference reporting | Live checking now parses the eight-command AST after a short typing pause, marks the affected line in the editor gutter, and applies current-form reference/type checks to the executable bounded program; parsing broader syntax does not authorize it | Expand to a versioned language service with recoverable multi-diagnostics, precise token ranges, semantic checks for every parsed node, quick fixes, and full compatibility classification. |
 | LEGACY-PROGRAM-010 | Dataset/project context, standard/global/permanent variables, selection/sort state, and output routing | No program session model | Define an explicit, serializable execution session; adapt permanent state to scoped project/user storage with audit and reset controls. |
 | LEGACY-PROGRAM-011 | Desktop integration through filesystem paths, `EXECUTE`, DLL objects, external Python/R processes, SQL, and printers | Not executed | Block ambient OS/process access. Replace only with permissioned file pickers, mediated plugins/services, validated Pyodide labs, safe database adapters, and browser print/export. |
 | LEGACY-PROGRAM-012 | Basic rich-text presentation; the legacy `RichTextBox` accepts tabs and carries leading spaces/tabs to the next line, but the audited source exposes no line-number gutter, column ruler, or configured tab width; command dialogs provide the principal variable/option guidance | CodeMirror supplies syntax highlighting, line numbers, `Ln/Col` status, persistent 2/4/8-column tab width and tabs/spaces preferences, plus schema-aware completion for V0.1 `RECODE`, `TO`, `FREQ`, and `STRATAVAR` | **New branch:** retain familiar command dialogs while expanding bracket/block matching, folding, command completion, signature help, and hover documentation. |
