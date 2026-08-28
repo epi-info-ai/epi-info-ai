@@ -1,4 +1,4 @@
-import { buildGuidedProposal, parseEpiAssistJson } from "../app/assistant/proposals.ts";
+import { buildGuidedProposal, parseEpiAssistToolCalls } from "../app/assistant/proposals.ts";
 import { EPI_ASSIST_CONTEXT_VERSION, type EpiAssistAction, type EpiAssistContext, type EpiAssistProposal } from "../app/contracts/assistant.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
 import { buildDataQualityReport } from "../app/forms/data-quality.ts";
@@ -129,7 +129,7 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
       if (event.data.type === "result") {
         try {
           if (!pendingContext) throw new Error("The current form context is no longer available.");
-          renderProposal(parseEpiAssistJson(String(event.data.response ?? ""), pendingContext), pendingContext, "granite");
+          renderProposal(parseEpiAssistToolCalls(String(event.data.response ?? ""), pendingContext), pendingContext, "granite");
           status.textContent = "Proposal ready. Review an action before running it.";
         } catch (error) {
           if (!pendingContext) {

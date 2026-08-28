@@ -1319,6 +1319,18 @@ async function checkEpiAssistProposalBoundary() {
   assert.throws(() => proposals.parseEpiAssistJson('{"summary":"x","rationale":"y","actions":[{"kind":"run-epi-curve","dateField":"case_status"}]}', context), /Date type/);
   const fallback = proposals.buildGuidedProposal(context);
   assert.deepEqual(fallback.actions.map((action) => action.kind), ["open-data-quality", "run-frequency", "run-epi-curve"]);
+  const toolCalls = proposals.parseEpiAssistToolCalls(`
+<tool_call>{"name":"open_data_quality","arguments":{"field_names":["onset_date"]}}</tool_call>
+<tool_call>{"name":"run_frequency","arguments":{"field_name":"case_status"}}</tool_call>
+<tool_call>{"name":"run_epi_curve","arguments":{"date_field":"onset_date","group_field":"case_status"}}</tool_call>`, context);
+  assert.deepEqual(toolCalls.actions.map((action) => action.kind), ["open-data-quality", "run-frequency", "run-epi-curve"]);
+  const partial = proposals.parseEpiAssistToolCalls(`
+<tool_call>{"name":"run_frequency","arguments":{"field_name":"case_status"}}</tool_call>
+<tool_call>{"name":"execute_code","arguments":{"code":"delete records"}}</tool_call>
+<tool_call>{"name":"run_epi_curve","arguments":`, context);
+  assert.deepEqual(partial.actions.map((action) => action.kind), ["run-frequency"]);
+  assert.match(partial.rationale, /1 other call was discarded/);
+  assert.throws(() => proposals.parseEpiAssistToolCalls('<tool_call>{"name":"run_frequency","arguments":{"field_name":"invented"}}</tool_call>', context), /No Granite tool call passed validation/);
 }
 
 async function run() {

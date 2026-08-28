@@ -19,11 +19,14 @@ the user back to Data Quality, `FREQ`, and Epi Curve using those existing screen
   model distribution review.
 - Context: field name, prompt, type, record count, missing counts/percentages, and
   validation-issue counts only. V0.1 does not give record values to the model.
-- Output: untrusted JSON parsed against a TypeScript allowlist. Unknown actions,
-  invented fields, incorrect date-field types, malformed JSON, and empty output
-  fail closed. If a response cannot pass this boundary, the UI visibly discards
-  it and may offer deterministic schema-derived actions labeled as a safe fallback;
-  it never repairs or executes the model's malformed action text.
+- Output: Granite receives OpenAI-style function definitions through its native
+  tool-aware chat template and emits independently delimited `<tool_call>` blocks.
+  TypeScript constructs the proposal only from complete calls that pass the action,
+  field, and field-type allowlist. Unknown tools, invented fields, incorrect date
+  types, malformed arguments, and incomplete calls are discarded independently,
+  allowing an earlier valid call to survive a truncated later call. If none pass,
+  the UI may offer deterministic schema-derived actions labeled as a safe fallback;
+  it never repairs or executes malformed model text.
 - Authority: proposals never run automatically. The user selects a reviewed
   action, and the host opens an existing workflow. Granite cannot execute code,
   alter records, call the Rust kernel directly, access storage credentials, or

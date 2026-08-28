@@ -463,11 +463,12 @@ separate deployment gate.
 
 The ordinary application builds a minimized context containing form/project
 names, field names/prompts/types, record count, missing counts and percentages,
-and validation-issue counts. It excludes record values. Granite returns a JSON
-proposal, not commands or calculation results. The host accepts only three typed
-actions in V0.1: focus Data Quality, run an existing Frequency, or run an existing
-Epi Curve. Unknown actions and fields, wrong date types, malformed responses, and
-model failures enable nothing. See the
+and validation-issue counts. It excludes record values. Granite returns native,
+independently delimited tool calls, not calculation results. TypeScript constructs
+the proposal only from calls that pass its strict allowlist. The host accepts only
+three typed actions in V0.1: focus Data Quality, run an existing Frequency, or run
+an existing Epi Curve. Unknown actions and fields, wrong date types, malformed
+responses, and model failures enable nothing. See the
 [Epi Assist inventory](docs/design/epi-assist-compatibility-inventory.md).
 
 ## Migration plan
