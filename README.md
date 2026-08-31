@@ -13,6 +13,8 @@ Project materials currently live in [`wasm/`](wasm/):
 - [`validation-lab.md`](wasm/validation-lab.md) - validation-corpus governance, executable-notebook contract, and foodborne-outbreak validation roadmap;
 - [`docs/design/ui-compatibility-strategy.md`](wasm/docs/design/ui-compatibility-strategy.md) - familiar-but-modern UI strategy;
 - [`docs/design/legacy-capability-register.md`](wasm/docs/design/legacy-capability-register.md) - compatibility floor, backlog gap IDs, new branches, and deprecation/retirement log;
+- [`docs/design/menu-compatibility-registry.md`](wasm/docs/design/menu-compatibility-registry.md) - item-level menu paths, command-state/function parity, and lifecycle gaps;
+- [`docs/design/classic-command-compatibility-registry.md`](wasm/docs/design/classic-command-compatibility-registry.md) - all 49 legacy Classic Analysis command entries and their independent syntax/dialog/execution/output parity dimensions;
 - [`docs/design/maps-compatibility-inventory.md`](wasm/docs/design/maps-compatibility-inventory.md) - C# Maps assets, manual behaviors, browser status, and adaptation decisions;
 - [`docs/reference/`](wasm/docs/reference/) - official historical reference material.
 
@@ -63,6 +65,9 @@ Current capabilities include:
   Longitude), explicit geocode-result review/selection, and current-form Case
   Cluster handoff;
 - automatic form and record creation from CSV, TSV, JSON records, and Excel `.xlsx`, plus CSV export;
+- typed, regression-tested Form Designer and Enter Data menus that preserve the
+  legacy C# order, expose unported commands as named gaps, and mark browser-only
+  additions as new branches;
 - browser-local projects with optional authenticated Supabase snapshot synchronization;
 - validated File > Open Project and Save Project As using a portable V2 package,
   plus a reproducible conversion of the official legacy Sample project;
@@ -73,6 +78,23 @@ Current capabilities include:
 - live H3 resolution guidance showing how higher resolutions produce smaller hexagons, including approximate average edge length and area;
 - browser-local WGS 84 GeoTIFF upload with bounded downsampling, a population-density color ramp, opacity/visibility/removal controls, and raster-below-vector drawing order;
 - distinct Visual Dashboard Rates and Epi Curve slices using familiar gadget-property workflows, including a foodborne onset-date chart and auditable chart-data table;
+- the familiar Visual Dashboard blue toolbar and right-click canvas command tree,
+  with implemented Rates and Charts > Epi Curve paths and explicit gaps for the
+  remaining legacy gadgets and canvas operations;
+- the familiar Classic Analysis shell, nine-folder Command Explorer, nested
+  Program Editor File/Edit/Fonts menus and toolbar, and Output navigation toolbar;
+  safe editor navigation, undo/redo/select-all, bounded Run Commands, source-only
+  browser printing, and command History work while clipboard and other unported
+  operations remain named gaps;
+- guarded Classic Program New/Open/Save/Save As/Delete with project-backed
+  source, Author/Comments/Created/Updated metadata, dirty-state feedback,
+  familiar Find/Replace, source-only browser printing, and official `.pgm7`
+  text-file import/export; unsupported legacy commands remain editable but
+  non-executable;
+- typed Frequencies, Means, and Tables builders that insert visible Epi Info
+  source, plus fail-closed execution of one selected FREQ or MEANS statement;
+  selected TABLES fields require explicit exposed/case value review before any
+  calculation;
 - a Tools > Epi Assist **new branch** that can run IBM Granite 4.0 350M Instruct
   locally in a WebGPU Worker and propose reviewed handoffs to Data Quality,
   Classic `FREQ`, and Epi Curve; the non-AI preview demonstrates the same handoff
@@ -280,7 +302,7 @@ checksums, expected metadata, and combined testing workflow are documented in
   the maintained typed parser plus bounded field validation for the executable
   demonstration. Live checks mark and explain invalid source but never execute it.
 - Started the modern interpreter boundary with a versioned TypeScript AST and
-  source-span parser for `READ`, `FREQ`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`,
+  source-span parser for `READ`, `LIST`, `FREQ`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`,
   `IF`, and `SELECT`, including typed expressions and nested conditional blocks.
   The editor can validate this broader syntax, while execution remains restricted
   to the previously reviewed `DEFINE -> RECODE -> FREQ` demonstration.
@@ -290,6 +312,17 @@ checksums, expected metadata, and combined testing workflow are documented in
   CSV/XLSX as part of that example dataset. Every program uses the reviewed
   AST-to-plan path, displays its required fields, and remains visible for review
   before Verify or Run.
+- Added the first explicit Classic Analysis data session: familiar `READ` and
+  `LIST` dialogs generate visible source, selected `READ` chooses a named form in
+  the current project, and selected `LIST` renders an auditable line list. FREQ
+  and MEANS now consume the active READ session; external READ paths remain
+  blocked pending reviewed browser adapters, and every run enters command history.
+- Added familiar `DEFINE` and `RECODE` source-authoring dialogs. DEFINE exposes
+  variable name, Standard/Global/Permanent scope, supported legacy types, and an
+  optional prompt; RECODE exposes the legacy From/To variable path, editable
+  value/to-value/result rows, ELSE, and the inherited `lower < value ≤ upper`
+  numeric boundary rule. Together with Frequencies, they can author and run the
+  bounded foodborne age-group program without hiding its Epi Info source.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric
@@ -329,9 +362,38 @@ checksums, expected metadata, and combined testing workflow are documented in
   foodborne example plots 44 onset dates across three days, reports 52 missing
   dates, and exposes an accessible chart-data table. The Charts compatibility
   inventory keeps the remaining legacy chart and gadget behaviors explicit.
+- Corrected dataset-scoped Program Editor examples. Tabular imports now persist
+  dataset ID, original filename, and SHA-256 provenance on the form. The browser
+  neither fetches nor displays the foodborne program catalog for an empty or
+  unrelated project; after the canonical dataset is loaded, each program is
+  enabled only when its required field names and data types are compatible. The
+  checksum records the original import and does not invalidate legitimate record
+  edits.
+- Added Form Designer project-lifecycle parity candidate: familiar File > Open,
+  Close, and Recent Projects commands; a true no-project workspace; guarded
+  autosave before New/Open/Close/Recent/hosted-project transitions; durable
+  browser recent snapshots; context-sensitive project commands; and
+  failure-without-close regression coverage.
+- Added a typed Form Designer menu contract derived from the User Guide and
+  legacy C# resources. File, Edit, View, Insert, Format, Tools, Help, and their
+  nested branches now render in familiar order; implemented items share toolbar
+  operations, `Ctrl+O` opens a project, unported commands remain visible as
+  disclosed compatibility gaps, and Project Storage is marked as a new branch.
+- Restored the Classic Analysis shell and Command Explorer from the manual and
+  legacy C# resources: File/View/Tools/Help, all nine familiar command folders,
+  the Program Editor/Output/Message Area frame, and tested routes from
+  Statistics to the existing Frequencies, Tables, and Means panels. Unported
+  commands remain visible compatibility gaps.
 
 ## TODO
 
+- **Menu parity:** complete the legacy item-level context-state matrix,
+  shortcuts, and behavior inventory across every module. Form Designer, Enter
+  Data, Visual Dashboard, and Classic Analysis now have typed structural
+  contracts; their command-level functional gaps remain open. Apply the contract
+  pattern to Maps and StatCalc next. Keep portable package export
+  and Project Storage explicitly identified where they adapt or extend rather
+  than redefine legacy behavior.
 - Implement the unified, append-only command history for manual dialogs, user
   programs, Visual Epi Info flows, reviewed Epi Assist plans, and approved
   plugins, with canonical source, origin, approval, revision, engine, status,

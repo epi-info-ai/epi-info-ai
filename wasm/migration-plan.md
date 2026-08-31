@@ -57,6 +57,10 @@ delivery work needed to make those migrations safe.
     capability remains required until implemented or explicitly retired through
     review with a documented replacement; an unimplemented prototype control
     never narrows that floor.
+12. **Treat menus as behavioral contracts.** Preserve learned menu paths,
+    ordering, context-sensitive state, command semantics, state transitions, and
+    feedback. A same-named button is not parity by itself; additions are labeled
+    new branches and all changes are recorded in the menu compatibility registry.
 
 ## Current baseline
 
@@ -81,6 +85,9 @@ Before changing the build or module boundaries, capture a baseline checklist:
 - Supabase connection testing, GitHub sign-in, schema detection, upload, download,
   and revision-conflict messages remain functional.
 - The published desktop layout remains recognizable to experienced Epi Info users.
+- Form Designer project commands share a guarded New/Open/Close/Recent lifecycle,
+  including a true no-project state, autosave/synchronization feedback, failure
+  recovery, and non-destructive Close behavior.
 
 ## Target source layout
 
@@ -691,23 +698,23 @@ automatically executable.
 | Component | Required contract | Current state | Next acceptance boundary |
 |---|---|---|---|
 | Legacy grammar evidence | Trace each supported production and semantic decision to GOLD grammar, rule object, User Guide, or fixture | Analysis grammar/parser architecture audited | Add command-by-command production and ambiguity fixtures |
-| Lexer/parser | Deterministic parsing, nested blocks, error recovery, and precise source ranges without evaluation | TypeScript AST V0.1 parses `READ`, `FREQ`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`; expressions include literals, identifiers, calls, unary/binary operators, and nested `IF` blocks | Expand legacy syntax variants and return multiple recoverable diagnostics |
-| Typed AST | Discriminated, versioned nodes with source spans; JSON-safe serialization and migration rules | `classic-ast.ts` defines AST `0.1.0`; every statement/expression carries a source span | Publish JSON schema, canonical serializer, comments/trivia policy, and AST compatibility tests |
-| Name and type resolution | Resolve fields/variables/scopes case-insensitively; reject missing, ambiguous, or type-invalid references | Existing bounded executor resolves the one executable `DEFINE -> RECODE -> FREQ` program | Add a standalone schema-aware semantic pass for all eight parsed command families |
+| Lexer/parser | Deterministic parsing, nested blocks, error recovery, and precise source ranges without evaluation | TypeScript AST V0.3 parses `READ`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`; expressions include literals, identifiers, calls, unary/binary operators, and nested `IF` blocks | Expand legacy syntax variants and return multiple recoverable diagnostics |
+| Typed AST | Discriminated, versioned nodes with source spans; JSON-safe serialization and migration rules | `classic-ast.ts` defines additive AST `0.3.0`; every statement/expression carries a source span | Publish JSON schema, canonical serializer, comments/trivia policy, and AST compatibility tests |
+| Name and type resolution | Resolve fields/variables/scopes case-insensitively; reject missing, ambiguous, or type-invalid references | The bounded full-program path and selected READ/LIST/FREQ/MEANS/TABLES resolver validate their allowlisted shapes | Add a standalone schema-aware semantic pass for every parsed command family |
 | Canonical source | Generate stable, reviewable Epi Info source without discarding unsupported text | Existing bounded plan canonicalizes its executable program | Add AST printer and parse-print-parse equivalence fixtures |
 | Execution planner | Lower only validated AST into a versioned allowlisted plan with declared capabilities and effects | Existing bounded program plan is the sole executable subset | Define plan nodes for dataset read/filter, variable mutation, recode, frequency, and tables; reject every unregistered node |
-| Session/runtime | Explicit dataset, selection, variables, output, limits, cancellation, and rollback; no ambient DOM/OS authority | Current form data and bounded run are isolated but no general session exists | Introduce serializable session V0.1 and transactional statement boundaries |
+| Session/runtime | Explicit dataset, selection, variables, output, limits, cancellation, and rollback; no ambient DOM/OS authority | A cloned current-project READ source now drives selected LIST/FREQ/MEANS; selection, variables, rollback, and full-program sequencing remain open | Introduce serializable session V0.1 and transactional statement boundaries |
 | Operation adapters | TypeScript orchestrates data/UI/storage; validated epidemiologic operations dispatch to Rust/WASM contracts | `FREQ` and `TABLES` operations already exist outside the general interpreter | Bind planner nodes to existing typed operations without duplicating statistical formulas |
 | Audit/provenance | Record source/AST/plan versions, origin, inputs, project revision, approvals, results, warnings, and engine versions | Browser-local bounded run history exists | Unify manual, program, visual, AI, and plugin histories and add immutable export |
-| Compatibility validation | Differential legacy/browser fixtures, metamorphic checks, hostile-input tests, and curriculum programs | AST parser has a 27th Phase 0 check covering all eight initial commands and fail-closed unsupported input | Promote legacy Sample/training programs progressively; no parity claim without reviewed output comparisons |
+| Compatibility validation | Differential legacy/browser fixtures, metamorphic checks, hostile-input tests, and curriculum programs | Phase 0 covers the nine AST command families, typed selected-command resolution, and fail-closed unsupported input | Promote legacy Sample/training programs progressively; no parity claim without reviewed output comparisons |
 | IDE language service | Parse without execution; expose syntax, semantic, and compatibility diagnostics plus completion | CodeMirror live checks the AST; only the existing three-statement shape receives field validation and execution eligibility | Add token-precise multi-diagnostics, hover/signature help, folding, and quick fixes |
 
 #### Tracked implementation sequence
 
 1. Freeze grammar-derived positive, negative, and ambiguity fixtures for the first
-   eight commands and expressions used by them.
-2. Stabilize AST `0.1`, its JSON schema, source-span rules, canonical printer, and
-   parse/serialize/parse tests before any second execution path is added.
+   nine commands and expressions used by them.
+2. Stabilize AST `0.3`, its JSON schema, source-span rules, canonical printer, and
+   parse/serialize/parse tests before broader full-program execution is added.
 3. Implement schema-aware name, scope, and type resolution as a pure pass that
    produces diagnostics and an annotated AST without changing project data.
 4. Define a capability-labelled execution-plan schema. Planning fails closed when
@@ -725,10 +732,24 @@ automatically executable.
 9. Only after semantics stabilize, add selected-statement execution, debugger/replay,
    visual round-tripping, and AI drafting over the same AST and plan contracts.
 
-**Current security boundary:** AST V0.1 broadens syntax understanding only. The
-runtime still executes exclusively the previously reviewed `DEFINE TEXTINPUT ->
-numeric RECODE -> FREQ [STRATAVAR]` plan. `READ`, `TABLES`, `ASSIGN`, `IF`, and
-`SELECT` AST nodes cannot yet mutate data or invoke operations.
+**Current security boundary:** AST V0.3 broadens syntax understanding only.
+Full-program execution remains the reviewed `DEFINE TEXTINPUT -> numeric RECODE
+-> FREQ [STRATAVAR]` plan. A separate selected-statement allowlist permits
+current-project READ plus LIST/FREQ/MEANS; external READ fails closed and selected
+TABLES stops for value review. `ASSIGN`, `IF`, and `SELECT` AST nodes cannot yet
+mutate data or invoke operations.
+
+**Classic command-surface slice complete:** the browser now restores the shipped
+File/View/Tools/Help shell, nine Command Explorer folders, and recognizable
+Command Explorer/Program Editor/Output/Message Area frame. Frequencies, Tables,
+and Means route to the existing bounded implementations; all other legacy
+commands remain explicit gaps. The follow-on slice now restores the exact nested
+Program Editor File/Edit/Fonts and toolbar orders plus the Output toolbar. Safe
+CodeMirror edit/navigation commands, saved PGM and `.pgm7` lifecycle,
+Find/Replace, bounded Run Commands, Output navigation, and History are active;
+clipboard/print, bookmarks, clear/cancel, metadata/delete, and general command
+dialogs remain subsequent slices and do not acquire execution authority from
+this structural work.
 
 ### Exit gate
 
@@ -968,6 +989,26 @@ provenance.
 
 ## Immediate next slice
 
+The **saved PGM lifecycle** is now a tested candidate: project program list,
+guarded New/Open/Save/Save As/Delete, Author/Comments/Created/Updated metadata,
+explicit 1 MB text-only `.pgm7` import/export, dirty-state disclosure,
+browser-safe find/find-next/replace all, and source-only browser printing share
+one typed program-document service. Deletion retains the editor source, and
+unsupported source remains visible without broader execution authority. A
+separate Page Setup command stays disclosed because its settings live inside
+the browser print dialog. Typed Read, List, Frequencies, Means, and Tables
+builders now insert visible source. Exactly one selected READ, LIST, FREQ, or
+MEANS command may execute; TABLES stops for explicit value-classification review,
+and every unsupported or multi-statement selection fails closed. READ is
+restricted to named forms in the current project; LIST provides bounded browser
+line-list Output and subsequent FREQ/MEANS use the same explicit session. Typed
+DEFINE and numeric RECODE dialogs now expose the legacy scope/type and editable
+range-grid workflow, generate visible source, and can author the complete bounded
+foodborne program with FREQ. Broader displayed DEFINE/RECODE forms remain
+source-only unless a reviewed plan permits them. The next closure is
+SELECT/CANCEL SELECT session semantics; Supabase
+program/extras sync needs a separate versioned contract and conflict policy.
+
 Phase 5 V0.15 restores Chi Square for Trend as the fourth learned StatCalc menu
 branch. It preserves the legacy editable score/case/control table, Add Row action,
 reference-row odds ratios, Extended Mantel-Haenszel statistic, and p value behind
@@ -983,10 +1024,10 @@ responsive desktop/tablet/phone behavior, visible failures, README links, clean 
 and Pages publication. This is a release-hardening step and does not claim that
 open parity gaps are closed.
 
-Immediately after that gate, begin **Phase 5B IDE V0.1**. The first IDE slice is
-the recognizable Program Editor shell with project program list, visible editable
-source, open/save and `.pgm7` exchange, find/replace, diagnostics, and a bounded
-first command execution path with structured Output and provenance. The typed
+**Phase 5B IDE V0.1 is now underway.** The recognizable Program Editor shell,
+project program list, visible editable source, open/save and `.pgm7` exchange,
+find/replace, diagnostics, and a bounded first command execution path with
+structured Output and provenance are implemented candidates. The typed
 Visual Epi Info box-and-connection view begins against the same intermediate
 representation; effective source remains visible beside it from the start. Thus
 the IDE starts after the demo-readiness pass, before returning to the remaining
@@ -1007,12 +1048,22 @@ without executing source. The audited desktop `RichTextBox`
 accepted tabs and copied indentation but exposed no line-number gutter, column
 ruler, or explicit tab-width setting.
 
-The interpreter-modernization slice has now started with typed AST `0.1.0` and a
-source-span parser for the first eight command families. The existing bounded
+The interpreter-modernization slice now has typed AST `0.3.0` and a source-span
+parser that adds LIST to the initial command families. The existing bounded
 executor is lowered from this AST, while every broader parsed program remains
-syntax-only. The next interpreter slice is the standalone schema-aware semantic
-resolver and diagnostic model, followed by canonical printing and the
+syntax-only. A separately allowlisted selected-command path now resolves
+current-project READ and active-session LIST/FREQ/MEANS, while external READ
+targets fail closed. The next interpreter slice is the standalone schema-aware
+semantic resolver and diagnostic model, followed by canonical printing and the
 capability-labelled execution planner tracked above.
+
+Classic commands now form a separate tested parity set. The registry contains
+all 49 entries from the nine legacy enum groups, while preserving the 45-command
+shipped Command Explorer tree and the enum-only status of Match, Map, Reports,
+and Help. Each command tracks discovery, syntax, dialog generation, semantics,
+selected execution, full-program execution, Output, browser adaptation, and
+validation independently. A visible or successfully parsed command is therefore
+never counted as execution parity.
 
 The Program Editor also exposes three reviewed runnable examples over the
 foodborne form: life-stage age groups by Sex, broad age bands by Case Status, and
@@ -1020,3 +1071,8 @@ an overall decade distribution. The versioned catalog resides beside, identifies
 and checksums the foodborne dataset rather than acting as a global language catalog.
 Selection loads ordinary editable source; examples receive no execution privilege
 beyond the same AST, field checks, and bounded plan used for user-authored source.
+The form now persists dataset ID, source filename, and original-import SHA-256.
+The editor does not fetch or display this catalog until a form with matching
+provenance and records is current, and it checks every required field name and
+data type before enabling an individual program. Record edits do not change the
+original provenance digest or detach otherwise compatible examples.

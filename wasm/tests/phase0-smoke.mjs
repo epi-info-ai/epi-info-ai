@@ -49,10 +49,19 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/contracts/assistant.ts",
     "wasm/app/assistant/proposals.ts",
     "wasm/app/programming/classic-editor.ts",
+    "wasm/app/programming/classic-program-document.ts",
+    "wasm/app/programming/classic-command-builder.ts",
+    "wasm/app/programming/classic-command-parity.ts",
+    "wasm/app/programming/classic-session.ts",
+    "wasm/app/programming/classic-program-surface.ts",
     "wasm/app/programming/classic-program.ts",
     "wasm/app/programming/run-history.ts",
     "wasm/app/contracts/project-package.ts",
     "wasm/app/forms/geocoding.ts",
+    "wasm/app/forms/form-designer-menu.ts",
+    "wasm/app/forms/enter-data-menu.ts",
+    "wasm/app/dashboard/dashboard-menu.ts",
+    "wasm/app/analysis/classic-analysis-menu.ts",
     "wasm/demo/epi2x2.wasm",
     "wasm/demo/sample-case-data.csv",
     "wasm/demo/sample-map-layer.geojson",
@@ -133,8 +142,8 @@ async function checkRequiredAssetsAndUi() {
     "tools-menu",
     "help-menu",
     "designer-file-menu",
-    "designer-new-project",
-    "designer-project-storage",
+    "designer-no-project",
+    "project-lifecycle-status",
     "new-project",
     "project-storage",
     "form-csv-import",
@@ -187,6 +196,10 @@ async function checkRequiredAssetsAndUi() {
     "table-form",
     "stratified-form",
     "classic-tables-form",
+    "classic-analysis-menu",
+    "classic-command-tree",
+    "classic-message-area",
+    "classic-statusbar",
     "classic-exposure-field",
     "classic-exposed-values",
     "classic-outcome-field",
@@ -266,9 +279,71 @@ async function checkRequiredAssetsAndUi() {
   }
 
   const shell = await readFile(join(demoDirectory, "shell.ts"), "utf8");
-  assert.match(shell, /designer-new-project[\s\S]*#new-project/);
-  assert.match(shell, /designer-project-storage[\s\S]*#project-storage/);
   assert.match(shell, /view-status-bar[\s\S]*main-menu-status/);
+
+  const menuContract = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/form-designer-menu.ts")).href}?menu=${Date.now()}`);
+  assert.deepEqual(menuContract.FORM_DESIGNER_MENUS.map((menu) => menu.label), ["File", "Edit", "View", "Insert", "Format", "Tools", "Help"]);
+  const fileCommands = menuContract.FORM_DESIGNER_MENUS[0].entries.filter((entry) => entry.kind !== "separator").map((entry) => entry.label);
+  assert.deepEqual(fileCommands, [
+    "New Project...", "New Project from Template...", "New Project from Data Dictionary...", "New Form", "New Page",
+    "Open Project...", "Open Project from Web...", "Close Project", "Get Template...", "Print...",
+    "Copy Form to Mobile Device...", "Publish Form to Cloud Data Capture...", "Publish Form to Web Survey...",
+    "Recent Projects", "Exit", "Project Storage...",
+  ]);
+  const enterMenuContract = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/enter-data-menu.ts")).href}?menu=${Date.now()}`);
+  assert.deepEqual(enterMenuContract.ENTER_DATA_MENUS.map((menu) => menu.label), ["File", "Edit", "View", "Tools", "Help"]);
+  const enterFileCommands = enterMenuContract.ENTER_DATA_MENUS[0].entries
+    .filter((entry) => entry.kind !== "separator").map((entry) => entry.label);
+  assert.deepEqual(enterFileCommands, [
+    "New Record", "Open Form...", "Edit Form", "Close Form", "Save", "Import Data", "Package For Transport",
+    "Print...", "Recent Forms", "Exit", "Import Browser Data File...",
+  ]);
+  const dashboardContract = await import(`${pathToFileURL(repositoryPath("wasm/app/dashboard/dashboard-menu.ts")).href}?menu=${Date.now()}`);
+  assert.deepEqual(dashboardContract.DASHBOARD_TOOLBAR.map((entry) => entry.label), ["Refresh", "Set Data Source", "Open", "Save", "Save As"]);
+  const addAnalysis = dashboardContract.DASHBOARD_CANVAS_MENU.find((entry) => entry.kind === "submenu" && entry.key === "add-analysis");
+  assert.ok(addAnalysis && addAnalysis.kind === "submenu");
+  assert.deepEqual(addAnalysis.children.slice(0, 9).map((entry) => entry.label), [
+    "Line list", "Rates", "Frequency", "Word cloud", "Combined frequency", "M x N / 2 x 2 Table",
+    "Matched pair case-control", "Means", "Duplicates List",
+  ]);
+  const classicContract = await import(`${pathToFileURL(repositoryPath("wasm/app/analysis/classic-analysis-menu.ts")).href}?menu=${Date.now()}`);
+  assert.deepEqual(classicContract.CLASSIC_ANALYSIS_MENUS.map((menu) => menu.label), ["File", "View", "Tools", "Help"]);
+  assert.deepEqual(classicContract.CLASSIC_COMMAND_GROUPS.map((group) => group.label), [
+    "Data", "Variables", "Select/If", "Statistics", "Advanced Statistics", "Output",
+    "User-Defined Commands", "User Interaction", "Options",
+  ]);
+  const statistics = classicContract.CLASSIC_COMMAND_GROUPS.find((group) => group.key === "statistics");
+  assert.deepEqual(statistics.commands.map((entry) => entry.label), ["List", "Frequencies", "Tables", "Means", "Summarize", "Graph"]);
+  const programSurface = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program-surface.ts")).href}?menu=${Date.now()}`);
+  assert.deepEqual(programSurface.CLASSIC_PROGRAM_MENUS.map((menu) => menu.label), ["File", "Edit", "Fonts"]);
+  assert.deepEqual(programSurface.CLASSIC_PROGRAM_MENUS[0].entries.filter((entry) => entry.kind === "command").map((entry) => entry.label), [
+    "New...", "Open Pgm...", "Save Pgm", "Save Pgm As...", "Print...", "Page Setup...",
+  ]);
+  assert.deepEqual(programSurface.CLASSIC_PROGRAM_TOOLBAR.map((entry) => entry.label), ["New Pgm", "Open Pgm", "Save Pgm", "Print...", "Run Commands", "Cancel"]);
+  assert.equal(programSurface.CLASSIC_PROGRAM_MENUS[0].entries.find((entry) => entry.kind === "command" && entry.key === "print").disposition, "implemented");
+  assert.equal(programSurface.CLASSIC_PROGRAM_MENUS[0].entries.find((entry) => entry.kind === "command" && entry.key === "page-setup").disposition, "legacy-gap");
+  assert.deepEqual(programSurface.CLASSIC_OUTPUT_TOOLBAR.filter((entry) => entry.kind === "command").map((entry) => entry.label), [
+    "Previous", "Next", "Last", "History", "Open", "Bookmark", "Print", "Maximize", "Clear Output",
+  ]);
+  const programDocuments = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program-document.ts")).href}?document=${Date.now()}`);
+  assert.equal(programDocuments.normalizeClassicProgramName(" Statistics.pgm7 "), "Statistics");
+  assert.equal(programDocuments.safeClassicProgramFileName("Foodborne Check"), "Foodborne-Check.pgm7");
+  assert.throws(() => programDocuments.normalizeClassicProgramName("bad/name"), /file-path characters/);
+  const commandParity = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-command-parity.ts")).href}?parity=${Date.now()}`);
+  assert.equal(commandParity.CLASSIC_COMMAND_PARITY.length, 49);
+  assert.equal(new Set(commandParity.CLASSIC_COMMAND_PARITY.map((entry) => entry.id)).size, 49);
+  assert.deepEqual(Object.fromEntries([...new Set(commandParity.CLASSIC_COMMAND_PARITY.map((entry) => entry.group))].map((group) => [
+    group, commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.group === group).length,
+  ])), { data: 7, variables: 6, "select-if": 5, statistics: 8, "advanced-statistics": 7, output: 7, "user-defined": 4, "user-interaction": 4, options: 1 });
+  assert.deepEqual(commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.explorer === "legacy-enum-only").map((entry) => entry.legacyName), ["Match", "Map", "Reports", "Help"]);
+  for (const group of classicContract.CLASSIC_COMMAND_GROUPS) {
+    for (const entry of group.commands) assert.equal(commandParity.classicCommandParityEntry(group.key, entry.key)?.explorer, "visible", `${group.key}/${entry.key} must be in the legacy command parity set`);
+  }
+  assert.equal(commandParity.classicCommandParityEntry("data", "read").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "list").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("variables", "define").dialog, "typed-source-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("variables", "recode").dialog, "typed-source-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("user-defined", "execute-file").browserPolicy, "blocked");
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
@@ -657,7 +732,7 @@ END
 FREQ AgeGroup STRATAVAR=Sex`;
   const plan = programming.parseBoundedClassicProgram(source, imported.schema.fields);
   assert.equal(plan.version, "0.1.0");
-  assert.equal(plan.astVersion, "0.1.0");
+  assert.equal(plan.astVersion, "0.3.0");
   assert.equal(plan.recode.sourceField, "age");
   assert.equal(plan.frequency.stratifyBy, "sex");
   assert.match(plan.canonicalSource, /FREQ AgeGroup STRATAVAR=sex$/);
@@ -674,6 +749,32 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.throws(() => programming.parseBoundedClassicProgram(`${source}\nEXECUTE "malware.exe"`, imported.schema.fields), /Unsupported command/);
   assert.throws(() => programming.parseBoundedClassicProgram(source.replace("Age TO", "Sex TO"), imported.schema.fields), /must be a Number field/);
 
+  const commandBuilder = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-command-builder.ts")).href}?commands=${Date.now()}`);
+  const projectSource = { formId: "foodborne", projectName: "Outbreak Project", formName: "Foodborne Form", fields: imported.schema.fields, records: imported.records };
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "AgeGroup", scope: "STANDARD", variableType: "TEXTINPUT" }), "DEFINE AgeGroup TEXTINPUT");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "CaseCount", scope: "GLOBAL", variableType: "NUMERIC", prompt: "Case count" }), 'DEFINE CaseCount GLOBAL NUMERIC "Case count"');
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({
+    kind: "recode", sourceField: "age", targetVariable: "AgeGroup",
+    ranges: [{ from: "LOVALUE", to: "17", result: "0-17" }, { from: "17", to: "HIVALUE", result: "18+" }],
+  }), 'RECODE age TO AgeGroup\n  LOVALUE - 17 = "0-17"\n  17 - HIVALUE = "18+"\nEND');
+  assert.throws(() => commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "bad name", scope: "STANDARD", variableType: "TEXTINPUT" }), /Variable names/);
+  assert.throws(() => commandBuilder.buildClassicAnalysisCommand({ kind: "recode", sourceField: "age", targetVariable: "AgeGroup", ranges: [] }), /at least one/);
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "read", table: "Foodborne Form" }), "READ [Foodborne Form]");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "list", fields: ["id", "age", "sex"] }), "LIST id age sex");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("READ [Foodborne Form]", [], [projectSource]), { kind: "read", table: "Foodborne Form", source: "READ [Foodborne Form]" });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("LIST ID Age Sex", imported.schema.fields), { kind: "list", fields: ["id", "age", "sex"], source: "LIST ID Age Sex" });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("LIST * EXCEPT Latitude Longitude", imported.schema.fields).fields, imported.schema.fields.map((field) => field.name).filter((name) => !["latitude", "longitude"].includes(name)));
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("READ {C:\\legacy.mdb}:Oswego", imported.schema.fields, [projectSource]), /external paths/);
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "frequency", field: "case_status", stratifyBy: "sex" }), "FREQ case_status STRATAVAR=sex");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "means", field: "age" }), "MEANS age");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("MEANS Age", imported.schema.fields), { kind: "means", field: "age", source: "MEANS Age" });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("TABLES potato_salad case_status STRATAVAR=Sex", imported.schema.fields), {
+    kind: "tables", exposure: "potato_salad", outcome: "case_status", stratifyBy: "sex",
+    source: "TABLES potato_salad case_status STRATAVAR=Sex",
+  });
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("FREQ age\nMEANS age", imported.schema.fields), /exactly one/);
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("MEANS sex", imported.schema.fields), /Number field/);
+
   const examples = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-examples.ts")).href}?examples=${Date.now()}`);
   const catalogValue = JSON.parse(await readFile(repositoryPath(
     "wasm/demo/examples/foodborne-outbreak-investigation.programs.json",
@@ -682,6 +783,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(catalog.dataset.file, "foodborne-outbreak-investigation.csv");
   assert.equal(catalog.dataset.sha256, fixture.dataset.sha256);
   assert.equal(catalog.dataset.recordCount, imported.records.length);
+  assert.deepEqual(catalog.dataset.fieldTypes, { Age: "number", Sex: "text", case_status: "text" });
   assert.deepEqual(catalog.programs.map(({ id }) => id), [
     "life-stage-by-sex", "age-band-by-case-status", "age-decades",
   ]);
@@ -691,6 +793,28 @@ FREQ AgeGroup STRATAVAR=Sex`;
     assert.equal(exampleData.records.length, 96, `${example.id} must preserve the foodborne record count`);
     assert.ok(exampleData.records.some((record) => typeof record[examplePlan.recode.targetField] === "string"), `${example.id} must derive categories`);
   }
+  const available = examples.assessClassicProgramCatalog(catalog, {
+    dataset: { id: catalog.dataset.id, file: catalog.dataset.file, sha256: catalog.dataset.sha256 },
+    fields: imported.schema.fields,
+    recordCount: imported.records.length,
+  });
+  assert.equal(available.datasetMatches, true);
+  assert.ok(available.programs.every((program) => program.compatible));
+  const renamed = examples.assessClassicProgramCatalog(catalog, {
+    dataset: { id: "renamed-import", file: "renamed-import.csv", sha256: catalog.dataset.sha256 },
+    fields: imported.schema.fields,
+    recordCount: imported.records.length,
+  });
+  assert.equal(renamed.datasetMatches, true, "the original digest must recognize a renamed canonical import");
+  const absent = examples.assessClassicProgramCatalog(catalog, { fields: imported.schema.fields, recordCount: imported.records.length });
+  assert.equal(absent.datasetMatches, false);
+  assert.ok(absent.programs.every((program) => !program.compatible));
+  const wrongType = examples.assessClassicProgramCatalog(catalog, {
+    dataset: { id: catalog.dataset.id, file: catalog.dataset.file, sha256: catalog.dataset.sha256 },
+    fields: imported.schema.fields.map((field) => field.name.toLowerCase() === "age" ? { ...field, type: "text" } : field),
+    recordCount: imported.records.length,
+  });
+  assert.match(wrongType.programs.find((program) => program.example.id === "age-decades").issues.join(" "), /must be number/i);
 }
 
 async function checkMeansContract() {
@@ -1003,6 +1127,15 @@ async function checkCsvAndProjectFixtures() {
   assert.deepEqual(validated, snapshot);
   assert.equal(contracts.isProjectSnapshot(snapshot), true);
   assert.equal(contracts.isProjectSnapshot({ ...snapshot, version: 2 }), false);
+  const withDataset = structuredClone(snapshot);
+  withDataset.forms[0].dataset = {
+    id: "foodborne-outbreak-investigation",
+    file: "foodborne-outbreak-investigation.csv",
+    sha256: "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+  };
+  assert.deepEqual(contracts.validateProjectSnapshot(withDataset).forms[0].dataset, withDataset.forms[0].dataset);
+  withDataset.forms[0].dataset.sha256 = "not-a-digest";
+  assert.throws(() => contracts.validateProjectSnapshot(withDataset), /SHA-256 digest/i);
   for (const invalid of await jsonFixture("project-snapshot-invalid.json")) {
     assert.throws(
       () => contracts.validateProjectSnapshot(invalid.snapshot),
@@ -1290,6 +1423,14 @@ async function checkSampleProjectPackage() {
   assert.equal(packageValue.project.forms.length, 18);
   assert.equal(packageValue.programs.length, 1);
   assert.equal(packageValue.programs[0].name, "Statistics");
+  assert.deepEqual(contracts.validateProjectProgram({
+    name: "Metadata", source: "FREQ age", language: "classic-analysis", author: "Analyst",
+    comment: "Reviewed example", createdAt: "2026-08-31T12:00:00.000Z", modifiedAt: "2026-08-31T13:00:00.000Z",
+  }), {
+    name: "Metadata", source: "FREQ age", language: "classic-analysis", author: "Analyst",
+    comment: "Reviewed example", createdAt: "2026-08-31T12:00:00.000Z", modifiedAt: "2026-08-31T13:00:00.000Z",
+  });
+  assert.throws(() => contracts.validateProjectProgram({ name: "Bad", source: "", language: "classic-analysis", createdAt: "yesterday-ish" }), /createdAt/);
   assert.match(packageValue.programs[0].source, /READ \{Projects\/Sample\/Sample\.prj\}:Oswego/);
   assert.match(packageValue.programs[0].source, /LOGISTIC CHD = CAT/);
   assert.equal(packageValue.codeTables.length, 22);
@@ -1454,7 +1595,7 @@ ELSE
 END`;
   const ast = parser.parseClassicProgram(source);
   assert.equal(ast.type, "Program");
-  assert.equal(ast.astVersion, "0.1.0");
+  assert.equal(ast.astVersion, "0.3.0");
   assert.deepEqual(ast.body.map((statement) => statement.type), [
     "ReadStatement", "DefineStatement", "AssignStatement", "RecodeStatement", "SelectStatement", "IfStatement",
   ]);

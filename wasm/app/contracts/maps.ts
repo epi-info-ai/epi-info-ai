@@ -1,4 +1,4 @@
-import type { EpiRecord, FieldDefinition, MapPoint } from "./core.js";
+import type { DatasetProvenance, EpiRecord, FieldDefinition, MapPoint } from "./core.js";
 
 export type MapLaunchContext = "standalone" | "current-form";
 
@@ -8,6 +8,7 @@ export interface MapDataSource {
   formName: string;
   fields: FieldDefinition[];
   records: EpiRecord[];
+  dataset?: DatasetProvenance;
 }
 
 export interface MapFieldSelection {

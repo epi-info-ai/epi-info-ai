@@ -166,8 +166,8 @@ translate a program into arbitrary JavaScript or grant it ambient DOM, network,
 credential, filesystem, database, or process access.
 
 The first maintained language boundary is `app/programming/classic-ast.ts`. It
-defines AST version `0.1.0`, source spans, typed expressions, and statement nodes
-for `READ`, `FREQ`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`.
+defines AST version `0.3.0`, source spans, typed expressions, and statement nodes
+for `READ`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`.
 CodeMirror may parse this broader subset for diagnostics, but parsing does not
 grant execution authority. `classic-program.ts` remains the narrower reviewed
 lowerer/executor for the existing `DEFINE -> RECODE -> FREQ` demonstration until
@@ -382,7 +382,7 @@ and has no runtime dependencies or operating-system access.
 | Derive named 2 x 2 strata from current-form records, explicit value mappings, and missing-value rules | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript data adapter; emits an audited request for the Rust operation |
 | Group typed current-form categories, sort them, apply missing rules, and assemble `epi.frequency` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; proportions and confidence limits are Rust/WASM |
 | Parse and apply the bounded `DEFINE TEXTINPUT -> numeric RECODE -> FREQ [STRATAVAR]` program plan | `app/programming/classic-program.ts` | TypeScript parser/orchestrator; source is never evaluated |
-| Parse the initial Classic language surface into versioned typed statements/expressions with source spans | `app/programming/classic-ast.ts` | TypeScript AST/parser V0.1; syntax-only support for eight command families does not authorize execution |
+| Parse the initial Classic language surface into versioned typed statements/expressions with source spans | `app/programming/classic-ast.ts` | TypeScript AST/parser V0.3; LIST joins the initial language families, and parsing alone does not authorize execution |
 | Validate and load dataset-bound example-program catalogs | `app/programming/classic-examples.ts` + `demo/examples/*.programs.json` | The foodborne dataset owns three `DEFINE -> RECODE -> FREQ` examples; the app treats the JSON as validated external data and uses the same AST-to-plan boundary as user source |
 | Edit and highlight bounded Epi Info source; show line/column and configurable indentation; offer schema-aware completion; run live syntax diagnostics | `app/programming/classic-editor.ts` | TypeScript + CodeMirror 6 presentation assistance over the same typed parser; suggestions and diagnostics have no execution authority |
 | Store the browser-local V0.1 command history contract | `app/programming/run-history.ts` | TypeScript; unified origins and immutable hosted provenance remain open |
@@ -397,12 +397,20 @@ and has no runtime dependencies or operating-system access.
 | Delimited parsing, CSV export, and schema inference | `app/forms/csv.ts` | TypeScript |
 | CSV, TSV, JSON-record, and Excel `.xlsx` input adapters | `app/forms/importers.ts` | TypeScript with a pinned, browser-only `read-excel-file` boundary |
 | Project snapshot load/recovery boundary | `app/forms/project-state.ts` | TypeScript |
+| Typed Form Designer File/Edit/View/Insert/Format/Tools/Help tree, command state, disposition, and renderer | `app/forms/form-designer-menu.ts` | TypeScript; legacy gaps remain visible and browser additions are marked new branches |
+| Typed Enter Data File/Edit/View/Tools/Help tree, legacy Import Data branch, command state, disposition, and renderer | `app/forms/enter-data-menu.ts` | TypeScript; implemented actions reuse entry operations, legacy gaps remain visible, and browser-file/Data Quality additions are marked new branches |
+| Typed Visual Dashboard blue toolbar and canvas right-click command tree | `app/dashboard/dashboard-menu.ts` | TypeScript; Rates and Charts > Epi Curve select existing gadgets while unfinished canvas, export, filter, variable, and gadget commands remain visible gaps |
+| Typed Classic Analysis File/View/Tools/Help shell and nine-folder Command Explorer | `app/analysis/classic-analysis-menu.ts` + `app/programming/classic-command-builder.ts` | TypeScript; Read, Define, Recode, List, Frequencies, Tables, and Means open field-aware source-generating dialogs; DEFINE/RECODE author visible components of the bounded full program, selected execution is separately allowlisted, and all other commands remain visible gaps |
+| Classic Analysis active data session and line-list Output | `app/programming/classic-session.ts` + `demo/app.ts` | TypeScript; READ resolves only named forms in the current project, LIST/FREQ/MEANS consume the cloned session source, external READ targets fail closed, and TABLES refuses a mismatched session until its classification UI is generalized |
+| Classic command compatibility floor | `app/programming/classic-command-parity.ts` + `docs/design/classic-command-compatibility-registry.md` | TypeScript registry plus reviewed documentation; all 49 legacy enum entries retain independent explorer/parser/dialog/selected/full-run/browser-policy state |
+| Typed Program Editor File/Edit/Fonts menu, legacy toolbar, and Output navigation toolbar | `app/programming/classic-program-surface.ts` + `app/programming/classic-editor.ts` | TypeScript; CodeMirror editing/navigation, saved PGM/search, bounded Run, source-only browser Print, and Output history paths are active while clipboard, bookmark, and clear operations remain explicit gaps |
+| Guarded Classic program document state, project program persistence, metadata, deletion, and `.pgm7` exchange | `app/programming/classic-program-document.ts` + `demo/form-data.ts` + `demo/app.ts` | TypeScript; project packages/local extras hold source plus Author/Comments/Created/Updated, confirmed deletion retains editor source, 1 MB text files use the official extension, and imported source never bypasses AST/allowlist execution checks |
 | Portable project V2 validation and preservation contract | `app/contracts/project-package.ts` | TypeScript |
 | Read-only legacy Access conversion | `scripts/convert-epi-info-access.ps1` | Migration tooling outside the browser runtime |
 | Generic browser-local persistence adapter | `app/storage/browser.ts` | TypeScript |
 | Supabase email/GitHub authentication, typed API responses, validated project snapshot upload/download, and revision conflict checks | `demo/supabase-sync.ts` | TypeScript |
 | Coordinate selection, points, GeoJSON, H3, time lapse, and geolocation | `demo/maps.ts` + `app/contracts/maps.ts` | TypeScript with a confined pinned Leaflet global boundary |
-| Familiar menu behavior and module navigation | `demo/shell.ts` | TypeScript |
+| Familiar application-shell menu behavior and module navigation | `demo/shell.ts` | TypeScript |
 
 No handwritten application-feature JavaScript remains in `demo/`. Generated
 `.js` files in `dist/` are build artifacts. Reviewed pinned vendor JavaScript is

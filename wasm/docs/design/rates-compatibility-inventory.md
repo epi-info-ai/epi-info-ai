@@ -24,7 +24,7 @@ denominator condition to both aggregates before applying the numerator condition
 
 | Gap ID | Legacy branch | V0.11 state | Required follow-up |
 |---|---|---|---|
-| LEGACY-DASHBOARD-001 | Visual Dashboard launcher and gadget canvas | Separate launcher restored; single Rates workspace | General canvas, add/remove/move/resize, saved dashboard |
+| LEGACY-DASHBOARD-001 | Visual Dashboard launcher and gadget canvas | Launcher, familiar blue toolbar, source/record count, right-click command tree, and bounded Rates/Epi Curve gadgets restored | General add/remove/move/resize canvas and saved dashboard |
 | LEGACY-DASHBOARD-002 | Rates numerator aggregate, field, condition | COUNT + one equality value | Full condition builder and aggregate list |
 | LEGACY-DASHBOARD-003 | Rates denominator aggregate, field, condition | COUNT of non-missing field | Full condition builder and aggregate list |
 | LEGACY-DASHBOARD-004 | Distinct numerator/denominator | Open gap | Typed distinct semantics and fixtures |

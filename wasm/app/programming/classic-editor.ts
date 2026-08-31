@@ -1,5 +1,5 @@
 import { acceptCompletion, autocompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-import { indentWithTab } from "@codemirror/commands";
+import { cursorDocEnd, cursorDocStart, indentWithTab, redo, selectAll, undo } from "@codemirror/commands";
 import { defaultHighlightStyle, indentUnit, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
 import { linter, lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { Compartment, EditorState } from "@codemirror/state";
@@ -15,6 +15,15 @@ export interface ClassicProgramEditor {
   setLineNumbers(visible: boolean): void;
   setTabSettings(tabSize: ClassicProgramTabSize, indentWithTabs: boolean): void;
   refreshDiagnostics(): void;
+  undo(): boolean;
+  redo(): boolean;
+  selectAll(): boolean;
+  moveToBeginning(): boolean;
+  moveToEnd(): boolean;
+  findText(query: string, fromStart?: boolean, caseSensitive?: boolean, wholeWord?: boolean): boolean;
+  replaceText(query: string, replacement: string, replaceAll?: boolean, caseSensitive?: boolean, wholeWord?: boolean): number;
+  getSelectedText(): string;
+  replaceSelection(value: string, selectInserted?: boolean): void;
   focus(): void;
   destroy(): void;
 }
@@ -41,7 +50,7 @@ export interface ClassicProgramLintStatus {
 const epiInfoLanguage = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
-    if (stream.match(/^(?:READ|FREQ|TABLES|RECODE|TO|DEFINE|ASSIGN|IF|THEN|ELSE|END|SELECT|CANCEL|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
+    if (stream.match(/^(?:READ|LIST|FREQ|MEANS|TABLES|RECODE|TO|DEFINE|ASSIGN|IF|THEN|ELSE|END|SELECT|CANCEL|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
     if (stream.match(/^(?:STRATAVAR|WEIGHTVAR|OUTTABLE|PSUVAR|STATISTICS|COLUMNSIZE)\b/i)) return "propertyName";
     if (stream.match(/^(?:LOVALUE|HIVALUE|TRUE|FALSE|YES|NO|NOWRAP|ONEISYES|FISHER|NONE)\b/i)) return "atom";
     if (stream.match(/^"(?:[^"]|"")*"?/)) return "string";
@@ -127,6 +136,7 @@ export function createClassicProgramEditor(
   preferences: ClassicProgramEditorPreferences,
   onCursorPosition?: (position: ClassicProgramCursorPosition) => void,
   onLintStatus?: (status: ClassicProgramLintStatus) => void,
+  onDocumentChange?: (value: string) => void,
 ): ClassicProgramEditor {
   const lineNumberConfiguration = new Compartment();
   const tabConfiguration = new Compartment();
@@ -189,6 +199,7 @@ export function createClassicProgramEditor(
           spellcheck: "false",
         }),
         EditorView.updateListener.of((update) => {
+          if (update.docChanged) onDocumentChange?.(update.state.doc.toString());
           if (!onCursorPosition || (!update.selectionSet && !update.docChanged)) return;
           const cursor = update.state.selection.main.head;
           const line = update.state.doc.lineAt(cursor);
@@ -211,6 +222,52 @@ export function createClassicProgramEditor(
     },
     refreshDiagnostics() {
       view.dispatch(setDiagnostics(view.state, collectDiagnostics(view)));
+    },
+    undo: () => undo(view),
+    redo: () => redo(view),
+    selectAll: () => selectAll(view),
+    moveToBeginning: () => cursorDocStart(view),
+    moveToEnd: () => cursorDocEnd(view),
+    findText(query, fromStart = false, caseSensitive = false, wholeWord = false) {
+      if (!query) return false;
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const expression = new RegExp(wholeWord ? `\\b${escaped}\\b` : escaped, caseSensitive ? "g" : "gi");
+      expression.lastIndex = fromStart ? 0 : view.state.selection.main.to;
+      const source = view.state.doc.toString();
+      let match = expression.exec(source);
+      if (!match && !fromStart) { expression.lastIndex = 0; match = expression.exec(source); }
+      if (!match) return false;
+      const selection = { anchor: match.index, head: match.index + match[0].length };
+      view.dispatch({ selection, effects: EditorView.scrollIntoView(selection.head, { y: "center" }) });
+      view.focus();
+      return true;
+    },
+    replaceText(query, replacement, replaceAll = false, caseSensitive = false, wholeWord = false) {
+      if (!query) return 0;
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const expression = new RegExp(wholeWord ? `\\b${escaped}\\b` : escaped, caseSensitive ? "g" : "gi");
+      const source = view.state.doc.toString();
+      const matches = [...source.matchAll(expression)];
+      const selected = view.state.selection.main;
+      const candidates = replaceAll ? matches : matches.filter((match) => match.index! >= selected.from).slice(0, 1);
+      if (candidates.length === 0) return 0;
+      view.dispatch({ changes: candidates.map((match) => ({ from: match.index!, to: match.index! + match[0].length, insert: replacement })) });
+      view.focus();
+      return candidates.length;
+    },
+    getSelectedText: () => view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to),
+    replaceSelection(value, selectInserted = true) {
+      const selection = view.state.selection.main;
+      const source = view.state.doc.toString();
+      const prefix = selection.from > 0 && source[selection.from - 1] !== "\n" ? "\n" : "";
+      const suffix = selection.to < source.length && source[selection.to] !== "\n" ? "\n" : "";
+      const inserted = `${prefix}${value}${suffix}`;
+      const from = selection.from + prefix.length;
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: inserted },
+        selection: selectInserted ? { anchor: from, head: from + value.length } : { anchor: from + value.length },
+      });
+      view.focus();
     },
     focus: () => view.focus(),
     destroy: () => view.destroy(),

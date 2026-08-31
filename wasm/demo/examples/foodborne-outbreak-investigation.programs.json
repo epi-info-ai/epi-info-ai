@@ -4,7 +4,12 @@
     "id": "foodborne-outbreak-investigation",
     "file": "foodborne-outbreak-investigation.csv",
     "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
-    "recordCount": 96
+    "recordCount": 96,
+    "fieldTypes": {
+      "Age": "number",
+      "Sex": "text",
+      "case_status": "text"
+    }
   },
   "programs": [
     {

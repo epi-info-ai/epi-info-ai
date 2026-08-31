@@ -39,14 +39,6 @@ for (const button of document.querySelectorAll<HTMLElement>("[data-open-module],
 }
 
 requiredElement("#main-menu-button").addEventListener("click", openMainMenu);
-requiredElement("#designer-new-project").addEventListener("click", () => {
-  closeLegacyMenus();
-  requiredElement<HTMLElement>("#new-project").click();
-});
-requiredElement("#designer-project-storage").addEventListener("click", () => {
-  closeLegacyMenus();
-  requiredElement<HTMLElement>("#project-storage").click();
-});
 requiredElement("#file-exit").addEventListener("click", () => {
   closeLegacyMenus();
   openMainMenu();

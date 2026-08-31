@@ -37,10 +37,17 @@ export interface FormSchema {
   fields: FieldDefinition[];
 }
 
+export interface DatasetProvenance {
+  id: string;
+  file: string;
+  sha256: string;
+}
+
 export interface ProjectForm {
   id: string;
   schema: FormSchema;
   records: EpiRecord[];
+  dataset?: DatasetProvenance;
   deletedRecords?: DeletedRecord[];
 }
 
@@ -267,6 +274,17 @@ function recordAt(value: unknown, path: string): EpiRecord {
   );
 }
 
+function datasetProvenanceAt(value: unknown, path: string): DatasetProvenance {
+  const dataset = objectAt(value, path);
+  const sha256 = nonEmptyString(dataset.sha256, `${path}.sha256`).toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(sha256)) fail(`${path}.sha256`, "must be a SHA-256 digest");
+  return {
+    id: nonEmptyString(dataset.id, `${path}.id`),
+    file: nonEmptyString(dataset.file, `${path}.file`),
+    sha256,
+  };
+}
+
 function projectFormAt(value: unknown, path: string): ProjectForm {
   const form = objectAt(value, path);
   const schema = objectAt(form.schema, `${path}.schema`);
@@ -289,6 +307,7 @@ function projectFormAt(value: unknown, path: string): ProjectForm {
     },
     records: form.records.map((record, index) => recordAt(record, `${path}.records[${index}]`)),
   };
+  if (form.dataset !== undefined) result.dataset = datasetProvenanceAt(form.dataset, `${path}.dataset`);
   if (form.deletedRecords !== undefined) {
     if (!Array.isArray(form.deletedRecords)) fail(`${path}.deletedRecords`, "must be an array");
     result.deletedRecords = form.deletedRecords.map((item, index) => {

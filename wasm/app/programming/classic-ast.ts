@@ -1,4 +1,4 @@
-export const CLASSIC_AST_VERSION = "0.1.0" as const;
+export const CLASSIC_AST_VERSION = "0.3.0" as const;
 
 export interface ClassicSourceLocation {
   line: number;
@@ -90,11 +90,21 @@ export interface ClassicFrequencyStatement extends ClassicNode {
   options: ClassicAnalysisOptions;
 }
 
+export interface ClassicListStatement extends ClassicNode {
+  type: "ListStatement";
+  selection: ClassicFrequencyStatement["selection"];
+}
+
 export interface ClassicTablesStatement extends ClassicNode {
   type: "TablesStatement";
   exposure: ClassicIdentifier | "*";
   outcome?: ClassicIdentifier;
   options: ClassicAnalysisOptions;
+}
+
+export interface ClassicMeansStatement extends ClassicNode {
+  type: "MeansStatement";
+  field: ClassicIdentifier;
 }
 
 export type ClassicVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -152,7 +162,9 @@ export interface ClassicIfStatement extends ClassicNode {
 export type ClassicStatement =
   | ClassicReadStatement
   | ClassicFrequencyStatement
+  | ClassicListStatement
   | ClassicTablesStatement
+  | ClassicMeansStatement
   | ClassicDefineStatement
   | ClassicAssignStatement
   | ClassicSelectStatement
@@ -479,7 +491,9 @@ class ProgramParser {
     const { command, rest, restColumn } = splitCommand(line);
     if (command === "READ") return this.read(line, rest);
     if (command === "FREQ") return this.frequency(line, rest);
+    if (command === "LIST") return this.list(line, rest);
     if (command === "TABLES") return this.tables(line, rest);
+    if (command === "MEANS") return this.means(line, rest);
     if (command === "DEFINE") return this.define(line, rest, restColumn);
     if (command === "ASSIGN") return this.assign(line, rest, restColumn);
     if (command === "SELECT") return this.select(line, rest, restColumn);
@@ -491,11 +505,12 @@ class ProgramParser {
 
   private read(line: SourceLine, rest: string): ClassicReadStatement {
     if (!rest.trim()) throw new ClassicSyntaxError(line.line, line.text.length + 1, "READ requires a table or data source.");
-    const external = rest.match(/^(\{[^}]+\})\s*:\s*(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_]*)$/);
+    const raw = rest.trim();
+    const external = raw.match(/^(\{[^}]+\})\s*:\s*(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_]*)$/);
     const target = external
-      ? { kind: "external-table" as const, source: external[1]!, table: identifierName(external[2]!), raw: rest.trim() }
-      : { kind: "current-project-table" as const, table: identifierName(rest.trim()), raw: rest.trim() };
-    if (target.kind === "current-project-table") identifier(target.table, line);
+      ? { kind: "external-table" as const, source: external[1]!, table: identifierName(external[2]!), raw }
+      : { kind: "current-project-table" as const, table: identifierName(raw), raw };
+    if (target.kind === "current-project-table" && !/^\[[^\]]+\]$/.test(raw)) identifier(target.table, line);
     return { type: "ReadStatement", target, span: lineSpan(line) };
   }
 
@@ -516,6 +531,18 @@ class ProgramParser {
     return { type: "FrequencyStatement", selection, options, span: lineSpan(line) };
   }
 
+  private list(line: SourceLine, rest: string): ClassicListStatement {
+    const tokens = words(rest);
+    if (!tokens.length) throw new ClassicSyntaxError(line.line, line.text.length + 1, "LIST requires one or more variables or '*'.");
+    let selection: ClassicListStatement["selection"];
+    if (tokens[0] === "*") {
+      if (tokens.length === 1) selection = { kind: "all" };
+      else if (tokens[1]?.toUpperCase() === "EXCEPT" && tokens.length > 2) selection = { kind: "all-except", fields: tokens.slice(2).map((value) => identifier(value, line)) };
+      else throw new ClassicSyntaxError(line.line, 1, "LIST '*' accepts only an optional EXCEPT variable list.");
+    } else selection = { kind: "fields", fields: tokens.map((value) => identifier(value, line)) };
+    return { type: "ListStatement", selection, span: lineSpan(line) };
+  }
+
   private tables(line: SourceLine, rest: string): ClassicTablesStatement {
     const tokens = words(rest);
     const optionIndex = tokens.findIndex(optionStart);
@@ -529,6 +556,12 @@ class ProgramParser {
       options: analysisOptions(tokens, optionIndex < 0 ? tokens.length : optionIndex, line),
       span: lineSpan(line),
     };
+  }
+
+  private means(line: SourceLine, rest: string): ClassicMeansStatement {
+    const tokens = words(rest);
+    if (tokens.length !== 1) throw new ClassicSyntaxError(line.line, 1, "MEANS requires exactly one variable in this V0.1 AST.");
+    return { type: "MeansStatement", field: identifier(tokens[0]!, line), span: lineSpan(line) };
   }
 
   private define(line: SourceLine, rest: string, restColumn: number): ClassicDefineStatement {

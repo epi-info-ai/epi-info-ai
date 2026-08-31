@@ -2,11 +2,14 @@ import { calculateChiSquareTrend, calculateCohortSampleSize, calculatePopulation
 import { initializeEpiAssist } from "./epi-assist.js";
 import {
   applyHostedProjectSnapshot,
+  deleteCurrentProjectProgram,
   getCurrentProjectSnapshot,
   getCurrentProjectData,
+  getCurrentProjectPrograms,
   getProjectDataSources,
   initializeFormDataDemo,
   markCurrentProjectSynced,
+  saveCurrentProjectProgram,
   showRecordInEnter,
   testSupabaseConnection,
 } from "./form-data.js";
@@ -14,14 +17,21 @@ import { initializeMaps } from "./maps.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
-import { CLASSIC_AST_VERSION } from "../app/programming/classic-ast.js";
+import { renderDashboardCommandContract } from "../app/dashboard/dashboard-menu.js";
+import { renderClassicAnalysisContract } from "../app/analysis/classic-analysis-menu.js";
+import { CLASSIC_AST_VERSION, parseClassicProgram } from "../app/programming/classic-ast.js";
 import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
-import { loadClassicProgramExampleCatalog, type ClassicProgramExample } from "../app/programming/classic-examples.js";
+import { buildClassicAnalysisCommand, resolveSelectedClassicAnalysisCommand, type ClassicAnalysisCommandInput, type ClassicAnalysisCommandKind, type ClassicDefineVariableScope, type ClassicDefineVariableType } from "../app/programming/classic-command-builder.js";
+import { ClassicProgramSession } from "../app/programming/classic-session.js";
+import { renderClassicProgramSurface } from "../app/programming/classic-program-surface.js";
+import { ClassicProgramDocumentService, normalizeClassicProgramName, readClassicProgramFile, safeClassicProgramFileName } from "../app/programming/classic-program-document.js";
+import { assessClassicProgramCatalog, loadClassicProgramExampleCatalog, type ClassicProgramExample, type ClassicProgramExampleCatalog } from "../app/programming/classic-examples.js";
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 import type { EpiCurveResult } from "../app/contracts/dashboard.js";
-import type { EpiRecord } from "../app/contracts/core.js";
+import type { EpiRecord, FieldDefinition } from "../app/contracts/core.js";
+import type { ProjectProgram } from "../app/contracts/project-package.js";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -563,10 +573,19 @@ function saveClassicProgramPreferences(): void {
 const classicProgramExampleSelect = requiredElement<HTMLSelectElement>("#classic-program-example");
 const classicProgramExampleDescription = requiredElement<HTMLElement>("#classic-program-example-description");
 const classicProgramLoadExampleButton = requiredElement<HTMLButtonElement>("#classic-program-load-example");
+const classicProgramExamplesFieldset = requiredElement<HTMLFieldSetElement>(".classic-program-examples");
+const FOODBORNE_DATASET_ID = "foodborne-outbreak-investigation";
+const FOODBORNE_DATASET_SHA256 = "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5";
 let classicProgramExamples: readonly ClassicProgramExample[] = [];
+let classicProgramCatalog: ClassicProgramExampleCatalog | null = null;
+let classicProgramAvailability = new Map<string, { compatible: boolean; issues: string[] }>();
+let classicExampleSourceLoaded = false;
+const classicProgramDocument = new ClassicProgramDocumentService();
+const classicProgramSession = new ClassicProgramSession();
+classicProgramDocument.newDocument("// Enter an Epi Info program for the current project.");
 const classicProgramEditor = createClassicProgramEditor(
   requiredElement<HTMLElement>("#classic-program-source"),
-  "// Loading Foodborne Outbreak Investigation example programs…",
+  "// Enter an Epi Info program for the current project.",
   () => getCurrentProjectData().fields,
   classicProgramPreferences,
   ({ line, column }) => {
@@ -577,11 +596,528 @@ const classicProgramEditor = createClassicProgramEditor(
     status.dataset.valid = String(valid);
     status.textContent = valid ? `✓ ${message}` : `Syntax issue${line ? ` on line ${line}` : ""}: ${message}`;
   },
+  () => renderClassicProgramDocumentState(),
 );
 const classicProgramFeedback = requiredElement<HTMLElement>("#classic-program-feedback");
 const classicProgramOutput = requiredElement<HTMLElement>("#classic-program-output");
 const classicProgramLineNumbersButton = requiredElement<HTMLButtonElement>("#view-program-line-numbers");
 const classicProgramIndentTabsButton = requiredElement<HTMLButtonElement>("#view-program-indent-tabs");
+renderClassicProgramSurface(requiredElement("#classic-program-menu"), requiredElement("#classic-program-toolbar"), requiredElement("#classic-output-toolbar"));
+const classicProgramCommandStatus = requiredElement<HTMLElement>("#classic-program-command-status");
+
+function renderClassicProgramSession(): void {
+  const source = classicProgramSession.current(getCurrentProjectData());
+  const label = document.createElement("strong");
+  label.textContent = "Active data:";
+  requiredElement("#classic-program-session-status").replaceChildren(label, ` ${source.formName} · ${source.records.length} records.`);
+  requiredElement("#classic-program-source-name").textContent = `${source.formName} · ${source.records.length} records`;
+}
+
+function renderClassicProgramDocumentState(): void {
+  const state = classicProgramDocument.state;
+  const dirty = classicProgramDocument.isDirty(classicProgramEditor.getValue());
+  requiredElement("#classic-program-document-state").textContent = `${state.name} · ${dirty ? "modified" : "saved"}`;
+}
+
+function refreshClassicProjectPrograms(): void {
+  const programs = getCurrentProjectPrograms();
+  const options = programs.map((program) => new Option(program.name, program.name));
+  const empty = new Option(programs.length === 0 ? "No saved programs" : "Choose a saved program", "");
+  requiredElement<HTMLSelectElement>("#classic-project-program").replaceChildren(empty, ...options);
+  requiredElement<HTMLButtonElement>("#classic-project-program-open").disabled = programs.length === 0;
+  requiredElement<HTMLSelectElement>("#classic-program-dialog-project").replaceChildren(empty.cloneNode(true), ...options.map((option) => option.cloneNode(true)));
+}
+
+function guardUnsavedClassicProgram(): boolean {
+  return !classicProgramDocument.isDirty(classicProgramEditor.getValue()) || window.confirm("Discard unsaved changes to the current program?");
+}
+
+function openClassicProgram(name: string): void {
+  const program = getCurrentProjectPrograms().find((candidate) => candidate.name === name);
+  if (!program) throw new Error("The selected project program is no longer available.");
+  if (!guardUnsavedClassicProgram()) return;
+  classicProgramDocument.open(program, "project");
+  classicProgramEditor.setValue(program.source);
+  classicExampleSourceLoaded = false;
+  classicProgramCommandStatus.textContent = `Opened project program “${program.name}”. Unsupported source remains editable but cannot run.`;
+  renderClassicProgramDocumentState();
+}
+
+function newClassicProgram(): void {
+  if (!guardUnsavedClassicProgram()) return;
+  classicProgramDocument.newDocument("");
+  classicProgramEditor.setValue("");
+  classicExampleSourceLoaded = false;
+  classicProgramCommandStatus.textContent = "New untitled program created.";
+  renderClassicProgramDocumentState();
+  classicProgramEditor.focus();
+}
+
+type ClassicProgramDialogMode = "open" | "save-as";
+let classicProgramDialogMode: ClassicProgramDialogMode = "open";
+const classicProgramDialog = requiredElement<HTMLDialogElement>("#classic-program-dialog");
+const formatProgramTimestamp = (value?: string): string => value ? new Date(value).toLocaleString() : "";
+function renderClassicProgramDialogMetadata(program?: ProjectProgram): void {
+  const state = program ?? classicProgramDocument.state;
+  requiredElement<HTMLInputElement>("#classic-program-author").value = state.author ?? "";
+  requiredElement<HTMLTextAreaElement>("#classic-program-comment").value = state.comment ?? "";
+  requiredElement<HTMLInputElement>("#classic-program-created").value = formatProgramTimestamp(state.createdAt);
+  requiredElement<HTMLInputElement>("#classic-program-updated").value = formatProgramTimestamp(state.modifiedAt);
+}
+function showClassicProgramDialog(mode: ClassicProgramDialogMode): void {
+  classicProgramDialogMode = mode;
+  refreshClassicProjectPrograms();
+  const saveMode = mode === "save-as";
+  requiredElement("#classic-program-dialog-title").textContent = saveMode ? "Save Program As" : "Open Program";
+  requiredElement<HTMLElement>("#classic-program-name-label").hidden = !saveMode;
+  requiredElement<HTMLElement>("#classic-program-file-label").hidden = saveMode;
+  requiredElement<HTMLButtonElement>("#classic-program-dialog-primary").textContent = saveMode ? "Save to Current Project" : "Open";
+  requiredElement<HTMLButtonElement>("#classic-program-dialog-export").hidden = !saveMode;
+  requiredElement<HTMLButtonElement>("#classic-program-dialog-delete").hidden = saveMode;
+  requiredElement<HTMLInputElement>("#classic-program-author").readOnly = !saveMode;
+  requiredElement<HTMLTextAreaElement>("#classic-program-comment").readOnly = !saveMode;
+  requiredElement<HTMLInputElement>("#classic-program-name").value = classicProgramDocument.state.name === "Untitled" ? "" : classicProgramDocument.state.name;
+  requiredElement<HTMLInputElement>("#classic-program-file").value = "";
+  requiredElement("#classic-program-dialog-feedback").textContent = saveMode
+    ? "Save in the current project or download an interoperable .pgm7 text file."
+    : "Choose a project program or a .pgm7 text file.";
+  const selectedName = classicProgramDocument.state.origin === "project" ? classicProgramDocument.state.name : "";
+  const projectSelect = requiredElement<HTMLSelectElement>("#classic-program-dialog-project");
+  projectSelect.value = selectedName;
+  renderClassicProgramDialogMetadata(saveMode ? undefined : getCurrentProjectPrograms().find((program) => program.name === selectedName));
+  requiredElement<HTMLButtonElement>("#classic-program-dialog-delete").disabled = !projectSelect.value;
+  classicProgramDialog.showModal();
+}
+
+function saveClassicProgramToProject(name = classicProgramDocument.state.name, metadata: { author?: string; comment?: string } = classicProgramDocument.state): boolean {
+  const normalizedName = normalizeClassicProgramName(name);
+  const existing = getCurrentProjectPrograms().find((program) => program.name.toLocaleLowerCase() === normalizedName.toLocaleLowerCase());
+  const sameOpenProgram = classicProgramDocument.state.origin === "project" && classicProgramDocument.state.name.toLocaleLowerCase() === normalizedName.toLocaleLowerCase();
+  if (existing && !sameOpenProgram && !window.confirm(`Replace the saved project program “${existing.name}”?`)) return false;
+  const program = saveCurrentProjectProgram(normalizedName, classicProgramEditor.getValue(), metadata);
+  classicProgramDocument.markSaved(program.name, program.source, "project", program);
+  refreshClassicProjectPrograms();
+  requiredElement<HTMLSelectElement>("#classic-project-program").value = program.name;
+  classicProgramCommandStatus.textContent = `Saved “${program.name}” in the current project.`;
+  renderClassicProgramDocumentState();
+  return true;
+}
+
+function saveClassicProgram(): void {
+  if (classicProgramDocument.state.origin !== "project") { showClassicProgramDialog("save-as"); return; }
+  saveClassicProgramToProject();
+}
+
+function exportClassicProgramFile(): void {
+  const name = requiredElement<HTMLInputElement>("#classic-program-name").value;
+  try {
+    const fileName = safeClassicProgramFileName(name);
+    const source = classicProgramEditor.getValue();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([source], { type: "text/plain;charset=utf-8" }));
+    link.download = fileName;
+    link.click();
+    globalThis.setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    classicProgramDocument.markSaved(name, source, "file", classicProgramDocument.state);
+    classicProgramDialog.close();
+    classicProgramCommandStatus.textContent = `Saved ${fileName} as a browser download.`;
+    renderClassicProgramDocumentState();
+  } catch (error) {
+    requiredElement("#classic-program-dialog-feedback").textContent = error instanceof Error ? error.message : "Unable to save the program file.";
+  }
+}
+
+requiredElement<HTMLSelectElement>("#classic-project-program").addEventListener("change", (event) => {
+  requiredElement<HTMLButtonElement>("#classic-project-program-open").disabled = !(event.currentTarget as HTMLSelectElement).value;
+});
+requiredElement<HTMLSelectElement>("#classic-program-dialog-project").addEventListener("change", (event) => {
+  const name = (event.currentTarget as HTMLSelectElement).value;
+  renderClassicProgramDialogMetadata(getCurrentProjectPrograms().find((program) => program.name === name));
+  requiredElement<HTMLButtonElement>("#classic-program-dialog-delete").disabled = !name;
+});
+requiredElement("#classic-project-program-open").addEventListener("click", () => openClassicProgram(requiredElement<HTMLSelectElement>("#classic-project-program").value));
+for (const selector of ["#classic-program-file-new", "#classic-program-toolbar-new"]) requiredElement(selector).addEventListener("click", newClassicProgram);
+for (const selector of ["#classic-program-file-open", "#classic-program-toolbar-open"]) requiredElement(selector).addEventListener("click", () => showClassicProgramDialog("open"));
+for (const selector of ["#classic-program-file-save", "#classic-program-toolbar-save"]) requiredElement(selector).addEventListener("click", saveClassicProgram);
+requiredElement("#classic-program-file-save-as").addEventListener("click", () => showClassicProgramDialog("save-as"));
+function printClassicProgram(): void {
+  requiredElement("#classic-program-print-title").textContent = classicProgramDocument.state.name;
+  requiredElement("#classic-program-print-source").textContent = classicProgramEditor.getValue();
+  document.body.classList.add("printing-classic-program");
+  const cleanup = (): void => document.body.classList.remove("printing-classic-program");
+  globalThis.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
+  globalThis.setTimeout(cleanup, 0);
+  closeClassicProgramMenus();
+  classicProgramCommandStatus.textContent = "Program sent to the browser print dialog. Page setup is available there when supported by the browser.";
+}
+for (const selector of ["#classic-program-file-print", "#classic-program-toolbar-print"]) requiredElement(selector).addEventListener("click", printClassicProgram);
+requiredElement("#classic-program-dialog-primary").addEventListener("click", () => {
+  try {
+    if (classicProgramDialogMode === "open") {
+      const name = requiredElement<HTMLSelectElement>("#classic-program-dialog-project").value;
+      if (!name) throw new RangeError("Choose a project program or a .pgm7 file.");
+      openClassicProgram(name);
+    } else if (!saveClassicProgramToProject(requiredElement<HTMLInputElement>("#classic-program-name").value, {
+      author: requiredElement<HTMLInputElement>("#classic-program-author").value,
+      comment: requiredElement<HTMLTextAreaElement>("#classic-program-comment").value,
+    })) return;
+    classicProgramDialog.close();
+  } catch (error) {
+    requiredElement("#classic-program-dialog-feedback").textContent = error instanceof Error ? error.message : "Unable to complete the program operation.";
+  }
+});
+requiredElement("#classic-program-dialog-export").addEventListener("click", exportClassicProgramFile);
+requiredElement("#classic-program-dialog-delete").addEventListener("click", () => {
+  const name = requiredElement<HTMLSelectElement>("#classic-program-dialog-project").value;
+  if (!name || !window.confirm(`Delete saved project program “${name}”?`)) return;
+  try {
+    if (!deleteCurrentProjectProgram(name)) throw new Error("The selected project program is no longer available.");
+    if (classicProgramDocument.state.origin === "project" && classicProgramDocument.state.name === name) {
+      const source = classicProgramEditor.getValue();
+      classicProgramDocument.newDocument("");
+      classicProgramEditor.setValue(source);
+      renderClassicProgramDocumentState();
+    }
+    refreshClassicProjectPrograms();
+    renderClassicProgramDialogMetadata();
+    requiredElement<HTMLButtonElement>("#classic-program-dialog-delete").disabled = true;
+    requiredElement("#classic-program-dialog-feedback").textContent = `Deleted “${name}” from the current project. The editor source remains available until you close or replace it.`;
+    classicProgramCommandStatus.textContent = `Deleted saved project program “${name}”.`;
+  } catch (error) {
+    requiredElement("#classic-program-dialog-feedback").textContent = error instanceof Error ? error.message : "Unable to delete the program.";
+  }
+});
+requiredElement<HTMLInputElement>("#classic-program-file").addEventListener("change", async (event) => {
+  const file = (event.currentTarget as HTMLInputElement).files?.[0];
+  if (!file) return;
+  try {
+    const imported = await readClassicProgramFile(file);
+    if (!guardUnsavedClassicProgram()) return;
+    classicProgramDocument.open(imported, "file");
+    classicProgramEditor.setValue(imported.source);
+    classicExampleSourceLoaded = false;
+    classicProgramDialog.close();
+    classicProgramCommandStatus.textContent = `Opened ${file.name}. Review its source before running.`;
+    renderClassicProgramDocumentState();
+  } catch (error) {
+    requiredElement("#classic-program-dialog-feedback").textContent = error instanceof Error ? error.message : "Unable to open the program file.";
+  }
+});
+
+const classicProgramSearchDialog = requiredElement<HTMLDialogElement>("#classic-program-search-dialog");
+let classicProgramSearchMode: "find" | "replace" = "find";
+function showClassicProgramSearch(mode: "find" | "replace"): void {
+  classicProgramSearchMode = mode;
+  const replacing = mode === "replace";
+  requiredElement("#classic-program-search-title").textContent = replacing ? "Replace" : "Find";
+  requiredElement<HTMLElement>("#classic-program-replacement-label").hidden = !replacing;
+  requiredElement<HTMLButtonElement>("#classic-program-search-replace").hidden = !replacing;
+  requiredElement<HTMLButtonElement>("#classic-program-search-replace-all").hidden = !replacing;
+  requiredElement("#classic-program-search-feedback").textContent = "";
+  classicProgramSearchDialog.showModal();
+  requiredElement<HTMLInputElement>("#classic-program-search-query").focus();
+}
+function findClassicProgramText(fromStart = false): boolean {
+  const query = requiredElement<HTMLInputElement>("#classic-program-search-query").value;
+  const found = classicProgramEditor.findText(query, fromStart, requiredElement<HTMLInputElement>("#classic-program-search-case").checked, requiredElement<HTMLInputElement>("#classic-program-search-word").checked);
+  requiredElement("#classic-program-search-feedback").textContent = found ? `Found “${query}”.` : `No more matches for “${query}”.`;
+  return found;
+}
+requiredElement("#classic-program-edit-find").addEventListener("click", () => showClassicProgramSearch("find"));
+requiredElement("#classic-program-edit-find-next").addEventListener("click", () => {
+  if (!requiredElement<HTMLInputElement>("#classic-program-search-query").value) showClassicProgramSearch("find");
+  else findClassicProgramText();
+});
+requiredElement("#classic-program-edit-replace").addEventListener("click", () => showClassicProgramSearch("replace"));
+requiredElement("#classic-program-search-find").addEventListener("click", () => findClassicProgramText());
+for (const [selector, replaceAll] of [["#classic-program-search-replace", false], ["#classic-program-search-replace-all", true]] as const) {
+  requiredElement(selector).addEventListener("click", () => {
+    const query = requiredElement<HTMLInputElement>("#classic-program-search-query").value;
+    const count = classicProgramEditor.replaceText(query, requiredElement<HTMLInputElement>("#classic-program-search-replacement").value, replaceAll, requiredElement<HTMLInputElement>("#classic-program-search-case").checked, requiredElement<HTMLInputElement>("#classic-program-search-word").checked);
+    requiredElement("#classic-program-search-feedback").textContent = count ? `Replaced ${count} match${count === 1 ? "" : "es"}.` : `No matches for “${query}”.`;
+    renderClassicProgramDocumentState();
+  });
+}
+refreshClassicProjectPrograms();
+renderClassicProgramDocumentState();
+globalThis.addEventListener("epi-info-project-changed", () => {
+  classicProgramSession.reset(getCurrentProjectData());
+  renderClassicProgramSession();
+  refreshClassicProjectPrograms();
+  refreshClassicProgramContext();
+});
+
+function closeClassicProgramMenus(): void {
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>("#classic-program-menu details")) menu.open = false;
+}
+
+for (const surface of [requiredElement("#classic-program-menu"), requiredElement("#classic-program-toolbar")]) {
+  surface.addEventListener("click", (event) => {
+    const gap = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
+    if (!gap) return;
+    event.preventDefault();
+    classicProgramCommandStatus.textContent = gap.dataset.unavailableReason ?? "This familiar command is not implemented yet.";
+  });
+}
+requiredElement("#classic-output-toolbar").addEventListener("click", (event) => {
+  const gap = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
+  if (!gap) return;
+  event.preventDefault();
+  requiredElement("#classic-output-navigation-status").textContent = gap.dataset.unavailableReason ?? "This familiar command is not implemented yet.";
+});
+
+const editorAction = (action: () => boolean, message: string): void => {
+  action();
+  classicProgramEditor.focus();
+  closeClassicProgramMenus();
+  classicProgramCommandStatus.textContent = message;
+};
+requiredElement("#classic-program-edit-undo").addEventListener("click", () => editorAction(() => classicProgramEditor.undo(), "Undo applied to the current program."));
+requiredElement("#classic-program-edit-redo").addEventListener("click", () => editorAction(() => classicProgramEditor.redo(), "Redo applied to the current program."));
+requiredElement("#classic-program-edit-select-all").addEventListener("click", () => editorAction(() => classicProgramEditor.selectAll(), "Selected the complete program."));
+requiredElement("#classic-program-edit-beginning").addEventListener("click", () => editorAction(() => classicProgramEditor.moveToBeginning(), "Cursor moved to Program Beginning."));
+requiredElement("#classic-program-edit-end").addEventListener("click", () => editorAction(() => classicProgramEditor.moveToEnd(), "Cursor moved to Program End."));
+const classicCommandDialog = requiredElement<HTMLDialogElement>("#classic-command-dialog");
+const classicCommandDialogKind = requiredElement<HTMLSelectElement>("#classic-command-dialog-kind");
+const classicCommandDialogSource = requiredElement<HTMLSelectElement>("#classic-command-dialog-source");
+const classicCommandDialogField = requiredElement<HTMLSelectElement>("#classic-command-dialog-field");
+const classicCommandDialogExposure = requiredElement<HTMLSelectElement>("#classic-command-dialog-exposure");
+const classicCommandDialogOutcome = requiredElement<HTMLSelectElement>("#classic-command-dialog-outcome");
+const classicCommandDialogStrata = requiredElement<HTMLSelectElement>("#classic-command-dialog-strata");
+const classicCommandDialogVariable = requiredElement<HTMLInputElement>("#classic-command-dialog-variable");
+const classicCommandDialogScope = requiredElement<HTMLSelectElement>("#classic-command-dialog-scope");
+const classicCommandDialogVariableType = requiredElement<HTMLSelectElement>("#classic-command-dialog-variable-type");
+const classicCommandDialogPrompt = requiredElement<HTMLInputElement>("#classic-command-dialog-prompt");
+const classicCommandDialogRecodeSource = requiredElement<HTMLSelectElement>("#classic-command-dialog-recode-source");
+const classicCommandDialogRecodeTarget = requiredElement<HTMLSelectElement>("#classic-command-dialog-recode-target");
+const classicCommandDialogRecodeRows = requiredElement<HTMLTableSectionElement>("#classic-command-dialog-recode-rows");
+const classicCommandDialogRecodeElse = requiredElement<HTMLInputElement>("#classic-command-dialog-recode-else");
+
+function appendClassicRecodeRange(from = "", to = "", result = ""): void {
+  const row = document.createElement("tr");
+  const inputs = [
+    ["From value", "from", from], ["To value", "to", to], ["Recoded value", "result", result],
+  ] as const;
+  for (const [label, key, value] of inputs) {
+    const cell = document.createElement("td");
+    const input = document.createElement("input");
+    input.ariaLabel = label;
+    input.dataset.recodeRange = key;
+    input.value = value;
+    cell.append(input);
+    row.append(cell);
+  }
+  const action = document.createElement("td");
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "text-button";
+  remove.textContent = "Remove";
+  remove.addEventListener("click", () => { row.remove(); refreshClassicCommandDialogPreview(); });
+  action.append(remove);
+  row.append(action);
+  classicCommandDialogRecodeRows.append(row);
+}
+
+function resetClassicRecodeRanges(): void {
+  classicCommandDialogRecodeRows.replaceChildren();
+  appendClassicRecodeRange("LOVALUE", "17", "0-17");
+  appendClassicRecodeRange("17", "44", "18-44");
+  appendClassicRecodeRange("44", "64", "45-64");
+  appendClassicRecodeRange("64", "HIVALUE", "65+");
+}
+
+function classicDefinedFields(baseFields: readonly FieldDefinition[]): FieldDefinition[] {
+  try {
+    const ast = parseClassicProgram(classicProgramEditor.getValue());
+    return ast.body.flatMap((statement): FieldDefinition[] => statement.type === "DefineStatement" && statement.variableType
+      ? [{ name: statement.variable.name, prompt: statement.prompt ?? statement.variable.name, type: statement.variableType === "NUMERIC" ? "number" : "text", required: false }]
+      : []).filter((field) => !baseFields.some((candidate) => candidate.name.toLocaleLowerCase("en-US") === field.name.toLocaleLowerCase("en-US")));
+  } catch {
+    return [];
+  }
+}
+
+function classicCommandDialogInput(): ClassicAnalysisCommandInput {
+  const kind = classicCommandDialogKind.value as ClassicAnalysisCommandKind;
+  if (kind === "read") return { kind, table: classicCommandDialogSource.value };
+  if (kind === "define") return {
+    kind, variable: classicCommandDialogVariable.value,
+    scope: classicCommandDialogScope.value as ClassicDefineVariableScope,
+    variableType: classicCommandDialogVariableType.value as ClassicDefineVariableType,
+    ...(classicCommandDialogPrompt.value.trim() ? { prompt: classicCommandDialogPrompt.value } : {}),
+  };
+  if (kind === "recode") return {
+    kind, sourceField: classicCommandDialogRecodeSource.value, targetVariable: classicCommandDialogRecodeTarget.value,
+    ranges: [...classicCommandDialogRecodeRows.querySelectorAll<HTMLTableRowElement>("tr")].map((row) => {
+      const to = row.querySelector<HTMLInputElement>('[data-recode-range="to"]')?.value.trim();
+      return {
+        from: row.querySelector<HTMLInputElement>('[data-recode-range="from"]')?.value ?? "",
+        ...(to ? { to } : {}),
+        result: row.querySelector<HTMLInputElement>('[data-recode-range="result"]')?.value ?? "",
+      };
+    }),
+    ...(classicCommandDialogRecodeElse.value.trim() ? { elseResult: classicCommandDialogRecodeElse.value } : {}),
+  };
+  if (kind === "list") return { kind, fields: [...classicCommandDialogField.selectedOptions].map((option) => option.value) };
+  if (kind === "frequency") return { kind, field: classicCommandDialogField.value, ...(classicCommandDialogStrata.value ? { stratifyBy: classicCommandDialogStrata.value } : {}) };
+  if (kind === "means") return { kind, field: classicCommandDialogField.value };
+  return { kind, exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value, stratifyBy: classicCommandDialogStrata.value };
+}
+
+function updateClassicCommandDialog(): void {
+  const source = classicProgramSession.current(getCurrentProjectData());
+  const projectSources = getProjectDataSources();
+  const kind = classicCommandDialogKind.value as ClassicAnalysisCommandKind;
+  const read = kind === "read";
+  const define = kind === "define";
+  const recode = kind === "recode";
+  const list = kind === "list";
+  const means = kind === "means";
+  const tables = kind === "tables";
+  const definedFields = classicDefinedFields(source.fields);
+  const availableFields = [...source.fields, ...definedFields];
+  const fields = means ? availableFields.filter((field) => field.type === "number") : availableFields;
+  const previousSource = classicCommandDialogSource.value;
+  classicCommandDialogSource.replaceChildren(...projectSources.map((candidate) => new Option(`${candidate.formName} (${candidate.records.length} records)`, candidate.formName)));
+  if (projectSources.some((candidate) => candidate.formName === previousSource)) classicCommandDialogSource.value = previousSource;
+  const previousField = classicCommandDialogField.value;
+  const previousFields = new Set([...classicCommandDialogField.selectedOptions].map((option) => option.value));
+  classicCommandDialogField.multiple = list;
+  classicCommandDialogField.size = list ? Math.min(7, Math.max(2, fields.length)) : 1;
+  classicCommandDialogField.replaceChildren(...fields.map((field, index) => new Option(field.prompt, field.name, false, list ? previousFields.has(field.name) || (previousFields.size === 0 && index < 3) : field.name === previousField)));
+  if (!list && fields.some((field) => field.name === previousField)) classicCommandDialogField.value = previousField;
+  const allOptions = source.fields.map((field) => new Option(field.prompt, field.name));
+  classicCommandDialogExposure.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
+  classicCommandDialogOutcome.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
+  classicCommandDialogStrata.replaceChildren(new Option(tables ? "Choose a stratification field" : "Do not stratify", ""), ...allOptions.map((option) => option.cloneNode(true)));
+  const previousRecodeSource = classicCommandDialogRecodeSource.value;
+  const numericOptions = source.fields.filter((field) => field.type === "number");
+  classicCommandDialogRecodeSource.replaceChildren(...numericOptions.map((field) => new Option(field.prompt, field.name)));
+  if (numericOptions.some((field) => field.name === previousRecodeSource)) classicCommandDialogRecodeSource.value = previousRecodeSource;
+  const previousRecodeTarget = classicCommandDialogRecodeTarget.value;
+  classicCommandDialogRecodeTarget.replaceChildren(...availableFields.map((field) => new Option(`${field.prompt}${definedFields.includes(field) ? " (defined)" : ""}`, field.name)));
+  if (availableFields.some((field) => field.name === previousRecodeTarget)) classicCommandDialogRecodeTarget.value = previousRecodeTarget;
+  requiredElement<HTMLElement>("#classic-command-dialog-source-label").hidden = !read;
+  requiredElement<HTMLElement>("#classic-command-dialog-define").hidden = !define;
+  requiredElement<HTMLElement>("#classic-command-dialog-recode").hidden = !recode;
+  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || define || recode || tables;
+  requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables;
+  requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables;
+  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || define || recode || list || means;
+  requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : "Frequency of";
+  const byHint = (pattern: RegExp, excluded = new Set<string>()): string | undefined => source.fields.find((field) => !excluded.has(field.name) && pattern.test(`${field.name} ${field.prompt}`))?.name;
+  if (kind === "frequency") classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
+  if (kind === "means") classicCommandDialogField.value = byHint(/age|duration|amount|count|weight/) ?? classicCommandDialogField.value;
+  if (recode) {
+    classicCommandDialogRecodeSource.value = byHint(/age|duration|amount|count|weight/) ?? classicCommandDialogRecodeSource.value;
+    const definedTarget = definedFields.find((field) => field.type === "text");
+    if (definedTarget) classicCommandDialogRecodeTarget.value = definedTarget.name;
+  }
+  if (tables) {
+    classicCommandDialogExposure.value = byHint(/potato.?salad|expos/) ?? classicCommandDialogExposure.value;
+    classicCommandDialogOutcome.value = byHint(/case.?status|outcome|ill/, new Set([classicCommandDialogExposure.value])) ?? classicCommandDialogOutcome.value;
+    classicCommandDialogStrata.value = byHint(/^sex| sex|gender/, new Set([classicCommandDialogExposure.value, classicCommandDialogOutcome.value])) ?? "";
+  }
+  try {
+    const input = classicCommandDialogInput();
+    if (Object.values(input).some((value) => value === "")) throw new RangeError("Choose every required variable.");
+    if (input.kind === "define" && availableFields.some((field) => field.name.toLocaleLowerCase("en-US") === input.variable.trim().toLocaleLowerCase("en-US"))) {
+      throw new RangeError(`${input.variable.trim()} already exists in the active Classic Analysis data or program.`);
+    }
+    const command = buildClassicAnalysisCommand(input);
+    parseClassicProgram(command);
+    requiredElement("#classic-command-dialog-preview").textContent = command;
+    requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
+    requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
+  } catch (error) {
+    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "define" ? "DEFINE" : kind === "recode" ? "RECODE" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : "TABLES";
+    requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Choose valid command fields.";
+    requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
+  }
+}
+
+function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"): void {
+  closeClassicProgramMenus();
+  classicCommandDialogKind.value = kind;
+  if (kind === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
+  const title = kind === "read" ? "Read" : kind === "define" ? "Define" : kind === "recode" ? "Recode" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : "Tables";
+  requiredElement("#classic-command-dialog-title").textContent = `${title} Command`;
+  updateClassicCommandDialog();
+  classicCommandDialog.showModal();
+  classicProgramCommandStatus.textContent = "Typed command dialog opened. Nothing executes until visible source is selected and run.";
+  classicMessageArea.textContent = `Message Area: ${title} command dialog opened.`;
+}
+
+classicCommandDialogKind.addEventListener("change", () => {
+  if (classicCommandDialogKind.value === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
+  updateClassicCommandDialog();
+});
+function refreshClassicCommandDialogPreview(): void {
+  try {
+    const input = classicCommandDialogInput();
+    if (input.kind === "define") {
+      const source = classicProgramSession.current(getCurrentProjectData());
+      const fields = [...source.fields, ...classicDefinedFields(source.fields)];
+      if (fields.some((field) => field.name.toLocaleLowerCase("en-US") === input.variable.trim().toLocaleLowerCase("en-US"))) {
+        throw new RangeError(`${input.variable.trim()} already exists in the active Classic Analysis data or program.`);
+      }
+    }
+    const command = buildClassicAnalysisCommand(input);
+    parseClassicProgram(command);
+    requiredElement("#classic-command-dialog-preview").textContent = command;
+    requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
+    requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = Object.values(input).some((value) => value === "");
+  } catch (error) {
+    requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Choose valid command fields.";
+    requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
+  }
+}
+for (const select of [classicCommandDialogSource, classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget]) select.addEventListener("change", refreshClassicCommandDialogPreview);
+for (const input of [classicCommandDialogVariable, classicCommandDialogPrompt, classicCommandDialogRecodeElse]) input.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogRecodeRows.addEventListener("input", refreshClassicCommandDialogPreview);
+requiredElement("#classic-command-dialog-add-range").addEventListener("click", () => { appendClassicRecodeRange(); refreshClassicCommandDialogPreview(); });
+requiredElement("#classic-command-dialog-insert").addEventListener("click", () => {
+  try {
+    const input = classicCommandDialogInput();
+    const command = buildClassicAnalysisCommand(input);
+    classicProgramEditor.replaceSelection(command, input.kind !== "define" && input.kind !== "recode");
+    classicCommandDialog.close();
+    classicProgramCommandStatus.textContent = `Inserted ${command.split("\n", 1)[0]}. The visible source is ready for review; execution authority is unchanged.`;
+    renderClassicProgramDocumentState();
+  } catch (error) {
+    requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Unable to insert the command.";
+  }
+});
+requiredElement("#classic-program-edit-insert-command").addEventListener("click", () => showClassicCommandDialog());
+requiredElement("#classic-program-toolbar-run").addEventListener("click", () => requiredElement<HTMLButtonElement>("#classic-program-run").click());
+
+const classicOutputTargets = ["#classic-program-output", "#classic-list-output", "#frequency-stratified-output", "#frequency-output", "#means-output", ".stratified-panel"];
+let classicOutputPosition = -1;
+function visibleClassicOutputs(): HTMLElement[] {
+  return classicOutputTargets.map((selector) => document.querySelector<HTMLElement>(selector)).filter((target): target is HTMLElement => Boolean(target && !target.hidden));
+}
+function visitClassicOutput(position: number): void {
+  const outputs = visibleClassicOutputs();
+  if (outputs.length === 0) {
+    requiredElement("#classic-output-navigation-status").textContent = "No command output is available yet.";
+    return;
+  }
+  classicOutputPosition = Math.max(0, Math.min(position, outputs.length - 1));
+  const output = outputs[classicOutputPosition]!;
+  output.scrollIntoView({ behavior: "smooth", block: "start" });
+  const title = output.querySelector("h2, h3")?.textContent?.trim() ?? "Output";
+  requiredElement("#classic-output-navigation-status").textContent = `${title} (${classicOutputPosition + 1} of ${outputs.length}).`;
+}
+requiredElement("#classic-output-previous").addEventListener("click", () => visitClassicOutput(classicOutputPosition <= 0 ? 0 : classicOutputPosition - 1));
+requiredElement("#classic-output-next").addEventListener("click", () => visitClassicOutput(classicOutputPosition + 1));
+requiredElement("#classic-output-last").addEventListener("click", () => visitClassicOutput(visibleClassicOutputs().length - 1));
+requiredElement("#classic-output-history").addEventListener("click", () => {
+  const history = requiredElement<HTMLDetailsElement>("#classic-program-history");
+  history.open = true;
+  history.scrollIntoView({ behavior: "smooth", block: "start" });
+  requiredElement("#classic-output-navigation-status").textContent = "Command history opened.";
+});
 
 function selectedClassicProgramExample(): ClassicProgramExample | undefined {
   return classicProgramExamples.find((example) => example.id === classicProgramExampleSelect.value);
@@ -590,39 +1126,87 @@ function selectedClassicProgramExample(): ClassicProgramExample | undefined {
 function renderClassicProgramExampleDescription(): void {
   const example = selectedClassicProgramExample();
   if (!example) {
-    classicProgramExampleDescription.textContent = "The Foodborne Outbreak Investigation program catalog is unavailable.";
+    classicProgramExampleDescription.textContent = "No compatible program is selected.";
+    classicProgramLoadExampleButton.disabled = true;
     return;
   }
-  classicProgramExampleDescription.textContent = `${example.description} Required fields: ${example.requiredFields.join(", ")}.`;
+  const availability = classicProgramAvailability.get(example.id);
+  classicProgramExampleDescription.textContent = availability?.compatible
+    ? `${example.description} Required fields: ${example.requiredFields.join(", ")}.`
+    : `${example.description} ${availability?.issues.join(" ") || "This program is not compatible with the current form."}`;
+  classicProgramLoadExampleButton.disabled = !availability?.compatible;
 }
 
 function loadSelectedClassicProgramExample(focusEditor = true): void {
   const example = selectedClassicProgramExample();
-  if (!example) return;
+  if (!example || !classicProgramAvailability.get(example.id)?.compatible) return;
   classicProgramEditor.setValue(example.source);
+  classicExampleSourceLoaded = true;
   classicProgramFeedback.textContent = `Loaded “${example.title}”. Review the visible source and cut points before running.`;
   requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
   classicProgramOutput.hidden = true;
   if (focusEditor) classicProgramEditor.focus();
 }
 
-async function initializeClassicProgramExamples(): Promise<void> {
-  try {
-    const catalog = await loadClassicProgramExampleCatalog(new URL("./examples/foodborne-outbreak-investigation.programs.json", import.meta.url));
-    classicProgramExamples = catalog.programs;
-    classicProgramExampleSelect.replaceChildren(...catalog.programs.map((example) => new Option(example.title, example.id)));
-    classicProgramExampleSelect.disabled = false;
-    classicProgramLoadExampleButton.disabled = false;
-    renderClassicProgramExampleDescription();
-    loadSelectedClassicProgramExample(false);
-    classicProgramFeedback.textContent = `Loaded ${catalog.programs.length} programs packaged with the Foodborne Outbreak Investigation example dataset.`;
-  } catch (error) {
-    classicProgramExampleSelect.replaceChildren(new Option("Foodborne program catalog unavailable", ""));
-    classicProgramExampleDescription.textContent = error instanceof Error ? error.message : "Unable to load the foodborne program catalog.";
+function hideClassicProgramExamples(message: string): void {
+  classicProgramExamplesFieldset.hidden = true;
+  classicProgramExamples = [];
+  classicProgramAvailability.clear();
+  classicProgramExampleSelect.replaceChildren(new Option("No dataset-specific examples available", ""));
+  classicProgramExampleSelect.disabled = true;
+  classicProgramLoadExampleButton.disabled = true;
+  classicProgramExampleDescription.textContent = message;
+  if (classicExampleSourceLoaded) {
+    classicProgramEditor.setValue("// Enter an Epi Info program for the current project.");
+    classicProgramFeedback.textContent = "The previous dataset-specific example was removed because its dataset is no longer current.";
+    classicExampleSourceLoaded = false;
   }
 }
 
-void initializeClassicProgramExamples();
+async function refreshClassicProgramExamples(): Promise<void> {
+  const source = getCurrentProjectData();
+  const isFoodborneDataset = source.dataset?.id === FOODBORNE_DATASET_ID || source.dataset?.sha256 === FOODBORNE_DATASET_SHA256;
+  if (!isFoodborneDataset || source.records.length === 0) {
+    hideClassicProgramExamples(source.records.length === 0
+      ? "Import a recognized example dataset before choosing its programs."
+      : "The current dataset has no packaged Program Editor examples.");
+    return;
+  }
+  try {
+    classicProgramCatalog ??= await loadClassicProgramExampleCatalog(new URL("./examples/foodborne-outbreak-investigation.programs.json", import.meta.url));
+    const availability = assessClassicProgramCatalog(classicProgramCatalog, {
+      ...(source.dataset ? { dataset: source.dataset } : {}),
+      fields: source.fields,
+      recordCount: source.records.length,
+    });
+    if (!availability.datasetMatches) {
+      hideClassicProgramExamples(availability.message);
+      return;
+    }
+    classicProgramExamples = classicProgramCatalog.programs;
+    classicProgramAvailability = new Map(availability.programs.map((program) => [program.example.id, { compatible: program.compatible, issues: program.issues }]));
+    const options = availability.programs.map((program) => {
+      const option = new Option(program.example.title, program.example.id);
+      option.disabled = !program.compatible;
+      return option;
+    });
+    classicProgramExampleSelect.replaceChildren(...options);
+    const firstCompatible = availability.programs.find((program) => program.compatible)?.example;
+    classicProgramExampleSelect.value = firstCompatible?.id ?? "";
+    classicProgramExampleSelect.disabled = !firstCompatible;
+    classicProgramExamplesFieldset.hidden = false;
+    renderClassicProgramExampleDescription();
+    if (firstCompatible && !classicExampleSourceLoaded) loadSelectedClassicProgramExample(false);
+    classicProgramFeedback.textContent = availability.message;
+  } catch (error) {
+    classicProgramExampleSelect.replaceChildren(new Option("Foodborne program catalog unavailable", ""));
+    classicProgramExampleDescription.textContent = error instanceof Error ? error.message : "Unable to load the foodborne program catalog.";
+    classicProgramExampleSelect.disabled = true;
+    classicProgramLoadExampleButton.disabled = true;
+  }
+}
+
+void refreshClassicProgramExamples();
 
 function renderClassicProgramPreferences(): void {
   classicProgramLineNumbersButton.setAttribute("aria-checked", String(classicProgramPreferences.lineNumbers));
@@ -693,6 +1277,110 @@ const epiCurveOutput = requiredElement<HTMLElement>("#epi-curve-output");
 let lastEpiCurveResult: EpiCurveResult | null = null;
 let nextStratumId = 3;
 let stratifiedController: AbortController | null = null;
+
+renderDashboardCommandContract(requiredElement("#dashboard-toolbar-commands"), requiredElement("#dashboard-canvas-menu-items"));
+renderClassicAnalysisContract(requiredElement("#classic-analysis-menu"), requiredElement("#classic-command-tree"));
+
+const classicMessageArea = requiredElement<HTMLElement>("#classic-message-area");
+const classicStatusbar = requiredElement<HTMLElement>("#classic-statusbar");
+const classicStatusbarToggle = requiredElement<HTMLButtonElement>("#classic-menu-status-bar");
+classicStatusbarToggle.setAttribute("role", "menuitemcheckbox");
+classicStatusbarToggle.setAttribute("aria-checked", "true");
+
+requiredElement("#classic-analysis-menu").addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
+  if (!target) return;
+  event.preventDefault();
+  classicMessageArea.textContent = target.dataset.unavailableReason ?? "This familiar command is not implemented yet.";
+});
+
+classicStatusbarToggle.addEventListener("click", () => {
+  classicStatusbar.hidden = !classicStatusbar.hidden;
+  classicStatusbarToggle.setAttribute("aria-checked", String(!classicStatusbar.hidden));
+  classicMessageArea.textContent = `Message Area: Status Bar ${classicStatusbar.hidden ? "hidden" : "shown"}.`;
+});
+
+requiredElement("#classic-command-tree").addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
+  if (!target) return;
+  event.preventDefault();
+  classicMessageArea.textContent = target.dataset.unavailableReason ?? "This familiar command is not implemented yet.";
+});
+
+requiredElement("#classic-command-read").addEventListener("click", () => showClassicCommandDialog("read"));
+requiredElement("#classic-command-define").addEventListener("click", () => showClassicCommandDialog("define"));
+requiredElement("#classic-command-recode").addEventListener("click", () => showClassicCommandDialog("recode"));
+requiredElement("#classic-command-list").addEventListener("click", () => showClassicCommandDialog("list"));
+requiredElement("#classic-command-frequencies").addEventListener("click", () => showClassicCommandDialog("frequency"));
+requiredElement("#classic-command-means").addEventListener("click", () => showClassicCommandDialog("means"));
+requiredElement("#classic-command-tables").addEventListener("click", () => showClassicCommandDialog("tables"));
+
+function collapseDashboardSubmenus(except: HTMLButtonElement | null = null): void {
+  for (const trigger of document.querySelectorAll<HTMLButtonElement>("#dashboard-canvas-menu [data-dashboard-submenu]")) {
+    if (trigger === except) continue;
+    trigger.setAttribute("aria-expanded", "false");
+    if (trigger.nextElementSibling instanceof HTMLElement) trigger.nextElementSibling.hidden = true;
+  }
+}
+
+for (const trigger of document.querySelectorAll<HTMLButtonElement>("#dashboard-canvas-menu [data-dashboard-submenu]")) {
+  trigger.addEventListener("click", () => {
+    const children = trigger.nextElementSibling;
+    if (!(children instanceof HTMLElement)) return;
+    const willOpen = children.hidden;
+    children.hidden = !willOpen;
+    trigger.setAttribute("aria-expanded", String(willOpen));
+  });
+}
+
+requiredElement("#dashboard-canvas-menu").addEventListener("toggle", () => {
+  if (!requiredElement<HTMLDetailsElement>("#dashboard-canvas-menu").open) collapseDashboardSubmenus();
+});
+
+requiredElement("#dashboard-canvas-menu-items").addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
+  if (!target) return;
+  event.preventDefault();
+  requiredElement("#dashboard-command-status").textContent = target.dataset.unavailableReason ?? "This familiar command is not implemented yet.";
+});
+
+requiredElement("#dashboard-toolbar-commands").addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
+  if (!target) return;
+  event.preventDefault();
+  requiredElement("#dashboard-command-status").textContent = target.dataset.unavailableReason ?? "This familiar command is not implemented yet.";
+});
+
+requiredElement("#dashboard-canvas").addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  const menu = requiredElement<HTMLDetailsElement>("#dashboard-canvas-menu");
+  menu.open = true;
+  menu.querySelector<HTMLElement>("summary")?.focus();
+  requiredElement("#dashboard-command-status").textContent = "Canvas commands opened. Choose a familiar gadget or canvas operation.";
+});
+
+function openDashboardGadget(selector: string, label: string): void {
+  const gadget = requiredElement<HTMLElement>(selector);
+  requiredElement<HTMLDetailsElement>("#dashboard-canvas-menu").open = false;
+  gadget.scrollIntoView({ behavior: "smooth", block: "start" });
+  globalThis.setTimeout(
+    () => gadget.querySelector<HTMLElement>("select:not(:disabled), input:not(:disabled), button:not(:disabled)")?.focus({ preventScroll: true }),
+    0,
+  );
+  requiredElement("#dashboard-command-status").textContent = `${label} gadget selected on the current canvas.`;
+}
+
+requiredElement("#dashboard-menu-rates").addEventListener("click", () => openDashboardGadget(".dashboard-rates-gadget", "Rates"));
+requiredElement("#dashboard-menu-epi-curve").addEventListener("click", () => openDashboardGadget(".dashboard-epi-curve-gadget", "Epi Curve"));
+
+function refreshDashboardCommandSurface(): void {
+  const source = getCurrentProjectData();
+  requiredElement("#dashboard-toolbar-source").replaceChildren(
+    Object.assign(document.createElement("strong"), { textContent: "Data Source:" }),
+    ` ${source.projectName} / ${source.formName}`,
+  );
+  requiredElement("#dashboard-toolbar-count").textContent = `(${source.records.length} records)`;
+}
 
 function selectedValues(select: HTMLSelectElement): string[] {
   return [...select.selectedOptions].map((option) => option.value);
@@ -878,8 +1566,8 @@ function runClassicProgram(verifyOnly: boolean): void {
 }
 
 function refreshClassicProgramContext(): void {
-  const source = getCurrentProjectData();
-  requiredElement("#classic-program-source-name").textContent = `${source.formName} · ${source.records.length} records`;
+  classicProgramSession.syncDefault(getCurrentProjectData());
+  renderClassicProgramSession();
   classicProgramEditor.refreshDiagnostics();
 }
 
@@ -1010,6 +1698,126 @@ function renderMeans(result: MeansResult): void {
   warning.hidden = result.diagnostics.warnings.length === 0;
   meansOutput.hidden = false;
 }
+
+function renderClassicListOutput(project: ReturnType<typeof getCurrentProjectData>, fields: readonly string[]): void {
+  const definitions = fields.map((name) => project.fields.find((field) => field.name === name)!);
+  requiredElement("#classic-list-output-title").textContent = `Line List · ${project.formName}`;
+  requiredElement("#classic-list-output-count").textContent = `${project.records.length} records`;
+  requiredElement("#classic-list-output-head").replaceChildren(...definitions.map((field) => {
+    const heading = document.createElement("th");
+    heading.scope = "col";
+    heading.textContent = field.prompt;
+    return heading;
+  }));
+  const displayed = project.records.slice(0, 100);
+  requiredElement("#classic-list-output-body").replaceChildren(...displayed.map((record) => {
+    const row = document.createElement("tr");
+    row.replaceChildren(...fields.map((field) => {
+      const cell = document.createElement("td");
+      const value = record[field];
+      cell.textContent = value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+      return cell;
+    }));
+    return row;
+  }));
+  requiredElement("#classic-list-output-note").textContent = displayed.length < project.records.length
+    ? `Showing the first ${displayed.length} of ${project.records.length} records in this browser preview.`
+    : `Showing all ${project.records.length} records.`;
+  requiredElement<HTMLElement>("#classic-list-output").hidden = false;
+}
+
+const CLASSIC_SELECTED_COMMAND_PLAN_VERSION = "classic-selected-command-v0.2.0";
+function runSelectedClassicCommand(): void {
+  const fallbackProject = getCurrentProjectData();
+  let project = classicProgramSession.current(fallbackProject);
+  const selectedSource = classicProgramEditor.getSelectedText();
+  try {
+    const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, getProjectDataSources());
+    if (command.kind === "read") {
+      project = classicProgramSession.read(command.table, getProjectDataSources());
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `Read ${project.records.length} records from ${project.formName}. Subsequent selected commands use this active data source.`;
+      classicProgramCommandStatus.textContent = "Selected READ command completed; the active Classic Analysis data source changed.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command), summary: `READ selected ${project.formName} with ${project.records.length} records.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "list") {
+      renderClassicListOutput(project, command.fields);
+      requiredElement("#classic-list-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `Executed selected ${buildClassicAnalysisCommand(command)} for ${project.records.length} records.`;
+      classicProgramCommandStatus.textContent = "Selected LIST command completed through the active Classic Analysis data source.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command), summary: `Listed ${command.fields.length} fields for ${project.records.length} records.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "frequency") {
+      const field = project.fields.find((candidate) => candidate.name === command.field)!;
+      const strata = command.stratifyBy ? project.fields.find((candidate) => candidate.name === command.stratifyBy) : undefined;
+      if (strata) renderStratifiedFrequency(deriveStratifiedFrequency(project.records, {
+        field: field.name, prompt: field.prompt, includeMissing: false, stratifyBy: strata.name, stratifyPrompt: strata.prompt,
+      }));
+      else renderFrequency(deriveFrequency(project.records, { field: field.name, prompt: field.prompt, includeMissing: false }));
+      const output = strata ? requiredElement("#frequency-stratified-output") : requiredElement("#frequency-output");
+      output.scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `Executed selected ${buildClassicAnalysisCommand(command)}. Missing values were excluded.`;
+      classicProgramCommandStatus.textContent = "Selected FREQ command completed through the typed frequency operation.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command), summary: "Executed one selected FREQ command.", diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "means") {
+      const field = project.fields.find((candidate) => candidate.name === command.field)!;
+      renderMeans(deriveMeans(project.records, { field: field.name, prompt: field.prompt }));
+      meansOutput.scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `Executed selected ${buildClassicAnalysisCommand(command)}.`;
+      classicProgramCommandStatus.textContent = "Selected MEANS command completed through the typed means operation.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command), summary: "Executed one selected MEANS command.", diagnostics: [],
+      });
+      return;
+    }
+    if (project.formId !== fallbackProject.formId) throw new RangeError("TABLES value classification is currently bound to the current form. READ the current form or switch projects before running TABLES.");
+    classicExposureField.value = command.exposure;
+    setValueOptions(classicExposedValues, command.exposure, (value) => /^yes$|^true$|^1$/i.test(value));
+    classicOutcomeField.value = command.outcome;
+    setValueOptions(classicCaseValues, command.outcome, (value) => !/^not a case$|^no$|^false$|^0$/i.test(value));
+    classicStrataField.value = command.stratifyBy;
+    updateClassicCommandPreview();
+    classicFeedback.textContent = "Selected TABLES fields are ready. Review the exposed and case value classifications, then click Run Tables; no table was calculated yet.";
+    classicTablesForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    classicExposedValues.focus({ preventScroll: true });
+    classicProgramFeedback.textContent = "Selected TABLES source passed syntax and field checks. Value classification requires explicit review before calculation.";
+    classicProgramCommandStatus.textContent = "Selected TABLES command opened its typed value-classification dialog; nothing was calculated yet.";
+    recordProgramRun({
+      origin: "user-program", status: "verified", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+      source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command), summary: "Verified selected TABLES fields; awaiting exposed/case value review.", diagnostics: [],
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to run the selected command.";
+    classicProgramFeedback.textContent = `${message} Nothing was run.`;
+    classicProgramCommandStatus.textContent = "Selected command rejected before execution.";
+    recordProgramRun({
+      origin: "user-program", status: "failed", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+      source: selectedSource, summary: "Selected command rejected before execution.", diagnostics: [message],
+    });
+  }
+}
+
+requiredElement("#classic-program-run-selection").addEventListener("click", runSelectedClassicCommand);
 
 function refreshRatesValueSelector(): void {
   setValueOptions(ratesNumeratorValue, ratesNumeratorField.value, () => false);
@@ -1303,12 +2111,15 @@ classicProgramLoadExampleButton.addEventListener("click", () => loadSelectedClas
 requiredElement("#classic-program-verify").addEventListener("click", () => runClassicProgram(true));
 requiredElement("#classic-program-run").addEventListener("click", () => runClassicProgram(false));
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="classic"], [data-module="classic"]')) {
+  button.addEventListener("click", () => void refreshClassicProgramExamples());
   button.addEventListener("click", refreshClassicProgramContext);
+  button.addEventListener("click", refreshClassicProjectPrograms);
   button.addEventListener("click", refreshClassicTablesSelectors);
   button.addEventListener("click", refreshFrequencySelector);
   button.addEventListener("click", refreshMeansSelector);
 }
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="dashboard"], [data-module="dashboard"]')) {
+  button.addEventListener("click", refreshDashboardCommandSurface);
   button.addEventListener("click", refreshRatesSelectors);
   button.addEventListener("click", refreshEpiCurveSelectors);
 }
@@ -1425,6 +2236,8 @@ refreshRatesSelectors();
 
 try {
   initializeFormDataDemo();
+  classicProgramSession.reset(getCurrentProjectData());
+  renderClassicProgramSession();
   initializeEpiAssist(getCurrentProjectData);
   initializeMaps(getCurrentProjectData, getProjectDataSources, showRecordInEnter);
   initializeSupabaseSync({

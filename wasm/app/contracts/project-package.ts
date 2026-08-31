@@ -14,6 +14,8 @@ export interface ProjectProgram {
   source: string;
   language: "classic-analysis" | "check-code";
   author?: string;
+  comment?: string;
+  createdAt?: string;
   modifiedAt?: string;
 }
 
@@ -120,6 +122,12 @@ function optionalString(value: unknown, path: string): string | undefined {
   return value === undefined || value === null || value === "" ? undefined : stringAt(value, path);
 }
 
+function optionalTimestamp(value: unknown, path: string): string | undefined {
+  const timestamp = optionalString(value, path);
+  if (timestamp !== undefined && Number.isNaN(Date.parse(timestamp))) fail(path, "must be an ISO-compatible date and time");
+  return timestamp;
+}
+
 function programAt(value: unknown, path: string): ProjectProgram {
   const source = objectAt(value, path);
   if (source.language !== "classic-analysis" && source.language !== "check-code") {
@@ -131,10 +139,18 @@ function programAt(value: unknown, path: string): ProjectProgram {
     language: source.language,
   };
   const author = optionalString(source.author, `${path}.author`);
-  const modifiedAt = optionalString(source.modifiedAt, `${path}.modifiedAt`);
+  const comment = optionalString(source.comment, `${path}.comment`);
+  const createdAt = optionalTimestamp(source.createdAt, `${path}.createdAt`);
+  const modifiedAt = optionalTimestamp(source.modifiedAt, `${path}.modifiedAt`);
   if (author !== undefined) result.author = author;
+  if (comment !== undefined) result.comment = comment;
+  if (createdAt !== undefined) result.createdAt = createdAt;
   if (modifiedAt !== undefined) result.modifiedAt = modifiedAt;
   return result;
+}
+
+export function validateProjectProgram(value: unknown, path = "program"): ProjectProgram {
+  return programAt(value, path);
 }
 
 function codeTableAt(value: unknown, path: string): ProjectCodeTable {

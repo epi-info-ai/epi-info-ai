@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=40" />
+    <link rel="stylesheet" href="styles.css?v=43" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=50"></script>
+  <script type="module" src="app.js?v=56"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -154,20 +154,19 @@
           <div class="designer-window">
             <div class="designer-titlebar">
               <h1 id="forms-title">Form Designer</h1>
-              <span>Saved in this browser</span>
+              <span id="designer-save-state">Saved in this browser</span>
             </div>
             <nav class="designer-menu" aria-label="Form Designer menu">
               <details id="designer-file-menu" class="legacy-menu compact-legacy-menu">
                 <summary aria-haspopup="menu">File</summary>
-                <div class="legacy-menu-popup" role="menu" aria-label="Form Designer File">
-                  <button id="designer-new-project" type="button" role="menuitem">New Project...</button>
-                  <button type="button" role="menuitem" disabled title="Multi-project history is not yet implemented">Recent Projects</button>
-                  <button id="designer-project-storage" class="legacy-menu-new-branch" type="button" role="menuitem">Project Storage...</button>
-                </div>
+                <div class="legacy-menu-popup" role="menu" aria-label="Form Designer File" data-designer-menu-host="file"></div>
               </details>
-              <button type="button">Edit</button><button type="button">View</button>
-              <button type="button">Insert</button><button type="button">Format</button><button type="button">Tools</button>
-              <button type="button">Help</button>
+              <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Edit</summary><div class="legacy-menu-popup" role="menu" aria-label="Form Designer Edit" data-designer-menu-host="edit"></div></details>
+              <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">View</summary><div class="legacy-menu-popup" role="menu" aria-label="Form Designer View" data-designer-menu-host="view"></div></details>
+              <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Insert</summary><div class="legacy-menu-popup" role="menu" aria-label="Form Designer Insert" data-designer-menu-host="insert"></div></details>
+              <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Format</summary><div class="legacy-menu-popup" role="menu" aria-label="Form Designer Format" data-designer-menu-host="format"></div></details>
+              <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Tools</summary><div class="legacy-menu-popup" role="menu" aria-label="Form Designer Tools" data-designer-menu-host="tools"></div></details>
+              <details class="legacy-menu compact-legacy-menu legacy-menu-right"><summary aria-haspopup="menu">Help</summary><div class="legacy-menu-popup" role="menu" aria-label="Form Designer Help" data-designer-menu-host="help"></div></details>
             </nav>
             <div class="designer-toolbar" aria-label="Form Designer toolbar">
               <button id="new-project" type="button">New Project</button>
@@ -178,9 +177,19 @@
               <button id="save-form" type="button">Save Form</button>
               <label class="toolbar-toggle" for="snap-to-grid"><input id="snap-to-grid" type="checkbox" checked /> Snap to Grid</label>
               <button type="button" disabled>Check Code</button>
-              <button type="button" data-open-module="data">Enter Data</button>
+              <button id="designer-enter-data" type="button" data-open-module="data">Enter Data</button>
               <button id="restore-demo" class="danger-text" type="button">Restore Example</button>
             </div>
+
+            <section id="designer-no-project" class="designer-no-project" aria-labelledby="designer-no-project-title" hidden>
+              <h2 id="designer-no-project-title">No project is open</h2>
+              <p>Create a project, open a portable project package, or select a recent browser project.</p>
+              <div>
+                <button id="no-project-new" type="button">New Project...</button>
+                <button id="no-project-open" type="button">Open Project...</button>
+              </div>
+              <p id="project-lifecycle-status" class="inline-status" role="status" aria-live="polite"></p>
+            </section>
 
             <div class="designer-view-switcher" aria-label="Form Designer views">
               <button type="button" data-designer-view="explorer" aria-pressed="false">Project Explorer</button>
@@ -265,6 +274,13 @@
         </section>
 
         <section class="module-view" data-module-view="data" hidden aria-labelledby="data-title">
+          <nav class="designer-menu enter-data-menu" aria-label="Enter Data menu">
+            <details id="enter-file-menu" class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">File</summary><div class="legacy-menu-popup" role="menu" aria-label="Enter Data File" data-enter-menu-host="file"></div></details>
+            <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Edit</summary><div class="legacy-menu-popup" role="menu" aria-label="Enter Data Edit" data-enter-menu-host="edit"></div></details>
+            <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">View</summary><div class="legacy-menu-popup" role="menu" aria-label="Enter Data View" data-enter-menu-host="view"></div></details>
+            <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Tools</summary><div class="legacy-menu-popup" role="menu" aria-label="Enter Data Tools" data-enter-menu-host="tools"></div></details>
+            <details class="legacy-menu compact-legacy-menu legacy-menu-right"><summary aria-haspopup="menu">Help</summary><div class="legacy-menu-popup" role="menu" aria-label="Enter Data Help" data-enter-menu-host="help"></div></details>
+          </nav>
           <div class="enter-module-toolbar" aria-label="Enter Data tools">
             <button id="enter-open-maps" type="button" data-open-module="maps" data-map-context="current-form">Maps</button>
             <button id="enter-data-quality" class="legacy-menu-new-branch" type="button">Data Quality...</button>
@@ -330,6 +346,7 @@
               </div>
             </section>
           </div>
+          <div id="enter-statusbar" class="designer-statusbar enter-statusbar">Ready</div>
         </section>
 
         <section class="module-view" data-module-view="maps" hidden aria-labelledby="maps-title">
@@ -607,6 +624,17 @@
         </div>
 
         <section class="module-view" data-module-view="dashboard" hidden aria-labelledby="dashboard-title">
+          <div class="dashboard-legacy-toolbar" role="toolbar" aria-label="Visual Dashboard toolbar">
+            <div id="dashboard-toolbar-commands" class="dashboard-toolbar-commands"></div>
+            <span id="dashboard-toolbar-source"><strong>Data Source:</strong> Current project data</span>
+            <span id="dashboard-toolbar-count">(0 records)</span>
+          </div>
+          <details id="dashboard-canvas-menu" class="legacy-menu dashboard-canvas-menu">
+            <summary aria-haspopup="menu">Canvas commands</summary>
+            <div id="dashboard-canvas-menu-items" class="legacy-menu-popup" role="menu" aria-label="Visual Dashboard canvas commands"></div>
+          </details>
+          <p id="dashboard-command-status" class="inline-status dashboard-command-status" role="status">Right-click the canvas or open Canvas commands to add a gadget.</p>
+          <div id="dashboard-canvas" class="dashboard-canvas" tabindex="0" aria-label="Visual Dashboard canvas">
           <div class="workspace-heading">
             <div><p class="eyebrow">VISUAL DASHBOARD</p><h1 id="dashboard-title">Visual Dashboard</h1><p>Add familiar analysis gadgets to the current data source.</p></div>
             <div class="engine-badge" title="The rate is calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rates candidate · contract 0.11</span></div>
@@ -659,16 +687,53 @@
             <p id="rates-warnings" class="warnings" hidden></p>
           </section>
           <footer class="audit-strip"><span><strong>Operation</strong> epi.rate</span><span><strong>Candidate</strong> V0.11 · validation pending G5</span></footer>
+          </div>
         </section>
 
+        <nav id="classic-analysis-menu" class="designer-menu classic-analysis-menu" data-module-view="classic" aria-label="Classic Analysis menu">
+          <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">File</summary><div class="legacy-menu-popup" role="menu" aria-label="Classic Analysis File" data-classic-menu-host="file"></div></details>
+          <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">View</summary><div class="legacy-menu-popup" role="menu" aria-label="Classic Analysis View" data-classic-menu-host="view"></div></details>
+          <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Tools</summary><div class="legacy-menu-popup" role="menu" aria-label="Classic Analysis Tools" data-classic-menu-host="tools"></div></details>
+          <details class="legacy-menu compact-legacy-menu legacy-menu-right"><summary aria-haspopup="menu">Help</summary><div class="legacy-menu-popup" role="menu" aria-label="Classic Analysis Help" data-classic-menu-host="help"></div></details>
+        </nav>
+        <div class="classic-workspace-shell" data-module-view="classic">
+          <aside class="classic-command-explorer" aria-labelledby="classic-command-explorer-title">
+            <h2 id="classic-command-explorer-title">Command Explorer</h2>
+            <div class="classic-analysis-command-root"><span aria-hidden="true">▾</span> Analysis Commands</div>
+            <div id="classic-command-tree" role="tree" aria-label="Classic Analysis commands"></div>
+          </aside>
+          <div class="classic-workspace-content">
         <div class="workspace-heading" data-module-view="classic">
           <div><p class="eyebrow">CLASSIC ANALYSIS</p><h1>Analysis</h1><p>Run familiar FREQ, MEANS, and TABLES commands against the current form.</p></div>
           <div class="engine-badge" title="Descriptive statistics, frequency limits, and adjusted estimates are calculated by Rust WebAssembly in this browser."><span class="engine-dot" aria-hidden="true"></span><span><strong>WASM engine</strong> Rust candidates · contracts 0.10, 0.9, and 0.8</span></div>
         </div>
+        <section class="panel classic-output-window" data-module-view="classic" aria-labelledby="classic-output-window-title">
+          <div class="classic-dock-window-title"><h2 id="classic-output-window-title">Output</h2></div>
+          <div id="classic-output-toolbar" class="classic-legacy-toolbar" role="toolbar" aria-label="Output navigation"></div>
+          <div id="classic-output-browser" class="classic-output-browser" tabindex="-1">
+            <strong>Epi Info AI</strong>
+            <p id="classic-output-navigation-status" role="status">Run a command to create output, or open Command history.</p>
+          </div>
+        </section>
         <section class="panel classic-program-editor" data-module-view="classic" aria-labelledby="classic-program-title">
           <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><span id="classic-program-source-name" class="calculation-time">Current project data</span></div>
+          <nav id="classic-program-menu" class="designer-menu classic-program-menu" aria-label="Program Editor menu">
+            <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">File</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor File" data-classic-program-menu-host="file"></div></details>
+            <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Edit</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor Edit" data-classic-program-menu-host="edit"></div></details>
+            <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Fonts</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor Fonts" data-classic-program-menu-host="fonts"></div></details>
+          </nav>
+          <div id="classic-program-toolbar" class="classic-legacy-toolbar" role="toolbar" aria-label="Program Editor commands"></div>
+          <p id="classic-program-command-status" class="dashboard-command-status" role="status">Program Editor ready.</p>
+          <fieldset class="classic-project-programs">
+            <legend>Programs in current project</legend>
+            <label for="classic-project-program">Program</label>
+            <select id="classic-project-program"><option value="">No saved programs</option></select>
+            <button id="classic-project-program-open" type="button" disabled>Open</button>
+            <span id="classic-program-document-state">Untitled · saved</span>
+          </fieldset>
+          <p id="classic-program-session-status" class="compatibility-note"><strong>Active data:</strong> current form.</p>
           <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
-          <fieldset class="classic-program-examples">
+          <fieldset class="classic-program-examples" hidden>
             <legend>Foodborne illness example programs</legend>
             <div class="classic-program-example-controls">
               <label for="classic-program-example">Choose an example</label>
@@ -679,15 +744,99 @@
           </fieldset>
           <p id="classic-program-source-label" class="classic-program-label"><strong>Program</strong></p>
           <div id="classic-program-source" class="classic-program-source" aria-labelledby="classic-program-source-label"></div>
+          <article id="classic-program-printout" aria-hidden="true"><h1 id="classic-program-print-title">Program</h1><pre id="classic-program-print-source"></pre></article>
           <div class="classic-program-editor-status" aria-label="Program Editor status"><span id="classic-program-cursor-position">Ln 1, Col 1</span><span id="classic-program-tab-status">Tab width 4 · Tabs</span></div>
           <p id="classic-program-completion-help" class="classic-program-completion-help">Command Assist: after <code>RECODE</code>, eligible numeric fields appear automatically. Use arrow keys and Enter or Tab to insert a suggestion; Ctrl+Space opens suggestions manually.</p>
           <p id="classic-program-live-status" class="classic-program-live-status" role="status">Live syntax check is starting.</p>
           <div class="form-actions">
             <button id="classic-program-verify" type="button">Verify Program</button>
+            <button id="classic-program-run-selection" type="button">Run Selected Command</button>
             <button id="classic-program-run" class="primary-button" type="button">Run Commands</button>
           </div>
           <p id="classic-program-feedback" class="inline-feedback" role="status">Load the foodborne form, then verify or run this bounded program.</p>
           <div id="classic-program-canonical" class="classic-command-preview" hidden><strong>Validated effective program</strong><pre id="classic-program-canonical-source"></pre></div>
+        </section>
+        <dialog id="classic-program-dialog" class="legacy-dialog" aria-labelledby="classic-program-dialog-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-program-dialog-title">Open Program</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body classic-program-dialog-body">
+              <label>Program in current project<select id="classic-program-dialog-project"></select></label>
+              <label id="classic-program-name-label">Program name<input id="classic-program-name" maxlength="100"></label>
+              <label>Author<input id="classic-program-author" maxlength="100"></label>
+              <label>Comments<textarea id="classic-program-comment" maxlength="2000" rows="3"></textarea></label>
+              <div class="classic-program-date-grid">
+                <label>Date created<input id="classic-program-created" readonly></label>
+                <label>Date updated<input id="classic-program-updated" readonly></label>
+              </div>
+              <label id="classic-program-file-label">Program file<input id="classic-program-file" type="file" accept=".pgm7,text/plain"></label>
+              <p id="classic-program-dialog-feedback" class="inline-feedback" role="status"></p>
+            </div>
+            <div class="legacy-dialog-actions">
+              <button id="classic-program-dialog-primary" type="button">Open</button>
+              <button id="classic-program-dialog-export" type="button" hidden>Save as .pgm7 File</button>
+              <button id="classic-program-dialog-delete" class="danger-button" type="button" hidden>Delete</button>
+              <button value="cancel">Cancel</button>
+            </div>
+          </form>
+        </dialog>
+        <dialog id="classic-command-dialog" class="legacy-dialog" aria-labelledby="classic-command-dialog-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-command-dialog-title">Insert Command</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body classic-program-dialog-body">
+              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="define">Define</option><option value="recode">Recode</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option></select></label>
+              <label id="classic-command-dialog-source-label" hidden>Project form<select id="classic-command-dialog-source"></select></label>
+              <fieldset id="classic-command-dialog-define" hidden>
+                <legend>Variable definition</legend>
+                <label>Variable name<input id="classic-command-dialog-variable" autocomplete="off" value="AgeGroup"></label>
+                <label>Scope<select id="classic-command-dialog-scope"><option value="STANDARD">Standard</option><option value="GLOBAL">Global</option><option value="PERMANENT">Permanent</option></select></label>
+                <label>Variable type<select id="classic-command-dialog-variable-type"><option value="TEXTINPUT">Text</option><option value="NUMERIC">Numeric</option><option value="YN">Yes/No</option><option value="DATEFORMAT">Date</option><option value="DATETIMEFORMAT">Date/Time</option><option value="TIMEFORMAT">Time</option></select></label>
+                <label>Prompt (optional)<input id="classic-command-dialog-prompt" autocomplete="off"></label>
+              </fieldset>
+              <fieldset id="classic-command-dialog-recode" hidden>
+                <legend>Recoding</legend>
+                <label>From<select id="classic-command-dialog-recode-source"></select></label>
+                <label>To<select id="classic-command-dialog-recode-target"></select></label>
+                <div class="results-table-scroll"><table class="results-table classic-recode-grid"><thead><tr><th>Value</th><th>To Value</th><th>Recoded Value</th><th></th></tr></thead><tbody id="classic-command-dialog-recode-rows"></tbody></table></div>
+                <div class="form-actions"><button id="classic-command-dialog-add-range" class="secondary-button" type="button">Add range</button></div>
+                <label>ELSE result (optional)<input id="classic-command-dialog-recode-else" autocomplete="off"></label>
+                <p class="method-note">Numeric range matching follows legacy Epi Info boundaries: greater than the lower value and less than or equal to the upper value.</p>
+              </fieldset>
+              <label id="classic-command-dialog-field-label">Frequency of<select id="classic-command-dialog-field"></select></label>
+              <label id="classic-command-dialog-exposure-label" hidden>Exposure variable<select id="classic-command-dialog-exposure"></select></label>
+              <label id="classic-command-dialog-outcome-label" hidden>Outcome variable<select id="classic-command-dialog-outcome"></select></label>
+              <label id="classic-command-dialog-strata-label">Stratify by<select id="classic-command-dialog-strata"><option value="">Do not stratify</option></select></label>
+              <div class="classic-command-preview"><strong>Command source</strong><code id="classic-command-dialog-preview">FREQ</code></div>
+              <p class="compatibility-note">The dialog inserts ordinary, visible Epi Info source. It does not execute or grant the command additional authority.</p>
+              <p id="classic-command-dialog-feedback" class="inline-feedback" role="status"></p>
+            </div>
+            <div class="legacy-dialog-actions">
+              <button id="classic-command-dialog-insert" class="dialog-primary" type="button">Insert at Cursor</button>
+              <button value="cancel">Cancel</button>
+            </div>
+          </form>
+        </dialog>
+        <dialog id="classic-program-search-dialog" class="legacy-dialog" aria-labelledby="classic-program-search-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-program-search-title">Find</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body classic-program-dialog-body">
+              <label>Find what<input id="classic-program-search-query"></label>
+              <label id="classic-program-replacement-label" hidden>Replace with<input id="classic-program-search-replacement"></label>
+              <label class="checkbox-option"><input id="classic-program-search-case" type="checkbox"> Match case</label>
+              <label class="checkbox-option"><input id="classic-program-search-word" type="checkbox"> Whole word</label>
+              <p id="classic-program-search-feedback" class="inline-feedback" role="status"></p>
+            </div>
+            <div class="legacy-dialog-actions">
+              <button id="classic-program-search-find" type="button">Find Next</button>
+              <button id="classic-program-search-replace" type="button" hidden>Replace</button>
+              <button id="classic-program-search-replace-all" type="button" hidden>Replace All</button>
+              <button value="cancel">Close</button>
+            </div>
+          </form>
+        </dialog>
+        <section id="classic-list-output" class="panel" data-module-view="classic" aria-labelledby="classic-list-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">LIST output</p><h2 id="classic-list-output-title">Line List</h2></div><span id="classic-list-output-count" class="calculation-time"></span></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr id="classic-list-output-head"></tr></thead><tbody id="classic-list-output-body"></tbody></table></div>
+          <p id="classic-list-output-note" class="inline-feedback"></p>
         </section>
         <section id="classic-program-output" class="panel" data-module-view="classic" aria-labelledby="classic-program-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label">PROGRAM OUTPUT</p><h2 id="classic-program-output-title">AgeGroup frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>
@@ -802,6 +951,10 @@
           <span><strong>Operations</strong> epi.frequency · epi.means · epi.stratified2x2</span>
           <span><strong>Status</strong> Candidates · consolidated G5 review pending</span>
         </footer>
+          </div>
+          <div id="classic-message-area" class="classic-message-area" role="status"><strong>Message Area:</strong> Ready.</div>
+        </div>
+        <div id="classic-statusbar" class="classic-statusbar" data-module-view="classic">Ready</div>
 
         <footer class="audit-strip" data-module-view="statcalc" data-statcalc-view="table2x2">
           <span><strong>Operation</strong> epi.table2x2</span>

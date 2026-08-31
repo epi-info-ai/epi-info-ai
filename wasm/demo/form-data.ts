@@ -1,5 +1,6 @@
 ﻿import {
   validateProjectSnapshot,
+  type DatasetProvenance,
   type EpiRecord,
   type FieldDefinition,
   type FieldType,
@@ -15,6 +16,7 @@ import {
   createProjectPackage,
   MAX_PROJECT_PACKAGE_BYTES,
   parseProjectPackage,
+  validateProjectProgram,
   type LegacyMigrationPayload,
   type ProjectCodeTable,
   type ProjectProgram,
@@ -36,6 +38,8 @@ import {
   setEntryView,
 } from "../app/forms/entry-view.ts";
 import { loadProjectSnapshot } from "../app/forms/project-state.ts";
+import { renderFormDesignerMenuContract } from "../app/forms/form-designer-menu.ts";
+import { renderEnterDataMenuContract } from "../app/forms/enter-data-menu.ts";
 import { buildDataQualityReport, type DuplicateGroup } from "../app/forms/data-quality.ts";
 import { materializeCalculatedFields, validateProjectRecords, validateRecord, validateRecords } from "../app/forms/validation.ts";
 import {
@@ -53,6 +57,9 @@ const RECORDS_KEY = "epi-info-ai.records.v1";
 const PROJECT_KEY = "epi-info-ai.project-name.v1";
 const PROJECT_STATE_KEY = "epi-info-ai.project-state.v1";
 const PROJECT_RECOVERY_KEY = "epi-info-ai.project-state-unreadable.v1";
+const PROJECT_ACTIVE_KEY = "epi-info-ai.project-active.v1";
+const RECENT_PROJECTS_KEY = "epi-info-ai.recent-projects.v1";
+const PROJECT_EXTRAS_KEY = "epi-info-ai.project-extras.v1";
 const SNAP_KEY = "epi-info-ai.snap-to-grid.v1";
 const SUPABASE_CONFIG_KEY = "epi-info-ai.supabase-config.v1";
 const GRID_SIZE = 12;
@@ -87,6 +94,18 @@ interface SupabaseConnectionConfig {
   providers: { email: boolean; github: boolean };
 }
 
+interface RecentProjectEntry {
+  id: string;
+  name: string;
+  lastOpenedAt: string;
+  snapshot: ProjectSnapshotV1;
+  extras: {
+    programs: ProjectProgram[];
+    codeTables: ProjectCodeTable[];
+    migration?: LegacyMigrationPayload;
+  };
+}
+
 const FIELD_TYPES: FieldType[] = ["text", "text-uppercase", "multiline", "unique-id", "number", "phone", "date", "time", "checkbox", "yes-no", "option", "command-button"];
 const DEFAULT_SCHEMA: FormSchema = {
   name: "Outbreak Case Report Form",
@@ -107,21 +126,58 @@ const loadedProject = loadProjectSnapshot(PROJECT_STATE_KEY, PROJECT_RECOVERY_KE
 let projectLoadWarning = loadedProject.warning;
 let activeRulesRow: HTMLTableRowElement | null = null;
 let activeDuplicateGroup: DuplicateGroup | null = null;
+function loadProjectPackageExtras(): {
+  programs: ProjectProgram[];
+  codeTables: ProjectCodeTable[];
+  migration?: LegacyMigrationPayload;
+} {
+  const stored = loadJson<unknown>(PROJECT_EXTRAS_KEY, null);
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return { programs: [], codeTables: [] };
+  const source = stored as Record<string, unknown>;
+  const programs = Array.isArray(source.programs) ? source.programs.flatMap((program, index) => {
+    try { return [validateProjectProgram(program, `stored programs[${index}]`)]; } catch { return []; }
+  }) : [];
+  const codeTables = Array.isArray(source.codeTables) ? source.codeTables.filter((table): table is ProjectCodeTable => Boolean(table && typeof table === "object")) : [];
+  return { programs, codeTables };
+}
+
 let projectPackageExtras: {
   programs: ProjectProgram[];
   codeTables: ProjectCodeTable[];
   migration?: LegacyMigrationPayload;
-} = { programs: [], codeTables: [] };
+} = loadProjectPackageExtras();
 let projectState: ProjectSnapshotV1 = loadedProject.snapshot ?? {
     name: projectName,
     currentFormId: "form-default",
     forms: [{ id: "form-default", schema: structuredClone(schema), records: structuredClone(records) }],
   };
+let hasActiveProject = loadText(PROJECT_ACTIVE_KEY, "true") !== "false";
+let activeRecentProjectId: string | null = null;
+let recentProjects = loadJson<RecentProjectEntry[]>(RECENT_PROJECTS_KEY, []).flatMap((entry) => {
+  try {
+    if (!entry || typeof entry.id !== "string" || typeof entry.lastOpenedAt !== "string") return [];
+    const snapshot = validateProjectSnapshot(entry.snapshot);
+    return [{
+      id: entry.id,
+      name: snapshot.name,
+      lastOpenedAt: entry.lastOpenedAt,
+      snapshot,
+      extras: {
+        programs: Array.isArray(entry.extras?.programs) ? structuredClone(entry.extras.programs) : [],
+        codeTables: Array.isArray(entry.extras?.codeTables) ? structuredClone(entry.extras.codeTables) : [],
+        ...(entry.extras?.migration ? { migration: structuredClone(entry.extras.migration) } : {}),
+      },
+    }];
+  } catch {
+    return [];
+  }
+}).slice(0, 8);
 projectName = projectState.name;
 let currentFormId = projectState.currentFormId || projectState.forms[0]!.id;
 const initialForm = projectState.forms.find((form) => form.id === currentFormId) ?? projectState.forms[0]!;
 schema = structuredClone(initialForm.schema);
 records = structuredClone(initialForm.records || []);
+let datasetProvenance: DatasetProvenance | undefined = initialForm.dataset ? structuredClone(initialForm.dataset) : undefined;
 const restoredDataIssues = validateProjectRecords(projectState);
 if (restoredDataIssues.length > 0) {
   const detail = `${restoredDataIssues.length} saved-record validation issue${restoredDataIssues.length === 1 ? "" : "s"} found. Open Enter Data > Data Quality to review.`;
@@ -179,17 +235,153 @@ function snapCoordinate(value: number): number {
   return snapToGrid ? alignToGrid(value) : Math.round(value);
 }
 
-function syncCurrentForm() {
+function syncCurrentForm(): boolean {
+  if (!hasActiveProject) return true;
   const current = projectState.forms.find((form) => form.id === currentFormId);
-  const snapshot = { id: currentFormId, schema: structuredClone(schema), records: structuredClone(records) };
-  if (current) Object.assign(current, snapshot);
-  else projectState.forms.push(snapshot);
+  const snapshot: ProjectForm = {
+    id: currentFormId,
+    schema: structuredClone(schema),
+    records: structuredClone(records),
+    ...(datasetProvenance ? { dataset: structuredClone(datasetProvenance) } : {}),
+  };
+  if (current) {
+    Object.assign(current, snapshot);
+    if (!datasetProvenance) delete current.dataset;
+  } else projectState.forms.push(snapshot);
   projectState.name = projectName;
   projectState.currentFormId = currentFormId;
-  saveJson(PROJECT_STATE_KEY, projectState);
-  saveText(PROJECT_KEY, projectName);
-  saveJson(SCHEMA_KEY, schema);
-  saveJson(RECORDS_KEY, records);
+  return [
+    saveJson(PROJECT_STATE_KEY, projectState),
+    saveText(PROJECT_KEY, projectName),
+    saveJson(SCHEMA_KEY, schema),
+    saveJson(RECORDS_KEY, records),
+    saveJson(PROJECT_EXTRAS_KEY, projectPackageExtras),
+  ].every(Boolean);
+}
+
+function rememberCurrentProject(): boolean {
+  const entry: RecentProjectEntry = {
+    id: activeRecentProjectId ?? lifecycleId("recent"),
+    name: projectName,
+    lastOpenedAt: new Date().toISOString(),
+    snapshot: structuredClone(projectState),
+    extras: structuredClone(projectPackageExtras),
+  };
+  activeRecentProjectId = entry.id;
+  recentProjects = [entry, ...recentProjects.filter((candidate) => candidate.id !== entry.id)].slice(0, 8);
+  return saveJson(RECENT_PROJECTS_KEY, recentProjects);
+}
+
+function setProjectControlsEnabled(enabled: boolean): void {
+  for (const selector of [
+    "#designer-project-storage", "#project-storage", "#new-form", "#save-form",
+    "#snap-to-grid", "#restore-demo", "#form-csv-import", "#designer-enter-data",
+    "#designer-new-form", "#designer-menu-enter-data",
+  ]) {
+    const control = requiredElement<HTMLInputElement | HTMLButtonElement>(selector);
+    control.disabled = !enabled;
+    control.closest("label")?.setAttribute("aria-disabled", String(!enabled));
+  }
+  requiredElement<HTMLButtonElement>("#designer-close-project").disabled = !enabled;
+  for (const menuControl of requiredElements<HTMLButtonElement>('.designer-menu [data-menu-state="active-project"]')) {
+    if (menuControl.dataset.menuDisposition === "legacy-gap") continue;
+    menuControl.disabled = !enabled;
+  }
+  for (const menuControl of requiredElements<HTMLButtonElement>('.enter-data-menu [data-menu-state="has-records"]')) {
+    if (menuControl.dataset.menuDisposition === "legacy-gap") continue;
+    menuControl.disabled = !enabled || records.length === 0;
+  }
+}
+
+function renderRecentProjects(): void {
+  const trigger = requiredElement<HTMLButtonElement>("#designer-recent-projects");
+  const list = requiredElement("#designer-recent-project-list");
+  trigger.disabled = recentProjects.length === 0;
+  if (recentProjects.length === 0) {
+    list.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    list.replaceChildren();
+    return;
+  }
+  list.replaceChildren(...recentProjects.map((entry) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "menuitem");
+    button.dataset.recentProjectId = entry.id;
+    button.textContent = entry.name;
+    button.title = `Last opened ${new Date(entry.lastOpenedAt).toLocaleString()}`;
+    button.addEventListener("click", () => openRecentProject(entry.id));
+    return button;
+  }));
+}
+
+function collapseRecentProjects(): void {
+  requiredElement("#designer-recent-project-list").hidden = true;
+  requiredElement("#designer-recent-projects").setAttribute("aria-expanded", "false");
+}
+
+function collapseDesignerSubmenus(except: HTMLButtonElement | null = null): void {
+  for (const trigger of requiredElements<HTMLButtonElement>(".designer-menu:not(.enter-data-menu) [data-menu-submenu]")) {
+    if (trigger === except) continue;
+    trigger.setAttribute("aria-expanded", "false");
+    const children = trigger.nextElementSibling;
+    if (children instanceof HTMLElement) children.hidden = true;
+  }
+}
+
+function renderProjectLifecycle(): void {
+  requiredElement("#designer-no-project").hidden = hasActiveProject;
+  requiredElement(".designer-workspace").hidden = !hasActiveProject;
+  requiredElement(".designer-view-switcher").toggleAttribute("data-no-project", !hasActiveProject);
+  setProjectControlsEnabled(hasActiveProject);
+  requiredElement("#designer-save-state").textContent = hasActiveProject ? "Saved in this browser" : "No project open";
+  renderRecentProjects();
+  requiredElement("#project-tree-name").textContent = hasActiveProject ? `▾ ${projectName}` : "No project open";
+}
+
+function closeCurrentProject(message = "Project closed. Select New Project, Open Project, or Recent Projects to continue."): boolean {
+  if (!hasActiveProject) return true;
+  try {
+    if (requiredElements("#field-list tr").length > 0) schema = validatedDesignerSchema();
+    if (!syncCurrentForm() || !rememberCurrentProject() || !saveText(PROJECT_ACTIVE_KEY, "false")) {
+      throw new Error("Browser storage did not accept the saved project.");
+    }
+  } catch (error) {
+    requiredElement("#form-status").textContent = error instanceof Error
+      ? `Project remains open. ${error.message}`
+      : "Project remains open because it could not be saved.";
+    return false;
+  }
+  hasActiveProject = false;
+  renderProjectLifecycle();
+  requiredElement("#project-lifecycle-status").textContent = message;
+  requiredElement("#form-status").textContent = message;
+  return true;
+}
+
+function activateProject(recentId: string | null = null): void {
+  hasActiveProject = true;
+  activeRecentProjectId = recentId;
+  if (!saveText(PROJECT_ACTIVE_KEY, "true")) {
+    requiredElement("#form-status").textContent = "Project opened, but this browser could not persist its active state.";
+  }
+  renderProjectLifecycle();
+}
+
+function openRecentProject(id: string): void {
+  const entry = recentProjects.find((candidate) => candidate.id === id);
+  if (!entry) return;
+  if (!closeCurrentProject("Current project saved to Recent Projects.")) return;
+  projectPackageExtras = structuredClone(entry.extras);
+  activateProject(entry.id);
+  applyLocalProjectSnapshot(entry.snapshot);
+  entry.lastOpenedAt = new Date().toISOString();
+  recentProjects = [entry, ...recentProjects.filter((candidate) => candidate.id !== id)];
+  saveJson(RECENT_PROJECTS_KEY, recentProjects);
+  renderRecentProjects();
+  collapseRecentProjects();
+  requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
+  requiredElement("#form-status").textContent = `Opened recent project ${entry.name}.`;
 }
 
 export function getCurrentProjectData(): MapDataSource {
@@ -199,6 +391,7 @@ export function getCurrentProjectData(): MapDataSource {
     formName: schema.name,
     fields: structuredClone(schema.fields),
     records: structuredClone(records),
+    ...(datasetProvenance ? { dataset: structuredClone(datasetProvenance) } : {}),
   };
 }
 
@@ -210,12 +403,45 @@ export function getProjectDataSources(): MapDataSource[] {
     formName: form.schema.name,
     fields: structuredClone(form.schema.fields),
     records: structuredClone(form.records || []),
+    ...(form.dataset ? { dataset: structuredClone(form.dataset) } : {}),
   }));
 }
 
 export function getCurrentProjectSnapshot(): ProjectSnapshotV1 {
   syncCurrentForm();
   return structuredClone(projectState);
+}
+
+export function getCurrentProjectPrograms(): ProjectProgram[] {
+  return structuredClone(projectPackageExtras.programs.filter((program) => program.language === "classic-analysis"));
+}
+
+export function saveCurrentProjectProgram(name: string, source: string, metadata: { author?: string; comment?: string } = {}): ProjectProgram {
+  if (!hasActiveProject) throw new Error("Open or create a project before saving a program.");
+  const normalizedName = name.trim();
+  if (!normalizedName) throw new RangeError("Enter a program name.");
+  const existing = projectPackageExtras.programs.findIndex((program) => program.language === "classic-analysis" && program.name.localeCompare(normalizedName, undefined, { sensitivity: "accent" }) === 0);
+  const previous = existing >= 0 ? projectPackageExtras.programs[existing] : undefined;
+  const timestamp = new Date().toISOString();
+  const author = metadata.author === undefined ? previous?.author : metadata.author.trim() || undefined;
+  const comment = metadata.comment === undefined ? previous?.comment : metadata.comment.trim() || undefined;
+  const program: ProjectProgram = {
+    name: normalizedName, source, language: "classic-analysis", createdAt: previous?.createdAt ?? timestamp, modifiedAt: timestamp,
+    ...(author ? { author } : {}), ...(comment ? { comment } : {}),
+  };
+  if (existing >= 0) projectPackageExtras.programs[existing] = program;
+  else projectPackageExtras.programs.push(program);
+  if (!syncCurrentForm()) throw new Error("The program could not be saved to browser project storage.");
+  return structuredClone(program);
+}
+
+export function deleteCurrentProjectProgram(name: string): boolean {
+  if (!hasActiveProject) throw new Error("Open or create a project before deleting a program.");
+  const index = projectPackageExtras.programs.findIndex((program) => program.language === "classic-analysis" && program.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase());
+  if (index < 0) return false;
+  projectPackageExtras.programs.splice(index, 1);
+  if (!syncCurrentForm()) throw new Error("The program could not be deleted from browser project storage.");
+  return true;
 }
 
 export function markCurrentProjectSynced(remote: HostedProjectReference): void {
@@ -226,7 +452,11 @@ export function markCurrentProjectSynced(remote: HostedProjectReference): void {
 }
 
 export function applyHostedProjectSnapshot(snapshot: unknown, remote: HostedProjectReference): void {
-  projectState = validateProjectSnapshot(snapshot);
+  const nextProject = validateProjectSnapshot(snapshot);
+  if (!closeCurrentProject("Current project saved to Recent Projects before downloading the hosted project.")) {
+    throw new Error("The hosted project was not opened because the current project could not be closed safely.");
+  }
+  projectState = nextProject;
   const issues = validateProjectRecords(projectState);
   projectPackageExtras = { programs: [], codeTables: [] };
   projectState.storage = { type: "supabase" };
@@ -237,6 +467,8 @@ export function applyHostedProjectSnapshot(snapshot: unknown, remote: HostedProj
   currentFormId = selectedForm.id;
   schema = structuredClone(selectedForm.schema);
   records = structuredClone(selectedForm.records || []);
+  datasetProvenance = selectedForm.dataset ? structuredClone(selectedForm.dataset) : undefined;
+  activateProject(null);
   syncCurrentForm();
   renderDesigner();
   renderEntryForm();
@@ -258,6 +490,8 @@ function applyLocalProjectSnapshot(snapshot: unknown): void {
   currentFormId = selectedForm.id;
   schema = structuredClone(selectedForm.schema);
   records = structuredClone(selectedForm.records);
+  datasetProvenance = selectedForm.dataset ? structuredClone(selectedForm.dataset) : undefined;
+  if (!hasActiveProject) activateProject(null);
   syncCurrentForm();
   renderDesigner();
   renderEntryForm();
@@ -266,6 +500,7 @@ function applyLocalProjectSnapshot(snapshot: unknown): void {
   requiredElement("#form-status").textContent = issues.length > 0
     ? `Project opened with ${issues.length} saved-record validation issue${issues.length === 1 ? "" : "s"}. Open Enter Data > Data Quality to review.`
     : "Project opened and its saved records passed validation.";
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
 }
 
 export function showRecordInEnter(formId: string, recordIndex: number): boolean {
@@ -277,6 +512,7 @@ export function showRecordInEnter(formId: string, recordIndex: number): boolean 
     currentFormId = formId;
     schema = structuredClone(selectedForm.schema);
     records = structuredClone(selectedForm.records || []);
+    datasetProvenance = selectedForm.dataset ? structuredClone(selectedForm.dataset) : undefined;
     projectState.currentFormId = currentFormId;
     renderDesigner();
     renderEntryForm();
@@ -639,6 +875,7 @@ function renderProjectTree() {
       currentFormId = form.id;
       schema = structuredClone(form.schema);
       records = structuredClone(form.records || []);
+      datasetProvenance = form.dataset ? structuredClone(form.dataset) : undefined;
       projectState.currentFormId = currentFormId;
       renderDesigner();
       renderEntryForm();
@@ -1006,7 +1243,26 @@ function safeFileStem(value: string): string {
   return value.trim().replace(/[^a-z0-9._-]+/gi, "-").replace(/^-+|-+$/g, "") || "epi-info-ai-project";
 }
 
+function datasetIdForFile(fileName: string): string {
+  return fileName
+    .replace(/\.(csv|tsv|json|xlsx)$/i, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "imported-dataset";
+}
+
+async function datasetProvenanceForFile(file: File): Promise<DatasetProvenance> {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  const sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return { id: datasetIdForFile(file.name), file: file.name, sha256 };
+}
+
 function saveProjectPackage(): void {
+  if (!hasActiveProject) {
+    requiredElement("#main-menu-status").textContent = "Open or create a project before exporting a project package.";
+    return;
+  }
   syncCurrentForm();
   const packageValue = createProjectPackage(projectState, projectPackageExtras);
   const blob = new Blob([`${JSON.stringify(packageValue, null, 2)}\n`], { type: "application/json" });
@@ -1023,11 +1279,15 @@ async function openProjectPackage(file: File): Promise<void> {
     throw new Error(`Project packages are limited to ${Math.round(MAX_PROJECT_PACKAGE_BYTES / 1024 / 1024)} MB in this prototype.`);
   }
   const packageValue = parseProjectPackage(await file.text());
+  if (!closeCurrentProject("Current project saved to Recent Projects before opening a project package.")) {
+    throw new Error("The selected package was not opened because the current project could not be closed safely.");
+  }
   projectPackageExtras = {
     programs: structuredClone(packageValue.programs),
     codeTables: structuredClone(packageValue.codeTables),
   };
   if (packageValue.migration !== undefined) projectPackageExtras.migration = structuredClone(packageValue.migration);
+  activateProject(null);
   applyLocalProjectSnapshot(packageValue.project);
   const legacySummary = packageValue.migration
     ? ` Migrated inventory: ${packageValue.migration.inventory.forms} forms, ${packageValue.migration.inventory.pages} pages, ${packageValue.migration.inventory.fields} fields.`
@@ -1037,6 +1297,7 @@ async function openProjectPackage(file: File): Promise<void> {
 }
 
 async function importDataFile(file: File): Promise<void> {
+  const importedDataset = await datasetProvenanceForFile(file);
   const importedFile = await readTabularFile(file);
   const rows = importedFile.rows;
   const headers = rows[0]!.map((header) => normalizeFieldName(header));
@@ -1053,18 +1314,21 @@ async function importDataFile(file: File): Promise<void> {
     throw new Error(`Import validation found ${errors.length} error${errors.length === 1 ? "" : "s"}. ${errors[0]!.message}`);
   }
   records.push(...imported);
+  datasetProvenance ??= importedDataset;
   syncCurrentForm();
   renderRecords();
   requiredElement("#csv-status").textContent = `Imported ${imported.length} record${imported.length === 1 ? "" : "s"} from ${file.name}.`;
 }
 
 async function createFormFromDataFile(file: File, importRows: boolean): Promise<{ fields: number; rows: number; importedRows: boolean; persisted: boolean }> {
+  const importedDataset = importRows ? await datasetProvenanceForFile(file) : undefined;
   const importedFile = await readTabularFile(file);
   const inferred = inferSchemaFromRows(file.name, importedFile.rows);
   schema = inferred.schema;
   if (importRows) {
     records = inferred.records;
   }
+  datasetProvenance = importedDataset;
   renderDesigner();
   renderEntryForm();
   renderRecords();
@@ -1080,11 +1344,14 @@ async function createFormFromDataFile(file: File, importRows: boolean): Promise<
 }
 
 export function initializeFormDataDemo() {
+  renderFormDesignerMenuContract(requiredElement(".designer-menu"));
+  renderEnterDataMenuContract(requiredElement(".enter-data-menu"));
   requiredElement("#snap-to-grid").checked = snapToGrid;
   renderDesigner();
   renderEntryForm();
   renderRecords();
   renderStorageBadge();
+  renderProjectLifecycle();
   if (projectLoadWarning) {
     requiredElement("#main-menu-status").textContent = projectLoadWarning;
     requiredElement("#form-status").textContent = projectLoadWarning;
@@ -1103,6 +1370,81 @@ export function initializeFormDataDemo() {
 
   requiredElement("#file-open-project").addEventListener("click", () => requiredElement<HTMLInputElement>("#project-package-open").click());
   requiredElement("#file-save-project").addEventListener("click", saveProjectPackage);
+  requiredElement("#designer-open-project").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
+    requiredElement<HTMLInputElement>("#project-package-open").click();
+  });
+  requiredElement("#designer-new-project").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
+    requiredElement<HTMLButtonElement>("#new-project").click();
+  });
+  requiredElement("#designer-new-form").addEventListener("click", () => requiredElement<HTMLButtonElement>("#new-form").click());
+  requiredElement("#designer-project-storage").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
+    requiredElement<HTMLButtonElement>("#project-storage").click();
+  });
+  requiredElement("#designer-menu-enter-data").addEventListener("click", () => requiredElement<HTMLButtonElement>("#designer-enter-data").click());
+  requiredElement("#designer-exit").addEventListener("click", () => {
+    if (!closeCurrentProject("Project saved and Form Designer closed.")) return;
+    requiredElement<HTMLButtonElement>("#main-menu-button").click();
+  });
+  requiredElement("#no-project-open").addEventListener("click", () => requiredElement<HTMLInputElement>("#project-package-open").click());
+  requiredElement("#designer-close-project").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
+    closeCurrentProject();
+  });
+  requiredElement("#no-project-new").addEventListener("click", () => requiredElement<HTMLButtonElement>("#new-project").click());
+  for (const trigger of requiredElements<HTMLButtonElement>(".designer-menu:not(.enter-data-menu) [data-menu-submenu]")) {
+    trigger.addEventListener("click", () => {
+      if (trigger.disabled || trigger.getAttribute("aria-disabled") === "true") return;
+      const list = trigger.nextElementSibling;
+      if (!(list instanceof HTMLElement)) return;
+      const willOpen = list.hidden;
+      collapseDesignerSubmenus(willOpen ? trigger : null);
+      list.hidden = !willOpen;
+      trigger.setAttribute("aria-expanded", String(willOpen));
+    });
+  }
+  for (const menu of requiredElements<HTMLDetailsElement>(".designer-menu details.legacy-menu")) {
+    menu.addEventListener("toggle", () => {
+      if (!menu.open) collapseDesignerSubmenus();
+    });
+  }
+  for (const trigger of requiredElements<HTMLButtonElement>(".enter-data-menu [data-menu-submenu]")) {
+    trigger.addEventListener("click", () => {
+      if (trigger.disabled || trigger.getAttribute("aria-disabled") === "true") return;
+      const list = trigger.nextElementSibling;
+      if (!(list instanceof HTMLElement)) return;
+      const willOpen = list.hidden;
+      for (const other of requiredElements<HTMLButtonElement>(".enter-data-menu [data-menu-submenu]")) {
+        if (other === trigger) continue;
+        other.setAttribute("aria-expanded", "false");
+        if (other.nextElementSibling instanceof HTMLElement) other.nextElementSibling.hidden = true;
+      }
+      list.hidden = !willOpen;
+      trigger.setAttribute("aria-expanded", String(willOpen));
+    });
+  }
+  requiredElement(".designer-menu").addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
+    if (!target) return;
+    event.preventDefault();
+    const message = target.dataset.unavailableReason ?? "This familiar command is not implemented yet.";
+    (hasActiveProject ? requiredElement("#form-status") : requiredElement("#project-lifecycle-status")).textContent = message;
+  });
+  requiredElement(".enter-data-menu").addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
+    if (!target) return;
+    event.preventDefault();
+    requiredElement("#record-status").textContent = target.dataset.unavailableReason ?? "This familiar command is not implemented yet.";
+  });
+  document.addEventListener("keydown", (event) => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "o") return;
+    const formsView = requiredElement<HTMLElement>('[data-module-view="forms"]');
+    if (formsView.hidden) return;
+    event.preventDefault();
+    requiredElement<HTMLButtonElement>("#designer-open-project").click();
+  });
   requiredElement("#project-package-open").addEventListener("change", async (event) => {
     const target = eventControl(event);
     const file = target.files?.[0];
@@ -1129,6 +1471,31 @@ export function initializeFormDataDemo() {
     requiredElement("#data-quality-action-status").textContent = "";
     renderDataQuality();
     requiredElement<HTMLDialogElement>("#data-quality-dialog").showModal();
+  });
+  requiredElement("#enter-menu-data-quality").addEventListener("click", () => requiredElement<HTMLButtonElement>("#enter-data-quality").click());
+  requiredElement("#enter-menu-import-file").addEventListener("click", () => requiredElement<HTMLInputElement>("#csv-import").click());
+  requiredElement("#enter-menu-new-record").addEventListener("click", () => {
+    setEntryView("entry");
+    requiredElement<HTMLFormElement>("#record-form").reset();
+    renderEntryValidation([]);
+    requiredElement("#new-record-title").textContent = "New record";
+    requiredElement("#record-status").textContent = "Ready for a new record.";
+  });
+  requiredElement("#enter-menu-edit-form").addEventListener("click", () => requiredElement<HTMLButtonElement>('[data-module="forms"]').click());
+  requiredElement("#enter-menu-save").addEventListener("click", () => requiredElement<HTMLFormElement>("#record-form").requestSubmit());
+  requiredElement("#enter-menu-exit").addEventListener("click", () => requiredElement<HTMLButtonElement>("#main-menu-button").click());
+  requiredElement("#enter-menu-status-bar").addEventListener("click", (event) => {
+    const statusbar = requiredElement<HTMLElement>("#enter-statusbar");
+    statusbar.hidden = !statusbar.hidden;
+    requiredElement<HTMLButtonElement>("#enter-menu-status-bar").setAttribute("aria-checked", String(!statusbar.hidden));
+  });
+  requiredElement("#enter-menu-status-bar").setAttribute("aria-checked", "true");
+  document.addEventListener("keydown", (event) => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") return;
+    const dataView = requiredElement<HTMLElement>('[data-module-view="data"]');
+    if (dataView.hidden || !hasActiveProject) return;
+    event.preventDefault();
+    requiredElement<HTMLFormElement>("#record-form").requestSubmit();
   });
   for (const button of requiredElements("[data-close-data-quality]")) {
     button.addEventListener("click", () => requiredElement<HTMLDialogElement>("#data-quality-dialog").close());
@@ -1293,7 +1660,7 @@ export function initializeFormDataDemo() {
     const savedSupabase = loadJson<Partial<SupabaseConnectionConfig>>(SUPABASE_CONFIG_KEY, {});
     supabaseUrl.value = savedSupabase.url || "";
     supabasePublishableKey.value = savedSupabase.publishableKey || "";
-    storageEngine.value = projectState.storage?.type === "supabase" ? "supabase" : "browser";
+    storageEngine.value = hasActiveProject && projectState.storage?.type === "supabase" ? "supabase" : "browser";
     updateStorageDialog();
     projectDialog.showModal();
   });
@@ -1321,7 +1688,6 @@ export function initializeFormDataDemo() {
   });
   requiredElement("#project-dialog-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (records.length > 0 && !window.confirm("Create a new project and remove the current locally saved demo records?")) return;
     const storageType = storageEngine.value === "supabase" ? "supabase" : "browser";
     if (storageType === "supabase") {
       projectDialogNote.textContent = "Verifying Supabase before creating the local working copy...";
@@ -1333,10 +1699,15 @@ export function initializeFormDataDemo() {
         return;
       }
     }
+    if (!closeCurrentProject("Current project saved to Recent Projects before creating the new project.")) {
+      projectDialogNote.textContent = "The new project was not created because the current project could not be closed safely.";
+      return;
+    }
     projectName = requiredElement("#database-name").value.trim() || "Untitled Project";
     schema = { name: "New Form", fields: [] };
     records = [];
     currentFormId = newFormId();
+    datasetProvenance = undefined;
     projectState = {
       name: projectName,
       currentFormId,
@@ -1344,6 +1715,7 @@ export function initializeFormDataDemo() {
       forms: [{ id: currentFormId, schema: structuredClone(schema), records: [] }],
     };
     projectPackageExtras = { programs: [], codeTables: [] };
+    activateProject(null);
     syncCurrentForm();
     renderDesigner();
     renderEntryForm();
@@ -1365,6 +1737,7 @@ export function initializeFormDataDemo() {
     currentFormId = newFormId();
     schema = { name: "New Form", fields: [] };
     records = [];
+    datasetProvenance = undefined;
     projectState.forms.push({ id: currentFormId, schema: structuredClone(schema), records: [] });
     projectState.currentFormId = currentFormId;
     syncCurrentForm();
@@ -1378,6 +1751,7 @@ export function initializeFormDataDemo() {
     if (!window.confirm("Restore the example form and remove all locally saved demo records?")) return;
     schema = structuredClone(DEFAULT_SCHEMA);
     records = [];
+    datasetProvenance = undefined;
     syncCurrentForm();
     renderDesigner();
     renderEntryForm();

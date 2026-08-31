@@ -36,6 +36,11 @@ test("File menu opens and saves the migrated official Sample project", async ({ 
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await expect(page.locator("#project-tree-name")).toContainText("Sample");
   await expect(page.locator("#form-name")).toHaveValue("Oswego");
+  const designerMenu = page.getByRole("navigation", { name: "Form Designer menu" });
+  await designerMenu.getByText("File", { exact: true }).click();
+  await designerMenu.getByRole("menuitem", { name: "Recent Projects", exact: true }).click();
+  await expect(designerMenu.getByRole("menuitem", { name: "Browser Project", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("navigation", { name: "Application menu" }).getByText("File", { exact: true }).click();
@@ -372,16 +377,208 @@ for (const viewport of [
 test("Form Designer keeps legacy project commands and adds Project Storage", async ({ page }) => {
   await page.getByRole("button", { name: "Create Forms" }).click();
   const designerMenu = page.getByRole("navigation", { name: "Form Designer menu" });
+  await expect(designerMenu.locator(":scope > details > summary")).toHaveText(["File", "Edit", "View", "Insert", "Format", "Tools", "Help"]);
 
   await designerMenu.getByText("File", { exact: true }).click();
+  const fileContractOrder = await page.locator("#designer-file-menu [data-menu-command], #designer-file-menu [data-menu-submenu]").evaluateAll(
+    (items) => items.map((item) => item.getAttribute("data-menu-command") ?? item.getAttribute("data-menu-submenu")),
+  );
+  expect(fileContractOrder).toEqual([
+    "new-project", "new-project-template", "new-project-data-dictionary", "new-form", "new-page",
+    "open-project", "open-project-web", "close-project", "get-template", "print", "copy-mobile",
+    "publish-cloud", "publish-web", "recent-projects", "exit", "project-storage",
+  ]);
+  await expect(designerMenu.getByRole("menuitem", { name: /^Open Project\.\.\. Ctrl\+O$/ })).toBeEnabled();
+  await expect(designerMenu.getByRole("menuitem", { name: "Close Project" })).toBeEnabled();
   await expect(designerMenu.getByRole("menuitem", { name: "Recent Projects" })).toBeDisabled();
-  await designerMenu.getByRole("menuitem", { name: "New Project" }).click();
+  await expect(page.locator('#designer-file-menu [data-menu-command="new-project-template"]')).toHaveAttribute("aria-disabled", "true");
+  await expect(page.locator("#designer-project-storage")).toHaveAttribute("data-new-branch", "true");
+  await page.locator('#designer-file-menu [data-menu-command="new-project-template"]').dispatchEvent("click");
+  await expect(page.locator("#form-status")).toContainText("Legacy Form Designer command is not implemented");
+  await designerMenu.getByRole("menuitem", { name: "New Project...", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Create a Project Data Store" })).toBeVisible();
   await page.keyboard.press("Escape");
+  const fileChooser = page.waitForEvent("filechooser");
+  await page.keyboard.press("Control+O");
+  await fileChooser;
 
   await designerMenu.getByText("File", { exact: true }).click();
   await designerMenu.getByRole("menuitem", { name: "Project Storage" }).click();
   await expect(page.getByRole("dialog", { name: "Project Storage" })).toBeVisible();
+});
+
+test("Enter Data preserves the legacy menu contract and discloses browser branches", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Enter Data" }).click();
+  const enterMenu = page.getByRole("navigation", { name: "Enter Data menu" });
+  await expect(enterMenu.locator(":scope > details > summary")).toHaveText(["File", "Edit", "View", "Tools", "Help"]);
+
+  await enterMenu.getByText("File", { exact: true }).click();
+  const fileOrder = await page.locator("#enter-file-menu > .legacy-menu-popup > [data-menu-command], #enter-file-menu > .legacy-menu-popup > .legacy-contract-submenu > [data-menu-submenu]").evaluateAll(
+    (items) => items.map((item) => item.getAttribute("data-menu-command") ?? item.getAttribute("data-menu-submenu")),
+  );
+  expect(fileOrder).toEqual([
+    "new-record", "open-form", "edit-form", "close-form", "save", "import-data", "package-transport",
+    "print", "recent-forms", "exit", "import-browser-file",
+  ]);
+  await expect(enterMenu.getByRole("menuitem", { name: /^Open Form\.\.\. Ctrl\+O$/ })).toHaveAttribute("aria-disabled", "true");
+  await expect(page.locator("#enter-menu-import-file")).toHaveAttribute("data-new-branch", "true");
+  await enterMenu.getByRole("menuitem", { name: "Import Data", exact: true }).click();
+  await expect(enterMenu.getByRole("menuitem", { name: "From Epi Info 7 Project", exact: true })).toBeVisible();
+
+  await page.locator('#enter-file-menu [data-menu-command="open-form"]').dispatchEvent("click");
+  await expect(page.locator("#record-status")).toContainText("Legacy Enter Data command is not implemented");
+
+  await enterMenu.getByText("View", { exact: true }).click();
+  const statusBar = enterMenu.getByRole("menuitem", { name: "Status Bar", exact: true });
+  await expect(statusBar).toHaveAttribute("aria-checked", "true");
+  await statusBar.click();
+  await expect(page.locator("#enter-statusbar")).toBeHidden();
+
+  await enterMenu.getByText("Tools", { exact: true }).click();
+  await expect(page.locator("#enter-menu-data-quality")).toHaveAttribute("data-new-branch", "true");
+  await page.locator("#enter-menu-data-quality").click();
+  await expect(page.getByRole("dialog", { name: "Data Quality Check" })).toBeVisible();
+});
+
+test("Visual Dashboard preserves its toolbar and right-click gadget tree", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Visual Dashboard" }).click();
+  const toolbar = page.getByRole("toolbar", { name: "Visual Dashboard toolbar" });
+  await expect(toolbar.getByRole("button")).toHaveText(["Refresh", "Set Data Source", "Open", "Save", "Save As"]);
+  await expect(page.locator("#dashboard-toolbar-source")).toContainText("Browser Project / Outbreak Case Report Form");
+  await expect(page.locator("#dashboard-toolbar-count")).toHaveText("(0 records)");
+  await toolbar.getByRole("button", { name: "Set Data Source", exact: true }).dispatchEvent("click");
+  await expect(page.locator("#dashboard-command-status")).toContainText("Legacy Visual Dashboard command is not implemented");
+
+  await page.locator("#dashboard-canvas").dispatchEvent("contextmenu");
+  const canvasMenu = page.getByRole("menu", { name: "Visual Dashboard canvas commands" });
+  await expect(canvasMenu).toBeVisible();
+  await canvasMenu.getByRole("menuitem", { name: "Add Analysis Gadget", exact: true }).click();
+  await expect(canvasMenu.getByRole("menuitem", { name: "Rates", exact: true })).toBeVisible();
+  await expect(canvasMenu.getByRole("menuitem", { name: "Frequency", exact: true })).toHaveAttribute("aria-disabled", "true");
+  await canvasMenu.getByRole("menuitem", { name: "Rates", exact: true }).click();
+  await expect(page.locator("#dashboard-command-status")).toContainText("Rates gadget selected");
+  await expect(page.locator("#rates-numerator-field")).toBeFocused();
+
+  await page.locator("#dashboard-canvas").dispatchEvent("contextmenu");
+  await canvasMenu.getByRole("menuitem", { name: "Add Analysis Gadget", exact: true }).click();
+  await canvasMenu.getByRole("menuitem", { name: "Charts", exact: true }).click();
+  await expect(canvasMenu.getByRole("menuitem", { name: "Epi Curve chart", exact: true })).toBeVisible();
+  await canvasMenu.getByRole("menuitem", { name: "Epi Curve chart", exact: true }).click();
+  await expect(page.locator("#dashboard-command-status")).toContainText("Epi Curve gadget selected");
+  await expect(page.locator("#epi-curve-date-field")).toBeFocused();
+});
+
+test("Classic Analysis preserves its four-menu shell and Command Explorer", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
+
+  const menu = page.getByRole("navigation", { name: "Classic Analysis menu" });
+  await expect(menu.locator("summary")).toHaveText(["File", "View", "Tools", "Help"]);
+  await menu.getByText("View", { exact: true }).click();
+  const statusBar = menu.getByRole("menuitemcheckbox", { name: "Status Bar", exact: true });
+  await expect(statusBar).toHaveAttribute("aria-checked", "true");
+  await statusBar.click();
+  await expect(page.locator("#classic-statusbar")).toBeHidden();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  await expect(tree.locator("details > summary")).toHaveText([
+    "Data", "Variables", "Select/If", "Statistics", "Advanced Statistics", "Output",
+    "User-Defined Commands", "User Interaction", "Options",
+  ]);
+
+  await tree.locator("details").filter({ hasText: "Data" }).locator("summary").click();
+  const read = tree.getByRole("treeitem", { name: "Read", exact: true });
+  await expect(read).not.toHaveAttribute("aria-disabled", "true");
+  await read.click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("read");
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText("READ");
+  await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
+
+  await tree.getByRole("treeitem", { name: "List", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("list");
+  await expect(page.locator("#classic-command-dialog-field")).toHaveAttribute("multiple");
+  await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
+
+  await tree.getByRole("treeitem", { name: "Frequencies", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog")).toBeVisible();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("frequency");
+  await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
+
+  await tree.getByRole("treeitem", { name: "Means", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("means");
+  await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
+  await tree.getByRole("treeitem", { name: "Tables", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("tables");
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText("TABLES");
+  await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
+});
+
+test("Form Designer preserves nested legacy Tools menu branches", async ({ page }) => {
+  await page.getByRole("button", { name: "Create Forms" }).click();
+  const designerMenu = page.getByRole("navigation", { name: "Form Designer menu" });
+  await designerMenu.getByText("Tools", { exact: true }).click();
+  await designerMenu.getByRole("menuitem", { name: "Make PRJ File", exact: true }).click();
+  await expect(designerMenu.getByRole("menuitem", { name: "From Epi Info 7 project (MS Access)", exact: true })).toBeVisible();
+  await expect(designerMenu.getByRole("menuitem", { name: "From Epi Info 7 project (SQLite)", exact: true })).toBeVisible();
+  await expect(designerMenu.getByRole("menuitem", { name: "From Epi Info 7 project (SQL Server)", exact: true })).toBeVisible();
+});
+
+test("Form Designer safely closes, persists, and reopens a recent project", async ({ page }) => {
+  await page.getByRole("button", { name: "Create Forms" }).click();
+  const designerMenu = page.getByRole("navigation", { name: "Form Designer menu" });
+
+  await designerMenu.getByText("File", { exact: true }).click();
+  await designerMenu.getByRole("menuitem", { name: "Close Project" }).click();
+
+  await expect(page.getByRole("heading", { name: "No project is open" })).toBeVisible();
+  await expect(page.locator("#project-lifecycle-status")).toContainText("Project closed");
+  await expect(page.locator("#new-form")).toBeDisabled();
+  await expect(page.locator("#project-storage")).toBeDisabled();
+  await expect(page.locator(".designer-workspace")).toBeHidden();
+
+  await page.reload();
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await expect(page.getByRole("heading", { name: "No project is open" })).toBeVisible();
+
+  await designerMenu.getByText("File", { exact: true }).click();
+  const recent = designerMenu.getByRole("menuitem", { name: "Recent Projects", exact: true });
+  await expect(recent).toBeEnabled();
+  await recent.click();
+  await designerMenu.getByRole("menuitem", { name: "Browser Project", exact: true }).click();
+
+  await expect(page.getByRole("heading", { name: "No project is open" })).toBeHidden();
+  await expect(page.locator("#project-tree-name")).toContainText("Browser Project");
+  await expect(page.locator("#new-form")).toBeEnabled();
+  await expect(page.locator(".designer-workspace")).toBeVisible();
+  await expect(page.locator("#form-status")).toContainText("Opened recent project Browser Project");
+
+  await page.getByRole("button", { name: "New Project", exact: true }).click();
+  const createDialog = page.getByRole("dialog", { name: "Create a Project Data Store" });
+  await createDialog.getByLabel("Database name").fill("Replacement Project");
+  await createDialog.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.locator("#project-tree-name")).toContainText("Replacement Project");
+  await designerMenu.getByText("File", { exact: true }).click();
+  await designerMenu.getByRole("menuitem", { name: "Recent Projects", exact: true }).click();
+  await expect(designerMenu.getByRole("menuitem", { name: "Browser Project", exact: true })).toBeVisible();
+});
+
+test("Form Designer keeps the project open when browser autosave fails", async ({ page }) => {
+  await page.getByRole("button", { name: "Create Forms" }).click();
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function setItem(key, value) {
+      if (key === "epi-info-ai.project-state.v1") throw new DOMException("Quota exceeded", "QuotaExceededError");
+      return original.call(this, key, value);
+    };
+  });
+
+  const designerMenu = page.getByRole("navigation", { name: "Form Designer menu" });
+  await designerMenu.getByText("File", { exact: true }).click();
+  await designerMenu.getByRole("menuitem", { name: "Close Project" }).click();
+
+  await expect(page.getByRole("heading", { name: "No project is open" })).toBeHidden();
+  await expect(page.locator(".designer-workspace")).toBeVisible();
+  await expect(page.locator("#form-status")).toContainText("Project remains open");
+  await expect(page.locator("#designer-close-project")).toBeEnabled();
 });
 
 test("phone project dialogs keep state and action feedback in context", async ({ page, context }) => {
@@ -613,6 +810,214 @@ test("Classic Analysis FREQ derives the foodborne Case Status distribution", asy
   await expect(page.locator("#frequency-stratified-rows")).toContainText("Male");
 });
 
+test("Program Editor does not expose foodborne programs without their dataset", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Classic" }).click();
+  await expect(page.locator(".classic-program-examples")).toBeHidden();
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("Enter an Epi Info program for the current project");
+  expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/foodborne-outbreak-investigation.programs.json", location.href).href).length)).toBe(0);
+
+  await page.locator('[data-module="forms"]').click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles({
+    name: "unrelated.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("Person ID,Score\nP-001,10\n"),
+  });
+  await expect(page.locator("#csv-form-status")).toContainText("Created 2 fields and imported 1 record");
+  await page.locator('[data-module="classic"]').click();
+  await expect(page.locator(".classic-program-examples")).toBeHidden();
+  expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/foodborne-outbreak-investigation.programs.json", location.href).href).length)).toBe(0);
+});
+
+test("Program Editor and Output preserve the legacy menus and toolbar order", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Classic" }).click();
+  await expect(page.locator("#classic-program-menu summary")).toHaveText(["File", "Edit", "Fonts"]);
+  await expect(page.locator("#classic-program-toolbar button span")).toHaveText(["New Pgm", "Open Pgm", "Save Pgm", "Print...", "Run Commands", "Cancel"]);
+  await expect(page.locator("#classic-output-toolbar button span")).toHaveText(["Previous", "Next", "Last", "History", "Open", "Bookmark", "Print", "Maximize", "Clear Output"]);
+
+  await page.locator("#classic-program-menu summary", { hasText: "Edit" }).click();
+  await page.locator("#classic-program-edit-end").click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Cursor moved to Program End.");
+  await page.evaluate(() => { window.__epiPrintCalls = 0; window.print = () => { window.__epiPrintCalls += 1; }; });
+  await page.locator("#classic-program-toolbar-print").click();
+  await page.locator("#classic-program-menu summary", { hasText: "File" }).click();
+  await page.locator("#classic-program-file-print").click();
+  await expect.poll(() => page.evaluate(() => window.__epiPrintCalls)).toBe(2);
+  await expect(page.locator("#classic-program-command-status")).toContainText("browser print dialog");
+  await page.locator("#classic-output-history").click();
+  await expect(page.locator("#classic-program-history")).toHaveAttribute("open", "");
+  await expect(page.locator("#classic-output-navigation-status")).toHaveText("Command history opened.");
+});
+
+test("Program Editor saves project programs and exchanges .pgm7 files", async ({ page }) => {
+  await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/sample-project.epia.json");
+  await expect(page.locator("#main-menu-status")).toContainText("Opened Sample");
+  await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
+  await expect(page.locator("#classic-project-program option", { hasText: "Statistics" })).toHaveCount(1);
+  await page.locator("#classic-project-program").selectOption("Statistics");
+  await page.locator("#classic-project-program-open").click();
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("ROUTEOUT");
+  await expect(page.locator("#classic-program-document-state")).toHaveText("Statistics · saved");
+
+  await page.locator("#classic-program-toolbar-new").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  await editor.fill("FREQ age\nFREQ sex");
+  await expect(page.locator("#classic-program-document-state")).toHaveText("Untitled · modified");
+  await page.locator("#classic-program-toolbar-save").click();
+  await expect(page.locator("#classic-program-dialog")).toBeVisible();
+  await page.locator("#classic-program-name").fill("Foodborne Quick Check");
+  await page.locator("#classic-program-author").fill("Demo Analyst");
+  await page.locator("#classic-program-comment").fill("Foodborne demonstration program");
+  await page.locator("#classic-program-dialog-primary").click();
+  await expect(page.locator("#classic-program-document-state")).toHaveText("Foodborne Quick Check · saved");
+  await expect(page.locator("#classic-project-program option", { hasText: "Foodborne Quick Check" })).toHaveCount(1);
+
+  await page.locator("#classic-program-menu summary").getByText("Edit", { exact: true }).click();
+  await page.locator("#classic-program-edit-replace").click();
+  await page.locator("#classic-program-search-query").fill("FREQ");
+  await page.locator("#classic-program-search-replacement").fill("MEANS");
+  await page.locator("#classic-program-search-replace-all").click();
+  await expect(page.locator("#classic-program-search-feedback")).toHaveText("Replaced 2 matches.");
+  await expect(editor).toContainText("MEANS age");
+  await page.locator("#classic-program-search-dialog button", { hasText: "Close" }).click();
+  await page.locator("#classic-program-toolbar-save").click();
+  await expect(page.locator("#classic-program-document-state")).toHaveText("Foodborne Quick Check · saved");
+
+  await page.locator("#classic-program-menu summary").getByText("File", { exact: true }).click();
+  await page.locator("#classic-program-file-save-as").click();
+  await page.locator("#classic-program-name").fill("Foodborne Export");
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#classic-program-dialog-export").click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("Foodborne-Export.pgm7");
+
+  await page.locator("#classic-program-toolbar-open").click();
+  await page.locator("#classic-program-file").setInputFiles({ name: "Imported.pgm7", mimeType: "text/plain", buffer: Buffer.from("FREQ case_status") });
+  await expect(editor).toContainText("FREQ case_status");
+  await expect(page.locator("#classic-program-document-state")).toHaveText("Imported · saved");
+
+  await page.locator("#classic-program-toolbar-open").click();
+  await page.locator("#classic-program-dialog-project").selectOption("Foodborne Quick Check");
+  await expect(page.locator("#classic-program-author")).toHaveValue("Demo Analyst");
+  await expect(page.locator("#classic-program-comment")).toHaveValue("Foodborne demonstration program");
+  await expect(page.locator("#classic-program-created")).not.toHaveValue("");
+  await expect(page.locator("#classic-program-updated")).not.toHaveValue("");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-dialog-delete").click();
+  await expect(page.locator("#classic-program-dialog-feedback")).toContainText("Deleted");
+  await expect(page.locator("#classic-program-dialog-project option", { hasText: "Foodborne Quick Check" })).toHaveCount(0);
+  await expect(editor).toContainText("FREQ case_status");
+});
+
+test("typed command dialogs insert visible source and selected commands fail closed", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  const editor = page.locator("#classic-program-source .cm-content");
+  await tree.locator("details").filter({ hasText: "Data" }).locator("summary").click();
+  await tree.getByRole("treeitem", { name: "Read", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-source option")).toContainText(["Foodborne Outbreak Investigation Form (96 records)"]);
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-session-status")).toContainText("Foodborne Outbreak Investigation Form · 96 records");
+  await expect(page.locator("#classic-program-command-status")).toContainText("Selected READ command completed");
+
+  await tree.getByRole("treeitem", { name: "List", exact: true }).click();
+  await page.locator("#classic-command-dialog-field").selectOption(["id", "age", "sex"]);
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("LIST id age sex");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-list-output-head th")).toHaveText(["ID", "Age", "Sex"]);
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
+  await expect(page.locator("#classic-list-output-note")).toHaveText("Showing all 96 records.");
+
+  await tree.getByRole("treeitem", { name: "Frequencies", exact: true }).click();
+  await page.locator("#classic-command-dialog-field").selectOption("case_status");
+  await page.locator("#classic-command-dialog-strata").selectOption("sex");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("FREQ case_status STRATAVAR=sex");
+  await page.locator("#classic-command-dialog-insert").click();
+  await expect(editor).toContainText("FREQ case_status STRATAVAR=sex");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#frequency-stratified-title")).toHaveText("Case Status by Sex");
+  await expect(page.locator("#classic-program-command-status")).toContainText("Selected FREQ command completed");
+
+  await tree.getByRole("treeitem", { name: "Means", exact: true }).click();
+  await page.locator("#classic-command-dialog-field").selectOption("age");
+  await page.locator("#classic-command-dialog-insert").click();
+  await expect(editor).toContainText("MEANS age");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#means-output-title")).toHaveText("Age");
+  await expect(page.locator("#classic-program-command-status")).toContainText("Selected MEANS command completed");
+
+  await tree.getByRole("treeitem", { name: "Tables", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("TABLES potato_salad case_status STRATAVAR=sex");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-exposure-field")).toHaveValue("potato_salad");
+  await expect(page.locator("#classic-outcome-field")).toHaveValue("case_status");
+  await expect(page.locator("#classic-strata-field")).toHaveValue("sex");
+  await expect(page.locator("#classic-tables-feedback")).toContainText("Review the exposed and case value classifications");
+  await expect(page.locator("#classic-program-command-status")).toContainText("nothing was calculated yet");
+
+  await editor.fill("FREQ age\nMEANS age");
+  await editor.press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Select exactly one complete command");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("6");
+});
+
+test("Define and Recode dialogs author a runnable foodborne program as visible source", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  const variables = tree.locator("details").filter({ hasText: "Variables" });
+  await variables.locator("summary").click();
+  await tree.getByRole("treeitem", { name: "Define", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("define");
+  await page.locator("#classic-command-dialog-variable").fill("FoodAgeGroup");
+  await page.locator("#classic-command-dialog-prompt").fill("Foodborne age group");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('DEFINE FoodAgeGroup TEXTINPUT "Foodborne age group"');
+  await page.locator("#classic-command-dialog-insert").click();
+
+  const editor = page.locator("#classic-program-source .cm-content");
+  await expect(editor).toContainText('DEFINE FoodAgeGroup TEXTINPUT "Foodborne age group"');
+  await tree.getByRole("treeitem", { name: "Recode", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("recode");
+  await expect(page.locator("#classic-command-dialog-recode-rows tr")).toHaveCount(4);
+  await page.locator("#classic-command-dialog-recode-source").selectOption("age");
+  await page.locator("#classic-command-dialog-recode-target").selectOption("FoodAgeGroup");
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText("RECODE age TO FoodAgeGroup");
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText('LOVALUE - 17 = "0-17"');
+  await page.locator("#classic-command-dialog-insert").click();
+
+  await tree.getByRole("treeitem", { name: "Frequencies", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-field option", { hasText: "Foodborne age group" })).toHaveCount(1);
+  await page.locator("#classic-command-dialog-field").selectOption("FoodAgeGroup");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("FREQ FoodAgeGroup");
+  await page.locator("#classic-command-dialog-insert").click();
+  await expect(editor).toContainText("RECODE age TO FoodAgeGroup");
+  await expect(editor).toContainText("FREQ FoodAgeGroup");
+
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed DEFINE → RECODE → FREQ for 96 records");
+  await expect(page.locator("#classic-program-output-title")).toHaveText("FoodAgeGroup");
+  await expect(page.locator("#classic-program-output-rows tr")).toHaveCount(4);
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+});
+
 test("Program Editor safely runs the taught age-group RECODE and records history", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
@@ -620,6 +1025,8 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
+  await expect(page.locator(".classic-program-examples")).toBeVisible();
+  await expect(page.locator("#classic-program-example option")).toHaveCount(3);
   await expect(page.locator("#classic-program-source-name")).toContainText("96 records");
   await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeVisible();
   await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
@@ -646,7 +1053,6 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await editor.press("a");
   await editor.press("Enter");
   await expect(editor).toContainText("RECODE age");
-  await expect(page.locator("#classic-program-example option")).toHaveCount(3);
   await page.locator("#classic-program-example").selectOption("age-band-by-case-status");
   await expect(page.locator("#classic-program-example-description")).toContainText("Case Status");
   await page.locator("#classic-program-load-example").click();

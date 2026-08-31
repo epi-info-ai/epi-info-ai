@@ -67,8 +67,8 @@ const requiredFiles = [
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=50["']/);
-assert.match(html, /href=["']styles\.css\?v=40["']/);
+assert.match(html, /src=["']app\.js\?v=56["']/);
+assert.match(html, /href=["']styles\.css\?v=43["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);
 assert.match(html, /id=["']file-exit["']/);
@@ -76,11 +76,51 @@ assert.match(html, /id=["']file-open-project["']/);
 assert.match(html, /id=["']file-save-project["']/);
 assert.match(html, /id=["']tools-menu["']/);
 assert.match(html, /id=["']designer-file-menu["']/);
-assert.match(html, /id=["']designer-project-storage["']/);
+for (const menu of ["file", "edit", "view", "insert", "format", "tools", "help"]) {
+  assert.match(html, new RegExp(`data-designer-menu-host=["']${menu}["']`));
+}
+for (const menu of ["file", "edit", "view", "tools", "help"]) {
+  assert.match(html, new RegExp(`data-enter-menu-host=["']${menu}["']`));
+}
+for (const menu of ["file", "view", "tools", "help"]) {
+  assert.match(html, new RegExp(`data-classic-menu-host=["']${menu}["']`));
+}
+for (const menu of ["file", "edit", "fonts"]) {
+  assert.match(html, new RegExp(`data-classic-program-menu-host=["']${menu}["']`));
+}
 assert.match(html, /id=["']epi-map["']/);
 assert.match(html, /id=["']field-rule-coordinate-group["']/);
+assert.match(html, /id=["']dashboard-toolbar-commands["']/);
+assert.match(html, /id=["']dashboard-canvas-menu-items["']/);
+assert.match(html, /id=["']classic-command-tree["']/);
+assert.match(html, /id=["']classic-message-area["']/);
+assert.match(html, /id=["']classic-program-toolbar["']/);
+assert.match(html, /id=["']classic-output-toolbar["']/);
+assert.match(html, /id=["']classic-program-dialog["']/);
+assert.match(html, /id=["']classic-program-dialog-delete["']/);
+assert.match(html, /id=["']classic-command-dialog["']/);
+assert.match(html, /id=["']classic-command-dialog-define["']/);
+assert.match(html, /id=["']classic-command-dialog-recode["']/);
+assert.match(html, /id=["']classic-program-session-status["']/);
+assert.match(html, /id=["']classic-list-output["']/);
+assert.match(html, /id=["']classic-program-run-selection["']/);
+assert.match(html, /id=["']classic-program-printout["']/);
+assert.match(html, /id=["']classic-program-search-dialog["']/);
 
 const app = await requireFile("app.js");
+const formData = await requireFile("form-data.js");
+assert.match(formData, /designer-project-storage/);
+assert.match(formData, /New Project from Template/);
+assert.match(formData, /Import Browser Data File/);
+assert.match(app, /Add Analysis Gadget/);
+assert.match(app, /dashboard-menu-epi-curve/);
+assert.match(app, /User-Defined Commands/);
+assert.match(app, /classic-command-frequencies/);
+assert.match(app, /classic-program-toolbar-run/);
+assert.match(app, /classic-selected-command-v0\.2\.0/);
+assert.match(app, /Clear Output/);
+assert.match(app, /\.pgm7/);
+assert.match(app, /saveCurrentProjectProgram/);
 assert.match(app, /initializeMaps/);
 assert.match(app, /initializeFormDataDemo/);
 assert.match(app, /initializeSupabaseSync/);
