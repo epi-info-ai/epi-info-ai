@@ -483,10 +483,10 @@ test("Classic Analysis preserves its four-menu shell and Command Explorer", asyn
   const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
   await expect(tree.locator("details > summary")).toHaveText([
     "Data", "Variables", "Select/If", "Statistics", "Advanced Statistics", "Output",
-    "User-Defined Commands", "User Interaction", "Options",
+    "User-Defined Commands", "User Interaction", "Options", "New Branches — Epi Info AI",
   ]);
 
-  await tree.locator("details").filter({ hasText: "Data" }).locator("summary").click();
+  await tree.locator("summary").filter({ hasText: /^Data$/ }).click();
   const read = tree.getByRole("treeitem", { name: "Read", exact: true });
   await expect(read).not.toHaveAttribute("aria-disabled", "true");
   await read.click();
@@ -921,7 +921,7 @@ test("typed command dialogs insert visible source and selected commands fail clo
 
   const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
   const editor = page.locator("#classic-program-source .cm-content");
-  await tree.locator("details").filter({ hasText: "Data" }).locator("summary").click();
+  await tree.locator("summary").filter({ hasText: /^Data$/ }).click();
   await tree.getByRole("treeitem", { name: "Read", exact: true }).click();
   await expect(page.locator("#classic-command-dialog-source option")).toContainText(["Foodborne Outbreak Investigation Form (96 records)"]);
   await page.locator("#classic-command-dialog-insert").click();
@@ -1096,7 +1096,7 @@ test("selected DEFINE and ASSIGN manage bounded Standard session variables", asy
   await expect(page.locator("#classic-program-feedback")).toContainText("cannot mutate data-source fields");
   await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
 
-  await tree.locator("details").filter({ hasText: "Data" }).locator("summary").click();
+  await tree.locator("summary").filter({ hasText: /^Data$/ }).click();
   await tree.getByRole("treeitem", { name: "Read", exact: true }).click();
   await page.locator("#classic-command-dialog-insert").click();
   await page.locator("#classic-program-run-selection").click();
@@ -1685,7 +1685,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
 
   await page.locator('[data-module="classic"]').click();
   await expect(page.locator(".classic-program-examples")).toBeVisible();
-  await expect(page.locator("#classic-program-example option")).toHaveCount(3);
+  await expect(page.locator("#classic-program-example option")).toHaveCount(4);
   await expect(page.locator("#classic-program-source-name")).toContainText("96 records");
   await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeVisible();
   await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
