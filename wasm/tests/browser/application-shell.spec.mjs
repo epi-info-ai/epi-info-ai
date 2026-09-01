@@ -10,6 +10,11 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#main-menu-title")).toBeAttached();
 });
 
+async function openClassicDeveloperControls(page) {
+  const controls = page.locator("#classic-direct-controls");
+  if (!(await controls.evaluate((element) => element.open))) await controls.locator("summary").click();
+}
+
 test("legacy application menus expose familiar workflows", async ({ page }) => {
   const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
 
@@ -475,6 +480,21 @@ test("Visual Dashboard preserves its toolbar and right-click gadget tree", async
 test("Classic Analysis preserves its four-menu shell and Command Explorer", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
 
+  const explorer = page.locator(".classic-command-explorer");
+  const output = page.locator(".classic-output-window");
+  const editor = page.locator(".classic-program-editor");
+  const [explorerBox, outputBox, editorBox] = await Promise.all([
+    explorer.boundingBox(), output.boundingBox(), editor.boundingBox(),
+  ]);
+  expect(explorerBox).not.toBeNull();
+  expect(outputBox).not.toBeNull();
+  expect(editorBox).not.toBeNull();
+  expect(outputBox.x).toBeGreaterThan(explorerBox.x);
+  expect(editorBox.x).toBe(outputBox.x);
+  expect(editorBox.y).toBeGreaterThan(outputBox.y);
+  await expect(editor.locator("#classic-message-area")).toBeAttached();
+  await expect(page.locator("#classic-direct-controls")).not.toHaveAttribute("open", "");
+
   const menu = page.getByRole("navigation", { name: "Classic Analysis menu" });
   await expect(menu.locator("summary")).toHaveText(["File", "View", "Tools", "Help"]);
   await menu.getByText("View", { exact: true }).click();
@@ -730,6 +750,7 @@ test("StatCalc renders legacy-named Rust/WASM Fisher and mid-p results", async (
 
 test("Classic Analysis stratified table renders Mantel-Haenszel results", async ({ page }) => {
   await page.getByRole("button", { name: "Classic", exact: true }).click();
+  await openClassicDeveloperControls(page);
   await expect(page.getByRole("heading", { name: "Stratified 2 x 2 (Mantel-Haenszel)" })).toBeVisible();
   await page.locator("#stratified-form").getByRole("button", { name: "Calculate adjusted results" }).click();
   await expect(page.locator("#stratified-worker-status")).toContainText("Worker completed");
@@ -758,6 +779,7 @@ test("Classic Analysis TABLES derives foodborne strata from the current form", a
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
+  await openClassicDeveloperControls(page);
   await expect(page.locator("#classic-source-name")).toContainText("96 records");
   await expect(page.locator("#classic-exposure-field")).toHaveValue("potato_salad");
   await expect(page.locator("#classic-outcome-field")).toHaveValue("case_status");
@@ -782,10 +804,13 @@ test("Classic Analysis FREQ derives the foodborne Case Status distribution", asy
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
+  await openClassicDeveloperControls(page);
   await expect(page.locator("#frequency-field")).toHaveValue("case_status");
   await expect(page.locator("#frequency-generated-command")).toHaveText("FREQ case_status");
   await page.locator("#frequency-run").click();
 
+  await expect(page.locator("#frequency-output")).toBeVisible();
+  await expect(page.locator("#classic-output-welcome")).toBeHidden();
   await expect(page.locator("#frequency-feedback")).toContainText("Included 96 of 96 records; excluded 0");
   await expect(page.locator("#frequency-method")).toHaveText("Exact 95% confidence limits");
   await expect(page.locator("#frequency-total")).toHaveText("96");
@@ -1763,6 +1788,7 @@ test("Classic Analysis MEANS derives foodborne Age descriptive statistics", asyn
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
+  await openClassicDeveloperControls(page);
   await expect(page.locator("#means-field")).toHaveValue("age");
   await expect(page.locator("#means-generated-command")).toHaveText("MEANS age");
   await page.locator("#means-run").click();
@@ -1883,6 +1909,7 @@ test("StatCalc Unmatched Case-Control preserves sample sizes and linked exposure
 
 test("Classic Analysis renders non-zero OR/RR homogeneity results", async ({ page }) => {
   await page.getByRole("button", { name: "Classic", exact: true }).click();
+  await openClassicDeveloperControls(page);
   const values = [
     ["Stratum 1", "10", "20", "15", "25"],
     ["Stratum 2", "30", "10", "10", "30"],
@@ -1949,6 +1976,7 @@ test("stratified analysis runs in a cancellable Worker and recovers after cancel
   expect(evidence.durationMs).toBeGreaterThanOrEqual(0);
 
   await page.getByRole("button", { name: "Classic", exact: true }).last().click();
+  await openClassicDeveloperControls(page);
   await page.locator("#stratified-form").getByRole("button", { name: "Calculate adjusted results" }).click();
   await expect(page.locator("#stratified-worker-status")).toContainText("Worker completed");
 });

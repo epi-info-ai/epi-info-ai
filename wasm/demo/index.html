@@ -711,8 +711,10 @@
           <div class="classic-dock-window-title"><h2 id="classic-output-window-title">Output</h2></div>
           <div id="classic-output-toolbar" class="classic-legacy-toolbar" role="toolbar" aria-label="Output navigation"></div>
           <div id="classic-output-browser" class="classic-output-browser" tabindex="-1">
-            <strong>Epi Info AI</strong>
-            <p id="classic-output-navigation-status" role="status">Run a command to create output, or open Command history.</p>
+            <div id="classic-output-welcome">
+              <strong>Epi Info AI</strong>
+              <p id="classic-output-navigation-status" role="status">Run a command to create output, or open Command history.</p>
+            </div>
           </div>
         </section>
         <section class="panel classic-program-editor" data-module-view="classic" aria-labelledby="classic-program-title">
@@ -755,6 +757,7 @@
           </div>
           <p id="classic-program-feedback" class="inline-feedback" role="status">Load the foodborne form, then verify or run this bounded program.</p>
           <div id="classic-program-canonical" class="classic-command-preview" hidden><strong>Validated effective program</strong><pre id="classic-program-canonical-source"></pre></div>
+          <div id="classic-message-area" class="classic-message-area" role="status"><strong>Message Area:</strong> Ready.</div>
         </section>
         <dialog id="classic-program-dialog" class="legacy-dialog" aria-labelledby="classic-program-dialog-title">
           <form method="dialog">
@@ -1050,13 +1053,16 @@
           <div class="panel-heading"><div><p class="step-label">PROGRAM OUTPUT</p><h2 id="classic-program-output-title">AgeGroup frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>
           <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Stratum</th><th scope="col">Age group</th><th scope="col">Frequency</th><th scope="col">Percent</th><th scope="col">Cum. Percent</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead><tbody id="classic-program-output-rows"></tbody></table></div>
         </section>
-        <section class="panel" data-module-view="classic" aria-labelledby="classic-program-history-title">
+        <section id="classic-program-history-output" class="panel" data-module-view="classic" aria-labelledby="classic-program-history-title" hidden>
           <details id="classic-program-history">
             <summary id="classic-program-history-title">Command history (<span id="classic-program-history-count">0</span>)</summary>
             <p class="compatibility-note">Local V0.1 history records verification and execution from this Program Editor. Manual, Visual Epi Info, Epi Assist, and plugin origins join this same contract in later slices.</p>
             <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Time</th><th scope="col">Origin</th><th scope="col">Status</th><th scope="col">Command</th><th scope="col">Summary</th></tr></thead><tbody id="classic-program-history-rows"></tbody></table></div>
           </details>
         </section>
+        <details id="classic-direct-controls" class="classic-direct-controls" data-module-view="classic">
+          <summary>Developer validation controls</summary>
+          <div class="classic-direct-controls-body">
         <section class="panel classic-frequency-command" data-module-view="classic" aria-labelledby="classic-frequency-command-title">
           <div class="panel-heading"><div><p class="step-label">FREQ command</p><h2 id="classic-frequency-command-title">Frequency</h2></div><span id="frequency-source-name" class="calculation-time">Current project data</span></div>
           <form id="frequency-form">
@@ -1154,13 +1160,14 @@
           <p class="method-note">The familiar legacy label is retained. Legacy Epi Info computes that row as Woolf weighted log-odds dispersion; the clarified row reports the standard fixed-margin Breslow-Day statistic.</p>
           <p id="stratified-warnings" class="warnings" hidden></p>
         </section>
+          </div>
+        </details>
 
         <footer class="audit-strip" data-module-view="classic">
           <span><strong>Operations</strong> epi.frequency · epi.means · epi.stratified2x2</span>
           <span><strong>Status</strong> Candidates · consolidated G5 review pending</span>
         </footer>
           </div>
-          <div id="classic-message-area" class="classic-message-area" role="status"><strong>Message Area:</strong> Ready.</div>
         </div>
         <div id="classic-statusbar" class="classic-statusbar" data-module-view="classic">Ready</div>
 

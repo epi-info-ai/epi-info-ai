@@ -1564,7 +1564,17 @@ requiredElement("#classic-command-dialog-insert").addEventListener("click", () =
 requiredElement("#classic-program-edit-insert-command").addEventListener("click", () => showClassicCommandDialog());
 requiredElement("#classic-program-toolbar-run").addEventListener("click", () => requiredElement<HTMLButtonElement>("#classic-program-run").click());
 
-const classicOutputTargets = ["#classic-program-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", ".stratified-panel"];
+const classicOutputTargets = ["#classic-program-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-program-history-output"];
+const classicOutputBrowser = requiredElement<HTMLElement>("#classic-output-browser");
+for (const selector of classicOutputTargets) {
+  const output = document.querySelector<HTMLElement>(selector);
+  if (output) {
+    // The parent Output dock controls module visibility. Preserve each document's
+    // own hidden state instead of letting shell navigation reveal every result.
+    output.removeAttribute("data-module-view");
+    classicOutputBrowser.append(output);
+  }
+}
 let classicOutputPosition = -1;
 function visibleClassicOutputs(): HTMLElement[] {
   return classicOutputTargets.map((selector) => document.querySelector<HTMLElement>(selector)).filter((target): target is HTMLElement => Boolean(target && !target.hidden));
@@ -1585,6 +1595,7 @@ requiredElement("#classic-output-previous").addEventListener("click", () => visi
 requiredElement("#classic-output-next").addEventListener("click", () => visitClassicOutput(classicOutputPosition + 1));
 requiredElement("#classic-output-last").addEventListener("click", () => visitClassicOutput(visibleClassicOutputs().length - 1));
 requiredElement("#classic-output-history").addEventListener("click", () => {
+  requiredElement<HTMLElement>("#classic-program-history-output").hidden = false;
   const history = requiredElement<HTMLDetailsElement>("#classic-program-history");
   history.open = true;
   history.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1760,6 +1771,8 @@ classicStatusbarToggle.setAttribute("role", "menuitemcheckbox");
 classicStatusbarToggle.setAttribute("aria-checked", "true");
 
 requiredElement("#classic-analysis-menu").addEventListener("click", (event) => {
+  const command = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button") : null;
+  command?.closest<HTMLDetailsElement>("details")?.removeAttribute("open");
   const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[aria-disabled="true"]') : null;
   if (!target) return;
   event.preventDefault();

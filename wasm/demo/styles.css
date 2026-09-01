@@ -301,24 +301,28 @@ a:focus-visible {
 }
 
 .classic-analysis-menu {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
   border: 1px solid #9fb7c4;
+  border-bottom: 0;
   background: #f2f5f7;
 }
 
 .classic-workspace-shell {
   display: grid;
   grid-template-columns: minmax(12.5rem, 15rem) minmax(0, 1fr);
-  gap: 0.9rem;
-  align-items: start;
+  gap: 0;
+  align-items: stretch;
+  min-height: calc(100vh - 12.5rem);
+  border: 1px solid #9fb7c4;
+  background: #dfe6ea;
 }
 
 .classic-command-explorer {
-  position: sticky;
-  top: 0.75rem;
-  max-height: calc(100vh - 1.5rem);
+  position: relative;
+  max-height: calc(100vh - 12.5rem);
   overflow: auto;
-  border: 1px solid #9fb7c4;
+  border: 0;
+  border-right: 1px solid #9fb7c4;
   background: #f7f9fa;
   color: #17394a;
 }
@@ -375,10 +379,58 @@ a:focus-visible {
 
 .classic-workspace-content {
   min-width: 0;
+  padding: 0.25rem;
+  background: #dfe6ea;
+}
+
+.classic-workspace-content > .workspace-heading {
+  min-height: 1.65rem;
+  margin: 0;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid #9fb7c4;
+  border-bottom: 0;
+  background: linear-gradient(#eaf3f7, #d7e7ef);
+}
+
+.classic-workspace-content > .workspace-heading .eyebrow,
+.classic-workspace-content > .workspace-heading p,
+.classic-workspace-content > .workspace-heading .engine-badge span:not(.engine-dot) {
+  display: none;
+}
+
+.classic-workspace-content > .workspace-heading h1 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.classic-workspace-content > .workspace-heading .engine-badge {
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .classic-output-window,
-.classic-program-editor { overflow: visible; }
+.classic-program-editor {
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.classic-output-window {
+  box-sizing: border-box;
+  height: clamp(17rem, 40vh, 27rem);
+  min-height: 14rem;
+  overflow: hidden;
+  resize: vertical;
+}
+
+.classic-program-editor {
+  max-height: min(34rem, 48vh);
+  overflow: auto;
+  border-top: 0;
+}
 
 .classic-dock-window-title {
   padding: 0.35rem 0.55rem;
@@ -409,9 +461,56 @@ a:focus-visible {
 .classic-legacy-toolbar button:hover,
 .classic-legacy-toolbar button:focus-visible { border-color: #7892a5; background: #fff; }
 .classic-legacy-toolbar button[aria-disabled="true"] { color: #647985; }
-.classic-output-browser { min-height: 5rem; padding: 0.7rem; background: #fff; }
+.classic-output-browser {
+  box-sizing: border-box;
+  height: calc(100% - 4.4rem);
+  min-height: 8rem;
+  overflow: auto;
+  padding: 0.7rem;
+  background: #fff;
+}
+.classic-output-browser:has(> section:not([hidden])) > #classic-output-welcome { display: none; }
 .classic-output-browser p { margin-bottom: 0; }
+.classic-output-browser > .panel {
+  margin: 0 0 0.75rem;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 .classic-program-menu { margin: 0.75rem 0 0; border: 1px solid #9fb7c4; border-bottom: 0; background: #f2f5f7; }
+
+.classic-program-editor > .panel-heading .step-label,
+.classic-program-editor > .compatibility-note,
+.classic-program-editor > .classic-project-programs,
+.classic-program-editor > .classic-program-examples,
+.classic-program-editor > .classic-program-completion-help {
+  display: none;
+}
+
+.classic-program-editor > .panel-heading {
+  padding: 0.35rem 0.55rem;
+}
+
+.classic-program-editor > .panel-heading h2 { font-size: 0.95rem; }
+
+.classic-direct-controls {
+  margin: 0.25rem 0 0;
+  border: 1px solid #9fb7c4;
+  background: #edf1f3;
+}
+
+.classic-direct-controls > summary {
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  color: #526a76;
+  font-size: 0.8rem;
+}
+
+.classic-direct-controls-body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
 
 .classic-project-programs {
   display: grid;
@@ -455,8 +554,8 @@ a:focus-visible {
 }
 
 .classic-message-area {
-  grid-column: 1 / -1;
-  min-height: 2rem;
+  min-height: 1.7rem;
+  margin-top: 0.4rem;
   padding: 0.45rem 0.65rem;
   border: 1px solid #9fb7c4;
   background: #fff;
@@ -479,12 +578,17 @@ a:focus-visible {
 
   .classic-command-explorer {
     position: static;
-    max-height: none;
+    max-height: 16rem;
+    border-right: 0;
+    border-bottom: 1px solid #9fb7c4;
   }
 
   .classic-command-group-items {
     grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   }
+
+  .classic-output-window { height: 22rem; }
+  .classic-program-editor { max-height: none; }
 }
 
 .legacy-recent-project-list button {
@@ -3122,12 +3226,12 @@ body.map-fullscreen-fallback {
 .classic-program-source {
   box-sizing: border-box;
   margin-top: 0.35rem;
-  min-height: 18rem;
+  min-height: 10rem;
   width: 100%;
 }
 
 .classic-program-source .cm-editor {
-  min-height: 18rem;
+  min-height: 10rem;
   border: 1px solid #8198aa;
   background: #fff;
   color: #102f45;
@@ -3142,13 +3246,13 @@ body.map-fullscreen-fallback {
 }
 
 .classic-program-source .cm-scroller {
-  min-height: 18rem;
+  min-height: 10rem;
   line-height: 1.45;
   overflow: auto;
 }
 
 .classic-program-source .cm-content {
-  min-height: 18rem;
+  min-height: 10rem;
   padding: 0.55rem 0;
   caret-color: #102f45;
 }

@@ -756,6 +756,15 @@ clipboard/print, bookmarks, clear/cancel, metadata/delete, and general command
 dialogs remain subsequent slices and do not acquire execution authority from
 this structural work.
 
+**Legacy docking parity decision:** the default desktop arrangement follows the
+manual and `AnalysisMainForm` source: Command Explorer is the left dock, Output
+is the upper-right work area, Program Editor is the lower-right dock, and the
+Message Area belongs to the Program Editor. Direct browser validation controls
+remain available in a collapsed developer disclosure below those four familiar
+areas; they are not treated as a legacy UI branch. Narrow screens preserve the
+same reading and keyboard order by stacking the Explorer before Output and the
+Program Editor instead of inventing a different analysis workflow.
+
 ### Exit gate
 
 An experienced user can recognize the Classic Analysis programming workflow,
