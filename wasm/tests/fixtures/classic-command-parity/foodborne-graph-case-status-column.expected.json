@@ -1,0 +1,14 @@
+{
+  "command": "GRAPH case_status GRAPHTYPE=\"Column\" TITLETEXT=\"Foodborne cases by status\" XTITLE=\"Case Status\" YTITLE=\"Count\"",
+  "expected": {
+    "sourceRecords": 96,
+    "includedRecords": 96,
+    "excludedMissing": 0,
+    "categories": [
+      { "value": "Confirmed", "frequency": 22 },
+      { "value": "Not a case", "frequency": 52 },
+      { "value": "Probable", "frequency": 16 },
+      { "value": "Suspected", "frequency": 6 }
+    ]
+  }
+}

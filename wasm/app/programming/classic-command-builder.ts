@@ -14,8 +14,11 @@ import { buildClassicDeleteTableCommand, resolveClassicDeleteTableCommand } from
 import { buildClassicDeleteRecordsCommand, resolveClassicDeleteRecordsCommand, type ClassicDeleteRecordsInput } from "./classic-delete-records.ts";
 import { buildClassicUndeleteRecordsCommand, resolveClassicUndeleteRecordsCommand, type ClassicUndeleteRecordsInput } from "./classic-undelete-records.ts";
 import { buildClassicSummarizeCommand, resolveClassicSummarizeCommand, type ClassicSummarizeInput } from "./classic-summarize.ts";
+import { buildClassicGraphCommand, resolveClassicGraphCommand, type ClassicGraphInput } from "./classic-graph.ts";
+import { buildEpiAiQualityCommand, resolveEpiAiQualityCommand } from "./epi-ai-quality.ts";
+import { buildFileConvertCommand, resolveFileConvertCommand } from "./file-convert.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "summarize";
+export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "summarize" | "graph" | "quality" | "file-convert";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -30,6 +33,9 @@ export type ClassicAnalysisCommandInput =
   | ({ kind: "delete-records" } & ClassicDeleteRecordsInput)
   | ({ kind: "undelete-records" } & ClassicUndeleteRecordsInput)
   | ({ kind: "summarize" } & ClassicSummarizeInput)
+  | ({ kind: "graph" } & ClassicGraphInput)
+  | { kind: "quality" }
+  | { kind: "file-convert"; inputFile: string; outputFile: string }
   | { kind: "define"; variable: string; scope: ClassicDefineVariableScope; variableType: ClassicDefineVariableType; prompt?: string }
   | { kind: "define-group"; group: string; members: string[] }
   | { kind: "undefine"; variable: string | "*" }
@@ -72,6 +78,9 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "delete-records") return buildClassicDeleteRecordsCommand(input);
   if (input.kind === "undelete-records") return buildClassicUndeleteRecordsCommand(input);
   if (input.kind === "summarize") return buildClassicSummarizeCommand(input);
+  if (input.kind === "graph") return buildClassicGraphCommand(input);
+  if (input.kind === "quality") return buildEpiAiQualityCommand({ mode: "profile" });
+  if (input.kind === "file-convert") return buildFileConvertCommand(input.inputFile, input.outputFile);
   if (input.kind === "define") {
     const scope = input.scope === "STANDARD" ? "" : ` ${input.scope}`;
     const prompt = input.prompt?.trim() ? ` ${JSON.stringify(input.prompt.trim())}` : "";
@@ -119,7 +128,7 @@ function assertBoundedOptions(options: ClassicAnalysisOptions, allowStrata: bool
 }
 
 export function resolveSelectedClassicAnalysisCommand(source: string, fields: readonly FieldDefinition[], dataSources: readonly MapDataSource[] = [], variables: readonly ClassicSessionVariableDefinition[] = [], groups: readonly ClassicGroupDefinition[] = []): ResolvedClassicAnalysisCommand {
-  if (!source.trim()) throw new RangeError("Select one complete READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, or SUMMARIZE command in the Program Editor.");
+  if (!source.trim()) throw new RangeError("Select one complete READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, or GRAPH command in the Program Editor.");
   const ast = parseClassicProgram(source);
   if (ast.body.length !== 1) throw new RangeError("Select exactly one complete command. Multiple statements were not run.");
   const statement = ast.body[0]!;
@@ -205,6 +214,22 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       outputTable: plan.outputTable, ...(plan.stratifyBy ? { stratifyBy: plan.stratifyBy } : {}), source,
     };
   }
+  if (statement.type === "GraphStatement") {
+    const plan = resolveClassicGraphCommand(source, fields);
+    return {
+      kind: "graph", field: plan.field, graphType: plan.graphType,
+      ...(plan.title ? { title: plan.title } : {}), ...(plan.xTitle ? { xTitle: plan.xTitle } : {}),
+      ...(plan.yTitle ? { yTitle: plan.yTitle } : {}), source,
+    };
+  }
+  if (statement.type === "EpiAiQualityStatement") {
+    const plan = resolveEpiAiQualityCommand(source, fields);
+    return { kind: "quality", source };
+  }
+  if (statement.type === "FileConvertStatement") {
+    const plan = resolveFileConvertCommand(source);
+    return { kind: "file-convert", inputFile: plan.inputFile, outputFile: plan.outputFile, source };
+  }
   if (statement.type === "ListStatement") {
     if (statement.selection.kind === "all") return { kind: "list", fields: fields.map((field) => field.name), source };
     if (statement.selection.kind === "all-except") {
@@ -238,5 +263,5 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       stratifyBy: resolvedField(fields, strata), source,
     };
   }
-  throw new RangeError("Only selected READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, and SUMMARIZE commands are enabled in this slice.");
+  throw new RangeError("Only selected READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, and GRAPH commands are enabled in this slice.");
 }

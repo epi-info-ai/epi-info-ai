@@ -109,7 +109,11 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
     validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-summarize-age-by-sex.pgm",
     expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-summarize-age-by-sex.expected.json",
   }),
-  entry("statistics", "graph", "Graph", "GRAPH"),
+  entry("statistics", "graph", "Graph", "GRAPH", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-graph-case-status.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-graph-case-status.expected.json",
+  }),
   entry("statistics", "map", "Map", "MAP", { explorer: "legacy-enum-only" }),
 
   entry("advanced-statistics", "linear-regression", "LinearRegression", "REGRESS"),

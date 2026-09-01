@@ -3346,6 +3346,49 @@ body.map-fullscreen-fallback {
 
 .epi-curve-data { margin-top: 1rem; }
 
+.classic-graph-output-plot {
+  min-height: 20rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #b7c9d5;
+}
+
+.classic-graph-output-plot svg { display: block; width: 100%; min-width: 38rem; max-height: 26rem; }
+.classic-graph-axis { fill: none; stroke: #486477; stroke-width: 1.5; }
+.classic-graph-bar { fill: #1683ad; stroke: #075b7a; stroke-width: 1.5; }
+.classic-graph-bar:hover { fill: #0d6f96; }
+.classic-graph-count, .classic-graph-label, .classic-graph-axis-title { fill: #12384c; text-anchor: middle; font-family: inherit; }
+.classic-graph-count { font-weight: 700; font-size: 13px; }
+.classic-graph-label { font-size: 12px; }
+.classic-graph-count-horizontal { text-anchor: start; }
+.classic-graph-label-horizontal { text-anchor: end; }
+.classic-graph-axis-title { font-size: 14px; font-weight: 700; }
+.classic-graph-slice { stroke: #fff; stroke-width: 2; transition: opacity 120ms ease, transform 120ms ease; transform-origin: center; }
+.classic-graph-slice:hover, .classic-graph-slice:focus { opacity: 0.82; outline: none; }
+.classic-graph-legend-swatch { stroke: #31576b; stroke-width: 0.75; }
+.classic-graph-legend-label { fill: #12384c; font: 13px/1.3 inherit; }
+
+.classic-new-branch-command::after,
+.new-branch-label {
+  content: "NEW";
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.08rem 0.35rem;
+  border-radius: 999px;
+  background: #f2c400;
+  color: #172f3d;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.new-branch-label { margin: 0 0.35rem 0 0; }
+.new-branch-output { border-left: 4px solid #f2c400; }
+.classic-quality-mini-bar { display: grid; grid-template-columns: minmax(5rem, 1fr) auto; gap: 0.5rem; align-items: center; }
+.classic-quality-mini-bar > span:first-child { height: 0.65rem; overflow: hidden; border-radius: 999px; background: #d8e3e9; }
+.classic-quality-mini-bar > span:first-child > span { display: block; height: 100%; background: #c34a36; }
+
 .statcalc-tool-chooser {
   display: flex;
   flex-wrap: wrap;

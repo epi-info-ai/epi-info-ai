@@ -7,6 +7,7 @@ export interface ClassicCommand {
   domId?: string;
   shortcut?: string;
   unavailableReason?: string;
+  newBranch?: boolean;
 }
 
 export interface ClassicCommandGroup {
@@ -36,6 +37,10 @@ const command = (key: string, label: string, domId: string): ClassicCommand => (
   disposition: "implemented",
 });
 
+const newBranchCommand = (key: string, label: string, domId: string): ClassicCommand => ({
+  ...command(key, label, domId), newBranch: true,
+});
+
 // AnalysisMainForm.Designer.cs and AnalysisMainForm.resx define this four-menu shell.
 export const CLASSIC_ANALYSIS_MENUS: readonly ClassicTopMenu[] = [
   { key: "file", label: "File", commands: [gap("statistics-plugins", "Add Statistics Plug-ins..."), gap("exit", "Exit")] },
@@ -61,7 +66,7 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
   { key: "statistics", label: "Statistics", commands: [
     command("list", "List", "classic-command-list"), command("frequencies", "Frequencies", "classic-command-frequencies"),
     command("tables", "Tables", "classic-command-tables"), command("means", "Means", "classic-command-means"),
-    command("summarize", "Summarize", "classic-command-summarize"), gap("graph", "Graph"),
+    command("summarize", "Summarize", "classic-command-summarize"), command("graph", "Graph", "classic-command-graph"),
   ] },
   { key: "advanced-statistics", label: "Advanced Statistics", commands: [
     gap("linear-regression", "Linear Regression"), gap("logistic-regression", "Logistic Regression"),
@@ -81,6 +86,10 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
     gap("dialog", "Dialog"), gap("beep", "Beep"), gap("quit-program", "Quit Program"),
   ] },
   { key: "options", label: "Options", commands: [gap("set", "Set")] },
+  { key: "new-branches", label: "New Branches — Epi Info AI", commands: [
+    newBranchCommand("quality", "Quality Profile", "classic-command-quality"),
+    newBranchCommand("file-convert", "Convert Access Database", "classic-command-file-convert"),
+  ] },
 ] as const;
 
 function renderCommand(entry: ClassicCommand, surface: "menu" | "tree"): HTMLButtonElement {
@@ -89,6 +98,10 @@ function renderCommand(entry: ClassicCommand, surface: "menu" | "tree"): HTMLBut
   button.setAttribute("role", surface === "menu" ? "menuitem" : "treeitem");
   button.dataset.classicCommand = entry.key;
   button.dataset.menuDisposition = entry.disposition;
+  if (entry.newBranch) {
+    button.classList.add("classic-new-branch-command");
+    button.dataset.newBranch = "true";
+  }
   if (entry.domId) button.id = entry.domId;
   const label = document.createElement("span");
   label.textContent = entry.label;

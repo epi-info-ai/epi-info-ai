@@ -15,6 +15,10 @@ Project materials currently live in [`wasm/`](wasm/):
 - [`docs/design/legacy-capability-register.md`](wasm/docs/design/legacy-capability-register.md) - compatibility floor, backlog gap IDs, new branches, and deprecation/retirement log;
 - [`docs/design/menu-compatibility-registry.md`](wasm/docs/design/menu-compatibility-registry.md) - item-level menu paths, command-state/function parity, and lifecycle gaps;
 - [`docs/design/classic-command-compatibility-registry.md`](wasm/docs/design/classic-command-compatibility-registry.md) - all 49 legacy Classic Analysis command entries and their independent syntax/dialog/execution/output parity dimensions;
+- [`docs/design/charts-compatibility-inventory.md`](wasm/docs/design/charts-compatibility-inventory.md) - the 8 Classic GRAPH types, 8 Visual Dashboard chart branches, source-only variants, properties, and independent parity gates;
+- [`docs/design/new-branch-command-registry.md`](wasm/docs/design/new-branch-command-registry.md) - explicit Epi Info AI command extensions kept separate from the legacy parity floor;
+- [`docs/demo-runbook.md`](wasm/docs/demo-runbook.md) - a short, failure-aware demo path for experienced Epi Info and global-health surveillance users;
+- [`docs/demo-runbook-feltp.md`](wasm/docs/demo-runbook-feltp.md) - a field-investigation demo path for FELTP/FETP epidemiology and laboratory trainees;
 - [`docs/design/maps-compatibility-inventory.md`](wasm/docs/design/maps-compatibility-inventory.md) - C# Maps assets, manual behaviors, browser status, and adaptation decisions;
 - [`docs/reference/`](wasm/docs/reference/) - official historical reference material.
 
@@ -394,6 +398,13 @@ checksums, expected metadata, and combined testing workflow are documented in
   source. The reviewed browser subset creates one named in-session output table
   from one aggregate and optional grouping field; the foodborne example computes
   average age by sex. Multiple aggregates and `WEIGHTVAR` remain explicit gaps.
+- Added the first three Statistics > Graph parity slices based on the legacy C#
+  `GraphDialog`, grammar, and test programs. A visible one-variable
+  `GRAPH` command now distinguishes familiar horizontal `Bar`, vertical
+  `Column`, and category-share `Pie`; all three use the typed FREQ operation and
+  render accessible SVG plus their authoritative data table.
+  Other legacy chart types, cross-tabs, strata, weights, templates, and date
+  intervals remain registered gaps rather than receiving invented behavior.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric
@@ -501,15 +512,21 @@ checksums, expected metadata, and combined testing workflow are documented in
   and service-independent test fixtures; then extend legacy GEOCODE compatibility.
 - Add offline basemap packages, choropleths, spatial analysis, and additional legacy map workflows.
 - Replace `localStorage` project persistence with SQLite WASM and OPFS.
-- Add a reviewed Microsoft Access conversion facility for legacy Epi Info
-  `.mdb` and `.accdb` projects. Conversion must be read-only against the source,
-  run outside the browser through a trusted local tool or approved HTTPS service,
-  and produce SQLite plus a versioned migration manifest. Preserve Epi Info
+- Harden the browser-verified V0.1 `FILE CONVERT` facility for legacy Epi Info
+  `.mdb` and `.accdb` projects. It reads an explicitly selected local file with
+  `mdb-reader`; `.sqlite` builds an in-memory official SQLite WASM operational
+  database while `.duckdb` builds a self-hosted DuckDB-Wasm analytical database. Both embed a
+  migration manifest, and downloads it without changing the source. Move large
+  conversions into a Worker and add progress/cancellation. Extend migration to
+  preserve Epi Info
   project/form/page metadata, code tables, relationships, keys/indexes, field
   types, records, deleted-state metadata, and Check Code source where available;
   report unsupported Access objects instead of silently dropping them. Validate
   table/row/column counts, null/type conversions, representative checksums, and
-  referential integrity before the SQLite result can be imported into `.epia`.
+  referential integrity before a conversion result can be accepted or imported into `.epia`.
+  DuckDB V0.1 currently fetches DuckDB's public test database as a cleanable
+  writable seed; self-host and checksum that reviewed seed before offline or
+  production use. The selected Access file and its records remain browser-local.
 - Implement the versioned plugin runtime, capability API, permissions, and plugin catalog described in the architecture plan.
 - Execute the algorithm validation standard: complete provenance review of the
   imported legacy 2 x 2 corpus, add independent/pathological exact fixtures, and

@@ -43,6 +43,11 @@ await cp(sourceDirectory, outputDirectory, {
     && !source.endsWith(".ts")
   ),
 });
+await cp(resolve(wasmDirectory, "../node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm"), join(outputDirectory, "sqlite3.wasm"));
+await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm"), join(outputDirectory, "duckdb-mvp.wasm"));
+await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js"), join(outputDirectory, "duckdb-browser-mvp.worker.js"));
+await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-eh.wasm"), join(outputDirectory, "duckdb-eh.wasm"));
+await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js"), join(outputDirectory, "duckdb-browser-eh.worker.js"));
 await mkdir(validationFixtureDirectory, { recursive: true });
 await cp(
   join(wasmDirectory, "tests/fixtures/phase0/table2x2-baseline.json"),
@@ -114,7 +119,7 @@ const unbundledEntries = entryPoints.filter((source) => !bundledModules.has(base
 const bundledEntries = entryPoints.filter((source) => !unbundledEntries.includes(source));
 const results = await Promise.all([
   build({ ...commonOptions, entryPoints: unbundledEntries, bundle: false }),
-  build({ ...commonOptions, entryPoints: bundledEntries, bundle: true }),
+  build({ ...commonOptions, entryPoints: bundledEntries, bundle: true, alias: { stream: "stream-browserify", events: "events" } }),
 ]);
 
 for (const source of entryPoints) {

@@ -64,11 +64,14 @@ const requiredFiles = [
   "validation-fixtures/chi-square-trend-v0.15.json",
   "build-manifest.json",
 ];
+requiredFiles.push("sqlite3.wasm");
+requiredFiles.push("duckdb-mvp.wasm", "duckdb-browser-mvp.worker.js");
+requiredFiles.push("duckdb-eh.wasm", "duckdb-browser-eh.worker.js");
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=67["']/);
-assert.match(html, /href=["']styles\.css\?v=43["']/);
+assert.match(html, /src=["']app\.js\?v=73["']/);
+assert.match(html, /href=["']styles\.css\?v=47["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);
 assert.match(html, /id=["']file-exit["']/);
@@ -109,6 +112,8 @@ assert.match(html, /id=["']classic-delete-records-preview-dialog["']/);
 assert.match(html, /id=["']classic-undelete-records-preview-dialog["']/);
 assert.match(html, /id=["']classic-command-dialog-summarize["']/);
 assert.match(html, /id=["']classic-summarize-output["']/);
+assert.match(html, /id=["']classic-command-dialog-graph["']/);
+assert.match(html, /id=["']classic-graph-output["']/);
 assert.match(html, /id=["']classic-program-session-status["']/);
 assert.match(html, /id=["']classic-list-output["']/);
 assert.match(html, /id=["']classic-program-run-selection["']/);
@@ -124,6 +129,7 @@ assert.match(app, /Add Analysis Gadget/);
 assert.match(app, /dashboard-menu-epi-curve/);
 assert.match(app, /User-Defined Commands/);
 assert.match(app, /classic-command-frequencies/);
+assert.match(app, /Selected GRAPH command completed/);
 assert.match(app, /classic-program-toolbar-run/);
 assert.match(app, /classic-selected-command-v1\.0\.0/);
 assert.match(app, /DISPLAY DBVARIABLES rendered/);

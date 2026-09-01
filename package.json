@@ -28,9 +28,16 @@
     "@codemirror/lint": "6.9.7",
     "@codemirror/state": "6.7.1",
     "@codemirror/view": "6.43.9",
+    "@duckdb/duckdb-wasm": "1.32.0",
     "@huggingface/transformers": "3.7.5",
+    "@sqlite.org/sqlite-wasm": "3.53.0-build1",
+    "buffer": "^6.0.3",
     "codemirror": "6.0.2",
+    "events": "^3.3.0",
     "geotiff": "3.0.5",
-    "read-excel-file": "9.3.10"
+    "mdb-reader": "^3.2.0",
+    "process": "^0.11.10",
+    "read-excel-file": "9.3.10",
+    "stream-browserify": "^3.0.0"
   }
 }

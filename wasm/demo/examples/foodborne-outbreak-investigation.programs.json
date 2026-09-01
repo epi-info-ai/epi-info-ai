@@ -32,6 +32,13 @@
       "description": "Creates decade-width age categories and runs an overall frequency table without stratification.",
       "requiredFields": ["Age"],
       "source": "DEFINE AgeDecade TEXTINPUT\nRECODE Age TO AgeDecade\n  LOVALUE - 9 = \"0-9\"\n  9 - 19 = \"10-19\"\n  19 - 29 = \"20-29\"\n  29 - 39 = \"30-39\"\n  39 - 49 = \"40-49\"\n  49 - 59 = \"50-59\"\n  59 - 69 = \"60-69\"\n  69 - HIVALUE = \"70+\"\nEND\nFREQ AgeDecade"
+    },
+    {
+      "id": "quality-profile",
+      "title": "NEW BRANCH — Foodborne quality profile",
+      "description": "Profiles missingness, completeness, validation issues, and duplicate candidates without changing the line list. Select the command and use Run Selected Command.",
+      "requiredFields": ["Age", "Sex", "case_status"],
+      "source": "EPIAI QUALITY *"
     }
   ]
 }

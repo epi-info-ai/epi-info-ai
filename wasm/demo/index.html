@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=43" />
+    <link rel="stylesheet" href="styles.css?v=47" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=67"></script>
+    <script type="module" src="app.js?v=73"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -783,7 +783,7 @@
           <form method="dialog">
             <div class="legacy-dialog-titlebar"><h2 id="classic-command-dialog-title">Insert Command</h2><button value="cancel" aria-label="Close">×</button></div>
             <div class="legacy-dialog-body classic-program-dialog-body">
-              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="summarize">Summarize</option></select></label>
+              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="summarize">Summarize</option><option value="graph">Graph</option><option value="quality">NEW BRANCH — Quality Profile</option></select></label>
               <label id="classic-command-dialog-source-label" hidden>Project form<select id="classic-command-dialog-source"></select></label>
               <fieldset id="classic-command-dialog-relate" hidden>
                 <legend>Relate tables</legend>
@@ -904,6 +904,25 @@
                 <label>Group by<select id="classic-command-dialog-summarize-strata"><option value="">Do not group</option></select></label>
                 <p class="method-note">This reviewed slice creates one named in-session output table from one aggregate and optional grouping field. Multiple aggregates and WEIGHTVAR remain fail-closed.</p>
               </fieldset>
+              <fieldset id="classic-command-dialog-graph" hidden>
+                <legend>Graph options</legend>
+                <label>Graph type<select id="classic-command-dialog-graph-type"><option value="Bar">Bar</option><option value="Column">Column</option><option value="Pie">Pie</option></select></label>
+                <label>Graph title<input id="classic-command-dialog-graph-title" value="Foodborne cases by status" autocomplete="off"></label>
+                <label>X-axis title<input id="classic-command-dialog-graph-x-title" value="Count" autocomplete="off"></label>
+                <label>Y-axis title<input id="classic-command-dialog-graph-y-title" value="Case Status" autocomplete="off"></label>
+                <p class="method-note">Bar preserves the familiar horizontal orientation, Column uses vertical columns, and Pie shows category shares. All reviewed one-variable branches retain an auditable data table; unsupported variants remain visible gaps.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-quality" hidden>
+                <legend><span class="new-branch-label">NEW BRANCH</span> Quality profile</legend>
+                <p>Profile completeness and existing field-validation issues across every field in the active line list. This command is read-only.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-file-convert" hidden>
+                <legend><span class="new-branch-label">NEW BRANCH</span> Convert Access Database</legend>
+                <label>Access database<input id="classic-command-dialog-access-file" type="file" accept=".mdb,.accdb"></label>
+                <label>Output target<select id="classic-command-dialog-file-convert-target"><option value="sqlite">SQLite — operational/portable</option><option value="duckdb">DuckDB — analytical</option></select></label>
+                <label>Download name<input id="classic-command-dialog-file-convert-name" value="converted.sqlite" autocomplete="off"></label>
+                <p class="method-note">The output extension selects the engine: <code>.sqlite</code> creates SQLite and <code>.duckdb</code> creates DuckDB. DuckDB V0.1 requires an online request for a public DuckDB seed database; the WASM engine and all Access data remain in this browser. The source is read-only; readable user tables and rows are migrated with a manifest and unsupported-object report.</p>
+              </fieldset>
               <label id="classic-command-dialog-field-label">Frequency of<select id="classic-command-dialog-field"></select></label>
               <label id="classic-command-dialog-exposure-label" hidden>Exposure variable<select id="classic-command-dialog-exposure"></select></label>
               <label id="classic-command-dialog-outcome-label" hidden>Outcome variable<select id="classic-command-dialog-outcome"></select></label>
@@ -1008,6 +1027,24 @@
           <div class="panel-heading"><div><p class="step-label">SUMMARIZE output</p><h2 id="classic-summarize-output-title">Summary table</h2></div><span id="classic-summarize-output-count" class="calculation-time"></span></div>
           <div class="results-table-scroll"><table class="results-table"><thead><tr id="classic-summarize-output-head"></tr></thead><tbody id="classic-summarize-output-body"></tbody></table></div>
           <p id="classic-summarize-output-note" class="inline-feedback"></p>
+        </section>
+        <section id="classic-graph-output" class="panel" data-module-view="classic" aria-labelledby="classic-graph-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">GRAPH output</p><h2 id="classic-graph-output-title">Graph</h2></div><span id="classic-graph-output-count" class="calculation-time"></span></div>
+          <div id="classic-graph-output-plot" class="classic-graph-output-plot"></div>
+          <details><summary>View graph data</summary><div class="results-table-scroll"><table class="results-table"><thead><tr><th>Value</th><th>Frequency</th><th>Percent</th></tr></thead><tbody id="classic-graph-output-body"></tbody></table></div></details>
+          <p id="classic-graph-output-note" class="inline-feedback"></p>
+        </section>
+        <section id="classic-quality-output" class="panel new-branch-output" data-module-view="classic" aria-labelledby="classic-quality-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> QUALITY output</p><h2 id="classic-quality-output-title">Line-list quality profile</h2></div><span id="classic-quality-output-count" class="calculation-time"></span></div>
+          <p id="classic-quality-output-summary"></p>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Field</th><th>Present</th><th>Missing</th><th>Missingness</th><th>Complete</th><th>Violations</th></tr></thead><tbody id="classic-quality-output-body"></tbody></table></div>
+          <p class="inline-feedback">Completeness and violations use the active form schema and records. Duplicate review remains available in Enter Data &gt; Data Quality.</p>
+        </section>
+        <section id="classic-file-convert-output" class="panel new-branch-output" data-module-view="classic" aria-labelledby="classic-file-convert-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> FILE CONVERT output</p><h2 id="classic-file-convert-output-title">Access migration report</h2></div><span id="classic-file-convert-output-count" class="calculation-time"></span></div>
+          <p id="classic-file-convert-output-summary"></p>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Table</th><th>Columns</th><th>Rows copied</th></tr></thead><tbody id="classic-file-convert-output-body"></tbody></table></div>
+          <div class="compatibility-note"><strong>Migration warnings</strong><ul id="classic-file-convert-output-warnings"></ul></div>
         </section>
         <section id="classic-program-output" class="panel" data-module-view="classic" aria-labelledby="classic-program-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label">PROGRAM OUTPUT</p><h2 id="classic-program-output-title">AgeGroup frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
@@ -1495,6 +1496,185 @@ test("SUMMARIZE creates a named foodborne age-by-sex output table", async ({ pag
   await page.locator("#classic-program-run-selection").click();
   await expect(page.locator("#classic-program-source-name")).toContainText("FoodborneAgeBySex · 2 of 2 records");
   await expect(page.locator("#classic-program-history-count")).toHaveText("2");
+});
+
+test("Classic GRAPH renders the foodborne case-status Bar chart", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-graph").isVisible())) await tree.getByText("Statistics", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Graph", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("graph");
+  await page.locator("#classic-command-dialog-field").selectOption("case_status");
+  await page.locator("#classic-command-dialog-graph-title").fill("Foodborne cases by status");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('GRAPH case_status GRAPHTYPE="Bar" TITLETEXT="Foodborne cases by status" XTITLE="Count" YTITLE="Case Status"');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+
+  await expect(page.locator("#classic-graph-output")).toBeVisible();
+  await expect(page.locator("#classic-graph-output-title")).toHaveText("Foodborne cases by status");
+  await expect(page.locator("#classic-graph-output-plot svg")).toBeVisible();
+  await expect(page.locator('#classic-graph-output-plot svg[data-orientation="horizontal"]')).toBeVisible();
+  await expect(page.locator("#classic-graph-output-plot rect")).toHaveCount(4);
+  await expect(page.locator("#classic-graph-output-body tr")).toHaveCount(4);
+  await expect(page.locator("#classic-graph-output-body")).toContainText("Not a case");
+  await expect(page.locator("#classic-graph-output-body")).toContainText("52");
+  await expect(page.locator("#classic-program-feedback")).toContainText("GRAPH rendered 4 horizontal bars from 96 active records");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+});
+
+test("NEW BRANCH Quality Profile runs as visible audited IDE source", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const newBranches = page.locator(".classic-command-group").filter({ hasText: "New Branches" });
+  await newBranches.locator("summary").click();
+  await page.locator("#classic-command-quality").click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("quality");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("EPIAI QUALITY *");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+
+  await expect(page.locator("#classic-quality-output")).toBeVisible();
+  await expect(page.locator("#classic-quality-output-count")).toHaveText("96 records · 27 fields");
+  await expect(page.locator('#classic-quality-output-body tr[data-field-name="hospitalization_date"]')).toContainText("74");
+  await expect(page.locator('#classic-quality-output-body tr[data-field-name="hospitalization_date"] .classic-quality-mini-bar')).toHaveAttribute("aria-label", "77.1% missing");
+  await expect(page.locator("#classic-program-feedback")).toContainText("No data changed");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+});
+
+test("NEW BRANCH FILE CONVERT migrates the legacy Sample MDB to a SQLite download", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+  const newBranches = page.locator(".classic-command-group").filter({ hasText: "New Branches" });
+  await newBranches.locator("summary").click();
+  await page.locator("#classic-command-file-convert").click();
+  const sample = "wasm/source/Epi-Info-Community-Edition/Epi.Core/Projects/Sample/Sample.mdb";
+  await page.locator("#classic-command-dialog-access-file").setInputFiles(sample);
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('FILE CONVERT "Sample.mdb" TO "Sample.sqlite"');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#classic-program-run-selection").click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("Sample.sqlite");
+  const sqlitePath = await download.path();
+  const sqliteBytes = await readFile(sqlitePath);
+  expect(sqliteBytes.subarray(0, 16).toString("utf8")).toBe("SQLite format 3\0");
+  expect(sqliteBytes.length).toBeGreaterThan(100_000);
+  await expect(page.locator("#classic-file-convert-output")).toBeVisible();
+  await expect(page.locator("#classic-file-convert-output-body tr").first()).toBeVisible();
+  await expect(page.locator("#classic-file-convert-output-warnings")).toContainText("Forms, reports, macros, VBA");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Converted");
+  await expect(page.locator("#classic-program-feedback")).toContainText("migration manifest");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+});
+
+test("NEW BRANCH FILE CONVERT selects DuckDB from the output extension", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+  const newBranches = page.locator(".classic-command-group").filter({ hasText: "New Branches" });
+  await newBranches.locator("summary").click();
+  await page.locator("#classic-command-file-convert").click();
+  const sample = "wasm/source/Epi-Info-Community-Edition/Epi.Core/Projects/Sample/Sample.mdb";
+  await page.locator("#classic-command-dialog-access-file").setInputFiles(sample);
+  await page.locator("#classic-command-dialog-file-convert-target").selectOption("duckdb");
+  await expect(page.locator("#classic-command-dialog-file-convert-name")).toHaveValue("Sample.duckdb");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('FILE CONVERT "Sample.mdb" TO "Sample.duckdb"');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#classic-program-run-selection").click();
+  const download = await Promise.race([
+    downloadPromise,
+    page.locator("#classic-program-feedback").filter({ hasText: "Nothing was run" }).waitFor().then(async () => {
+      throw new Error(await page.locator("#classic-program-feedback").textContent() ?? "DuckDB conversion failed without feedback.");
+    }),
+  ]);
+  expect(download.suggestedFilename()).toBe("Sample.duckdb");
+  const duckdbPath = await download.path();
+  const duckdbBytes = await readFile(duckdbPath);
+  expect(duckdbBytes.length).toBeGreaterThan(100_000);
+  expect(duckdbBytes.subarray(8, 12).toString("ascii")).toBe("DUCK");
+  await expect(page.locator("#classic-file-convert-output-summary")).toContainText("DuckDB");
+  await expect(page.locator("#classic-file-convert-output-warnings")).toContainText("analytical conversion target");
+  await expect(page.locator("#classic-program-feedback")).toContainText("DuckDB download includes a migration manifest");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+});
+
+test("Classic GRAPH renders Column separately from Bar", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-graph").isVisible())) await tree.getByText("Statistics", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Graph", exact: true }).click();
+  await page.locator("#classic-command-dialog-field").selectOption("case_status");
+  await page.locator("#classic-command-dialog-graph-type").selectOption("Column");
+  await page.locator("#classic-command-dialog-graph-x-title").fill("Case Status");
+  await page.locator("#classic-command-dialog-graph-y-title").fill("Count");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('GRAPH case_status GRAPHTYPE="Column" TITLETEXT="Foodborne cases by status" XTITLE="Case Status" YTITLE="Count"');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+
+  await expect(page.locator('#classic-graph-output-plot svg[data-orientation="vertical"]')).toBeVisible();
+  await expect(page.locator("#classic-graph-output-plot rect")).toHaveCount(4);
+  await expect(page.locator("#classic-program-feedback")).toContainText("GRAPH rendered 4 vertical columns from 96 active records");
+});
+
+test("Classic GRAPH renders an auditable foodborne Pie chart", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-graph").isVisible())) await tree.getByText("Statistics", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Graph", exact: true }).click();
+  await page.locator("#classic-command-dialog-field").selectOption("case_status");
+  await page.locator("#classic-command-dialog-graph-type").selectOption("Pie");
+  await page.locator("#classic-command-dialog-graph-title").fill("Foodborne case status");
+  await page.locator("#classic-command-dialog-graph-x-title").fill("");
+  await page.locator("#classic-command-dialog-graph-y-title").fill("");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('GRAPH case_status GRAPHTYPE="Pie" TITLETEXT="Foodborne case status"');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+
+  await expect(page.locator('#classic-graph-output-plot svg[data-orientation="radial"][data-chart-type="Pie"]')).toBeVisible();
+  await expect(page.locator("#classic-graph-output-plot .classic-graph-slice")).toHaveCount(4);
+  await expect(page.locator("#classic-graph-output-plot .classic-graph-slice[tabindex='0']")).toHaveCount(4);
+  await expect(page.locator("#classic-graph-output-body tr")).toHaveCount(4);
+  await expect(page.locator("#classic-graph-output-body")).toContainText("Not a case");
+  await expect(page.locator("#classic-program-feedback")).toContainText("GRAPH rendered 4 pie slices from 96 active records");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
 });
 
 test("Program Editor safely runs the taught age-group RECODE and records history", async ({ page }) => {

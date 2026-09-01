@@ -64,8 +64,12 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-delete-records.ts",
     "wasm/app/programming/classic-undelete-records.ts",
     "wasm/app/programming/classic-summarize.ts",
+    "wasm/app/programming/classic-graph.ts",
+    "wasm/app/programming/epi-ai-quality.ts",
+    "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
+    "wasm/docs/design/charts-compatibility-inventory.md",
     "wasm/app/programming/classic-program-surface.ts",
     "wasm/app/programming/classic-program.ts",
     "wasm/app/programming/run-history.ts",
@@ -323,10 +327,12 @@ async function checkRequiredAssetsAndUi() {
   assert.deepEqual(classicContract.CLASSIC_ANALYSIS_MENUS.map((menu) => menu.label), ["File", "View", "Tools", "Help"]);
   assert.deepEqual(classicContract.CLASSIC_COMMAND_GROUPS.map((group) => group.label), [
     "Data", "Variables", "Select/If", "Statistics", "Advanced Statistics", "Output",
-    "User-Defined Commands", "User Interaction", "Options",
+    "User-Defined Commands", "User Interaction", "Options", "New Branches — Epi Info AI",
   ]);
   const statistics = classicContract.CLASSIC_COMMAND_GROUPS.find((group) => group.key === "statistics");
   assert.deepEqual(statistics.commands.map((entry) => entry.label), ["List", "Frequencies", "Tables", "Means", "Summarize", "Graph"]);
+  const newBranches = classicContract.CLASSIC_COMMAND_GROUPS.find((group) => group.key === "new-branches");
+  assert.deepEqual(newBranches.commands.map((entry) => [entry.label, entry.newBranch]), [["Quality Profile", true], ["Convert Access Database", true]]);
   const programSurface = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program-surface.ts")).href}?menu=${Date.now()}`);
   assert.deepEqual(programSurface.CLASSIC_PROGRAM_MENUS.map((menu) => menu.label), ["File", "Edit", "Fonts"]);
   assert.deepEqual(programSurface.CLASSIC_PROGRAM_MENUS[0].entries.filter((entry) => entry.kind === "command").map((entry) => entry.label), [
@@ -362,7 +368,13 @@ async function checkRequiredAssetsAndUi() {
     }
   }
   for (const group of classicContract.CLASSIC_COMMAND_GROUPS) {
-    for (const entry of group.commands) assert.equal(commandParity.classicCommandParityEntry(group.key, entry.key)?.explorer, "visible", `${group.key}/${entry.key} must be in the legacy command parity set`);
+    for (const entry of group.commands) {
+      if (entry.newBranch) {
+        assert.equal(commandParity.classicCommandParityEntry(group.key, entry.key), undefined, `${group.key}/${entry.key} must not be misrepresented as legacy parity`);
+      } else {
+        assert.equal(commandParity.classicCommandParityEntry(group.key, entry.key)?.explorer, "visible", `${group.key}/${entry.key} must be in the legacy command parity set`);
+      }
+    }
   }
   assert.equal(commandParity.classicCommandParityEntry("data", "read").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("data", "relate").parityStatus, "browser-verified");
@@ -370,6 +382,7 @@ async function checkRequiredAssetsAndUi() {
   assert.equal(commandParity.classicCommandParityEntry("data", "delete-records").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("data", "undelete-records").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "summarize").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "graph").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "list").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "define").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "recode").dialog, "typed-source-v0.1");
@@ -384,6 +397,16 @@ async function checkRequiredAssetsAndUi() {
   assert.equal(commandParity.classicCommandParityEntry("select-if", "cancel-sort").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("select-if", "if").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("user-defined", "execute-file").browserPolicy, "blocked");
+
+  const chartInventory = await readFile(repositoryPath("wasm/docs/design/charts-compatibility-inventory.md"), "utf8");
+  assert.deepEqual([...chartInventory.matchAll(/\| LEGACY-CLASSIC-GRAPH-\d{3} \| ([^|]+) \|/g)].map((match) => match[1].trim()), [
+    "Area", "Bar", "Bubble", "Column", "Epi Curve", "Line", "Pie", "Scatter",
+  ]);
+  assert.deepEqual([...chartInventory.matchAll(/\| LEGACY-DASHBOARD-02[1-8] \| ([^|]+) \|/g)].map((match) => match[1].trim()), [
+    "Column chart", "Line chart", "Area chart", "Pie chart", "Aberration Detection chart", "Pareto chart", "Scatter chart", "Epi Curve chart",
+  ]);
+  assert.match(chartInventory, /16 independently tracked\s+chart branches/);
+  assert.match(chartInventory, /0 of 8 legacy-parity-verified/);
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
@@ -791,6 +814,24 @@ FREQ AgeGroup STRATAVAR=Sex`;
 
   const commandBuilder = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-command-builder.ts")).href}?commands=${Date.now()}`);
   const projectSource = { formId: "foodborne", projectName: "Outbreak Project", formName: "Foodborne Form", fields: imported.schema.fields, records: imported.records };
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "quality" }), "EPIAI QUALITY *");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("EPIAI QUALITY *", imported.schema.fields), { kind: "quality", source: "EPIAI QUALITY *" });
+  const quality = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-quality.ts")).href}?quality=${Date.now()}`);
+  const qualityPlan = quality.resolveEpiAiQualityCommand("EPIAI QUALITY *", imported.schema.fields);
+  const qualityReport = quality.applyEpiAiQualityProfile(projectSource, qualityPlan);
+  assert.equal(qualityReport.recordCount, 96);
+  assert.equal(qualityReport.fields.find(({ fieldName }) => fieldName === "onset_date").missing, 52);
+  assert.equal(qualityReport.fields.find(({ fieldName }) => fieldName === "hospitalization_date").missing, 74);
+  assert.throws(() => quality.resolveEpiAiQualityCommand("EPIAI QUALITY Age", imported.schema.fields), /QUALITY \* only/);
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "file-convert", inputFile: "Sample.mdb", outputFile: "Sample.sqlite" }), 'FILE CONVERT "Sample.mdb" TO "Sample.sqlite"');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('FILE CONVERT "Sample.mdb" TO "Sample.sqlite"', imported.schema.fields), {
+    kind: "file-convert", inputFile: "Sample.mdb", outputFile: "Sample.sqlite", source: 'FILE CONVERT "Sample.mdb" TO "Sample.sqlite"',
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "file-convert", inputFile: "Sample.mdb", outputFile: "Sample.duckdb" }), 'FILE CONVERT "Sample.mdb" TO "Sample.duckdb"');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('FILE CONVERT "Sample.mdb" TO "Sample.duckdb"', imported.schema.fields), {
+    kind: "file-convert", inputFile: "Sample.mdb", outputFile: "Sample.duckdb", source: 'FILE CONVERT "Sample.mdb" TO "Sample.duckdb"',
+  });
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand('FILE CONVERT "Sample.csv" TO "Sample.sqlite"', imported.schema.fields), /mdb or .accdb/);
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "AgeGroup", scope: "STANDARD", variableType: "TEXTINPUT" }), "DEFINE AgeGroup TEXTINPUT");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "CaseCount", scope: "GLOBAL", variableType: "NUMERIC", prompt: "Case count" }), 'DEFINE CaseCount GLOBAL NUMERIC "Case count"');
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define-group", group: "FoodSymptoms", members: ["diarrhea", "vomiting", "nausea"] }), "DEFINE FoodSymptoms GROUPVAR diarrhea vomiting nausea");
@@ -838,6 +879,17 @@ FREQ AgeGroup STRATAVAR=Sex`;
     kind: "summarize", aggregate: "AVG", field: "age", resultField: "AverageAge", outputTable: "FoodborneAgeBySex", stratifyBy: "sex",
     source: "SUMMARIZE AverageAge :: AVG(Age) TO FoodborneAgeBySex STRATAVAR=Sex",
   });
+  const graphSource = 'GRAPH case_status GRAPHTYPE="Bar" TITLETEXT="Foodborne cases by status" XTITLE="Count" YTITLE="Case Status"';
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "graph", field: "case_status", graphType: "Bar", title: "Foodborne cases by status", xTitle: "Count", yTitle: "Case Status" }), graphSource);
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand(graphSource, imported.schema.fields), {
+    kind: "graph", field: "case_status", graphType: "Bar", title: "Foodborne cases by status", xTitle: "Count", yTitle: "Case Status", source: graphSource,
+  });
+  const columnGraphSource = 'GRAPH case_status GRAPHTYPE="Column" TITLETEXT="Foodborne cases by status" XTITLE="Case Status" YTITLE="Count"';
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "graph", field: "case_status", graphType: "Column", title: "Foodborne cases by status", xTitle: "Case Status", yTitle: "Count" }), columnGraphSource);
+  assert.equal(commandBuilder.resolveSelectedClassicAnalysisCommand(columnGraphSource, imported.schema.fields).graphType, "Column");
+  const pieGraphSource = 'GRAPH case_status GRAPHTYPE="Pie" TITLETEXT="Foodborne case status"';
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "graph", field: "case_status", graphType: "Pie", title: "Foodborne case status" }), pieGraphSource);
+  assert.equal(commandBuilder.resolveSelectedClassicAnalysisCommand(pieGraphSource, imported.schema.fields).graphType, "Pie");
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("LIST ID Age Sex", imported.schema.fields), { kind: "list", fields: ["id", "age", "sex"], source: "LIST ID Age Sex" });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("LIST * EXCEPT Latitude Longitude", imported.schema.fields).fields, imported.schema.fields.map((field) => field.name).filter((name) => !["latitude", "longitude"].includes(name)));
   assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("READ {C:\\legacy.mdb}:Oswego", imported.schema.fields, [projectSource]), /external paths/);
@@ -1032,6 +1084,31 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.throws(() => summarize.resolveClassicSummarizeCommand("SUMMARIZE AverageAge :: AVG(age) TO Weighted WEIGHTVAR=age", projectSource.fields), /WEIGHTVAR remains disabled/);
   assert.throws(() => summarize.resolveClassicSummarizeCommand("SUMMARIZE AverageAge :: AVG(age), Total :: COUNT() TO Multiple", projectSource.fields), /exactly one aggregate/);
 
+  const graph = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-graph.ts")).href}?graph=${Date.now()}`);
+  const graphExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-graph-case-status.expected.json"), "utf8"));
+  const graphProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-graph-case-status.pgm"), "utf8");
+  const graphPlan = graph.resolveClassicGraphCommand(graphProgram, projectSource.fields);
+  const graphResult = deriveFrequency(projectSource.records, { field: graphPlan.field, prompt: graphPlan.fieldDefinition.prompt, includeMissing: false });
+  assert.equal(graphPlan.canonicalSource, graphExpected.command);
+  assert.equal(graphResult.totals.sourceRecords, graphExpected.expected.sourceRecords);
+  assert.equal(graphResult.totals.includedRecords, graphExpected.expected.includedRecords);
+  assert.equal(graphResult.totals.excludedMissing, graphExpected.expected.excludedMissing);
+  assert.deepEqual(graphResult.categories.map(({ value, frequency }) => ({ value, frequency })), graphExpected.expected.categories);
+  const columnExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-graph-case-status-column.expected.json"), "utf8"));
+  const columnProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-graph-case-status-column.pgm"), "utf8");
+  const columnPlan = graph.resolveClassicGraphCommand(columnProgram, projectSource.fields);
+  assert.equal(columnPlan.graphType, "Column");
+  assert.equal(columnPlan.canonicalSource, columnExpected.command);
+  assert.deepEqual(deriveFrequency(projectSource.records, { field: columnPlan.field, prompt: columnPlan.fieldDefinition.prompt, includeMissing: false }).categories.map(({ value, frequency }) => ({ value, frequency })), columnExpected.expected.categories);
+  const pieExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-graph-case-status-pie.expected.json"), "utf8"));
+  const pieProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-graph-case-status-pie.pgm"), "utf8");
+  const piePlan = graph.resolveClassicGraphCommand(pieProgram, projectSource.fields);
+  assert.equal(piePlan.graphType, "Pie");
+  assert.equal(piePlan.canonicalSource, pieExpected.command);
+  assert.deepEqual(deriveFrequency(projectSource.records, { field: piePlan.field, prompt: piePlan.fieldDefinition.prompt, includeMissing: false }).categories.map(({ value, frequency }) => ({ value, frequency })), pieExpected.expected.categories);
+  assert.throws(() => graph.resolveClassicGraphCommand('GRAPH case_status GRAPHTYPE="Line"', projectSource.fields), /supports Bar, Column, and Pie charts only/);
+  assert.throws(() => graph.resolveClassicGraphCommand('GRAPH case_status sex GRAPHTYPE="Bar"', projectSource.fields), /one variable/);
+
   const assignment = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-assignment.ts")).href}?assignment=${Date.now()}`);
   const definePlan = assignment.resolveClassicDefineCommand("DEFINE ReviewLabel TEXTINPUT", imported.schema.fields, []);
   session.defineVariable(definePlan);
@@ -1136,9 +1213,13 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(catalog.dataset.recordCount, imported.records.length);
   assert.deepEqual(catalog.dataset.fieldTypes, { Age: "number", Sex: "text", case_status: "text" });
   assert.deepEqual(catalog.programs.map(({ id }) => id), [
-    "life-stage-by-sex", "age-band-by-case-status", "age-decades",
+    "life-stage-by-sex", "age-band-by-case-status", "age-decades", "quality-profile",
   ]);
   for (const example of catalog.programs) {
+    if (example.id === "quality-profile") {
+      assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand(example.source, imported.schema.fields), { kind: "quality", source: "EPIAI QUALITY *" });
+      continue;
+    }
     const examplePlan = programming.parseBoundedClassicProgram(example.source, imported.schema.fields);
     const exampleData = programming.applyBoundedClassicProgram(imported.records, examplePlan);
     assert.equal(exampleData.records.length, 96, `${example.id} must preserve the foodborne record count`);
@@ -1975,6 +2056,10 @@ CANCEL SORT`;
   assert.equal(selectionForms.body[1].mode, "clear");
   assert.equal(selectionForms.body[2].mode, "cancel");
   assert.equal(selectionForms.body[3].mode, "clear");
+  const graph = parser.parseClassicProgram('GRAPH Case_Status GRAPHTYPE="Bar" TITLETEXT="Cases"');
+  assert.equal(graph.body[0].type, "GraphStatement");
+  assert.equal(graph.body[0].field.name, "Case_Status");
+  assert.equal(graph.body[0].graphType, "Bar");
   assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
   assert.throws(() => parser.parseClassicProgram("IF Age > 10 THEN\nFREQ Age"), /IF is missing END/);
   assert.throws(() => parser.parseClassicProgram("ASSIGN Age = (10 + 2"), /closing parenthesis/);

@@ -40,6 +40,10 @@ import { resolveClassicDeleteTableCommand, stageClassicDeleteTable, type Classic
 import { resolveClassicDeleteRecordsCommand, stageClassicDeleteRecords, type ClassicDeleteRecordsResult } from "../app/programming/classic-delete-records.js";
 import { resolveClassicUndeleteRecordsCommand, stageClassicUndeleteRecords, type ClassicUndeleteRecordsResult } from "../app/programming/classic-undelete-records.js";
 import { applyClassicSummarize, resolveClassicSummarizeCommand, type ClassicSummarizeAggregate } from "../app/programming/classic-summarize.js";
+import { resolveClassicGraphCommand, type ClassicGraphType } from "../app/programming/classic-graph.js";
+import { applyEpiAiQualityProfile, resolveEpiAiQualityCommand } from "../app/programming/epi-ai-quality.js";
+import { convertAccessFile, resolveFileConvertCommand } from "../app/programming/file-convert.js";
+import type { DataQualityReport } from "../app/forms/data-quality.js";
 import { renderClassicProgramSurface } from "../app/programming/classic-program-surface.js";
 import { ClassicProgramDocumentService, normalizeClassicProgramName, readClassicProgramFile, safeClassicProgramFileName } from "../app/programming/classic-program-document.js";
 import { assessClassicProgramCatalog, loadClassicProgramExampleCatalog, type ClassicProgramExample, type ClassicProgramExampleCatalog } from "../app/programming/classic-examples.js";
@@ -907,6 +911,10 @@ requiredElement("#classic-program-edit-beginning").addEventListener("click", () 
 requiredElement("#classic-program-edit-end").addEventListener("click", () => editorAction(() => classicProgramEditor.moveToEnd(), "Cursor moved to Program End."));
 const classicCommandDialog = requiredElement<HTMLDialogElement>("#classic-command-dialog");
 const classicCommandDialogKind = requiredElement<HTMLSelectElement>("#classic-command-dialog-kind");
+classicCommandDialogKind.append(new Option("NEW BRANCH — Convert Access Database", "file-convert"));
+const classicCommandDialogAccessFile = requiredElement<HTMLInputElement>("#classic-command-dialog-access-file");
+const classicCommandDialogFileConvertTarget = requiredElement<HTMLSelectElement>("#classic-command-dialog-file-convert-target");
+const classicCommandDialogFileConvertName = requiredElement<HTMLInputElement>("#classic-command-dialog-file-convert-name");
 const classicCommandDialogSource = requiredElement<HTMLSelectElement>("#classic-command-dialog-source");
 const classicCommandDialogRelateCurrentKey = requiredElement<HTMLSelectElement>("#classic-command-dialog-relate-current-key");
 const classicCommandDialogRelateRelatedKey = requiredElement<HTMLSelectElement>("#classic-command-dialog-relate-related-key");
@@ -934,6 +942,10 @@ const classicCommandDialogSummarizeField = requiredElement<HTMLSelectElement>("#
 const classicCommandDialogSummarizeResult = requiredElement<HTMLInputElement>("#classic-command-dialog-summarize-result");
 const classicCommandDialogSummarizeTable = requiredElement<HTMLInputElement>("#classic-command-dialog-summarize-table");
 const classicCommandDialogSummarizeStrata = requiredElement<HTMLSelectElement>("#classic-command-dialog-summarize-strata");
+const classicCommandDialogGraphType = requiredElement<HTMLSelectElement>("#classic-command-dialog-graph-type");
+const classicCommandDialogGraphTitle = requiredElement<HTMLInputElement>("#classic-command-dialog-graph-title");
+const classicCommandDialogGraphXTitle = requiredElement<HTMLInputElement>("#classic-command-dialog-graph-x-title");
+const classicCommandDialogGraphYTitle = requiredElement<HTMLInputElement>("#classic-command-dialog-graph-y-title");
 const classicCommandDialogField = requiredElement<HTMLSelectElement>("#classic-command-dialog-field");
 const classicCommandDialogExposure = requiredElement<HTMLSelectElement>("#classic-command-dialog-exposure");
 const classicCommandDialogOutcome = requiredElement<HTMLSelectElement>("#classic-command-dialog-outcome");
@@ -1111,6 +1123,12 @@ function classicUndeleteRecordsValue(): string | number | boolean {
 
 function classicCommandDialogInput(): ClassicAnalysisCommandInput {
   const kind = classicCommandDialogKind.value as ClassicAnalysisCommandKind;
+  if (kind === "quality") return { kind };
+  if (kind === "file-convert") {
+    const file = classicCommandDialogAccessFile.files?.[0];
+    if (!file) throw new RangeError("Choose an Access .mdb or .accdb file.");
+    return { kind, inputFile: file.name, outputFile: classicCommandDialogFileConvertName.value.trim() };
+  }
   if (kind === "read") return { kind, table: classicCommandDialogSource.value };
   if (kind === "relate") return {
     kind, relatedForm: classicCommandDialogSource.value,
@@ -1185,6 +1203,12 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
     outputTable: classicCommandDialogSummarizeTable.value,
     ...(classicCommandDialogSummarizeStrata.value ? { stratifyBy: classicCommandDialogSummarizeStrata.value } : {}),
   };
+  if (kind === "graph") return {
+    kind, field: classicCommandDialogField.value, graphType: classicCommandDialogGraphType.value as ClassicGraphType,
+    ...(classicCommandDialogGraphTitle.value.trim() ? { title: classicCommandDialogGraphTitle.value } : {}),
+    ...(classicCommandDialogGraphXTitle.value.trim() ? { xTitle: classicCommandDialogGraphXTitle.value } : {}),
+    ...(classicCommandDialogGraphYTitle.value.trim() ? { yTitle: classicCommandDialogGraphYTitle.value } : {}),
+  };
   return { kind, exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value, stratifyBy: classicCommandDialogStrata.value };
 }
 
@@ -1214,6 +1238,9 @@ function updateClassicCommandDialog(): void {
   const means = kind === "means";
   const tables = kind === "tables";
   const summarize = kind === "summarize";
+  const graph = kind === "graph";
+  const quality = kind === "quality";
+  const fileConvert = kind === "file-convert";
   const definedFields = classicDefinedFields(source.fields);
   const availableFields = [...source.fields, ...definedFields];
   const sessionVariables = classicProgramSession.variables();
@@ -1361,13 +1388,17 @@ function updateClassicCommandDialog(): void {
   requiredElement<HTMLElement>("#classic-command-dialog-if").hidden = !ifCommand;
   requiredElement<HTMLElement>("#classic-command-dialog-sort").hidden = !sort;
   requiredElement<HTMLElement>("#classic-command-dialog-summarize").hidden = !summarize;
-  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize;
+  requiredElement<HTMLElement>("#classic-command-dialog-graph").hidden = !graph;
+  requiredElement<HTMLElement>("#classic-command-dialog-quality").hidden = !quality;
+  requiredElement<HTMLElement>("#classic-command-dialog-file-convert").hidden = !fileConvert;
+  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize || quality || fileConvert;
   requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables;
   requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables;
-  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || means || summarize;
-  requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : "Frequency of";
+  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || means || summarize || graph || quality || fileConvert;
+  requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : graph ? "Graph variable" : "Frequency of";
   const byHint = (pattern: RegExp, excluded = new Set<string>()): string | undefined => source.fields.find((field) => !excluded.has(field.name) && pattern.test(`${field.name} ${field.prompt}`))?.name;
   if (kind === "frequency") classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
+  if (graph) classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
   if (kind === "means") classicCommandDialogField.value = byHint(/age|duration|amount|count|weight/) ?? classicCommandDialogField.value;
   if (recode) {
     classicCommandDialogRecodeSource.value = byHint(/age|duration|amount|count|weight/) ?? classicCommandDialogRecodeSource.value;
@@ -1395,6 +1426,9 @@ function updateClassicCommandDialog(): void {
     if (input.kind === "delete-records") resolveClassicDeleteRecordsCommand(command, source.fields);
     if (input.kind === "undelete-records") resolveClassicUndeleteRecordsCommand(command, source.fields);
     if (input.kind === "summarize") resolveClassicSummarizeCommand(command, source.fields);
+    if (input.kind === "graph") resolveClassicGraphCommand(command, source.fields);
+    if (input.kind === "quality") resolveEpiAiQualityCommand(command, source.fields);
+    if (input.kind === "file-convert") resolveFileConvertCommand(command);
     if (input.kind === "define-group") resolveClassicDefineGroupCommand(command, source.fields, sessionVariables, sessionGroups);
     if (input.kind === "undefine") resolveClassicUndefineCommand(command, source.fields, sessionVariables);
     if (input.kind === "assign") resolveClassicAssignCommand(command, source.fields, sessionVariables);
@@ -1406,7 +1440,7 @@ function updateClassicCommandDialog(): void {
     requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
   } catch (error) {
-    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "relate" ? "RELATE" : kind === "write" ? "WRITE" : kind === "merge" ? "MERGE" : kind === "delete-table" ? "DELETE TABLES" : kind === "delete-records" ? "DELETE" : kind === "undelete-records" ? "UNDELETE" : kind === "define" ? "DEFINE" : kind === "define-group" ? "DEFINE GROUPVAR" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "display" ? "DISPLAY DBVARIABLES" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : kind === "summarize" ? "SUMMARIZE" : "TABLES";
+    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "relate" ? "RELATE" : kind === "write" ? "WRITE" : kind === "merge" ? "MERGE" : kind === "delete-table" ? "DELETE TABLES" : kind === "delete-records" ? "DELETE" : kind === "undelete-records" ? "UNDELETE" : kind === "define" ? "DEFINE" : kind === "define-group" ? "DEFINE GROUPVAR" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "display" ? "DISPLAY DBVARIABLES" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : kind === "summarize" ? "SUMMARIZE" : kind === "graph" ? "GRAPH" : kind === "quality" ? "EPIAI QUALITY *" : kind === "file-convert" ? "FILE CONVERT" : "TABLES";
     requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Choose valid command fields.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
   }
@@ -1417,7 +1451,7 @@ function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"
   classicCommandDialogKind.value = kind;
   if (kind === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
   if (kind === "sort") resetClassicSortRows();
-  const title = kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "summarize" ? "Summarize" : "Tables";
+  const title = kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
   requiredElement("#classic-command-dialog-title").textContent = `${title} Command`;
   updateClassicCommandDialog();
   classicCommandDialog.showModal();
@@ -1430,6 +1464,16 @@ classicCommandDialogKind.addEventListener("change", () => {
   if (classicCommandDialogKind.value === "sort" && classicCommandDialogSortRows.rows.length === 0) resetClassicSortRows();
   updateClassicCommandDialog();
 });
+classicCommandDialogAccessFile.addEventListener("change", () => {
+  const file = classicCommandDialogAccessFile.files?.[0];
+  if (file) classicCommandDialogFileConvertName.value = file.name.replace(/\.(?:mdb|accdb)$/i, "") + `.${classicCommandDialogFileConvertTarget.value}`;
+  updateClassicCommandDialog();
+});
+classicCommandDialogFileConvertTarget.addEventListener("change", () => {
+  classicCommandDialogFileConvertName.value = classicCommandDialogFileConvertName.value.replace(/\.(?:sqlite|duckdb)$/i, "") + `.${classicCommandDialogFileConvertTarget.value}`;
+  refreshClassicCommandDialogPreview();
+});
+classicCommandDialogFileConvertName.addEventListener("input", refreshClassicCommandDialogPreview);
 function refreshClassicCommandDialogPreview(): void {
   try {
     const input = classicCommandDialogInput();
@@ -1489,6 +1533,7 @@ classicCommandDialogSummarizeResult.addEventListener("input", refreshClassicComm
 classicCommandDialogSummarizeTable.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogSummarizeStrata.addEventListener("change", refreshClassicCommandDialogPreview);
 for (const select of [classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget, classicCommandDialogSelectOperator, classicCommandDialogSelectBoolean, classicCommandDialogAssignBoolean, classicCommandDialogIfOperator]) select.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogGraphType.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogDisplayMode.addEventListener("change", updateClassicCommandDialog);
 classicCommandDialogDisplayVariables.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogAssignVariable.addEventListener("change", updateClassicCommandDialog);
@@ -1497,7 +1542,7 @@ classicCommandDialogUndefineAll.addEventListener("change", updateClassicCommandD
 classicCommandDialogSelectField.addEventListener("change", updateClassicCommandDialog);
 for (const select of [classicCommandDialogIfVariable, classicCommandDialogIfThenVariable, classicCommandDialogIfElseVariable]) select.addEventListener("change", updateClassicCommandDialog);
 classicCommandDialogIfHasElse.addEventListener("change", updateClassicCommandDialog);
-for (const input of [classicCommandDialogVariable, classicCommandDialogPrompt, classicCommandDialogRecodeElse, classicCommandDialogSelectValue, classicCommandDialogAssignValue, classicCommandDialogIfValue, classicCommandDialogIfThenValue, classicCommandDialogIfElseValue]) input.addEventListener("input", refreshClassicCommandDialogPreview);
+for (const input of [classicCommandDialogVariable, classicCommandDialogPrompt, classicCommandDialogRecodeElse, classicCommandDialogSelectValue, classicCommandDialogAssignValue, classicCommandDialogIfValue, classicCommandDialogIfThenValue, classicCommandDialogIfElseValue, classicCommandDialogGraphTitle, classicCommandDialogGraphXTitle, classicCommandDialogGraphYTitle]) input.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogGroupName.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogGroupMembers.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogRecodeRows.addEventListener("input", refreshClassicCommandDialogPreview);
@@ -1519,7 +1564,7 @@ requiredElement("#classic-command-dialog-insert").addEventListener("click", () =
 requiredElement("#classic-program-edit-insert-command").addEventListener("click", () => showClassicCommandDialog());
 requiredElement("#classic-program-toolbar-run").addEventListener("click", () => requiredElement<HTMLButtonElement>("#classic-program-run").click());
 
-const classicOutputTargets = ["#classic-program-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#frequency-stratified-output", "#frequency-output", "#means-output", ".stratified-panel"];
+const classicOutputTargets = ["#classic-program-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", ".stratified-panel"];
 let classicOutputPosition = -1;
 function visibleClassicOutputs(): HTMLElement[] {
   return classicOutputTargets.map((selector) => document.querySelector<HTMLElement>(selector)).filter((target): target is HTMLElement => Boolean(target && !target.hidden));
@@ -1742,6 +1787,9 @@ requiredElement("#classic-command-delete-file-table").addEventListener("click", 
 requiredElement("#classic-command-delete-records").addEventListener("click", () => showClassicCommandDialog("delete-records"));
 requiredElement("#classic-command-undelete-records").addEventListener("click", () => showClassicCommandDialog("undelete-records"));
 requiredElement("#classic-command-summarize").addEventListener("click", () => showClassicCommandDialog("summarize"));
+requiredElement("#classic-command-graph").addEventListener("click", () => showClassicCommandDialog("graph"));
+requiredElement("#classic-command-quality").addEventListener("click", () => showClassicCommandDialog("quality"));
+requiredElement("#classic-command-file-convert").addEventListener("click", () => showClassicCommandDialog("file-convert"));
 requiredElement("#classic-command-define").addEventListener("click", () => showClassicCommandDialog("define"));
 requiredElement("#classic-command-define-group").addEventListener("click", () => showClassicCommandDialog("define-group"));
 requiredElement("#classic-command-undefine").addEventListener("click", () => showClassicCommandDialog("undefine"));
@@ -2210,12 +2258,150 @@ function renderClassicSummarizeOutput(result: ReturnType<typeof applyClassicSumm
   requiredElement<HTMLElement>("#classic-summarize-output").hidden = false;
 }
 
+function renderClassicGraphOutput(plan: ReturnType<typeof resolveClassicGraphCommand>, result: FrequencyResult): void {
+  const output = requiredElement<HTMLElement>("#classic-graph-output");
+  const plot = requiredElement<HTMLElement>("#classic-graph-output-plot");
+  const title = plan.title ?? `${plan.fieldDefinition.prompt} distribution`;
+  requiredElement("#classic-graph-output-title").textContent = title;
+  requiredElement("#classic-graph-output-count").textContent = `${plan.graphType} · ${result.totals.includedRecords} records · ${result.categories.length} categories`;
+  requiredElement("#classic-graph-output-body").replaceChildren(...result.categories.map((category) => {
+    const row = document.createElement("tr");
+    for (const value of [category.value, String(category.frequency), percent(category.percent)]) {
+      const cell = document.createElement("td"); cell.textContent = value; row.append(cell);
+    }
+    return row;
+  }));
+
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 760 390");
+  svg.setAttribute("aria-label", `${title}. ${result.categories.map(({ value, frequency }) => `${value}: ${frequency}`).join(", ")}.`);
+  svg.setAttribute("role", "img");
+  svg.dataset.orientation = plan.graphType === "Bar" ? "horizontal" : plan.graphType === "Column" ? "vertical" : "radial";
+  svg.dataset.chartType = plan.graphType;
+  if (plan.graphType === "Pie") {
+    const palette = ["#087ea4", "#e58b19", "#3b8f5a", "#9b59b6", "#c7463b", "#5072a7", "#8a6d3b", "#6d7b87"];
+    const centerX = 260, centerY = 195, radius = 135;
+    const total = Math.max(1, result.categories.reduce((sum, category) => sum + category.frequency, 0));
+    let angle = -Math.PI / 2;
+    result.categories.forEach((category, index) => {
+      const fraction = category.frequency / total;
+      const nextAngle = angle + fraction * Math.PI * 2;
+      const color = palette[index % palette.length]!;
+      let slice: SVGElement;
+      if (fraction >= 0.999999) {
+        slice = document.createElementNS(ns, "circle");
+        slice.setAttribute("cx", String(centerX)); slice.setAttribute("cy", String(centerY)); slice.setAttribute("r", String(radius));
+      } else {
+        const startX = centerX + radius * Math.cos(angle), startY = centerY + radius * Math.sin(angle);
+        const endX = centerX + radius * Math.cos(nextAngle), endY = centerY + radius * Math.sin(nextAngle);
+        slice = document.createElementNS(ns, "path");
+        slice.setAttribute("d", `M ${centerX} ${centerY} L ${startX} ${startY} A ${radius} ${radius} 0 ${fraction > 0.5 ? 1 : 0} 1 ${endX} ${endY} Z`);
+      }
+      slice.setAttribute("class", "classic-graph-slice");
+      slice.setAttribute("fill", color);
+      slice.setAttribute("tabindex", "0");
+      slice.setAttribute("aria-label", `${category.value}: ${category.frequency}, ${percent(category.percent)}`);
+      const sliceTitle = document.createElementNS(ns, "title"); sliceTitle.textContent = `${category.value}: ${category.frequency} (${percent(category.percent)})`; slice.append(sliceTitle);
+      const swatch = document.createElementNS(ns, "rect"); swatch.setAttribute("x", "455"); swatch.setAttribute("y", String(92 + index * 48)); swatch.setAttribute("width", "18"); swatch.setAttribute("height", "18"); swatch.setAttribute("rx", "2"); swatch.setAttribute("fill", color); swatch.setAttribute("class", "classic-graph-legend-swatch");
+      const legend = document.createElementNS(ns, "text"); legend.setAttribute("x", "484"); legend.setAttribute("y", String(106 + index * 48)); legend.setAttribute("class", "classic-graph-legend-label"); legend.textContent = `${category.value}: ${category.frequency} (${percent(category.percent)})`;
+      svg.append(slice, swatch, legend);
+      angle = nextAngle;
+    });
+    plot.replaceChildren(svg);
+    requiredElement("#classic-graph-output-note").textContent = `Missing values excluded: ${result.totals.excludedMissing}. Slice areas use the same typed frequency operation as FREQ; the data table is the authoritative accessible output.`;
+    output.hidden = false;
+    return;
+  }
+  const max = Math.max(1, ...result.categories.map(({ frequency }) => frequency));
+  const horizontal = plan.graphType === "Bar";
+  const plotLeft = horizontal ? 180 : 72, plotTop = 45, plotWidth = horizontal ? 542 : 650, plotHeight = 260;
+  const axis = document.createElementNS(ns, "path");
+  axis.setAttribute("d", `M ${plotLeft} ${plotTop} V ${plotTop + plotHeight} H ${plotLeft + plotWidth}`);
+  axis.setAttribute("class", "classic-graph-axis");
+  svg.append(axis);
+  if (horizontal) {
+    const slot = plotHeight / Math.max(1, result.categories.length);
+    result.categories.forEach((category, index) => {
+      const width = category.frequency / max * (plotWidth - 35);
+      const height = Math.min(48, slot * 0.62);
+      const x = plotLeft;
+      const y = plotTop + index * slot + (slot - height) / 2;
+      const bar = document.createElementNS(ns, "rect");
+      bar.setAttribute("x", String(x)); bar.setAttribute("y", String(y)); bar.setAttribute("width", String(width)); bar.setAttribute("height", String(height));
+      bar.setAttribute("class", "classic-graph-bar");
+      const barTitle = document.createElementNS(ns, "title"); barTitle.textContent = `${category.value}: ${category.frequency} (${percent(category.percent)})`; bar.append(barTitle);
+      const count = document.createElementNS(ns, "text"); count.setAttribute("x", String(x + width + 9)); count.setAttribute("y", String(y + height / 2 + 5)); count.setAttribute("class", "classic-graph-count classic-graph-count-horizontal"); count.textContent = String(category.frequency);
+      const label = document.createElementNS(ns, "text"); label.setAttribute("x", String(plotLeft - 10)); label.setAttribute("y", String(y + height / 2 + 5)); label.setAttribute("class", "classic-graph-label classic-graph-label-horizontal"); label.textContent = category.value.length > 22 ? `${category.value.slice(0, 21)}…` : category.value;
+      svg.append(bar, count, label);
+    });
+  } else {
+    const slot = plotWidth / Math.max(1, result.categories.length);
+    result.categories.forEach((category, index) => {
+      const height = category.frequency / max * (plotHeight - 20);
+      const width = Math.min(120, slot * 0.62);
+      const x = plotLeft + index * slot + (slot - width) / 2;
+      const y = plotTop + plotHeight - height;
+      const bar = document.createElementNS(ns, "rect");
+      bar.setAttribute("x", String(x)); bar.setAttribute("y", String(y)); bar.setAttribute("width", String(width)); bar.setAttribute("height", String(height));
+      bar.setAttribute("class", "classic-graph-bar");
+      const barTitle = document.createElementNS(ns, "title"); barTitle.textContent = `${category.value}: ${category.frequency} (${percent(category.percent)})`; bar.append(barTitle);
+      const count = document.createElementNS(ns, "text"); count.setAttribute("x", String(x + width / 2)); count.setAttribute("y", String(Math.max(plotTop + 12, y - 8))); count.setAttribute("class", "classic-graph-count"); count.textContent = String(category.frequency);
+      const label = document.createElementNS(ns, "text"); label.setAttribute("x", String(x + width / 2)); label.setAttribute("y", String(plotTop + plotHeight + 22)); label.setAttribute("class", "classic-graph-label"); label.textContent = category.value.length > 18 ? `${category.value.slice(0, 17)}…` : category.value;
+      svg.append(bar, count, label);
+    });
+  }
+  const xTitle = document.createElementNS(ns, "text"); xTitle.setAttribute("x", String(plotLeft + plotWidth / 2)); xTitle.setAttribute("y", "372"); xTitle.setAttribute("class", "classic-graph-axis-title"); xTitle.textContent = plan.xTitle ?? plan.fieldDefinition.prompt;
+  const yTitle = document.createElementNS(ns, "text"); yTitle.setAttribute("x", "18"); yTitle.setAttribute("y", String(plotTop + plotHeight / 2)); yTitle.setAttribute("transform", `rotate(-90 18 ${plotTop + plotHeight / 2})`); yTitle.setAttribute("class", "classic-graph-axis-title"); yTitle.textContent = plan.yTitle ?? "Count";
+  svg.append(xTitle, yTitle);
+  plot.replaceChildren(svg);
+  requiredElement("#classic-graph-output-note").textContent = `Missing values excluded: ${result.totals.excludedMissing}. ${horizontal ? "Bar lengths" : "Column heights"} use the same typed frequency operation as FREQ.`;
+  output.hidden = false;
+}
+
+function renderEpiAiQualityOutput(report: DataQualityReport): void {
+  const rows = [...report.fields].sort((left, right) =>
+    right.missing - left.missing || right.violations - left.violations || left.prompt.localeCompare(right.prompt),
+  );
+  requiredElement("#classic-quality-output-count").textContent = `${report.recordCount} records · ${rows.length} fields`;
+  requiredElement("#classic-quality-output-summary").textContent =
+    `${report.issues.length} validation issue${report.issues.length === 1 ? "" : "s"}; ${report.duplicateGroups.length} duplicate candidate group${report.duplicateGroups.length === 1 ? "" : "s"}. Problematic fields are shown first.`;
+  requiredElement("#classic-quality-output-body").replaceChildren(...rows.map((field) => {
+    const row = document.createElement("tr");
+    row.dataset.fieldName = field.fieldName;
+    const values = [field.prompt, String(field.present), String(field.missing)];
+    for (const value of values) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    const missingness = document.createElement("td");
+    const track = document.createElement("span");
+    track.className = "classic-quality-mini-bar";
+    track.setAttribute("role", "img");
+    const missingPercent = report.recordCount ? field.missing / report.recordCount * 100 : 0;
+    track.setAttribute("aria-label", `${missingPercent.toFixed(1)}% missing`);
+    const fill = document.createElement("span");
+    fill.style.width = `${missingPercent}%`;
+    track.append(fill);
+    missingness.append(track);
+    row.append(missingness);
+    for (const value of [`${(field.completeness * 100).toFixed(1)}%`, String(field.violations)]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  }));
+  requiredElement<HTMLElement>("#classic-quality-output").hidden = false;
+}
+
 const CLASSIC_SELECTED_COMMAND_PLAN_VERSION = "classic-selected-command-v1.0.0";
 let pendingClassicMerge: { plan: ClassicMergePlan; result: ClassicMergeResult } | null = null;
 let pendingClassicDelete: { plan: ClassicDeleteTablePlan; staged: ReturnType<typeof stageClassicDeleteTable> } | null = null;
 let pendingClassicDeleteRecords: ClassicDeleteRecordsResult | null = null;
 let pendingClassicUndeleteRecords: ClassicUndeleteRecordsResult | null = null;
-function runSelectedClassicCommand(): void {
+async function runSelectedClassicCommand(): Promise<void> {
   const fallbackProject = getCurrentProjectData();
   let project = classicProgramSession.current(fallbackProject);
   const selectedSource = classicProgramEditor.getSelectedText();
@@ -2223,6 +2409,40 @@ function runSelectedClassicCommand(): void {
     const selectedAst = parseClassicProgram(selectedSource);
     const selectedSources = selectedAst.body[0]?.type === "ReadStatement" ? [...getProjectDataSources(), ...classicProgramSession.outTables()] : getProjectDataSources();
     const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, selectedSources, classicProgramSession.variables(), classicProgramSession.groups());
+    if (command.kind === "file-convert") {
+      const plan = resolveFileConvertCommand(selectedSource);
+      const file = classicCommandDialogAccessFile.files?.[0];
+      if (!file) throw new RangeError(`Choose ${plan.inputFile} again through Insert Command before running FILE CONVERT.`);
+      classicProgramFeedback.textContent = `Converting ${file.name} in this browser. The source file remains read-only…`;
+      const targetLabel = plan.target === "duckdb" ? "DuckDB" : "SQLite";
+      classicProgramCommandStatus.textContent = `FILE CONVERT is reading user tables and building a ${targetLabel} database.`;
+      const result = await convertAccessFile(file, plan);
+      const mime = plan.target === "duckdb" ? "application/octet-stream" : "application/vnd.sqlite3";
+      const url = URL.createObjectURL(new Blob([Uint8Array.from(result.bytes).buffer], { type: mime }));
+      const link = document.createElement("a");
+      link.href = url; link.download = plan.outputFile; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      const rows = result.tables.reduce((sum, table) => sum + table.rows, 0);
+      requiredElement("#classic-file-convert-output-count").textContent = `${result.tables.length} tables · ${rows} rows`;
+      requiredElement("#classic-file-convert-output-summary").textContent = `${plan.inputFile} → ${plan.outputFile} · ${targetLabel} ${result.engineVersion} · source SHA-256 ${result.sourceSha256}`;
+      requiredElement("#classic-file-convert-output-body").replaceChildren(...result.tables.map((table) => {
+        const row = document.createElement("tr");
+        for (const value of [table.name, String(table.columns), String(table.rows)]) { const cell = document.createElement("td"); cell.textContent = value; row.append(cell); }
+        return row;
+      }));
+      requiredElement("#classic-file-convert-output-warnings").replaceChildren(...result.warnings.map((warning) => { const item = document.createElement("li"); item.textContent = warning; return item; }));
+      requiredElement<HTMLElement>("#classic-file-convert-output").hidden = false;
+      requiredElement("#classic-file-convert-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `Converted ${result.tables.length} tables and ${rows} rows to ${plan.outputFile}; the ${targetLabel} download includes a migration manifest and ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}.`;
+      classicProgramCommandStatus.textContent = `NEW BRANCH FILE CONVERT completed with ${targetLabel} ${result.engineVersion}. Review migration warnings before use.`;
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `Converted ${result.tables.length} Access tables and ${rows} rows; source SHA-256 ${result.sourceSha256}.`, diagnostics: result.warnings,
+      });
+      return;
+    }
     if (command.kind === "relate") {
       const sources = getProjectDataSources();
       const plan = resolveClassicRelateCommand(selectedSource, project.fields, sources);
@@ -2562,6 +2782,37 @@ function runSelectedClassicCommand(): void {
         projectName: project.projectName, formName: project.formName, sourceRecords: result.sourceRecords,
         source: selectedSource, canonicalSource: result.canonicalSource,
         summary: `SUMMARIZE created ${result.source.formName} with ${result.groups} rows from ${result.includedRecords} included values.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "graph") {
+      const plan = resolveClassicGraphCommand(selectedSource, project.fields);
+      const result = deriveFrequency(project.records, { field: plan.field, prompt: plan.fieldDefinition.prompt, includeMissing: false });
+      renderClassicGraphOutput(plan, result);
+      requiredElement("#classic-graph-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      const graphShape = plan.graphType === "Bar" ? "horizontal bars" : plan.graphType === "Column" ? "vertical columns" : "pie slices";
+      classicProgramFeedback.textContent = `GRAPH rendered ${result.categories.length} ${graphShape} from ${result.totals.includedRecords} active records.`;
+      classicProgramCommandStatus.textContent = "Selected GRAPH command completed through the typed frequency operation and browser chart renderer.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `GRAPH rendered ${result.categories.length} ${plan.graphType} categories; ${result.totals.excludedMissing} missing values excluded.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "quality") {
+      const plan = resolveEpiAiQualityCommand(selectedSource, project.fields);
+      const report = applyEpiAiQualityProfile(project, plan);
+      renderEpiAiQualityOutput(report);
+      requiredElement("#classic-quality-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `QUALITY profiled ${report.fields.length} fields across ${report.recordCount} active records. No data changed.`;
+      classicProgramCommandStatus.textContent = "NEW BRANCH EPIAI QUALITY completed through the same typed validation engine used by Data Quality Check.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `QUALITY found ${report.issues.length} validation issues and ${report.duplicateGroups.length} duplicate candidate groups.`, diagnostics: [],
       });
       return;
     }

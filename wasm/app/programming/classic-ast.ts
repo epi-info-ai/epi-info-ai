@@ -161,6 +161,25 @@ export interface ClassicSummarizeStatement extends ClassicNode {
   weightBy?: ClassicIdentifier;
 }
 
+export interface ClassicGraphStatement extends ClassicNode {
+  type: "GraphStatement";
+  field: ClassicIdentifier;
+  graphType: string;
+  title?: string;
+  xTitle?: string;
+  yTitle?: string;
+}
+
+export interface EpiAiQualityStatement extends ClassicNode {
+  type: "EpiAiQualityStatement";
+}
+
+export interface FileConvertStatement extends ClassicNode {
+  type: "FileConvertStatement";
+  inputFile: string;
+  outputFile: string;
+}
+
 export type ClassicVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
 export type ClassicVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 
@@ -250,6 +269,9 @@ export type ClassicStatement =
   | ClassicTablesStatement
   | ClassicMeansStatement
   | ClassicSummarizeStatement
+  | ClassicGraphStatement
+  | EpiAiQualityStatement
+  | FileConvertStatement
   | ClassicDefineStatement
   | ClassicDefineGroupStatement
   | ClassicAssignStatement
@@ -589,6 +611,9 @@ class ProgramParser {
     if (command === "TABLES") return this.tables(line, rest);
     if (command === "MEANS") return this.means(line, rest);
     if (command === "SUMMARIZE") return this.summarize(line, rest);
+    if (command === "GRAPH") return this.graph(line, rest);
+    if (command === "EPIAI") return this.epiAi(line, rest);
+    if (command === "FILE") return this.file(line, rest);
     if (command === "DEFINE") return this.define(line, rest, restColumn);
     if (command === "ASSIGN") return this.assign(line, rest, restColumn);
     if (command === "UNDEFINE") return this.undefine(line, rest);
@@ -600,6 +625,21 @@ class ProgramParser {
     if (command === "RECODE") return this.recode(line, rest);
     if (command === "IF") return this.ifStatement(line, rest, restColumn);
     throw new ClassicSyntaxError(line.line, 1, `Unsupported command: ${line.trimmed}`);
+  }
+
+  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement {
+    const tokens = words(rest);
+    if (tokens[0]?.toUpperCase() !== "QUALITY") throw new ClassicSyntaxError(line.line, 1, "This new-branch AST slice supports EPIAI QUALITY only.");
+    if (tokens.length === 2 && tokens[1] === "*") return { type: "EpiAiQualityStatement", span: lineSpan(line) };
+    throw new ClassicSyntaxError(line.line, 1, "This bounded new branch uses EPIAI QUALITY * only.");
+  }
+
+  private file(line: SourceLine, rest: string): FileConvertStatement {
+    const match = rest.match(/^CONVERT\s+"([^"]+)"\s+TO\s+"([^"]+)"$/i);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, 'This new-branch slice uses FILE CONVERT "input.mdb" TO "output.sqlite" or "output.duckdb".');
+    if (!/\.(?:mdb|accdb)$/i.test(match[1]!)) throw new ClassicSyntaxError(line.line, 1, "FILE CONVERT input must be an .mdb or .accdb file.");
+    if (!/\.(?:sqlite|duckdb)$/i.test(match[2]!)) throw new ClassicSyntaxError(line.line, 1, "FILE CONVERT output must be a .sqlite or .duckdb file.");
+    return { type: "FileConvertStatement", inputFile: match[1]!, outputFile: match[2]!, span: lineSpan(line) };
   }
 
   private relate(line: SourceLine, rest: string): ClassicRelateStatement {
@@ -752,6 +792,32 @@ class ProgramParser {
       type: "SummarizeStatement", aggregates, outputTable: identifier(match[2]!, line),
       stratifyBy: strata ? words(strata[1]!).map((name) => identifier(name, line)) : [],
       ...(weight ? { weightBy: identifier(weight[1]!, line) } : {}), span: lineSpan(line),
+    };
+  }
+
+  private graph(line: SourceLine, rest: string): ClassicGraphStatement {
+    const fieldMatch = rest.match(/^(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)(?:\s+|$)(.*)$/);
+    if (!fieldMatch) throw new ClassicSyntaxError(line.line, 1, "GRAPH requires at least one graph variable.");
+    const optionsSource = fieldMatch[2]!.trim();
+    const options = new Map<string, string>();
+    const optionPattern = /(GRAPHTYPE|TITLETEXT|XTITLE|YTITLE)\s*=\s*"((?:[^"]|"")*)"/gi;
+    let consumed = "";
+    for (const option of optionsSource.matchAll(optionPattern)) {
+      const key = option[1]!.toUpperCase();
+      if (options.has(key)) throw new ClassicSyntaxError(line.line, 1, `GRAPH option ${key} may appear only once.`);
+      options.set(key, option[2]!.replace(/""/g, '"'));
+      consumed += option[0];
+    }
+    if (optionsSource.replace(/\s+/g, "").toLocaleLowerCase("en-US") !== consumed.replace(/\s+/g, "").toLocaleLowerCase("en-US")) {
+      throw new ClassicSyntaxError(line.line, 1, "This GRAPH AST slice supports one variable plus quoted GRAPHTYPE, TITLETEXT, XTITLE, and YTITLE options.");
+    }
+    const graphType = options.get("GRAPHTYPE") ?? "Bar";
+    return {
+      type: "GraphStatement", field: identifier(fieldMatch[1]!, line), graphType,
+      ...(options.has("TITLETEXT") ? { title: options.get("TITLETEXT")! } : {}),
+      ...(options.has("XTITLE") ? { xTitle: options.get("XTITLE")! } : {}),
+      ...(options.has("YTITLE") ? { yTitle: options.get("YTITLE")! } : {}),
+      span: lineSpan(line),
     };
   }
 

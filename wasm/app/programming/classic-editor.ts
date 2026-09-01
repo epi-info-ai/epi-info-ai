@@ -50,7 +50,7 @@ export interface ClassicProgramLintStatus {
 const epiInfoLanguage = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
-    if (stream.match(/^(?:READ|RELATE|MATCHING|ALL|LIST|FREQ|MEANS|TABLES|RECODE|TO|DEFINE|GROUPVAR|UNDEFINE|ASSIGN|DISPLAY|DBVARIABLES|DBVIEWS|FIELDVAR|OUTTABLE|IF|THEN|ELSE|END|SELECT|SORT|CANCEL|ASC|ASCENDING|DESC|DESCENDING|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
+    if (stream.match(/^(?:EPIAI|QUALITY|FILE|CONVERT|READ|RELATE|MATCHING|ALL|LIST|FREQ|MEANS|TABLES|SUMMARIZE|GRAPH|GRAPHTYPE|TITLETEXT|XTITLE|YTITLE|RECODE|TO|DEFINE|GROUPVAR|UNDEFINE|ASSIGN|DISPLAY|DBVARIABLES|DBVIEWS|FIELDVAR|OUTTABLE|IF|THEN|ELSE|END|SELECT|SORT|CANCEL|ASC|ASCENDING|DESC|DESCENDING|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
     if (stream.match(/^(?:STRATAVAR|WEIGHTVAR|OUTTABLE|PSUVAR|STATISTICS|COLUMNSIZE)\b/i)) return "propertyName";
     if (stream.match(/^(?:LOVALUE|HIVALUE|TRUE|FALSE|YES|NO|NOWRAP|ONEISYES|FISHER|NONE)\b/i)) return "atom";
     if (stream.match(/^"(?:[^"]|"")*"?/)) return "string";
@@ -158,6 +158,7 @@ function createCompletionSource(getFields: () => readonly FieldDefinition[]) {
         { label: "IF", detail: "conditionally run statements", type: "keyword" },
         { label: "RECODE", detail: "group numeric values", type: "keyword" },
         { label: "FREQ", detail: "frequency table", type: "keyword" },
+        { label: "GRAPH", detail: "chart active records", type: "keyword" },
         { label: "TABLES", detail: "cross-tabulation", type: "keyword" },
         { label: "SELECT", detail: "filter records", type: "keyword" },
         { label: "SORT", detail: "order active records", type: "keyword" },

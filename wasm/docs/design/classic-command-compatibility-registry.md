@@ -51,7 +51,7 @@ interpreter.
 | Data | 7 | 7 | READ selects a current-project form; RELATE joins forms; WRITE downloads selected fields; MERGE previews and confirms current-project upserts; DELETE TABLES clears a reviewed form data table; recoverable DELETE/UNDELETE RECORDS archive and restore matching records; external storage and other destructive variants require reviewed adapters |
 | Variables | 6 | 6 | DEFINE, UNDEFINE, and ASSIGN have bounded Standard session-variable execution; DEFINE GROUPVAR stores named field/Standard-variable groups and LIST expands field members; DISPLAY DBVARIABLES renders field/defined metadata; DEFINE and numeric RECODE also author the bounded full-program component |
 | Select/If | 5 | 5 | SELECT/CANCEL SELECT and SORT/CANCEL SORT have typed source dialogs and bounded selected execution; IF adds a browser-verified Standard-variable branch while record-context semantics remain open |
-| Statistics | 8 | 6 | LIST, FREQ, MEANS, TABLES, and SUMMARIZE have typed dialogs; selected LIST/FREQ/MEANS/SUMMARIZE execute; TABLES requires value review; GRAPH remains the only Explorer-visible untouched Statistics command |
+| Statistics | 8 | 6 | LIST, FREQ, MEANS, TABLES, SUMMARIZE, and GRAPH have typed dialogs; selected LIST/FREQ/MEANS/SUMMARIZE execute, GRAPH renders bounded horizontal Bar, vertical Column, and category-share Pie branches, and TABLES requires value review |
 | Advanced Statistics | 7 | 7 | Visible gaps; algorithm and dialog parity tracked independently |
 | Output | 7 | 6 | Visible gaps; every file/print route requires an explicit browser adaptation |
 | User-Defined Commands | 4 | 4 | Visible gaps; RUNPGM requires bounded project resolution; arbitrary EXECUTE is blocked |
@@ -65,12 +65,12 @@ snapshot makes its current implementation states easy to review:
 
 | State | Count | Commands |
 |---|---:|---|
-| Typed AST/parser | 23 | `READ`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `DEFINE`, `DEFINE GROUPVAR`, `UNDEFINE`, `ASSIGN`, `RECODE`, `DISPLAY`, `SELECT`, `CANCEL SELECT`, `IF`, `SORT`, `CANCEL SORT`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `SUMMARIZE` |
-| Typed source dialog | 23 | Same 23 commands |
-| Selected execution or reviewed handoff | 22 | All above except `RECODE`; `TABLES`, `DELETE TABLES`, `DELETE RECORDS`, and `UNDELETE RECORDS` require reviewed handoffs |
+| Typed AST/parser | 24 | `READ`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `DEFINE`, `DEFINE GROUPVAR`, `UNDEFINE`, `ASSIGN`, `RECODE`, `DISPLAY`, `SELECT`, `CANCEL SELECT`, `IF`, `SORT`, `CANCEL SORT`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `SUMMARIZE`, `GRAPH` |
+| Typed source dialog | 24 | Same 24 commands |
+| Selected execution or reviewed handoff | 23 | All above except `RECODE`; `TABLES`, `DELETE TABLES`, `DELETE RECORDS`, and `UNDELETE RECORDS` require reviewed handoffs |
 | Bounded full-program component | 3 | `DEFINE`, `RECODE`, `FREQ` |
-| Completely untouched | 26 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
-| Browser-verified with foodborne `.pgm` + expected output | 11 | `IF`, `UNDEFINE`, `DISPLAY`, `DEFINE GROUPVAR`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `SUMMARIZE` |
+| Completely untouched | 25 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
+| Browser-verified with foodborne `.pgm` + expected output | 12 | `IF`, `UNDEFINE`, `DISPLAY`, `DEFINE GROUPVAR`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `SUMMARIZE`, `GRAPH` |
 | Legacy-parity-verified | 0 | No command may enter this row without reviewed desktop Epi Info output |
 
 The implementation columns describe port progress, not parity closure. For
@@ -92,6 +92,7 @@ example, selected execution can be browser-tested while its command remains
 | `FREQ` | AST 0.7 | V0.1 | Executes one field with optional one `STRATAVAR` against the active session | Final step of bounded DEFINE/RECODE/FREQ | Multiple fields and GROUPVAR expansion, `* EXCEPT`, weights, more strata, options, output tables, exact legacy output behavior |
 | `MEANS` | AST 0.7 | V0.1 | Executes one numeric field against the active session | None | GROUPVAR expansion, cross-tabulation, tests/ANOVA, strata, weights, options, output tables |
 | `SUMMARIZE` | AST 1.0 | V0.1 one aggregate, source field, result name, output table, and optional group selector | Computes the aggregate against active READ/SELECT records, renders the named table, and retains it for READ during the session | None | Multiple aggregates, `COUNT()` without a field in the dialog, multiple strata, `WEIGHTVAR`, persistence/export, exact aggregate types/order/missing semantics, desktop differential output |
+| `GRAPH` | AST 1.0 bounded one-variable form | V0.3 variable, Bar/Column/Pie type, title, and axis titles | Uses the typed FREQ operation over active READ/SELECT records and renders accessible horizontal Bar, vertical Column, or Pie SVG plus an auditable data table | None | Area, Bubble, Epi Curve, Histogram, Line, Rotated Bar, Scatter, Weight Bar, multiple variables/cross-tabs, strata, weights/aggregates, templates, date intervals, 3D, exact legacy sizing/colors/window/output, desktop differential validation |
 | `TABLES` | AST 0.7 | V0.1 | Field validation and current-form handoff only | None | GROUPVAR expansion, active-session value classification, source-level exposed/case semantics, unstratified and multi-strata behavior, weights, match variables, options, output parity |
 | `DEFINE` | AST 0.7 | V0.1 | Declares one Standard typed scalar in the Classic session | Bounded Standard text variable | Global/Permanent lifetimes, initializers, full variable-expression integration, differential validation |
 | `DEFINE GROUPVAR` | AST 0.7 | V0.1 field/Standard-variable selector | Stores a named session group; LIST expands field members in declared order | None | Nested groups, group replacement/error wording, expansion in FREQ/MEANS/TABLES/other commands, Standard-variable LIST output, desktop differential output |

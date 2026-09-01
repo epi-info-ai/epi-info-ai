@@ -23,7 +23,7 @@ credentials; any such compatibility path requires a reviewed HTTPS service.
 |---|---|---|---|
 | LEGACY-STORAGE-001 | Project metadata, forms/pages, code tables, and collected-data relationships | Versioned JSON snapshot covers forms and flat records | Preserve. Inventory and map the complete legacy project model before format parity. |
 | LEGACY-STORAGE-002 | Create, open, save, copy, and select projects | File > Open Project and Save Project As validate/export a V2 JSON project envelope; project history/copy remain open | Preserve with final `.epia` container, recovery, and compatibility tests. |
-| LEGACY-STORAGE-003 | Microsoft Access project/data store | Read-only Windows inventory converter and official Sample package fixture; no direct browser driver or SQLite conversion yet | Add a reviewed `.mdb`/`.accdb` to SQLite converter outside the browser, an explicit object/type mapping, immutable-source handling, migration manifest, unsupported-object reporting, and desktop differential validation; do not silently drop. |
+| LEGACY-STORAGE-003 | Microsoft Access project/data store | Browser V0.1 reads explicitly selected `.mdb`/`.accdb` files and converts readable tables to `.sqlite`; `.duckdb` is an analytical candidate target | Harden both output-extension branches with explicit object/type mapping, immutable-source handling, migration manifest, unsupported-object reporting, and desktop differential validation; do not silently drop. SQLite remains the operational target and DuckDB the analytical target. |
 | LEGACY-STORAGE-004 | SQL Server project/data store | No direct browser connection | Adapt through a least-privilege HTTPS organizational connector; never expose database credentials to WASM/browser code. |
 | LEGACY-STORAGE-005 | Import data between projects and related tables | CSV form/record import only | Preserve semantics with typed adapters, validation, relationships, and audit evidence. |
 | LEGACY-STORAGE-006 | Browser-local working copy (new branch) | `localStorage` prototype | Extend to SQLite WASM/OPFS, export/recovery, quota handling, and migration. |
@@ -59,8 +59,8 @@ transitions, and the New Project dialog’s immediately visible local-storage no
 ## Remaining audit work
 
 - Complete the legacy project schema and database-driver inventory.
-- Extend the read-only Access inventory tool into a sandboxed `.mdb`/`.accdb`
-  to SQLite converter. Preserve project/form/page metadata, code tables,
+- Harden the sandboxed `.mdb`/`.accdb` converter for both SQLite operational and
+  DuckDB analytical targets. Preserve project/form/page metadata, code tables,
   relationships, keys/indexes, records, deletion state, and Check Code source;
   record source/output hashes, converter version, object mappings, warnings, and
   unsupported macros/VBA/OLE/attachments/queries/encryption in a migration

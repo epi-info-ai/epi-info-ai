@@ -1,0 +1,1 @@
+GRAPH case_status GRAPHTYPE="Column" TITLETEXT="Foodborne cases by status" XTITLE="Case Status" YTITLE="Count"
