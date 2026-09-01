@@ -103,9 +103,6 @@ validation-lab-build:
 browser-e2e:
   stage: browser-test
   image: mcr.microsoft.com/playwright:v1.62.0-noble
-  variables:
-    GIT_SUBMODULE_STRATEGY: normal
-    GIT_SUBMODULE_DEPTH: 1
   needs:
     - job: validation-lab-build
       artifacts: true

@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+
+const legacySampleMdb = "wasm/source/Epi-Info-Community-Edition/Epi.Core/Projects/Sample/Sample.mdb";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -1557,6 +1560,7 @@ test("NEW BRANCH Quality Profile runs as visible audited IDE source", async ({ p
 });
 
 test("NEW BRANCH FILE CONVERT migrates the legacy Sample MDB to a SQLite download", async ({ page }) => {
+  test.skip(!existsSync(legacySampleMdb), "The private legacy-source Sample.mdb fixture is not available in this checkout.");
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -1564,8 +1568,7 @@ test("NEW BRANCH FILE CONVERT migrates the legacy Sample MDB to a SQLite downloa
   const newBranches = page.locator(".classic-command-group").filter({ hasText: "New Branches" });
   await newBranches.locator("summary").click();
   await page.locator("#classic-command-file-convert").click();
-  const sample = "wasm/source/Epi-Info-Community-Edition/Epi.Core/Projects/Sample/Sample.mdb";
-  await page.locator("#classic-command-dialog-access-file").setInputFiles(sample);
+  await page.locator("#classic-command-dialog-access-file").setInputFiles(legacySampleMdb);
   await expect(page.locator("#classic-command-dialog-preview")).toHaveText('FILE CONVERT "Sample.mdb" TO "Sample.sqlite"');
   await page.locator("#classic-command-dialog-insert").click();
   await page.locator("#classic-program-source .cm-content").press("Control+A");
@@ -1587,6 +1590,7 @@ test("NEW BRANCH FILE CONVERT migrates the legacy Sample MDB to a SQLite downloa
 
 test("NEW BRANCH FILE CONVERT selects DuckDB from the output extension", async ({ page }) => {
   test.setTimeout(120_000);
+  test.skip(!existsSync(legacySampleMdb), "The private legacy-source Sample.mdb fixture is not available in this checkout.");
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -1594,8 +1598,7 @@ test("NEW BRANCH FILE CONVERT selects DuckDB from the output extension", async (
   const newBranches = page.locator(".classic-command-group").filter({ hasText: "New Branches" });
   await newBranches.locator("summary").click();
   await page.locator("#classic-command-file-convert").click();
-  const sample = "wasm/source/Epi-Info-Community-Edition/Epi.Core/Projects/Sample/Sample.mdb";
-  await page.locator("#classic-command-dialog-access-file").setInputFiles(sample);
+  await page.locator("#classic-command-dialog-access-file").setInputFiles(legacySampleMdb);
   await page.locator("#classic-command-dialog-file-convert-target").selectOption("duckdb");
   await expect(page.locator("#classic-command-dialog-file-convert-name")).toHaveValue("Sample.duckdb");
   await expect(page.locator("#classic-command-dialog-preview")).toHaveText('FILE CONVERT "Sample.mdb" TO "Sample.duckdb"');
