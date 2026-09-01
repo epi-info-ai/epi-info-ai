@@ -217,6 +217,20 @@ test("Enter Data imports JSON through the same validated record path", async ({ 
   await expect(page.locator("#record-count")).toHaveText("(1)");
 });
 
+test("Enter Data imports the canonical foodborne coordinates into its inferred form", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields from foodborne-outbreak-investigation.csv");
+
+  await page.locator("#designer-enter-data").click();
+  await expect(page.locator("#record-count")).toHaveText("(0)");
+  await page.locator("#csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-status")).toHaveText("Imported 96 records from foodborne-outbreak-investigation.csv.");
+  await expect(page.locator("#record-count")).toHaveText("(96)");
+  await expect(page.locator("#records-body tr").first()).toContainText("41.67230");
+  await expect(page.locator("#records-body tr").first()).toContainText("-83.61450");
+});
+
 test("Form Designer authors a safe conditional skip and Enter follows it", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   const illRow = page.locator("#field-list tr").nth(2);

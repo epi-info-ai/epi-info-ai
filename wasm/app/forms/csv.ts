@@ -130,6 +130,31 @@ export interface CsvInferenceResult {
   records: EpiRecord[];
 }
 
+/**
+ * Preserve imported coordinates as signed decimal-degree text while padding a
+ * valid value to the representation required by its coordinate rule. Padding
+ * changes neither the numeric value nor the mapped location. Invalid and
+ * out-of-range values remain untouched so normal validation can reject them.
+ */
+export function normalizeImportedCoordinates(schema: FormSchema, record: EpiRecord): EpiRecord {
+  let normalized = record;
+  for (const field of schema.fields) {
+    const rule = field.rules?.find((candidate) => candidate.kind === "coordinate");
+    if (rule?.kind !== "coordinate") continue;
+    const original = record[field.name];
+    if (original === undefined || original === null || String(original).trim() === "") continue;
+    const text = String(original).trim();
+    const coordinate = Number(text);
+    const limit = rule.axis === "latitude" ? 90 : 180;
+    if (!Number.isFinite(coordinate) || coordinate < -limit || coordinate > limit) continue;
+    const decimalPlaces = /^[+-]?\d+\.(\d+)$/.exec(text)?.[1]?.length ?? 0;
+    if (decimalPlaces >= rule.minimumDecimalPlaces) continue;
+    if (normalized === record) normalized = { ...record };
+    normalized[field.name] = coordinate.toFixed(rule.minimumDecimalPlaces);
+  }
+  return normalized;
+}
+
 export function inferSchemaFromRows(fileName: string, rows: string[][]): CsvInferenceResult {
   const firstRow = rows[0];
   if (!firstRow || firstRow.length === 0) throw new Error("The data file is empty.");
@@ -170,10 +195,11 @@ export function inferSchemaFromRows(fileName: string, rows: string[][]): CsvInfe
     .split(/\s+/)
     .map((word) => fieldPrompt(word))
     .join(" ") + " Form";
-  const records: EpiRecord[] = rows.slice(1).map((row) => Object.fromEntries(
+  const schema = { name: formName, fields };
+  const records: EpiRecord[] = rows.slice(1).map((row) => normalizeImportedCoordinates(schema, Object.fromEntries(
     fields.map((field, fieldIndex) => [field.name, row[columns[fieldIndex]!.index] ?? ""]),
-  ));
-  return { schema: { name: formName, fields }, records };
+  )));
+  return { schema, records };
 }
 
 export function inferSchemaFromCsv(fileName: string, rows: string[][]): CsvInferenceResult {

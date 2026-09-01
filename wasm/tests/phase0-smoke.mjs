@@ -1518,7 +1518,9 @@ async function checkCsvAndProjectFixtures() {
   assert.equal(inferred.records.length, 3);
 
   const serializedRows = module.parseCsv(module.serializeCsv(inferred.schema, inferred.records));
-  assert.deepEqual(serializedRows, rows);
+  assert.deepEqual(serializedRows, rows.map((row, index) => index === 0 ? row : [
+    ...row.slice(0, 5), Number(row[5]).toFixed(5), Number(row[6]).toFixed(5),
+  ]));
 
   const tsvRows = module.parseTsv('Case ID\tAge\tNotes\nTSV-001\t42\t"tabs stay tabular"\n');
   assert.deepEqual(tsvRows, [["Case ID", "Age", "Notes"], ["TSV-001", "42", "tabs stay tabular"]]);
@@ -1535,6 +1537,7 @@ async function checkCsvAndProjectFixtures() {
 
   const outbreakCsv = await readFile(join(examplesDirectory, "foodborne-outbreak-investigation.csv"), "utf8");
   const outbreakRows = module.parseCsv(outbreakCsv);
+  const importedRecordValidation = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/validation.ts")).href}?csvvalidation=${Date.now()}`);
   assert.equal(outbreakRows.length, 97);
   assert.equal(outbreakRows[0].length, 27);
   assert.equal(outbreakRows[0][0], "ID");
@@ -1548,8 +1551,11 @@ async function checkCsvAndProjectFixtures() {
   assert.deepEqual(outbreak.schema.fields.find((field) => field.name === "longitude")?.rules,
     [{ kind: "coordinate", axis: "longitude", minimumDecimalPlaces: 5 }]);
   assert.equal(new Set(outbreak.records.map((record) => record.id)).size, 96);
+  assert.equal(outbreak.records[0].latitude, "41.67230");
+  assert.equal(outbreak.records[0].longitude, "-83.61450");
   assert.ok(outbreak.records.every((record) => Number(record.latitude) >= 41.6 && Number(record.latitude) <= 41.8));
   assert.ok(outbreak.records.every((record) => Number(record.longitude) >= -83.7 && Number(record.longitude) <= -83.4));
+  assert.ok(outbreak.records.every((record) => importedRecordValidation.validateRecord("foodborne", outbreak.schema, record, 0).length === 0));
   assert.equal(module.alignToGrid(19, 12), 24);
   assert.equal(module.alignToGrid(5, 12), 0);
 

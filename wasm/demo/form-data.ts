@@ -26,6 +26,7 @@ import {
 import {
   inferSchemaFromCsv,
   inferSchemaFromRows,
+  normalizeImportedCoordinates,
   normalizeFieldName,
   parseCsv,
   serializeCsv,
@@ -1414,9 +1415,9 @@ async function importDataFile(file: File): Promise<void> {
   const missing = expected.filter((name) => !headers.includes(name));
   if (missing.length > 0) throw new Error(`Missing column${missing.length === 1 ? "" : "s"}: ${missing.join(", ")}.`);
 
-  const imported = rows.slice(1).map((cells) => materializeCalculatedFields(schema, Object.fromEntries(
+  const imported = rows.slice(1).map((cells) => normalizeImportedCoordinates(schema, materializeCalculatedFields(schema, Object.fromEntries(
     expected.map((name) => [name, cells[headers.indexOf(name)] ?? ""]),
-  )));
+  ))));
   const validationIssues = validateRecords(currentFormId, schema, imported, records);
   const errors = validationIssues.filter((issue) => issue.severity === "error");
   if (errors.length > 0) {
