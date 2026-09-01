@@ -48,12 +48,12 @@ export const CLASSIC_ANALYSIS_MENUS: readonly ClassicTopMenu[] = [
 // only in internal enums but absent from the shipped tree are not promoted here.
 export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
   { key: "data", label: "Data", commands: [
-    command("read", "Read", "classic-command-read"), gap("relate", "Relate"), gap("write", "Write (Export)"), gap("merge", "Merge"),
-    gap("delete-file-table", "Delete File/Table"), gap("delete-records", "Delete Records"), gap("undelete-records", "Undelete Records"),
+    command("read", "Read", "classic-command-read"), command("relate", "Relate", "classic-command-relate"), command("write", "Write (Export)", "classic-command-write"), command("merge", "Merge", "classic-command-merge"),
+    command("delete-file-table", "Delete File/Table", "classic-command-delete-file-table"), command("delete-records", "Delete Records", "classic-command-delete-records"), command("undelete-records", "Undelete Records", "classic-command-undelete-records"),
   ] },
   { key: "variables", label: "Variables", commands: [
-    command("define", "Define", "classic-command-define"), gap("define-group", "DefineGroup"), command("undefine", "Undefine", "classic-command-undefine"),
-    command("assign", "Assign", "classic-command-assign"), command("recode", "Recode", "classic-command-recode"), gap("display", "Display"),
+    command("define", "Define", "classic-command-define"), command("define-group", "DefineGroup", "classic-command-define-group"), command("undefine", "Undefine", "classic-command-undefine"),
+    command("assign", "Assign", "classic-command-assign"), command("recode", "Recode", "classic-command-recode"), command("display", "Display", "classic-command-display"),
   ] },
   { key: "select-if", label: "Select/If", commands: [
     command("select", "Select", "classic-command-select"), command("cancel-select", "Cancel Select", "classic-command-cancel-select"), command("if", "If", "classic-command-if"), command("sort", "Sort", "classic-command-sort"), command("cancel-sort", "Cancel Sort", "classic-command-cancel-sort"),
@@ -61,7 +61,7 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
   { key: "statistics", label: "Statistics", commands: [
     command("list", "List", "classic-command-list"), command("frequencies", "Frequencies", "classic-command-frequencies"),
     command("tables", "Tables", "classic-command-tables"), command("means", "Means", "classic-command-means"),
-    gap("summarize", "Summarize"), gap("graph", "Graph"),
+    command("summarize", "Summarize", "classic-command-summarize"), gap("graph", "Graph"),
   ] },
   { key: "advanced-statistics", label: "Advanced Statistics", commands: [
     gap("linear-regression", "Linear Regression"), gap("logistic-regression", "Logistic Regression"),

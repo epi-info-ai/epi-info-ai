@@ -10,6 +10,8 @@
   type ProjectSnapshotV1,
 } from "../app/contracts/core.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
+import type { ClassicDeleteRecordsResult } from "../app/programming/classic-delete-records.ts";
+import type { ClassicUndeleteRecordsResult } from "../app/programming/classic-undelete-records.ts";
 import type { FieldCheckCode, SafeCheckCodeStatement, SafeFieldAction } from "../app/contracts/check-code.ts";
 import type { FieldValidationRule } from "../app/contracts/validation.ts";
 import {
@@ -405,6 +407,113 @@ export function getProjectDataSources(): MapDataSource[] {
     records: structuredClone(form.records || []),
     ...(form.dataset ? { dataset: structuredClone(form.dataset) } : {}),
   }));
+}
+
+export function applyClassicMergeRecords(target: MapDataSource): void {
+  if (!hasActiveProject) throw new Error("Open a project before applying MERGE.");
+  syncCurrentForm();
+  const form = projectState.forms.find((candidate) => candidate.id === target.formId);
+  if (!form) throw new RangeError("The MERGE destination form is no longer in the current project.");
+  const expected = form.schema.fields.map(({ name, type }) => `${name.toLocaleLowerCase("en-US")}:${type}`);
+  const received = target.fields.map(({ name, type }) => `${name.toLocaleLowerCase("en-US")}:${type}`);
+  if (expected.length !== received.length || expected.some((value, index) => value !== received[index])) {
+    throw new RangeError("The MERGE destination schema changed after preview. Rebuild the preview before applying it.");
+  }
+  const issueKey = (issue: ReturnType<typeof validateRecords>[number]): string => `${issue.recordIndex}:${issue.fieldName}:${issue.rule}:${issue.message}`;
+  const existingIssues = new Set(validateRecords(form.id, form.schema, form.records).map(issueKey));
+  const introducedIssues = validateRecords(form.id, form.schema, target.records).filter((issue) => !existingIssues.has(issueKey(issue)));
+  if (introducedIssues.length) throw new RangeError(`MERGE would introduce ${introducedIssues.length} new field-validation issue${introducedIssues.length === 1 ? "" : "s"}. No project records were changed.`);
+  form.records = structuredClone(target.records);
+  if (form.id === currentFormId) {
+    records = structuredClone(target.records);
+    renderEntryForm();
+    renderRecords();
+  }
+  if (!syncCurrentForm()) throw new Error("The MERGE result could not be saved to browser project storage.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+}
+
+export function applyClassicDeleteTableRecords(target: MapDataSource): void {
+  if (!hasActiveProject) throw new Error("Open a project before applying DELETE TABLES.");
+  syncCurrentForm();
+  const form = projectState.forms.find((candidate) => candidate.id === target.formId);
+  if (!form) throw new RangeError("The DELETE TABLES target is no longer in the current project.");
+  if (target.records.length !== 0) throw new RangeError("The reviewed DELETE TABLES result must contain no records.");
+  const expected = form.schema.fields.map(({ name, type }) => `${name.toLocaleLowerCase("en-US")}:${type}`);
+  const received = target.fields.map(({ name, type }) => `${name.toLocaleLowerCase("en-US")}:${type}`);
+  if (expected.length !== received.length || expected.some((value, index) => value !== received[index])) {
+    throw new RangeError("The DELETE TABLES target schema changed after preview. Generate a new preview.");
+  }
+  form.records = [];
+  delete form.dataset;
+  if (form.id === currentFormId) {
+    records = [];
+    datasetProvenance = undefined;
+    renderEntryForm();
+    renderRecords();
+  }
+  if (!syncCurrentForm()) throw new Error("The empty project data table could not be saved to browser storage.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+}
+
+export function applyClassicDeleteRecords(result: ClassicDeleteRecordsResult): void {
+  if (!hasActiveProject) throw new Error("Open a project before applying DELETE RECORDS.");
+  syncCurrentForm();
+  const form = projectState.forms.find((candidate) => candidate.id === result.formId);
+  if (!form) throw new RangeError("The DELETE RECORDS target is no longer in the current project.");
+  if (JSON.stringify(form.records) !== JSON.stringify(result.sourceSnapshot)) {
+    throw new RangeError("The DELETE RECORDS target changed after preview. Generate a new preview.");
+  }
+  const occurredAt = new Date().toISOString();
+  form.deletedRecords ??= [];
+  projectState.auditLog ??= [];
+  for (const item of result.deleted) {
+    const archiveId = lifecycleId("archive");
+    form.deletedRecords.push({
+      archiveId, record: structuredClone(item.record), originalIndex: item.originalIndex,
+      deletedAt: occurredAt, reason: `Classic Analysis ${result.canonicalSource}`,
+    });
+    projectState.auditLog.push({
+      id: lifecycleId("audit"), occurredAt, action: "record-deleted", formId: result.formId, archiveId,
+      detail: `Record ${item.originalIndex + 1} moved to the Recycle Bin by ${result.canonicalSource}.`,
+    });
+  }
+  form.records = structuredClone(result.remainingRecords);
+  if (form.id === currentFormId) {
+    records = structuredClone(result.remainingRecords);
+    renderEntryForm();
+    renderRecords();
+  }
+  if (!syncCurrentForm()) throw new Error("The DELETE RECORDS result could not be saved to browser project storage.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+}
+
+export function applyClassicUndeleteRecords(result: ClassicUndeleteRecordsResult): void {
+  if (!hasActiveProject) throw new Error("Open a project before applying UNDELETE RECORDS.");
+  syncCurrentForm();
+  const form = projectState.forms.find((candidate) => candidate.id === result.formId);
+  if (!form) throw new RangeError("The UNDELETE RECORDS target is no longer in the current project.");
+  if (JSON.stringify(form.records) !== JSON.stringify(result.sourceSnapshot)
+    || JSON.stringify(form.deletedRecords ?? []) !== JSON.stringify(result.archiveSnapshot)) {
+    throw new RangeError("The active records or Recycle Bin changed after preview. Generate a new UNDELETE preview.");
+  }
+  const occurredAt = new Date().toISOString();
+  projectState.auditLog ??= [];
+  for (const item of result.restored) {
+    projectState.auditLog.push({
+      id: lifecycleId("audit"), occurredAt, action: "record-restored", formId: result.formId, archiveId: item.archiveId,
+      detail: `Record restored from the Recycle Bin by ${result.canonicalSource}.`,
+    });
+  }
+  form.records = structuredClone(result.restoredRecords);
+  form.deletedRecords = structuredClone(result.remainingDeleted);
+  if (form.id === currentFormId) {
+    records = structuredClone(result.restoredRecords);
+    renderEntryForm();
+    renderRecords();
+  }
+  if (!syncCurrentForm()) throw new Error("The UNDELETE RECORDS result could not be saved to browser project storage.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
 }
 
 export function getCurrentProjectSnapshot(): ProjectSnapshotV1 {

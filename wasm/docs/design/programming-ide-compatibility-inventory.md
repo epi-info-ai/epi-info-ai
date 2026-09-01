@@ -14,6 +14,13 @@ This inventory covers both programming environments:
 - **Form Designer Check Code Editor**, which authors event-driven form, page,
   record, and field behavior executed by Enter Data.
 
+The reviewed Classic Analysis interface is a lightweight script IDE, not a
+Python-IDLE-style interactive REPL. Its Program Editor contains a multiline
+`RichTextBox`, a separate output pane, and a **Run Commands** action; Command
+Explorer dialogs generate editable source, and `.PGM` programs can be saved or
+launched from the application command line. Epi Info AI preserves that model.
+An immediate prompt/console may be explored later only as a labelled new branch.
+
 Primary legacy evidence includes:
 
 - `Epi.Windows.Analysis/Forms/ProgramEditor*`, `PGM.cs`, `FileBasedPGM.cs`, and
@@ -41,10 +48,10 @@ valuable migration asset, but the browser should define its own versioned typed
 AST/IR rather than porting the desktop parser's UI, process, and reflection
 assumptions wholesale.
 
-Browser AST V0.2 now establishes that contract in
+Browser AST 1.0 now establishes that contract in
 `app/programming/classic-ast.ts`. It uses discriminated statement and expression
-nodes, an explicit `0.2.0` version, and source spans. The parser recognizes
-`READ`, `FREQ`, `MEANS`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`, including
+nodes, an explicit `1.0.0` version, and source spans. The parser recognizes
+`READ`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `FREQ`, `LIST`, `MEANS`, `TABLES`, `SUMMARIZE`, `RECODE`, `DEFINE`, `DEFINE GROUPVAR`, `UNDEFINE`, `DISPLAY`, `ASSIGN`, `IF`, `SELECT`, and `SORT`, including
 nested conditional blocks and the expression operators needed by those commands.
 Parsing remains separate from authority: the bounded full-program
 `DEFINE -> RECODE -> FREQ` plan and single selected FREQ/MEANS paths are distinct

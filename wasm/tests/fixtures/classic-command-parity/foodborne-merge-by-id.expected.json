@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "MERGE",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96,
+    "fieldCount": 27
+  },
+  "expected": {
+    "keys": [{ "currentField": "id", "sourceField": "id" }],
+    "updatedRecords": 96,
+    "insertedRecords": 0,
+    "outputRecords": 96
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Run against copied desktop project tables before legacy-parity-verified status; verify parsed-but-unused APPEND/UPDATE/RELATE modes, collation, missing keys, insert mapping, validation, and update counts."
+  }
+}

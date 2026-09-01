@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "DELETE RECORDS",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96,
+    "fieldCount": 27
+  },
+  "expected": {
+    "field": "case_status",
+    "operator": "=",
+    "value": "Confirmed",
+    "deletedRecords": 22,
+    "remainingRecords": 74,
+    "recoverable": true
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Run against a disposable copied desktop project view before legacy-parity-verified status; verify SELECT intersection, RecStatus marking, child-view cascade, missing values, confirmation/output wording, and record order after UNDELETE."
+  }
+}

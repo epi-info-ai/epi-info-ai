@@ -1186,6 +1186,317 @@ test("UNDEFINE removes one or all Standard session variables", async ({ page }) 
   await expect(page.locator("#classic-program-history-count")).toHaveText("4");
 });
 
+test("DISPLAY DBVARIABLES renders familiar variable metadata without mutation", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  const run = page.locator("#classic-program-run-selection");
+  for (const source of ['DEFINE ReviewLabel TEXTINPUT "Review label"', 'ASSIGN ReviewLabel = "Priority review"']) {
+    await editor.fill(source);
+    await editor.press("Control+A");
+    await run.click();
+  }
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  await tree.locator("details").filter({ hasText: "Variables" }).locator("summary").click();
+  await tree.getByRole("treeitem", { name: "Display", exact: true }).click();
+  await page.locator("#classic-command-dialog-display-mode").selectOption("defined");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("DISPLAY DBVARIABLES DEFINE");
+  await page.locator("#classic-command-dialog-insert").click();
+  await run.click();
+  await expect(page.locator("#classic-display-output")).toBeVisible();
+  await expect(page.locator("#classic-display-output-body tr")).toHaveCount(1);
+  await expect(page.locator("#classic-display-output-body")).toContainText("ReviewLabel");
+  await expect(page.locator("#classic-display-output-body")).toContainText("Priority review");
+  await expect(page.locator("#classic-display-output-body")).toContainText("Standard");
+
+  await tree.getByRole("treeitem", { name: "Display", exact: true }).click();
+  await page.locator("#classic-command-dialog-display-mode").selectOption("list");
+  await page.locator("#classic-command-dialog-display-variables").selectOption(["ReviewLabel", "case_status"]);
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("DISPLAY DBVARIABLES LIST case_status ReviewLabel");
+  await page.locator("#classic-command-dialog-insert").click();
+  await run.click();
+  await expect(page.locator("#classic-display-output-body tr")).toHaveCount(2);
+  await expect(page.locator("#classic-display-output-body")).toContainText("Case Status");
+  await expect(page.locator("#classic-program-session-status")).toContainText("ReviewLabel=Priority review");
+  await expect(page.locator("#classic-program-feedback")).toContainText("No data or session state was changed");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("4");
+});
+
+test("DEFINE GROUPVAR stores a foodborne field group and LIST expands it", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const editor = page.locator("#classic-program-source .cm-content");
+  const run = page.locator("#classic-program-run-selection");
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  await tree.locator("details").filter({ hasText: "Variables" }).locator("summary").click();
+  await tree.getByRole("treeitem", { name: "DefineGroup", exact: true }).click();
+  await page.locator("#classic-command-dialog-group-name").fill("FoodSymptoms");
+  await page.locator("#classic-command-dialog-group-members").selectOption(["diarrhea", "vomiting", "nausea", "abdominal_cramps", "fever"]);
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("DEFINE FoodSymptoms GROUPVAR diarrhea vomiting nausea abdominal_cramps fever");
+  await page.locator("#classic-command-dialog-insert").click();
+  await editor.press("Control+A");
+  await run.click();
+  await expect(page.locator("#classic-program-session-status")).toContainText("Groups: FoodSymptoms=[diarrhea, vomiting, nausea, abdominal_cramps, fever]");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Record data was not changed");
+
+  if (!(await page.locator("#classic-command-list").isVisible())) await tree.getByText("Statistics", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "List", exact: true }).click();
+  await page.locator("#classic-command-dialog-field").selectOption(["id", "FoodSymptoms"]);
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("LIST id FoodSymptoms");
+  await page.locator("#classic-command-dialog-insert").click();
+  await run.click();
+  await expect(page.locator("#classic-list-output-head th")).toHaveText(["ID", "Diarrhea", "Vomiting", "Nausea", "Abdominal Cramps", "Fever"]);
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
+  await expect(page.locator("#classic-list-output-note")).toHaveText("Showing all 96 records.");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("2");
+});
+
+test("RELATE joins a current-project foodborne form and activates the combined table", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const editor = page.locator("#classic-program-source .cm-content");
+  const run = page.locator("#classic-program-run-selection");
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-relate").isVisible())) await tree.getByText("Data", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Relate", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-source")).toHaveValue("Foodborne Outbreak Investigation Form");
+  await page.locator("#classic-command-dialog-relate-current-key").selectOption("id");
+  await page.locator("#classic-command-dialog-relate-related-key").selectOption("id");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("RELATE [Foodborne Outbreak Investigation Form] id :: id MATCHING");
+  await page.locator("#classic-command-dialog-insert").click();
+  await editor.press("Control+A");
+  await run.click();
+  await expect(page.locator("#classic-program-source-name")).toContainText("Foodborne Outbreak Investigation Form + Foodborne Outbreak Investigation Form");
+  await expect(page.locator("#classic-program-feedback")).toContainText("96 combined records are now active");
+  await expect(page.locator("#classic-program-feedback")).toContainText("0 unmatched parent records");
+
+  await editor.fill("LIST id case_status case_status2");
+  await editor.press("Control+A");
+  await run.click();
+  await expect(page.locator("#classic-list-output-head th")).toHaveText(["ID", "Case Status", "Case Status (Foodborne Outbreak Investigation Form)"]);
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
+  await expect(page.locator("#classic-program-history-count")).toHaveText("2");
+});
+
+test("WRITE exports selected active foodborne fields through an explicit browser download", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-write").isVisible())) await tree.getByText("Data", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Write (Export)", exact: true }).click();
+  await page.locator("#classic-command-dialog-write-file").fill("foodborne-demo.csv");
+  await page.locator("#classic-command-dialog-write-fields").selectOption(["id", "age", "sex", "case_status"]);
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('WRITE REPLACE "Text" {foodborne-demo.csv}:foodborne_demo#csv id age sex case_status');
+  await page.locator("#classic-command-dialog-insert").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  await editor.press("Control+A");
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#classic-program-run-selection").click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("foodborne-demo.csv");
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const csv = Buffer.concat(chunks).toString("utf8").replace(/^\ufeff/, "");
+  expect(csv.split("\r\n")).toHaveLength(97);
+  expect(csv.split("\r\n")[0]).toBe("id,age,sex,case_status");
+  await expect(page.locator("#classic-program-feedback")).toContainText("96 active records and 4 fields");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+});
+
+test("MERGE previews and explicitly confirms current-project destination changes", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-merge").isVisible())) await tree.getByText("Data", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Merge", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-source")).toHaveValue("Foodborne Outbreak Investigation Form");
+  await page.locator("#classic-command-dialog-merge-current-key").selectOption("id");
+  await page.locator("#classic-command-dialog-merge-source-key").selectOption("id");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("MERGE [Foodborne Outbreak Investigation Form] id :: id");
+  await page.locator("#classic-command-dialog-insert").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  await editor.press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+
+  await expect(page.locator("#classic-merge-preview-dialog")).toBeVisible();
+  await expect(page.locator("#classic-merge-preview-before")).toHaveText("96");
+  await expect(page.locator("#classic-merge-preview-source-count")).toHaveText("96");
+  await expect(page.locator("#classic-merge-preview-updated")).toHaveText("96");
+  await expect(page.locator("#classic-merge-preview-inserted")).toHaveText("0");
+  await expect(page.locator("#classic-merge-preview-after")).toHaveText("96");
+  await expect(page.locator("#classic-program-feedback")).toContainText("No records have changed");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("0");
+
+  await page.locator("#classic-merge-preview-apply").click();
+  await expect(page.locator("#classic-merge-preview-dialog")).toBeHidden();
+  await expect(page.locator("#classic-program-feedback")).toContainText("MERGE applied");
+  await expect(page.locator("#classic-program-feedback")).toContainText("96 destination records are now active");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+});
+
+test("DELETE TABLES requires review and preserves the foodborne form design", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-delete-file-table").isVisible())) await tree.getByText("Data", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Delete File/Table", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("DELETE TABLES [Foodborne Outbreak Investigation Form]");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+
+  await expect(page.locator("#classic-delete-preview-dialog")).toBeVisible();
+  await expect(page.locator("#classic-delete-preview-records")).toHaveText("96");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("0");
+  await expect(page.locator("#classic-delete-preview-apply")).toBeDisabled();
+  await page.locator("#classic-delete-preview-confirm").check();
+  await page.locator("#classic-delete-preview-apply").click();
+  await expect(page.locator("#classic-delete-preview-dialog")).toBeHidden();
+  await expect(page.locator("#classic-program-feedback")).toContainText("96 records were removed");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+  await page.locator('[data-module="forms"]').click();
+  await expect(page.locator("#field-list tr")).toHaveCount(27);
+});
+
+test("DELETE RECORDS moves matching foodborne records to the recoverable Recycle Bin", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-delete-records").isVisible())) await tree.getByText("Data", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Delete Records", exact: true }).click();
+  await page.locator("#classic-command-dialog-delete-field").selectOption("case_status");
+  await page.locator("#classic-command-dialog-delete-value").fill("Confirmed");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('DELETE (case_status = "Confirmed")');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+
+  await expect(page.locator("#classic-delete-records-preview-dialog")).toBeVisible();
+  await expect(page.locator("#classic-delete-records-preview-source")).toHaveText("96");
+  await expect(page.locator("#classic-delete-records-preview-matched")).toHaveText("22");
+  await expect(page.locator("#classic-delete-records-preview-remaining")).toHaveText("74");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("0");
+  await page.locator("#classic-delete-records-preview-confirm").check();
+  await page.locator("#classic-delete-records-preview-apply").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("22 records moved to the Recycle Bin");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+
+  await page.locator('[data-module="data"]').click();
+  await expect(page.locator("#record-count")).toHaveText("(74)");
+  await page.locator("#enter-data-quality").click();
+  await expect(page.locator("#data-quality-deleted-record option")).toHaveCount(23);
+  await expect(page.locator("#data-quality-audit-log")).toContainText("DELETE (case_status = \"Confirmed\")");
+  await page.locator("[data-close-data-quality]").last().click();
+
+  await page.locator('[data-module="classic"]').click();
+  if (!(await page.locator("#classic-command-undelete-records").isVisible())) await tree.getByText("Data", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Undelete Records", exact: true }).click();
+  await page.locator("#classic-command-dialog-undelete-field").selectOption("case_status");
+  await page.locator("#classic-command-dialog-undelete-value").fill("Confirmed");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('UNDELETE (case_status = "Confirmed")');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-undelete-records-preview-dialog")).toBeVisible();
+  await expect(page.locator("#classic-undelete-records-preview-active")).toHaveText("74");
+  await expect(page.locator("#classic-undelete-records-preview-deleted")).toHaveText("22");
+  await expect(page.locator("#classic-undelete-records-preview-matched")).toHaveText("22");
+  await expect(page.locator("#classic-undelete-records-preview-after")).toHaveText("96");
+  await page.locator("#classic-undelete-records-preview-confirm").check();
+  await page.locator("#classic-undelete-records-preview-apply").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("22 records restored");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("2");
+  await page.locator('[data-module="data"]').click();
+  await expect(page.locator("#record-count")).toHaveText("(96)");
+  await page.locator("#enter-data-quality").click();
+  await expect(page.locator("#data-quality-deleted-record option")).toHaveCount(1);
+  await expect(page.locator("#data-quality-audit-log")).toContainText("UNDELETE (case_status = \"Confirmed\")");
+});
+
+test("SUMMARIZE creates a named foodborne age-by-sex output table", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  if (!(await page.locator("#classic-command-summarize").isVisible())) await tree.getByText("Statistics", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Summarize", exact: true }).click();
+  await page.locator("#classic-command-dialog-summarize-aggregate").selectOption("AVG");
+  await page.locator("#classic-command-dialog-summarize-field").selectOption("age");
+  await page.locator("#classic-command-dialog-summarize-result").fill("AverageAge");
+  await page.locator("#classic-command-dialog-summarize-table").fill("FoodborneAgeBySex");
+  await page.locator("#classic-command-dialog-summarize-strata").selectOption("sex");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("SUMMARIZE AverageAge :: AVG(age) TO FoodborneAgeBySex STRATAVAR=sex");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+
+  await expect(page.locator("#classic-summarize-output")).toBeVisible();
+  await expect(page.locator("#classic-summarize-output-title")).toHaveText("FoodborneAgeBySex");
+  await expect(page.locator("#classic-summarize-output-body tr")).toHaveCount(2);
+  await expect(page.locator("#classic-summarize-output-body")).toContainText("43.5416666667");
+  await expect(page.locator("#classic-summarize-output-body")).toContainText("38.0625");
+  await expect(page.locator("#classic-program-feedback")).toContainText("created in-session table FoodborneAgeBySex with 2 rows");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+
+  if (!(await page.locator("#classic-command-read").isVisible())) await tree.getByText("Data", { exact: true }).click();
+  await tree.getByRole("treeitem", { name: "Read", exact: true }).click();
+  await page.locator("#classic-command-dialog-source").selectOption({ label: "FoodborneAgeBySex (2 records)" });
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("READ FoodborneAgeBySex");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-source .cm-content").press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-source-name")).toContainText("FoodborneAgeBySex · 2 of 2 records");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("2");
+});
+
 test("Program Editor safely runs the taught age-group RECODE and records history", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();

@@ -1,0 +1,4 @@
+*** Epi Info AI bounded RELATE validation program
+*** Dataset: foodborne-outbreak-investigation.csv (96 records, 27 fields)
+RELATE [Foodborne Outbreak Investigation Form] id :: id MATCHING
+LIST id case_status case_status2

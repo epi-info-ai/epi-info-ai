@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=43" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=58"></script>
+  <script type="module" src="app.js?v=67"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -783,14 +783,63 @@
           <form method="dialog">
             <div class="legacy-dialog-titlebar"><h2 id="classic-command-dialog-title">Insert Command</h2><button value="cancel" aria-label="Close">×</button></div>
             <div class="legacy-dialog-body classic-program-dialog-body">
-              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="define">Define</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option></select></label>
+              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="summarize">Summarize</option></select></label>
               <label id="classic-command-dialog-source-label" hidden>Project form<select id="classic-command-dialog-source"></select></label>
+              <fieldset id="classic-command-dialog-relate" hidden>
+                <legend>Relate tables</legend>
+                <p class="inline-feedback">Build a relationship between the active table and a form in the current project.</p>
+                <label>Current-table key<select id="classic-command-dialog-relate-current-key"></select></label>
+                <label>Related-table key<select id="classic-command-dialog-relate-related-key"></select></label>
+                <label class="checkbox-row"><input id="classic-command-dialog-relate-all" type="checkbox"> Include unmatched current-table records (ALL)</label>
+                <p class="method-note">MATCHING keeps only matched records. ALL also keeps unmatched active records. Additional composite key pairs can be typed directly with AND and use the same validated engine.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-write" hidden>
+                <legend>Browser export</legend>
+                <label>Download file name<input id="classic-command-dialog-write-file" autocomplete="off" value="epi-info-export.csv"></label>
+                <label>Variables to write<select id="classic-command-dialog-write-fields" multiple size="8"></select></label>
+                <p class="field-help">This browser adaptation preserves WRITE REPLACE "Text" and downloads a UTF-8 CSV. APPEND and legacy database/file drivers remain unavailable until a reviewed adapter is selected.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-merge" hidden>
+                <legend>Merge key</legend>
+                <p>The active Classic table is the destination. Matching source records update it; unmatched source records are inserted after preview and confirmation.</p>
+                <label>Destination-table key<select id="classic-command-dialog-merge-current-key"></select></label>
+                <label>Source-table key<select id="classic-command-dialog-merge-source-key"></select></label>
+              </fieldset>
+              <fieldset id="classic-command-dialog-delete-table" hidden>
+                <legend>Delete project data table</legend>
+                <p>This browser adaptation clears every stored record from the selected project form while preserving its schema and form design.</p>
+                <p class="warning-banner">Running this command requires separate review and confirmation. External files, databases, wildcards, RUNSILENT, and SAVEDATA remain disabled.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-delete-records" hidden>
+                <legend>Records affected</legend>
+                <label class="checkbox-row"><input id="classic-command-dialog-delete-all" type="checkbox"> All active records (*)</label>
+                <label id="classic-command-dialog-delete-field-label">Available variable<select id="classic-command-dialog-delete-field"></select></label>
+                <label id="classic-command-dialog-delete-operator-label">Comparison<select id="classic-command-dialog-delete-operator"><option value="=">Equals (=)</option><option value="&lt;&gt;">Does not equal (&lt;&gt;)</option><option value=">">Greater than (&gt;)</option><option value="&gt;=">Greater than or equal (&gt;=)</option><option value="&lt;">Less than (&lt;)</option><option value="&lt;=">Less than or equal (&lt;=)</option></select></label>
+                <label id="classic-command-dialog-delete-value-label">Value<input id="classic-command-dialog-delete-value" autocomplete="off"></label>
+                <label id="classic-command-dialog-delete-boolean-label" hidden>Value<select id="classic-command-dialog-delete-boolean"><option value="true">Yes (+)</option><option value="false">No (-)</option></select></label>
+                <p class="method-note">Matching active records move to the project Recycle Bin. PERMANENT, RUNSILENT, compound criteria, and related-record cascade remain fail-closed.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-undelete-records" hidden>
+                <legend>Deleted records affected</legend>
+                <label class="checkbox-row"><input id="classic-command-dialog-undelete-all" type="checkbox"> All records in the Recycle Bin (*)</label>
+                <label id="classic-command-dialog-undelete-field-label">Available variable<select id="classic-command-dialog-undelete-field"></select></label>
+                <label id="classic-command-dialog-undelete-operator-label">Comparison<select id="classic-command-dialog-undelete-operator"><option value="=">Equals (=)</option><option value="&lt;&gt;">Does not equal (&lt;&gt;)</option><option value=">">Greater than (&gt;)</option><option value="&gt;=">Greater than or equal (&gt;=)</option><option value="&lt;">Less than (&lt;)</option><option value="&lt;=">Less than or equal (&lt;=)</option></select></label>
+                <label id="classic-command-dialog-undelete-value-label">Value<input id="classic-command-dialog-undelete-value" autocomplete="off"></label>
+                <label id="classic-command-dialog-undelete-boolean-label" hidden>Value<select id="classic-command-dialog-undelete-boolean"><option value="true">Yes (+)</option><option value="false">No (-)</option></select></label>
+                <p class="method-note">Matching deleted records are restored to the active project form after review. RUNSILENT and compound criteria remain fail-closed.</p>
+              </fieldset>
               <fieldset id="classic-command-dialog-define" hidden>
                 <legend>Variable definition</legend>
                 <label>Variable name<input id="classic-command-dialog-variable" autocomplete="off" value="AgeGroup"></label>
                 <label>Scope<select id="classic-command-dialog-scope"><option value="STANDARD">Standard</option><option value="GLOBAL">Global</option><option value="PERMANENT">Permanent</option></select></label>
                 <label>Variable type<select id="classic-command-dialog-variable-type"><option value="TEXTINPUT">Text</option><option value="NUMERIC">Numeric</option><option value="YN">Yes/No</option><option value="DATEFORMAT">Date</option><option value="DATETIMEFORMAT">Date/Time</option><option value="TIMEFORMAT">Time</option></select></label>
                 <label>Prompt (optional)<input id="classic-command-dialog-prompt" autocomplete="off"></label>
+              </fieldset>
+              <fieldset id="classic-command-dialog-define-group" hidden>
+                <legend>Define group</legend>
+                <label>Group variable name<input id="classic-command-dialog-group-name" autocomplete="off" value="FoodSymptoms"></label>
+                <label>Variables in group<select id="classic-command-dialog-group-members" multiple size="8"></select></label>
+                <p class="inline-feedback">The group stores variable names; it does not create a data column. LIST expansion currently requires field members.</p>
               </fieldset>
               <fieldset id="classic-command-dialog-assign" hidden>
                 <legend>Assignment</legend>
@@ -804,6 +853,12 @@
                 <label>Available variable<select id="classic-command-dialog-undefine-variable"></select></label>
                 <label class="checkbox-row"><input id="classic-command-dialog-undefine-all" type="checkbox"> Undefine all Standard variables</label>
                 <p class="inline-feedback">Legacy `UNDEFINE * GLOBAL` remains unavailable because Global lifetime is not implemented.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-display" hidden>
+                <legend>Display</legend>
+                <label>Information for<select id="classic-command-dialog-display-mode"><option value="all">Variables currently available</option><option value="defined">Defined variables currently available</option><option value="fields">Field variables currently available</option><option value="list">Selected variables</option></select></label>
+                <label id="classic-command-dialog-display-variables-label" hidden>Variables<select id="classic-command-dialog-display-variables" multiple size="7"></select></label>
+                <p class="inline-feedback">This slice preserves DISPLAY DBVARIABLES. Database views, database tables, and OUTTABLE remain named gaps.</p>
               </fieldset>
               <fieldset id="classic-command-dialog-recode" hidden>
                 <legend>Recoding</legend>
@@ -840,6 +895,15 @@
                 <div class="form-actions"><button id="classic-command-dialog-add-sort" class="secondary-button" type="button">Add sort variable</button></div>
                 <p class="method-note">Variables are applied in the displayed order. Missing values sort first ascending and last descending in this candidate; exact legacy collation remains under differential review.</p>
               </fieldset>
+              <fieldset id="classic-command-dialog-summarize" hidden>
+                <legend>Aggregate into an output table</legend>
+                <label>Aggregate<select id="classic-command-dialog-summarize-aggregate"><option value="AVG">Average</option><option value="COUNT">Count non-missing</option><option value="FIRST">First</option><option value="LAST">Last</option><option value="MAX">Maximum</option><option value="MIN">Minimum</option><option value="STDEV">Standard deviation (sample)</option><option value="STDEVP">Standard deviation (population)</option><option value="SUM">Sum</option><option value="VAR">Variance (sample)</option><option value="VARP">Variance (population)</option></select></label>
+                <label>Variable<select id="classic-command-dialog-summarize-field"></select></label>
+                <label>Into variable<input id="classic-command-dialog-summarize-result" value="AverageAge" autocomplete="off"></label>
+                <label>Output table<input id="classic-command-dialog-summarize-table" value="FoodborneAgeBySex" autocomplete="off"></label>
+                <label>Group by<select id="classic-command-dialog-summarize-strata"><option value="">Do not group</option></select></label>
+                <p class="method-note">This reviewed slice creates one named in-session output table from one aggregate and optional grouping field. Multiple aggregates and WEIGHTVAR remain fail-closed.</p>
+              </fieldset>
               <label id="classic-command-dialog-field-label">Frequency of<select id="classic-command-dialog-field"></select></label>
               <label id="classic-command-dialog-exposure-label" hidden>Exposure variable<select id="classic-command-dialog-exposure"></select></label>
               <label id="classic-command-dialog-outcome-label" hidden>Outcome variable<select id="classic-command-dialog-outcome"></select></label>
@@ -852,6 +916,64 @@
               <button id="classic-command-dialog-insert" class="dialog-primary" type="button">Insert at Cursor</button>
               <button value="cancel">Cancel</button>
             </div>
+          </form>
+        </dialog>
+
+        <dialog id="classic-delete-records-preview-dialog" class="legacy-dialog" aria-labelledby="classic-delete-records-preview-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-delete-records-preview-title">Review Delete Records</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p><strong>Active saved form:</strong> <span id="classic-delete-records-preview-form"></span></p>
+              <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Saved records</th><th>Active records</th><th>Move to Recycle Bin</th><th>Remain active</th></tr></thead><tbody><tr><td id="classic-delete-records-preview-source"></td><td id="classic-delete-records-preview-active"></td><td id="classic-delete-records-preview-matched"></td><td id="classic-delete-records-preview-remaining"></td></tr></tbody></table></div>
+              <p class="warning-banner">This is recoverable record deletion. Each matching record is archived with its original position and an audit event.</p>
+              <label class="checkbox-row"><input id="classic-delete-records-preview-confirm" type="checkbox"> Move these matching records to the Recycle Bin.</label>
+              <p id="classic-delete-records-preview-feedback" class="inline-feedback" role="status">Preview ready. No project records have changed.</p>
+            </div>
+            <div class="legacy-dialog-actions"><button value="cancel" type="submit">Cancel</button><button id="classic-delete-records-preview-apply" class="danger-button" type="button" disabled>Delete Records</button></div>
+          </form>
+        </dialog>
+
+        <dialog id="classic-undelete-records-preview-dialog" class="legacy-dialog" aria-labelledby="classic-undelete-records-preview-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-undelete-records-preview-title">Review Undelete Records</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p><strong>Active saved form:</strong> <span id="classic-undelete-records-preview-form"></span></p>
+              <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Active before</th><th>Recycle Bin before</th><th>Restore</th><th>Recycle Bin after</th><th>Active after</th></tr></thead><tbody><tr><td id="classic-undelete-records-preview-active"></td><td id="classic-undelete-records-preview-deleted"></td><td id="classic-undelete-records-preview-matched"></td><td id="classic-undelete-records-preview-remaining"></td><td id="classic-undelete-records-preview-after"></td></tr></tbody></table></div>
+              <p class="warning-banner">Restored records keep their archive identity in project audit history and return as near as possible to their original positions.</p>
+              <label class="checkbox-row"><input id="classic-undelete-records-preview-confirm" type="checkbox"> Restore these matching records from the Recycle Bin.</label>
+              <p id="classic-undelete-records-preview-feedback" class="inline-feedback" role="status">Preview ready. No project records have changed.</p>
+            </div>
+            <div class="legacy-dialog-actions"><button value="cancel" type="submit">Cancel</button><button id="classic-undelete-records-preview-apply" class="dialog-primary" type="button" disabled>Restore Records</button></div>
+          </form>
+        </dialog>
+
+        <dialog id="classic-delete-preview-dialog" class="legacy-dialog" aria-labelledby="classic-delete-preview-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-delete-preview-title">Review Delete File/Table</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p><strong>Project form data table:</strong> <span id="classic-delete-preview-form"></span></p>
+              <p><strong>Records that will be deleted:</strong> <span id="classic-delete-preview-records"></span></p>
+              <p><strong>Preserved:</strong> project, form, fields, validation rules, Check Code, and saved programs.</p>
+              <p class="warning-banner">This permanently removes all records in this browser working copy. It is not the recoverable DELETE RECORDS command.</p>
+              <label class="checkbox-row"><input id="classic-delete-preview-confirm" type="checkbox"> I understand that all records in this form data table will be deleted.</label>
+              <p id="classic-delete-preview-feedback" class="inline-feedback" role="status">Preview ready. No project records have changed.</p>
+            </div>
+            <div class="legacy-dialog-actions"><button value="cancel" type="submit">Cancel</button><button id="classic-delete-preview-apply" class="danger-button" type="button" disabled>Delete Table Records</button></div>
+          </form>
+        </dialog>
+
+        <dialog id="classic-merge-preview-dialog" class="legacy-dialog" aria-labelledby="classic-merge-preview-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-merge-preview-title">Review Merge</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p><strong>Destination:</strong> <span id="classic-merge-preview-destination"></span></p>
+              <p><strong>Source:</strong> <span id="classic-merge-preview-source"></span></p>
+              <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Destination before</th><th>Source processed</th><th>Rows updated</th><th>Rows inserted</th><th>Destination after</th></tr></thead><tbody><tr><td id="classic-merge-preview-before"></td><td id="classic-merge-preview-source-count"></td><td id="classic-merge-preview-updated"></td><td id="classic-merge-preview-inserted"></td><td id="classic-merge-preview-after"></td></tr></tbody></table></div>
+              <p id="classic-merge-preview-fields"></p>
+              <p class="warning-banner">Applying MERGE changes saved project records. Review the counts before continuing.</p>
+              <p id="classic-merge-preview-feedback" class="inline-feedback" role="status">Preview ready. No project records have changed.</p>
+            </div>
+            <div class="legacy-dialog-actions"><button value="cancel" type="submit">Cancel</button><button id="classic-merge-preview-apply" class="dialog-primary" type="button">Apply Merge</button></div>
           </form>
         </dialog>
         <dialog id="classic-program-search-dialog" class="legacy-dialog" aria-labelledby="classic-program-search-title">
@@ -872,10 +994,20 @@
             </div>
           </form>
         </dialog>
+        <section id="classic-display-output" class="panel" data-module-view="classic" aria-labelledby="classic-display-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">DISPLAY output</p><h2 id="classic-display-output-title">Variables</h2></div><span id="classic-display-output-count" class="calculation-time"></span></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Page Number</th><th>Prompt</th><th>Field Type</th><th>Variable</th><th>Variable Value</th><th>Format Value</th><th>Special Info</th><th>Table</th></tr></thead><tbody id="classic-display-output-body"></tbody></table></div>
+          <p class="inline-feedback">Column order follows the legacy DISPLAY DBVARIABLES output. Data-source fields do not have one record-independent value.</p>
+        </section>
         <section id="classic-list-output" class="panel" data-module-view="classic" aria-labelledby="classic-list-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label">LIST output</p><h2 id="classic-list-output-title">Line List</h2></div><span id="classic-list-output-count" class="calculation-time"></span></div>
           <div class="results-table-scroll"><table class="results-table"><thead><tr id="classic-list-output-head"></tr></thead><tbody id="classic-list-output-body"></tbody></table></div>
           <p id="classic-list-output-note" class="inline-feedback"></p>
+        </section>
+        <section id="classic-summarize-output" class="panel" data-module-view="classic" aria-labelledby="classic-summarize-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">SUMMARIZE output</p><h2 id="classic-summarize-output-title">Summary table</h2></div><span id="classic-summarize-output-count" class="calculation-time"></span></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr id="classic-summarize-output-head"></tr></thead><tbody id="classic-summarize-output-body"></tbody></table></div>
+          <p id="classic-summarize-output-note" class="inline-feedback"></p>
         </section>
         <section id="classic-program-output" class="panel" data-module-view="classic" aria-labelledby="classic-program-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label">PROGRAM OUTPUT</p><h2 id="classic-program-output-title">AgeGroup frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>

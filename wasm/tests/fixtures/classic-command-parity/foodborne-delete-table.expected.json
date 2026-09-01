@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "DELETE TABLES",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96,
+    "fieldCount": 27
+  },
+  "expected": {
+    "targetForm": "Foodborne Outbreak Investigation Form",
+    "deletedRecords": 96,
+    "remainingRecords": 0,
+    "preservedFieldCount": 27
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Run against a disposable copied desktop project table before legacy-parity-verified status; verify confirmation, form metadata retention, current READ state, SAVEDATA, and RUNSILENT behavior."
+  }
+}

@@ -1,6 +1,7 @@
 import type { MapDataSource } from "../contracts/maps.ts";
 import { applyClassicSort, type ClassicSortPlan } from "./classic-sort.ts";
 import type { ClassicSessionVariableDefinition, ClassicVariableValue } from "./classic-assignment.ts";
+import type { ClassicGroupDefinition } from "./classic-group.ts";
 
 export interface ClassicSessionVariable extends ClassicSessionVariableDefinition { value: ClassicVariableValue }
 
@@ -12,6 +13,8 @@ export class ClassicProgramSession {
   #excludedMissing = 0;
   #sortPlan: Extract<ClassicSortPlan, { kind: "apply" }> | null = null;
   #variables = new Map<string, ClassicSessionVariable>();
+  #groups = new Map<string, ClassicGroupDefinition>();
+  #outTables = new Map<string, MapDataSource>();
 
   #clearSelection(): void {
     this.#selectedRecords = null;
@@ -20,6 +23,8 @@ export class ClassicProgramSession {
   }
   #clearSort(): void { this.#sortPlan = null; }
   #clearVariables(): void { this.#variables.clear(); }
+  #clearGroups(): void { this.#groups.clear(); }
+  #clearOutTables(): void { this.#outTables.clear(); }
 
   reset(source: MapDataSource): void {
     this.#source = structuredClone(source);
@@ -27,6 +32,8 @@ export class ClassicProgramSession {
     this.#clearSelection();
     this.#clearSort();
     this.#clearVariables();
+    this.#clearGroups();
+    this.#clearOutTables();
   }
   syncDefault(source: MapDataSource): void {
     if (!this.#explicitRead) {
@@ -34,6 +41,8 @@ export class ClassicProgramSession {
       this.#clearSelection();
       this.#clearSort();
       this.#clearVariables();
+      this.#clearGroups();
+      this.#clearOutTables();
     }
   }
   current(fallback: MapDataSource): MapDataSource {
@@ -64,6 +73,20 @@ export class ClassicProgramSession {
     return this.#sortPlan ? { canonicalSource: this.#sortPlan.canonicalSource, fields: this.#sortPlan.items.length } : { fields: 0 };
   }
   variables(): ClassicSessionVariable[] { return [...this.#variables.values()].map((variable) => structuredClone(variable)); }
+  groups(): ClassicGroupDefinition[] { return [...this.#groups.values()].map((group) => structuredClone(group)); }
+  outTables(): MapDataSource[] { return [...this.#outTables.values()].map((source) => structuredClone(source)); }
+  storeOutTable(source: MapDataSource): MapDataSource {
+    const key = source.formName.toLocaleLowerCase("en-US");
+    this.#outTables.set(key, structuredClone(source));
+    return structuredClone(source);
+  }
+  defineGroup(definition: ClassicGroupDefinition): ClassicGroupDefinition {
+    const key = definition.name.toLocaleLowerCase("en-US");
+    if (this.#groups.has(key)) throw new RangeError(`${definition.name} is already defined in this Classic session.`);
+    const group: ClassicGroupDefinition = { name: definition.name, members: [...definition.members] };
+    this.#groups.set(key, group);
+    return structuredClone(group);
+  }
   defineVariable(definition: ClassicSessionVariableDefinition): ClassicSessionVariable {
     const key = definition.name.toLocaleLowerCase("en-US");
     if (this.#variables.has(key)) throw new RangeError(`${definition.name} is already defined in this Classic session.`);
@@ -107,6 +130,22 @@ export class ClassicProgramSession {
     this.#clearSelection();
     this.#clearSort();
     this.#clearVariables();
+    this.#clearGroups();
+    this.#clearOutTables();
+    return structuredClone(this.#source);
+  }
+  relate(source: MapDataSource): MapDataSource {
+    this.#source = structuredClone(source);
+    this.#explicitRead = true;
+    this.#clearSelection();
+    this.#clearSort();
+    return structuredClone(this.#source);
+  }
+  merge(source: MapDataSource): MapDataSource {
+    this.#source = structuredClone(source);
+    this.#explicitRead = true;
+    this.#clearSelection();
+    this.#clearSort();
     return structuredClone(this.#source);
   }
 }

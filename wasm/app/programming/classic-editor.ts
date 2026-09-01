@@ -50,7 +50,7 @@ export interface ClassicProgramLintStatus {
 const epiInfoLanguage = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
-    if (stream.match(/^(?:READ|LIST|FREQ|MEANS|TABLES|RECODE|TO|DEFINE|UNDEFINE|ASSIGN|IF|THEN|ELSE|END|SELECT|SORT|CANCEL|ASC|ASCENDING|DESC|DESCENDING|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
+    if (stream.match(/^(?:READ|RELATE|MATCHING|ALL|LIST|FREQ|MEANS|TABLES|RECODE|TO|DEFINE|GROUPVAR|UNDEFINE|ASSIGN|DISPLAY|DBVARIABLES|DBVIEWS|FIELDVAR|OUTTABLE|IF|THEN|ELSE|END|SELECT|SORT|CANCEL|ASC|ASCENDING|DESC|DESCENDING|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
     if (stream.match(/^(?:STRATAVAR|WEIGHTVAR|OUTTABLE|PSUVAR|STATISTICS|COLUMNSIZE)\b/i)) return "propertyName";
     if (stream.match(/^(?:LOVALUE|HIVALUE|TRUE|FALSE|YES|NO|NOWRAP|ONEISYES|FISHER|NONE)\b/i)) return "atom";
     if (stream.match(/^"(?:[^"]|"")*"?/)) return "string";
@@ -73,7 +73,9 @@ function fieldCompletion(field: FieldDefinition): Completion {
 }
 
 function definedVariables(document: string): Completion[] {
-  const variables = [...document.matchAll(/^\s*DEFINE\s+([A-Za-z_][A-Za-z0-9_]*)\b/gim)].map((match) => match[1]!);
+  const variables = [...document.matchAll(/^\s*DEFINE\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+([A-Za-z_][A-Za-z0-9_]*))?/gim)]
+    .filter((match) => match[2]?.toUpperCase() !== "GROUPVAR")
+    .map((match) => match[1]!);
   return [...new Set(variables)].map((label) => ({ label, detail: "defined text", type: "variable" }));
 }
 
@@ -91,6 +93,12 @@ function createCompletionSource(getFields: () => readonly FieldDefinition[]) {
     if (recode) {
       const fragment = recode[1] ?? "";
       return completionResult(context.pos - fragment.length, fields.filter((field) => field.type === "number").map(fieldCompletion));
+    }
+
+    const groupMember = /^\s*DEFINE\s+[A-Za-z_][A-Za-z0-9_]*\s+GROUPVAR(?:\s+[A-Za-z_][A-Za-z0-9_]*)*\s+([A-Za-z_][A-Za-z0-9_]*)?$/i.exec(before);
+    if (groupMember) {
+      const fragment = groupMember[1] ?? "";
+      return completionResult(context.pos - fragment.length, fields.map(fieldCompletion));
     }
 
     const target = /^\s*RECODE\s+[A-Za-z_][A-Za-z0-9_]*\s+TO\s+([A-Za-z_][A-Za-z0-9_]*)?$/i.exec(before);
@@ -117,6 +125,9 @@ function createCompletionSource(getFields: () => readonly FieldDefinition[]) {
       return completionResult(context.pos - fragment.length, definedVariables(context.state.doc.toString()));
     }
 
+    const display = /^\s*DISPLAY\s+([A-Za-z_]*)$/i.exec(before);
+    if (display) return completionResult(context.pos - display[1]!.length, [{ label: "DBVARIABLES", detail: "variables currently available", type: "keyword" }]);
+
     const strata = /\bSTRATAVAR\s*=\s*([A-Za-z_][A-Za-z0-9_]*)?$/i.exec(before);
     if (strata) {
       const fragment = strata[1] ?? "";
@@ -139,9 +150,11 @@ function createCompletionSource(getFields: () => readonly FieldDefinition[]) {
     if (command && (context.explicit || command[1]!.length > 0)) {
       return completionResult(context.pos - command[1]!.length, [
         { label: "READ", detail: "open a data source", type: "keyword" },
+        { label: "RELATE", detail: "join a related table", type: "keyword" },
         { label: "DEFINE", detail: "declare a variable", type: "keyword" },
         { label: "UNDEFINE", detail: "remove a defined variable", type: "keyword" },
         { label: "ASSIGN", detail: "set a variable value", type: "keyword" },
+        { label: "DISPLAY", detail: "show variables and metadata", type: "keyword" },
         { label: "IF", detail: "conditionally run statements", type: "keyword" },
         { label: "RECODE", detail: "group numeric values", type: "keyword" },
         { label: "FREQ", detail: "frequency table", type: "keyword" },

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "RELATE",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96,
+    "fieldCount": 27
+  },
+  "expected": {
+    "join": "matching",
+    "keys": [{ "currentField": "id", "relatedField": "id" }],
+    "matchedParentRecords": 96,
+    "unmatchedParentRecords": 0,
+    "outputRecords": 96,
+    "outputFieldCount": 54,
+    "listFields": ["id", "case_status", "case_status2"]
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Reviewed legacy Epi Info Output and related-column names are required before legacy-parity-verified status."
+  }
+}

@@ -55,6 +55,15 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-sort.ts",
     "wasm/app/programming/classic-assignment.ts",
     "wasm/app/programming/classic-if.ts",
+    "wasm/app/programming/classic-display.ts",
+    "wasm/app/programming/classic-group.ts",
+    "wasm/app/programming/classic-relate.ts",
+    "wasm/app/programming/classic-write.ts",
+    "wasm/app/programming/classic-merge.ts",
+    "wasm/app/programming/classic-delete.ts",
+    "wasm/app/programming/classic-delete-records.ts",
+    "wasm/app/programming/classic-undelete-records.ts",
+    "wasm/app/programming/classic-summarize.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
     "wasm/app/programming/classic-program-surface.ts",
@@ -356,11 +365,18 @@ async function checkRequiredAssetsAndUi() {
     for (const entry of group.commands) assert.equal(commandParity.classicCommandParityEntry(group.key, entry.key)?.explorer, "visible", `${group.key}/${entry.key} must be in the legacy command parity set`);
   }
   assert.equal(commandParity.classicCommandParityEntry("data", "read").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("data", "relate").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("data", "delete-file-table").selectedExecution, "review-required-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("data", "delete-records").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("data", "undelete-records").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "summarize").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "list").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "define").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "recode").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "define").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("variables", "define-group").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("variables", "undefine").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("variables", "display").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("variables", "assign").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("select-if", "select").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("select-if", "cancel-select").dialog, "typed-source-v0.1");
@@ -756,7 +772,7 @@ END
 FREQ AgeGroup STRATAVAR=Sex`;
   const plan = programming.parseBoundedClassicProgram(source, imported.schema.fields);
   assert.equal(plan.version, "0.1.0");
-  assert.equal(plan.astVersion, "0.5.0");
+  assert.equal(plan.astVersion, "1.0.0");
   assert.equal(plan.recode.sourceField, "age");
   assert.equal(plan.frequency.stratifyBy, "sex");
   assert.match(plan.canonicalSource, /FREQ AgeGroup STRATAVAR=sex$/);
@@ -777,9 +793,12 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const projectSource = { formId: "foodborne", projectName: "Outbreak Project", formName: "Foodborne Form", fields: imported.schema.fields, records: imported.records };
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "AgeGroup", scope: "STANDARD", variableType: "TEXTINPUT" }), "DEFINE AgeGroup TEXTINPUT");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "CaseCount", scope: "GLOBAL", variableType: "NUMERIC", prompt: "Case count" }), 'DEFINE CaseCount GLOBAL NUMERIC "Case count"');
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define-group", group: "FoodSymptoms", members: ["diarrhea", "vomiting", "nausea"] }), "DEFINE FoodSymptoms GROUPVAR diarrhea vomiting nausea");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "assign", variable: "ReviewLabel", value: "Priority" }), 'ASSIGN ReviewLabel = "Priority"');
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "undefine", variable: "ReviewLabel" }), "UNDEFINE ReviewLabel");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "undefine", variable: "*" }), "UNDEFINE *");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "display", mode: "defined" }), "DISPLAY DBVARIABLES DEFINE");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "display", mode: "list", variables: ["ReviewLabel", "case_status"] }), "DISPLAY DBVARIABLES LIST ReviewLabel case_status");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({
     kind: "recode", sourceField: "age", targetVariable: "AgeGroup",
     ranges: [{ from: "LOVALUE", to: "17", result: "0-17" }, { from: "17", to: "HIVALUE", result: "18+" }],
@@ -787,8 +806,38 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.throws(() => commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "bad name", scope: "STANDARD", variableType: "TEXTINPUT" }), /Variable names/);
   assert.throws(() => commandBuilder.buildClassicAnalysisCommand({ kind: "recode", sourceField: "age", targetVariable: "AgeGroup", ranges: [] }), /at least one/);
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "read", table: "Foodborne Form" }), "READ [Foodborne Form]");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "relate", relatedForm: "Foodborne Form", keys: [{ currentField: "id", relatedField: "id" }], join: "matching" }), "RELATE [Foodborne Form] id :: id MATCHING");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "list", fields: ["id", "age", "sex"] }), "LIST id age sex");
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("READ [Foodborne Form]", [], [projectSource]), { kind: "read", table: "Foodborne Form", source: "READ [Foodborne Form]" });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("RELATE [Foodborne Form] ID :: id ALL", imported.schema.fields, [projectSource]), {
+    kind: "relate", relatedForm: "Foodborne Form", keys: [{ currentField: "id", relatedField: "id" }], join: "all", source: "RELATE [Foodborne Form] ID :: id ALL",
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "write", fileName: "foodborne-review.csv", fields: ["id", "age", "sex", "case_status"] }), 'WRITE REPLACE "Text" {foodborne-review.csv}:foodborne_review#csv id age sex case_status');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('WRITE REPLACE "Text" {foodborne-review.csv}:foodborne_review#csv ID Age Sex Case_Status', imported.schema.fields), {
+    kind: "write", fileName: "foodborne-review.csv", fields: ["id", "age", "sex", "case_status"],
+    source: 'WRITE REPLACE "Text" {foodborne-review.csv}:foodborne_review#csv ID Age Sex Case_Status',
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "merge", sourceForm: "Foodborne Form", keys: [{ currentField: "id", sourceField: "id" }] }), "MERGE [Foodborne Form] id :: id");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("MERGE [Foodborne Form] ID :: id", imported.schema.fields, [projectSource]), {
+    kind: "merge", sourceForm: "Foodborne Form", keys: [{ currentField: "id", sourceField: "id" }], source: "MERGE [Foodborne Form] ID :: id",
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "delete-table", formName: "Foodborne Form" }), "DELETE TABLES [Foodborne Form]");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("DELETE TABLES [Foodborne Form]", imported.schema.fields, [projectSource]), {
+    kind: "delete-table", formName: "Foodborne Form", source: "DELETE TABLES [Foodborne Form]",
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "delete-records", all: false, field: "case_status", operator: "=", value: "Confirmed" }), 'DELETE (case_status = "Confirmed")');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('DELETE (Case_Status = "Confirmed")', imported.schema.fields, [projectSource]), {
+    kind: "delete-records", all: false, field: "case_status", operator: "=", value: "Confirmed", source: 'DELETE (Case_Status = "Confirmed")',
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "undelete-records", all: false, field: "case_status", operator: "=", value: "Confirmed" }), 'UNDELETE (case_status = "Confirmed")');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('UNDELETE (Case_Status = "Confirmed")', imported.schema.fields, [projectSource]), {
+    kind: "undelete-records", all: false, field: "case_status", operator: "=", value: "Confirmed", source: 'UNDELETE (Case_Status = "Confirmed")',
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "summarize", aggregate: "AVG", field: "age", resultField: "AverageAge", outputTable: "FoodborneAgeBySex", stratifyBy: "sex" }), "SUMMARIZE AverageAge :: AVG(age) TO FoodborneAgeBySex STRATAVAR=sex");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("SUMMARIZE AverageAge :: AVG(Age) TO FoodborneAgeBySex STRATAVAR=Sex", imported.schema.fields), {
+    kind: "summarize", aggregate: "AVG", field: "age", resultField: "AverageAge", outputTable: "FoodborneAgeBySex", stratifyBy: "sex",
+    source: "SUMMARIZE AverageAge :: AVG(Age) TO FoodborneAgeBySex STRATAVAR=Sex",
+  });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("LIST ID Age Sex", imported.schema.fields), { kind: "list", fields: ["id", "age", "sex"], source: "LIST ID Age Sex" });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("LIST * EXCEPT Latitude Longitude", imported.schema.fields).fields, imported.schema.fields.map((field) => field.name).filter((name) => !["latitude", "longitude"].includes(name)));
   assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("READ {C:\\legacy.mdb}:Oswego", imported.schema.fields, [projectSource]), /external paths/);
@@ -803,6 +852,9 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("SORT Age DESC ID ASCENDING", imported.schema.fields), { kind: "sort", items: [{ field: "age", direction: "DESC" }, { field: "id", direction: "ASC" }], source: "SORT Age DESC ID ASCENDING" });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("CANCEL SORT", imported.schema.fields), { kind: "cancel-sort", source: "CANCEL SORT" });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("DEFINE ReviewLabel TEXTINPUT", imported.schema.fields), { kind: "define", variable: "ReviewLabel", scope: "STANDARD", variableType: "TEXTINPUT", source: "DEFINE ReviewLabel TEXTINPUT" });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("DEFINE FoodSymptoms GROUPVAR diarrhea vomiting nausea", imported.schema.fields), {
+    kind: "define-group", group: "FoodSymptoms", members: ["diarrhea", "vomiting", "nausea"], source: "DEFINE FoodSymptoms GROUPVAR diarrhea vomiting nausea",
+  });
   const reviewVariable = { name: "ReviewLabel", scope: "STANDARD", variableType: "TEXTINPUT" };
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('ASSIGN ReviewLabel = "Priority"', imported.schema.fields, [], [reviewVariable]), { kind: "assign", variable: "ReviewLabel", value: "Priority", source: 'ASSIGN ReviewLabel = "Priority"' });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("UNDEFINE ReviewLabel", imported.schema.fields, [], [reviewVariable]), { kind: "undefine", variable: "ReviewLabel", source: "UNDEFINE ReviewLabel" });
@@ -855,6 +907,131 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(session.current(projectSource).records[0].id, imported.records[0].id);
   assert.equal(session.cancelSort(), false);
 
+  const relate = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-relate.ts")).href}?relate=${Date.now()}`);
+  const relateExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-relate-by-id.expected.json",
+  ), "utf8"));
+  assert.equal(relateExpected.dataset.sha256, fixture.dataset.sha256);
+  const relatePlan = relate.resolveClassicRelateCommand(
+    "RELATE [Foodborne Form] ID :: id MATCHING", imported.schema.fields, [projectSource],
+  );
+  assert.deepEqual(relatePlan.keys, relateExpected.expected.keys);
+  const related = relate.applyClassicRelate(projectSource, projectSource, relatePlan);
+  assert.equal(related.matchedParentRecords, relateExpected.expected.matchedParentRecords);
+  assert.equal(related.unmatchedParentRecords, relateExpected.expected.unmatchedParentRecords);
+  assert.equal(related.outputRecords, relateExpected.expected.outputRecords);
+  assert.equal(related.source.fields.length, relateExpected.expected.outputFieldCount);
+  assert.ok(related.source.fields.some((field) => field.name === "case_status2"));
+  assert.ok(related.source.records.every((record) => record.case_status === record.case_status2));
+  session.relate(related.source);
+  assert.equal(session.current(projectSource).records.length, relateExpected.expected.outputRecords);
+  assert.equal(session.current(projectSource).fields.length, relateExpected.expected.outputFieldCount);
+  const compositePlan = relate.resolveClassicRelateCommand(
+    "RELATE [Foodborne Form] sex :: sex AND age :: age MATCHING", imported.schema.fields, [projectSource],
+  );
+  assert.equal(compositePlan.keys.length, 2);
+  const parentWithMissing = { ...projectSource, records: [...projectSource.records, { ...projectSource.records[0], id: "UNMATCHED" }] };
+  const allResult = relate.applyClassicRelate(parentWithMissing, projectSource, { ...relatePlan, join: "all", canonicalSource: "RELATE [Foodborne Form] id :: id ALL" });
+  assert.equal(allResult.unmatchedParentRecords, 1);
+  assert.equal(allResult.outputRecords, 97);
+  assert.equal(allResult.source.records.at(-1).id2, null);
+  assert.throws(() => relate.resolveClassicRelateCommand("RELATE {C:\\legacy.prj}:Foodborne id :: id", imported.schema.fields, [projectSource]), /external paths/);
+  assert.throws(() => relate.resolveClassicRelateCommand("RELATE [Foodborne Form] age :: sex", imported.schema.fields, [projectSource]), /same field type/);
+
+  const write = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-write.ts")).href}?write=${Date.now()}`);
+  const writeExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-write-csv.expected.json",
+  ), "utf8"));
+  const writeProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-write-csv.pgm"), "utf8");
+  const writePlan = write.resolveClassicWriteCommand(writeProgram, imported.schema.fields);
+  const writeCsv = write.serializeClassicWriteCsv(writePlan, imported.records);
+  const writeLines = writeCsv.split("\r\n");
+  assert.equal(writePlan.fileName, writeExpected.expected.fileName);
+  assert.deepEqual(writePlan.fields.map(({ name }) => name), writeExpected.expected.fields);
+  assert.equal(writeLines.length - 1, writeExpected.expected.recordCount);
+  assert.equal(writeLines[0], writeExpected.expected.header);
+  assert.throws(() => write.resolveClassicWriteCommand(writeProgram.replace("REPLACE", "APPEND"), imported.schema.fields), /APPEND requires/);
+  assert.throws(() => write.resolveClassicWriteCommand(writeProgram.replace('"Text"', '"Epi7"'), imported.schema.fields), /cannot create legacy Epi7/);
+  assert.throws(() => write.resolveClassicWriteCommand(writeProgram.replace("foodborne-write-example.csv", "C:\\legacy\\foodborne.csv"), imported.schema.fields), /not an operating-system path/);
+
+  const merge = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-merge.ts")).href}?merge=${Date.now()}`);
+  const mergeExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-merge-by-id.expected.json",
+  ), "utf8"));
+  const mergeProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-merge-by-id.pgm"), "utf8");
+  const foodborneMergePlan = merge.resolveClassicMergeCommand(mergeProgram, imported.schema.fields, [projectSource]);
+  const foodborneMerged = merge.applyClassicMerge(projectSource, projectSource, foodborneMergePlan);
+  assert.equal(foodborneMerged.updatedRecords, mergeExpected.expected.updatedRecords);
+  assert.equal(foodborneMerged.insertedRecords, mergeExpected.expected.insertedRecords);
+  assert.equal(foodborneMerged.outputRecords, mergeExpected.expected.outputRecords);
+  assert.deepEqual(foodborneMerged.destination.records, projectSource.records);
+  const mergeFields = [
+    { name: "id", prompt: "ID", type: "text", required: true },
+    { name: "status", prompt: "Status", type: "text", required: false },
+    { name: "age", prompt: "Age", type: "number", required: false },
+  ];
+  const mergeDestination = { formId: "destination", projectName: "Merge Project", formName: "Cases", fields: mergeFields, records: [{ id: "A", status: "Old", age: 20 }, { id: "B", status: "Keep", age: 30 }] };
+  const mergeSource = { formId: "source", projectName: "Merge Project", formName: "Updates", fields: mergeFields, records: [{ id: "A", status: "Updated", age: 21 }, { id: "C", status: "Inserted", age: 40 }] };
+  const syntheticPlan = merge.resolveClassicMergeCommand("MERGE Updates id :: id", mergeDestination.fields, [mergeSource]);
+  const syntheticMerged = merge.applyClassicMerge(mergeDestination, mergeSource, syntheticPlan);
+  assert.deepEqual({ updated: syntheticMerged.updatedRecords, inserted: syntheticMerged.insertedRecords, output: syntheticMerged.outputRecords }, { updated: 1, inserted: 1, output: 3 });
+  assert.deepEqual(syntheticMerged.destination.records, [{ id: "A", status: "Updated", age: 21 }, { id: "B", status: "Keep", age: 30 }, { id: "C", status: "Inserted", age: 40 }]);
+  assert.throws(() => merge.applyClassicMerge({ ...mergeDestination, records: [...mergeDestination.records, { id: "A", status: "Duplicate", age: 22 }] }, mergeSource, syntheticPlan), /destination key is not unique/);
+  assert.throws(() => merge.resolveClassicMergeCommand("MERGE Updates id :: id UPDATE", mergeDestination.fields, [mergeSource]), /does not branch on its parsed mode/);
+  assert.throws(() => merge.resolveClassicMergeCommand("MERGE {C:\\legacy.mdb}:Updates id :: id", mergeDestination.fields, [mergeSource]), /external paths/);
+
+  const classicDelete = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-delete.ts")).href}?delete=${Date.now()}`);
+  const deleteExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-delete-table.expected.json"), "utf8"));
+  const deleteProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-delete-table.pgm"), "utf8");
+  const deleteSource = { ...projectSource, formName: deleteExpected.expected.targetForm };
+  const deletePlan = classicDelete.resolveClassicDeleteTableCommand(deleteProgram, [deleteSource]);
+  const deleted = classicDelete.stageClassicDeleteTable(deleteSource, deletePlan);
+  assert.equal(deletePlan.recordCount, deleteExpected.expected.deletedRecords);
+  assert.equal(deleted.records.length, deleteExpected.expected.remainingRecords);
+  assert.equal(deleted.fields.length, deleteExpected.expected.preservedFieldCount);
+  assert.throws(() => classicDelete.resolveClassicDeleteTableCommand(`${deleteProgram.trim()} RUNSILENT`, [deleteSource]), /explicit review/);
+  assert.throws(() => classicDelete.resolveClassicDeleteTableCommand("DELETE {C:\\legacy\\cases.csv}", [projectSource]), /operating-system file/);
+  assert.throws(() => classicDelete.resolveClassicDeleteTableCommand("DELETE TABLES {C:\\legacy.mdb}", [projectSource]), /unimplemented/);
+  assert.throws(() => classicDelete.resolveClassicDeleteTableCommand("DELETE TABLES {C:\\legacy.mdb}:Cases", [projectSource]), /external databases/);
+
+  const deleteRecords = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-delete-records.ts")).href}?deleteRecords=${Date.now()}`);
+  const deleteRecordsExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-delete-confirmed-records.expected.json"), "utf8"));
+  const deleteRecordsProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-delete-confirmed-records.pgm"), "utf8");
+  const deleteRecordsPlan = deleteRecords.resolveClassicDeleteRecordsCommand(deleteRecordsProgram, projectSource.fields);
+  const deleteRecordsResult = deleteRecords.stageClassicDeleteRecords(projectSource, projectSource, deleteRecordsPlan);
+  assert.equal(deleteRecordsResult.matchedRecords, deleteRecordsExpected.expected.deletedRecords);
+  assert.equal(deleteRecordsResult.remainingRecords.length, deleteRecordsExpected.expected.remainingRecords);
+  assert.ok(deleteRecordsResult.deleted.every(({ record }) => record.case_status === "Confirmed"));
+  assert.equal(deleteRecords.stageClassicDeleteRecords(projectSource, { ...projectSource, records: projectSource.records.filter((record) => record.sex === "Female") }, deleteRecordsPlan).matchedRecords, 10);
+  assert.throws(() => deleteRecords.resolveClassicDeleteRecordsCommand(`${deleteRecordsProgram.trim()} PERMANENT`, projectSource.fields), /PERMANENT record deletion is disabled/);
+  assert.throws(() => deleteRecords.resolveClassicDeleteRecordsCommand(`${deleteRecordsProgram.trim()} RUNSILENT`, projectSource.fields), /explicit review/);
+
+  const undeleteRecords = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-undelete-records.ts")).href}?undeleteRecords=${Date.now()}`);
+  const undeleteExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-undelete-confirmed-records.expected.json"), "utf8"));
+  const undeleteProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-undelete-confirmed-records.pgm"), "utf8");
+  const deletedArchive = deleteRecordsResult.deleted.map((item, index) => ({
+    archiveId: `archive-${index + 1}`, record: item.record, originalIndex: item.originalIndex,
+    deletedAt: "2026-09-01T00:00:00.000Z", reason: "Classic Analysis DELETE confirmed cases",
+  }));
+  const undeletePlan = undeleteRecords.resolveClassicUndeleteRecordsCommand(undeleteProgram, projectSource.fields);
+  const undeleteResult = undeleteRecords.stageClassicUndeleteRecords({ ...projectSource, records: deleteRecordsResult.remainingRecords }, deletedArchive, undeletePlan);
+  assert.equal(undeleteResult.restored.length, undeleteExpected.expected.restoredRecords);
+  assert.equal(undeleteResult.restoredRecords.length, undeleteExpected.expected.activeRecordsAfter);
+  assert.equal(undeleteResult.remainingDeleted.length, undeleteExpected.expected.recycleBinAfter);
+  assert.deepEqual(undeleteResult.restoredRecords.map(({ id }) => id), projectSource.records.map(({ id }) => id));
+  assert.throws(() => undeleteRecords.resolveClassicUndeleteRecordsCommand(`${undeleteProgram.trim()} RUNSILENT`, projectSource.fields), /explicit review/);
+
+  const summarize = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-summarize.ts")).href}?summarize=${Date.now()}`);
+  const summarizeExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-summarize-age-by-sex.expected.json"), "utf8"));
+  const summarizeProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-summarize-age-by-sex.pgm"), "utf8");
+  const summarizePlan = summarize.resolveClassicSummarizeCommand(summarizeProgram, projectSource.fields);
+  const summarizeResult = summarize.applyClassicSummarize(projectSource, summarizePlan);
+  assert.equal(summarizeResult.source.formName, summarizeExpected.expected.outputTable);
+  assert.equal(summarizeResult.groups, summarizeExpected.expected.rows.length);
+  assert.deepEqual(summarizeResult.source.records, summarizeExpected.expected.rows);
+  assert.throws(() => summarize.resolveClassicSummarizeCommand("SUMMARIZE AverageAge :: AVG(age) TO Weighted WEIGHTVAR=age", projectSource.fields), /WEIGHTVAR remains disabled/);
+  assert.throws(() => summarize.resolveClassicSummarizeCommand("SUMMARIZE AverageAge :: AVG(age), Total :: COUNT() TO Multiple", projectSource.fields), /exactly one aggregate/);
+
   const assignment = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-assignment.ts")).href}?assignment=${Date.now()}`);
   const definePlan = assignment.resolveClassicDefineCommand("DEFINE ReviewLabel TEXTINPUT", imported.schema.fields, []);
   session.defineVariable(definePlan);
@@ -906,6 +1083,48 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(session.current(projectSource).records.length, undefineExpected.expected.recordCount);
   assert.throws(() => assignment.resolveClassicUndefineCommand("UNDEFINE age", imported.schema.fields, session.variables()), /data-source field/);
   assert.throws(() => assignment.resolveClassicUndefineCommand("UNDEFINE * GLOBAL", imported.schema.fields, session.variables()), /Global variable lifetime/);
+
+  const display = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-display.ts")).href}?display=${Date.now()}`);
+  const displayExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-display-dbvariables.expected.json",
+  ), "utf8"));
+  assert.equal(displayExpected.dataset.sha256, fixture.dataset.sha256);
+  session.defineVariable(assignment.resolveClassicDefineCommand('DEFINE ReviewLabel TEXTINPUT "Review label"', imported.schema.fields, session.variables()));
+  const displayAssignment = assignment.resolveClassicAssignCommand('ASSIGN ReviewLabel = "Priority review"', imported.schema.fields, session.variables());
+  session.assignVariable(displayAssignment.variable.name, displayAssignment.value);
+  const definedDisplay = display.resolveClassicDisplayCommand("DISPLAY DBVARIABLES DEFINE", imported.schema.fields, session.variables());
+  assert.deepEqual(display.classicDisplayRows(definedDisplay, projectSource.formName).map(({ variable, variableValue: value, specialInfo, table }) => ({ variable, value, specialInfo, table })), displayExpected.expected.defined);
+  const fieldDisplay = display.resolveClassicDisplayCommand("DISPLAY DBVARIABLES FIELDVAR", imported.schema.fields, session.variables());
+  assert.equal(display.classicDisplayRows(fieldDisplay, projectSource.formName).length, displayExpected.expected.fieldCount);
+  const selectedDisplay = display.resolveClassicDisplayCommand("DISPLAY DBVARIABLES LIST ReviewLabel case_status", imported.schema.fields, session.variables());
+  assert.deepEqual(display.classicDisplayRows(selectedDisplay, projectSource.formName).map(({ variable }) => variable).sort(), [...displayExpected.expected.selected].sort());
+  assert.equal(session.current(projectSource).records.length, displayExpected.expected.recordCount);
+  assert.throws(() => display.resolveClassicDisplayCommand("DISPLAY DBVIEWS", imported.schema.fields, session.variables()), /DBVARIABLES only/);
+  assert.throws(() => display.resolveClassicDisplayCommand("DISPLAY DBVARIABLES OUTTABLE=VariableAudit", imported.schema.fields, session.variables()), /OUTTABLE/);
+
+  const groups = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-group.ts")).href}?group=${Date.now()}`);
+  const groupExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-define-group.expected.json",
+  ), "utf8"));
+  assert.equal(groupExpected.dataset.sha256, fixture.dataset.sha256);
+  session.reset(projectSource);
+  const groupPlan = groups.resolveClassicDefineGroupCommand(
+    "DEFINE FoodSymptoms GROUPVAR diarrhea vomiting nausea abdominal_cramps fever",
+    imported.schema.fields, session.variables(), session.groups(),
+  );
+  const group = session.defineGroup(groupPlan);
+  assert.equal(group.name, groupExpected.expected.group);
+  assert.deepEqual(group.members, groupExpected.expected.members);
+  assert.deepEqual(session.groups(), [{ name: groupExpected.expected.group, members: groupExpected.expected.members }]);
+  const groupList = commandBuilder.resolveSelectedClassicAnalysisCommand(
+    "LIST id FoodSymptoms", imported.schema.fields, [], session.variables(), session.groups(),
+  );
+  assert.deepEqual(groupList.fields, groupExpected.expected.listFields);
+  assert.equal(session.current(projectSource).records.length, groupExpected.expected.recordCount);
+  assert.throws(() => groups.resolveClassicDefineGroupCommand("DEFINE age GROUPVAR diarrhea", imported.schema.fields, [], []), /field or scalar variable/);
+  assert.throws(() => groups.resolveClassicDefineGroupCommand("DEFINE Other GROUPVAR FoodSymptoms", imported.schema.fields, [], session.groups()), /Nested GROUPVAR/);
+  session.read(projectSource.formName, [projectSource]);
+  assert.equal(session.groups().length, 0, "READ must clear GROUPVAR definitions");
 
   const examples = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-examples.ts")).href}?examples=${Date.now()}`);
   const catalogValue = JSON.parse(await readFile(repositoryPath(
@@ -1729,7 +1948,7 @@ SORT Age DESCENDING ID ASCENDING
 CANCEL SORT`;
   const ast = parser.parseClassicProgram(source);
   assert.equal(ast.type, "Program");
-  assert.equal(ast.astVersion, "0.5.0");
+  assert.equal(ast.astVersion, "1.0.0");
   assert.deepEqual(ast.body.map((statement) => statement.type), [
     "ReadStatement", "DefineStatement", "AssignStatement", "RecodeStatement", "SelectStatement", "IfStatement", "SortStatement", "SortStatement",
   ]);

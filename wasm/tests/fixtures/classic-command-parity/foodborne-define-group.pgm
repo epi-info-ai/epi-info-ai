@@ -1,0 +1,4 @@
+*** Epi Info AI bounded DEFINE GROUPVAR validation program
+*** Dataset: foodborne-outbreak-investigation.csv (96 records, 27 fields)
+DEFINE FoodSymptoms GROUPVAR diarrhea vomiting nausea abdominal_cramps fever
+LIST id FoodSymptoms

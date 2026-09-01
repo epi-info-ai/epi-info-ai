@@ -1,0 +1,11 @@
+{
+  "command": "UNDELETE (case_status = \"Confirmed\")",
+  "precondition": "The canonical foodborne DELETE RECORDS fixture has archived its 22 Confirmed records.",
+  "expected": {
+    "activeRecordsBefore": 74,
+    "recycleBinBefore": 22,
+    "restoredRecords": 22,
+    "activeRecordsAfter": 96,
+    "recycleBinAfter": 0
+  }
+}

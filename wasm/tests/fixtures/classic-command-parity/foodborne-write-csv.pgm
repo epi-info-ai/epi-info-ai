@@ -1,0 +1,2 @@
+*** Browser-safe legacy WRITE validation using the canonical foodborne data.
+WRITE REPLACE "Text" {foodborne-write-example.csv}:foodborne_write_example#csv id age sex case_status onset_date latitude longitude

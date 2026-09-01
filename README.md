@@ -349,6 +349,51 @@ checksums, expected metadata, and combined testing workflow are documented in
   execution for Standard session variables. Removed variables immediately leave
   the ASSIGN/IF choices; data records remain unchanged. `UNDEFINE * GLOBAL` is
   parsed for source fidelity but fails closed until Global lifetime exists.
+- Added familiar `DISPLAY DBVARIABLES` authoring for all available, defined,
+  field, or selected variables. Output preserves the legacy metadata column
+  order and exposes Standard values without changing records or session state.
+  DBVIEWS, database TABLES, and OUTTABLE persistence remain explicit gaps.
+- Added familiar `DEFINE name GROUPVAR ...` authoring and bounded Classic-session
+  storage. A named foodborne symptom group expands in `LIST` without creating a
+  data column; `READ` clears it. Expansion in FREQ/MEANS/TABLES, nested groups,
+  and desktop differential parity remain explicit gaps.
+- Added familiar `RELATE table current-key :: related-key MATCHING|ALL`
+  authoring and selected execution for forms in the current project. The typed
+  join supports composite keys, one-to-many output, matched-only or retained
+  unmatched parent records, collision-safe related fields, and auditable active
+  table replacement. External data sources remain mediated browser adapters.
+- Added familiar `WRITE REPLACE "Text" destination fields` authoring and
+  selected execution as an explicit UTF-8 CSV download. The foodborne fixture
+  verifies 96 exported records and selected-field order. Legacy APPEND remains
+  fail-closed until a reviewed choose-file, schema-preview, confirmation, and
+  writable-handle adapter is added, with upload/merge/download as its portable
+  fallback.
+- Added familiar `MERGE source destination-key :: source-key` authoring for
+  current-project forms. Running selected source stages legacy-style updates
+  and inserts in a review dialog; project records change only after explicit
+  confirmation. Non-unique destination keys, new validation violations,
+  external sources, and ambiguous legacy APPEND/UPDATE/RELATE modes fail closed.
+- Added familiar Data > Delete File/Table authoring for the reviewed
+  `DELETE TABLES <current-project form>` browser subset. Execution first shows
+  the affected foodborne record count, requires an acknowledgement, and only
+  then clears records while preserving the project form and its fields. External
+  files/databases, `RUNSILENT`, `SAVEDATA`, and the C# interpreter's unimplemented
+  short external-table form remain fail-closed and explicitly registered gaps.
+- Added familiar Data > Delete Records authoring for recoverable deletion.
+  `DELETE *` or one typed criterion is intersected with the active selection;
+  the review shows saved, active, matching, and remaining counts. Confirmed
+  matches enter the existing Recycle Bin with their original indexes and audit
+  events. `PERMANENT`, `RUNSILENT`, compound expressions, RELATE results, and
+  legacy related-view cascade remain explicit gaps.
+- Added the matching Data > Undelete Records lifecycle. `UNDELETE *` or one
+  typed criterion evaluates records in the current form's Recycle Bin, previews
+  active/deleted/restored counts, and restores only after acknowledgement. The
+  original archive identity remains in audit history; `RUNSILENT`, compound
+  expressions, and related-view cascade remain fail-closed.
+- Added the familiar Statistics > Summarize command with visible Epi Info
+  source. The reviewed browser subset creates one named in-session output table
+  from one aggregate and optional grouping field; the foodborne example computes
+  average age by sex. Multiple aggregates and `WEIGHTVAR` remain explicit gaps.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric
@@ -456,6 +501,15 @@ checksums, expected metadata, and combined testing workflow are documented in
   and service-independent test fixtures; then extend legacy GEOCODE compatibility.
 - Add offline basemap packages, choropleths, spatial analysis, and additional legacy map workflows.
 - Replace `localStorage` project persistence with SQLite WASM and OPFS.
+- Add a reviewed Microsoft Access conversion facility for legacy Epi Info
+  `.mdb` and `.accdb` projects. Conversion must be read-only against the source,
+  run outside the browser through a trusted local tool or approved HTTPS service,
+  and produce SQLite plus a versioned migration manifest. Preserve Epi Info
+  project/form/page metadata, code tables, relationships, keys/indexes, field
+  types, records, deleted-state metadata, and Check Code source where available;
+  report unsupported Access objects instead of silently dropping them. Validate
+  table/row/column counts, null/type conversions, representative checksums, and
+  referential integrity before the SQLite result can be imported into `.epia`.
 - Implement the versioned plugin runtime, capability API, permissions, and plugin catalog described in the architecture plan.
 - Execute the algorithm validation standard: complete provenance review of the
   imported legacy 2 x 2 corpus, add independent/pathological exact fixtures, and

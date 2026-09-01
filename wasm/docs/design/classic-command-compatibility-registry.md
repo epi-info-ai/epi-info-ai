@@ -33,7 +33,7 @@ Every command closes independently across these dimensions:
 | Validation | Legacy differential fixtures, independent algorithm references, hostile inputs, browser tests, and experienced-user review pass |
 
 No command is reported as parity-complete until every applicable dimension is
-closed. `parser: syntax-v0.5`, for example, means only that syntax is understood;
+closed. `parser: syntax-v0.8`, for example, means only that syntax is understood;
 it does not authorize execution.
 
 The machine-readable inventory also carries one explicit overall status:
@@ -48,10 +48,10 @@ interpreter.
 
 | Group | Legacy entries | Explorer-visible | Current implementation floor |
 |---|---:|---:|---|
-| Data | 7 | 7 | READ selects a current-project form for the Classic session; external storage and destructive commands require reviewed browser adapters |
-| Variables | 6 | 6 | DEFINE, UNDEFINE, and ASSIGN have bounded Standard session-variable execution; DEFINE and numeric RECODE also author the bounded full-program component |
+| Data | 7 | 7 | READ selects a current-project form; RELATE joins forms; WRITE downloads selected fields; MERGE previews and confirms current-project upserts; DELETE TABLES clears a reviewed form data table; recoverable DELETE/UNDELETE RECORDS archive and restore matching records; external storage and other destructive variants require reviewed adapters |
+| Variables | 6 | 6 | DEFINE, UNDEFINE, and ASSIGN have bounded Standard session-variable execution; DEFINE GROUPVAR stores named field/Standard-variable groups and LIST expands field members; DISPLAY DBVARIABLES renders field/defined metadata; DEFINE and numeric RECODE also author the bounded full-program component |
 | Select/If | 5 | 5 | SELECT/CANCEL SELECT and SORT/CANCEL SORT have typed source dialogs and bounded selected execution; IF adds a browser-verified Standard-variable branch while record-context semantics remain open |
-| Statistics | 8 | 6 | LIST, FREQ, MEANS, and TABLES have typed dialogs; selected LIST/FREQ/MEANS execute; TABLES requires value review |
+| Statistics | 8 | 6 | LIST, FREQ, MEANS, TABLES, and SUMMARIZE have typed dialogs; selected LIST/FREQ/MEANS/SUMMARIZE execute; TABLES requires value review; GRAPH remains the only Explorer-visible untouched Statistics command |
 | Advanced Statistics | 7 | 7 | Visible gaps; algorithm and dialog parity tracked independently |
 | Output | 7 | 6 | Visible gaps; every file/print route requires an explicit browser adaptation |
 | User-Defined Commands | 4 | 4 | Visible gaps; RUNPGM requires bounded project resolution; arbitrary EXECUTE is blocked |
@@ -65,12 +65,12 @@ snapshot makes its current implementation states easy to review:
 
 | State | Count | Commands |
 |---|---:|---|
-| Typed AST/parser | 14 | `READ`, `DEFINE`, `UNDEFINE`, `ASSIGN`, `RECODE`, `SELECT`, `CANCEL SELECT`, `IF`, `SORT`, `CANCEL SORT`, `LIST`, `FREQ`, `MEANS`, `TABLES` |
-| Typed source dialog | 14 | Same 14 commands |
-| Selected execution or reviewed handoff | 13 | All above except `RECODE`; `TABLES` is a review-required handoff rather than calculation |
+| Typed AST/parser | 23 | `READ`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `DEFINE`, `DEFINE GROUPVAR`, `UNDEFINE`, `ASSIGN`, `RECODE`, `DISPLAY`, `SELECT`, `CANCEL SELECT`, `IF`, `SORT`, `CANCEL SORT`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `SUMMARIZE` |
+| Typed source dialog | 23 | Same 23 commands |
+| Selected execution or reviewed handoff | 22 | All above except `RECODE`; `TABLES`, `DELETE TABLES`, `DELETE RECORDS`, and `UNDELETE RECORDS` require reviewed handoffs |
 | Bounded full-program component | 3 | `DEFINE`, `RECODE`, `FREQ` |
-| Completely untouched | 35 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
-| Browser-verified with foodborne `.pgm` + expected output | 2 | `IF`, `UNDEFINE` |
+| Completely untouched | 26 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
+| Browser-verified with foodborne `.pgm` + expected output | 11 | `IF`, `UNDEFINE`, `DISPLAY`, `DEFINE GROUPVAR`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `SUMMARIZE` |
 | Legacy-parity-verified | 0 | No command may enter this row without reviewed desktop Epi Info output |
 
 The implementation columns describe port progress, not parity closure. For
@@ -81,18 +81,27 @@ example, selected execution can be browser-tested while its command remains
 
 | Command | Parser | Typed dialog | Selected run | Full-program role | Important open parity gaps |
 |---|---|---|---|---|---|
-| `READ` | AST 0.5 | V0.1 | Selects one named current-project form and records history | None | External file/database adapters, passwords/SQL policy, record state, exact project/table syntax |
-| `LIST` | AST 0.5 | V0.1 | Renders explicit fields, `*`, or `* EXCEPT` from the active session | None | Legacy display variants, output append/export/print behavior, large-list paging |
-| `FREQ` | AST 0.5 | V0.1 | Executes one field with optional one `STRATAVAR` against the active session | Final step of bounded DEFINE/RECODE/FREQ | Multiple fields, `* EXCEPT`, weights, more strata, options, output tables, exact legacy output behavior |
-| `MEANS` | AST 0.5 | V0.1 | Executes one numeric field against the active session | None | Cross-tabulation, tests/ANOVA, strata, weights, options, output tables |
-| `TABLES` | AST 0.5 | V0.1 | Field validation and current-form handoff only | None | Active-session value classification, source-level exposed/case semantics, unstratified and multi-strata behavior, weights, match variables, options, output parity |
-| `DEFINE` | AST 0.5 | V0.1 | Declares one Standard typed scalar in the Classic session | Bounded Standard text variable | Global/Permanent lifetimes, initializers, full variable-expression integration, differential validation |
-| `UNDEFINE` | AST 0.5 | V0.1 Standard-variable selector/all toggle | Removes one or all Standard session variables | None | Global/Permanent lifetime, legacy no-op/error wording, full-program sequencing, desktop differential output |
-| `RECODE` | AST 0.5 | V0.1 numeric range grid | No | Bounded numeric ranges to text | Value/date recodes, fill-ranges/reverse options, missing rules, broader target types, selected execution |
-| `ASSIGN` | AST 0.5 | V0.1 literal assignment | Assigns one type-compatible literal to a defined Standard session variable | None | Record-by-record field mutation, missing syntax, identifiers/functions/operators, Global/Permanent variables, full-program sequencing |
-| `SELECT`, `CANCEL SELECT` | AST 0.5 | V0.1 | One typed field-to-literal comparison applies cumulative session filtering; cancel restores the READ source | None | AND/OR/LIKE/functions/arithmetic, missing-value syntax, exact collation, full-program sequencing, differential validation |
-| `SORT`, `CANCEL SORT` | AST 0.5 | V0.1 | Stable typed multi-field ordering replaces prior sort; cancel restores source order without changing selection | None | Exact DataView culture/case/null collation, defined variables, full-program sequencing, differential validation |
-| `IF` | AST 0.5 | V0.1 Standard-variable condition/branches | Executes one validated literal ASSIGN in THEN or ELSE | None | Record-by-record field context, compound expressions/functions, arbitrary/nested statement blocks, missing-value parity, full-program transactions, desktop differential output |
+| `READ` | AST 0.8 | V0.1 | Selects one named current-project form and records history | None | External file/database adapters, passwords/SQL policy, record state, exact project/table syntax |
+| `RELATE` | AST 0.8 | V0.1 one-key builder; composite keys accepted in source | Validates same-type keys, performs one-to-many MATCHING or ALL joins, renames collisions, enforces a reviewed 250,000-row browser limit, and activates the combined table | None | External source adapters, dialog UI for additional key pairs, exact legacy field naming/type coercion/missing behavior, page-table metadata, desktop differential Output |
+| `WRITE` | AST 0.9 | V0.1 familiar filename and variable selector | `REPLACE "Text"` downloads selected active fields and records the action in history | None | APPEND choose-file/schema-preview/confirmation adapter, portable upload/merge/download fallback, Epi7/Excel/database drivers, defined-variable output, desktop differential encoding/quoting/missing behavior |
+| `MERGE` | AST 1.0 | V0.1 source-form and one-key builder; composite keys accepted in source | Stages updates to uniquely matched destination rows and inserts unmatched source rows; preview plus explicit Apply persists a saved project form | None | External source adapters, multi-key dialog rows, exact legacy collation/coercion/missing/insert mapping, desktop differential Output, and meaning of parsed-but-unused APPEND/UPDATE/RELATE modes |
+| `DELETE FILE/TABLE` | AST 1.0 | V0.1 current-project form data-table selector | Stages removal of all records, requires separate review plus acknowledgement, then preserves the form/schema while clearing its browser working-copy records | None | External file/database and Project Files adapters, wildcards, desktop physical-table/form-metadata semantics, `RUNSILENT`, `SAVEDATA`, legacy dialogs/output, and differential validation |
+| `DELETE RECORDS` | AST 1.0 | V0.1 all-record toggle or one typed field/literal comparison | Intersects criteria with active READ/SELECT records, stages counts, then archives matches with original indexes and audit events after acknowledgement | None | `PERMANENT`, compound expressions/functions, exact RecStatus/SELECT/missing semantics, related-view cascade, large-operation policy, legacy output, and desktop differential validation |
+| `UNDELETE RECORDS` | AST 1.0 | V0.1 all-record toggle or one typed field/literal comparison | Evaluates the current form's Recycle Bin, previews lifecycle counts, then restores matching records near original positions with audit events after acknowledgement | None | Compound expressions/functions, exact RecStatus/missing semantics, related-view cascade, `RUNSILENT`, legacy output, and desktop differential validation |
+| `LIST` | AST 0.7 | V0.1 | Renders explicit fields, `*`, `* EXCEPT`, or field GROUPVAR expansion from the active session | None | Standard-variable group members, group expansion in other commands, legacy display variants, output append/export/print behavior, large-list paging |
+| `FREQ` | AST 0.7 | V0.1 | Executes one field with optional one `STRATAVAR` against the active session | Final step of bounded DEFINE/RECODE/FREQ | Multiple fields and GROUPVAR expansion, `* EXCEPT`, weights, more strata, options, output tables, exact legacy output behavior |
+| `MEANS` | AST 0.7 | V0.1 | Executes one numeric field against the active session | None | GROUPVAR expansion, cross-tabulation, tests/ANOVA, strata, weights, options, output tables |
+| `SUMMARIZE` | AST 1.0 | V0.1 one aggregate, source field, result name, output table, and optional group selector | Computes the aggregate against active READ/SELECT records, renders the named table, and retains it for READ during the session | None | Multiple aggregates, `COUNT()` without a field in the dialog, multiple strata, `WEIGHTVAR`, persistence/export, exact aggregate types/order/missing semantics, desktop differential output |
+| `TABLES` | AST 0.7 | V0.1 | Field validation and current-form handoff only | None | GROUPVAR expansion, active-session value classification, source-level exposed/case semantics, unstratified and multi-strata behavior, weights, match variables, options, output parity |
+| `DEFINE` | AST 0.7 | V0.1 | Declares one Standard typed scalar in the Classic session | Bounded Standard text variable | Global/Permanent lifetimes, initializers, full variable-expression integration, differential validation |
+| `DEFINE GROUPVAR` | AST 0.7 | V0.1 field/Standard-variable selector | Stores a named session group; LIST expands field members in declared order | None | Nested groups, group replacement/error wording, expansion in FREQ/MEANS/TABLES/other commands, Standard-variable LIST output, desktop differential output |
+| `UNDEFINE` | AST 0.7 | V0.1 Standard-variable selector/all toggle | Removes one or all Standard session variables | None | Global/Permanent lifetime, legacy no-op/error wording, full-program sequencing, desktop differential output |
+| `DISPLAY` | AST 0.7 | V0.1 familiar DBVARIABLES choices | Renders all, defined, field, or selected variable metadata in Output | None | DBVIEWS/TABLES, external database choice, OUTTABLE persistence, exact legacy formatting/type labels, desktop differential HTML |
+| `RECODE` | AST 0.7 | V0.1 numeric range grid | No | Bounded numeric ranges to text | Value/date recodes, fill-ranges/reverse options, missing rules, broader target types, selected execution |
+| `ASSIGN` | AST 0.7 | V0.1 literal assignment | Assigns one type-compatible literal to a defined Standard session variable | None | Record-by-record field mutation, missing syntax, identifiers/functions/operators, Global/Permanent variables, full-program sequencing |
+| `SELECT`, `CANCEL SELECT` | AST 0.7 | V0.1 | One typed field-to-literal comparison applies cumulative session filtering; cancel restores the READ source | None | AND/OR/LIKE/functions/arithmetic, missing-value syntax, exact collation, full-program sequencing, differential validation |
+| `SORT`, `CANCEL SORT` | AST 0.7 | V0.1 | Stable typed multi-field ordering replaces prior sort; cancel restores source order without changing selection | None | Exact DataView culture/case/null collation, defined variables, full-program sequencing, differential validation |
+| `IF` | AST 0.7 | V0.1 Standard-variable condition/branches | Executes one validated literal ASSIGN in THEN or ELSE | None | Record-by-record field context, compound expressions/functions, arbitrary/nested statement blocks, missing-value parity, full-program transactions, desktop differential output |
 
 ## Browser policy
 
@@ -106,6 +115,12 @@ example, selected execution can be browser-tested while its command remains
 
 Adaptation never grants a command direct DOM, network, credential, filesystem,
 database, or process authority. Unsupported source remains visible and portable.
+The reference adaptation is WRITE: keep the learned command and dialog concepts,
+request a capability only through a user gesture, validate and preview before a
+mutation, audit the result, and offer a portable fallback where a browser-native
+capability is unavailable. MERGE and DELETE TABLES now follow that pattern;
+external DELETE FILE/TABLE, ROUTEOUT, RUNPGM, and other desktop-bound variants
+remain disabled until their reviewed adapters exist.
 
 ## Closure order
 
@@ -159,3 +174,80 @@ registry deliberately withholds `legacy-parity-verified` until the identical
 program and output have been reviewed in desktop Epi Info. Record fields,
 missing-value comparisons, compound expressions, functions, nesting, and other
 branch commands remain fail-closed.
+
+`DEFINE name GROUPVAR members...` now has its familiar Variables-tree path and
+typed multi-select dialog. Definitions live in the Classic session, preserve
+declared member order, appear in status/history, reset on READ, and expand field
+members when LIST resolves. The slice does not create a synthetic data column.
+Nested groups, replacement semantics, Standard-variable values in LIST, and
+expansion in FREQ/MEANS/TABLES or other consumers remain fail-closed/open until
+their legacy behavior and output have separate differential evidence.
+
+`RELATE` now restores the familiar Data-tree path for forms already available
+in the current project. Its typed join engine accepts one or more
+`current-field :: related-field` key pairs, requires compatible field types,
+supports legacy matched-only (`MATCHING`/default) and retained-parent (`ALL`)
+behavior, preserves one-to-many rows, renames related-field collisions, and
+makes the combined table active for later LIST/FREQ/MEANS commands. A reviewed
+250,000-output-row ceiling rejects explosive joins before adding further rows.
+The dialog
+authors one key pair; composite key source is already parsed and executed.
+External project/file/database sources remain explicit browser-adapter work,
+and exact desktop column naming, missing/coercion behavior, page metadata, and
+Output require differential evidence.
+
+`WRITE REPLACE "Text"` now preserves the familiar Data-tree workflow while
+adapting its destination to an explicit browser download. The selected command
+exports the active READ/RELATE/SELECT/SORT record set, respects explicit fields
+or `* EXCEPT`, and emits UTF-8 CSV without ambient path access. APPEND is not
+silently treated as REPLACE: it fails closed pending an adapter that asks the
+user to choose an existing CSV, validates its schema and encoding, previews the
+append, confirms the mutation, writes through a granted file handle when
+available, and otherwise returns a replacement download.
+
+`MERGE` now follows the same mediated-mutation rule. The active saved project
+form is the destination; another current-project form is the source. A staged
+result reports destination/source/update/insert/final counts, and nothing is
+persisted until the user selects Apply Merge. Destination keys must be unique,
+shared fields must retain compatible types, and the mutation cannot introduce
+new field-validation issues. The legacy parser accepts APPEND, UPDATE, and
+RELATE, but the reviewed C# execution path stores that mode without branching on
+it; Epi Info AI therefore parses those tokens but rejects them pending desktop
+differential evidence rather than inventing three behaviors.
+
+`DELETE TABLES` now restores the familiar Data-tree entry without granting
+ambient path authority. The enabled subset targets one named form data table in
+the current browser project. Running selected source stages the record count;
+nothing changes until the review dialog's acknowledgement is checked and Delete
+Table Records is selected. The mutation clears records and dataset provenance
+but preserves the project, form schema, rules, Check Code, and programs. The
+legacy external-file, external-database, wildcard, `RUNSILENT`, and `SAVEDATA`
+variants fail closed. The reviewed C# short external-table rule throws Not
+Implemented; Epi Info AI records that fact instead of inventing behavior.
+
+Ordinary `DELETE RECORDS` preserves the legacy recoverable intent for Epi
+project views. The dialog authors `DELETE *` or one schema-checked field/literal
+comparison. Criteria operate on the active READ/SELECT set, while the staged
+mutation is reconciled to the saved form with duplicate-safe record counts.
+Confirmation moves matches to the existing project Recycle Bin with original
+positions and per-record audit events. `PERMANENT`, `RUNSILENT`, `SAVEDATA`,
+compound expressions/functions, derived RELATE tables, and related-child cascade
+remain fail-closed pending separate evidence and adapters.
+
+`UNDELETE RECORDS` completes the recoverable lifecycle pair. Legacy C# evaluates
+its expression over the complete Epi project table, marks matching rows active,
+reruns the current READ, and reports the restored count. The browser adaptation
+evaluates the same bounded criterion against Recycle Bin records, previews the
+active/archive transition, rejects a stale preview, and preserves archive IDs in
+audit events. It requires the complete saved form; active SELECT and RELATE
+results must be cancelled or reread before restoration. `RUNSILENT` remains
+disabled because this adapted lifecycle requires visible confirmation.
+
+`SUMMARIZE` preserves the legacy named-output-table workflow rather than
+reducing it to an unlabeled chart. The V0.1 dialog authors one
+`result :: aggregate(field)` expression, a `TO` table name, and optional one
+`STRATAVAR`. The typed executor supports the legacy aggregate names, applies
+numeric type constraints, includes active SELECT membership, renders the table
+in Output, and retains it in the Classic session so a subsequent READ can use
+it. Multiple aggregate expressions, multiple strata, and `WEIGHTVAR` are parsed
+or rejected explicitly and remain differential-validation gaps.

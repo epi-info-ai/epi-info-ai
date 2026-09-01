@@ -5,8 +5,17 @@ import { buildClassicSelectionCommand, resolveClassicSelectionCommand, type Clas
 import { buildClassicSortCommand, resolveClassicSortCommand, type ClassicSortDirection } from "./classic-sort.ts";
 import { buildClassicAssignmentCommand, buildClassicUndefineCommand, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand, type ClassicSessionVariableDefinition, type ClassicVariableValue } from "./classic-assignment.ts";
 import { buildClassicIfCommand, resolveClassicIfCommand, type ClassicIfInput } from "./classic-if.ts";
+import { buildClassicDisplayCommand, resolveClassicDisplayCommand, type ClassicDisplayMode } from "./classic-display.ts";
+import { buildClassicDefineGroupCommand, expandClassicGroupNames, resolveClassicDefineGroupCommand, type ClassicGroupDefinition } from "./classic-group.ts";
+import { buildClassicRelateCommand, resolveClassicRelateCommand, type ClassicRelateKey } from "./classic-relate.ts";
+import { buildClassicWriteCommand, resolveClassicWriteCommand } from "./classic-write.ts";
+import { buildClassicMergeCommand, resolveClassicMergeCommand, type ClassicMergeKey } from "./classic-merge.ts";
+import { buildClassicDeleteTableCommand, resolveClassicDeleteTableCommand } from "./classic-delete.ts";
+import { buildClassicDeleteRecordsCommand, resolveClassicDeleteRecordsCommand, type ClassicDeleteRecordsInput } from "./classic-delete-records.ts";
+import { buildClassicUndeleteRecordsCommand, resolveClassicUndeleteRecordsCommand, type ClassicUndeleteRecordsInput } from "./classic-undelete-records.ts";
+import { buildClassicSummarizeCommand, resolveClassicSummarizeCommand, type ClassicSummarizeInput } from "./classic-summarize.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "define" | "undefine" | "assign" | "recode" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables";
+export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "summarize";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -14,10 +23,19 @@ export interface ClassicRecodeRangeInput { from: string; to?: string; result: st
 
 export type ClassicAnalysisCommandInput =
   | { kind: "read"; table: string }
+  | { kind: "relate"; relatedForm: string; keys: ClassicRelateKey[]; join: "matching" | "all" }
+  | { kind: "write"; fileName: string; fields: string[] }
+  | { kind: "merge"; sourceForm: string; keys: ClassicMergeKey[] }
+  | { kind: "delete-table"; formName: string }
+  | ({ kind: "delete-records" } & ClassicDeleteRecordsInput)
+  | ({ kind: "undelete-records" } & ClassicUndeleteRecordsInput)
+  | ({ kind: "summarize" } & ClassicSummarizeInput)
   | { kind: "define"; variable: string; scope: ClassicDefineVariableScope; variableType: ClassicDefineVariableType; prompt?: string }
+  | { kind: "define-group"; group: string; members: string[] }
   | { kind: "undefine"; variable: string | "*" }
   | { kind: "assign"; variable: string; value: ClassicVariableValue }
   | { kind: "recode"; sourceField: string; targetVariable: string; ranges: ClassicRecodeRangeInput[]; elseResult?: string }
+  | { kind: "display"; mode: ClassicDisplayMode; variables?: string[] }
   | { kind: "select"; field: string; operator: ClassicSelectionOperator; value: string | number | boolean }
   | { kind: "cancel-select" }
   | ({ kind: "if" } & ClassicIfInput)
@@ -47,11 +65,19 @@ const recodeBoundary = (value: string): string => {
 
 export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput): string {
   if (input.kind === "read") return `READ ${fieldToken(input.table)}`;
+  if (input.kind === "relate") return buildClassicRelateCommand(input.relatedForm, input.keys, input.join);
+  if (input.kind === "write") return buildClassicWriteCommand({ fileName: input.fileName, fields: input.fields });
+  if (input.kind === "merge") return buildClassicMergeCommand(input.sourceForm, input.keys);
+  if (input.kind === "delete-table") return buildClassicDeleteTableCommand(input.formName);
+  if (input.kind === "delete-records") return buildClassicDeleteRecordsCommand(input);
+  if (input.kind === "undelete-records") return buildClassicUndeleteRecordsCommand(input);
+  if (input.kind === "summarize") return buildClassicSummarizeCommand(input);
   if (input.kind === "define") {
     const scope = input.scope === "STANDARD" ? "" : ` ${input.scope}`;
     const prompt = input.prompt?.trim() ? ` ${JSON.stringify(input.prompt.trim())}` : "";
     return `DEFINE ${variableToken(input.variable)}${scope} ${input.variableType}${prompt}`;
   }
+  if (input.kind === "define-group") return buildClassicDefineGroupCommand(input.group, input.members);
   if (input.kind === "undefine") return buildClassicUndefineCommand(input.variable);
   if (input.kind === "assign") return buildClassicAssignmentCommand(input.variable, input.value);
   if (input.kind === "recode") {
@@ -65,6 +91,7 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
     if (input.elseResult !== undefined && input.elseResult.trim()) lines.push(`  ELSE = ${JSON.stringify(input.elseResult)}`);
     return `RECODE ${fieldToken(input.sourceField)} TO ${variableToken(input.targetVariable)}\n${lines.join("\n")}\nEND`;
   }
+  if (input.kind === "display") return buildClassicDisplayCommand(input);
   if (input.kind === "select") return buildClassicSelectionCommand(input.field, input.operator, input.value);
   if (input.kind === "cancel-select") return "CANCEL SELECT";
   if (input.kind === "if") return buildClassicIfCommand(input);
@@ -91,18 +118,29 @@ function assertBoundedOptions(options: ClassicAnalysisOptions, allowStrata: bool
   return options.stratifyBy[0]?.name;
 }
 
-export function resolveSelectedClassicAnalysisCommand(source: string, fields: readonly FieldDefinition[], dataSources: readonly MapDataSource[] = [], variables: readonly ClassicSessionVariableDefinition[] = []): ResolvedClassicAnalysisCommand {
-  if (!source.trim()) throw new RangeError("Select one complete DEFINE, UNDEFINE, ASSIGN, READ, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, or TABLES command in the Program Editor.");
+export function resolveSelectedClassicAnalysisCommand(source: string, fields: readonly FieldDefinition[], dataSources: readonly MapDataSource[] = [], variables: readonly ClassicSessionVariableDefinition[] = [], groups: readonly ClassicGroupDefinition[] = []): ResolvedClassicAnalysisCommand {
+  if (!source.trim()) throw new RangeError("Select one complete READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, or SUMMARIZE command in the Program Editor.");
   const ast = parseClassicProgram(source);
   if (ast.body.length !== 1) throw new RangeError("Select exactly one complete command. Multiple statements were not run.");
   const statement = ast.body[0]!;
   if (statement.type === "DefineStatement") {
-    const definition = resolveClassicDefineCommand(source, fields, variables);
+    const definition = resolveClassicDefineCommand(source, fields, variables, groups);
     return { kind: "define", variable: definition.name, scope: definition.scope, variableType: definition.variableType, ...(definition.prompt ? { prompt: definition.prompt } : {}), source };
+  }
+  if (statement.type === "DefineGroupStatement") {
+    const plan = resolveClassicDefineGroupCommand(source, fields, variables, groups);
+    return { kind: "define-group", group: plan.name, members: plan.members, source };
   }
   if (statement.type === "UndefineStatement") {
     const plan = resolveClassicUndefineCommand(source, fields, variables);
     return { kind: "undefine", variable: plan.mode === "all-standard" ? "*" : plan.variable!.name, source };
+  }
+  if (statement.type === "DisplayStatement") {
+    const plan = resolveClassicDisplayCommand(source, fields, variables.map((variable) => ({ ...variable, value: null })));
+    return {
+      kind: "display", mode: plan.mode,
+      ...(plan.mode === "list" ? { variables: [...plan.fields.map(({ name }) => name), ...plan.variables.map(({ name }) => name)] } : {}), source,
+    };
   }
   if (statement.type === "AssignStatement") {
     const assignment = resolveClassicAssignCommand(source, fields, variables);
@@ -132,13 +170,48 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
     if (matches.length !== 1) throw new RangeError(matches.length ? `${statement.target.table} is ambiguous in the current project.` : `${statement.target.table} is not a form in the current project.`);
     return { kind: "read", table: matches[0]!.formName, source };
   }
+  if (statement.type === "RelateStatement") {
+    const plan = resolveClassicRelateCommand(source, fields, dataSources);
+    return { kind: "relate", relatedForm: plan.relatedForm, keys: plan.keys, join: plan.join, source };
+  }
+  if (statement.type === "WriteStatement") {
+    const plan = resolveClassicWriteCommand(source, fields, groups);
+    return { kind: "write", fileName: plan.fileName, fields: plan.fields.map(({ name }) => name), source };
+  }
+  if (statement.type === "MergeStatement") {
+    const plan = resolveClassicMergeCommand(source, fields, dataSources);
+    return { kind: "merge", sourceForm: plan.sourceForm, keys: plan.keys, source };
+  }
+  if (statement.type === "DeleteStatement") {
+    if (statement.target.kind === "records") {
+      const plan = resolveClassicDeleteRecordsCommand(source, fields);
+      return plan.selection.kind === "all"
+        ? { kind: "delete-records", all: true, source }
+        : { kind: "delete-records", all: false, field: plan.selection.field, operator: plan.selection.operator, value: plan.selection.value, source };
+    }
+    const plan = resolveClassicDeleteTableCommand(source, dataSources);
+    return { kind: "delete-table", formName: plan.formName, source };
+  }
+  if (statement.type === "UndeleteStatement") {
+    const plan = resolveClassicUndeleteRecordsCommand(source, fields);
+    return plan.selection.kind === "all"
+      ? { kind: "undelete-records", all: true, source }
+      : { kind: "undelete-records", all: false, field: plan.selection.field, operator: plan.selection.operator, value: plan.selection.value, source };
+  }
+  if (statement.type === "SummarizeStatement") {
+    const plan = resolveClassicSummarizeCommand(source, fields);
+    return {
+      kind: "summarize", aggregate: plan.aggregate, ...(plan.field ? { field: plan.field } : {}), resultField: plan.resultField,
+      outputTable: plan.outputTable, ...(plan.stratifyBy ? { stratifyBy: plan.stratifyBy } : {}), source,
+    };
+  }
   if (statement.type === "ListStatement") {
     if (statement.selection.kind === "all") return { kind: "list", fields: fields.map((field) => field.name), source };
     if (statement.selection.kind === "all-except") {
-      const excluded = new Set(statement.selection.fields.map((field) => resolvedField(fields, field.name)));
+      const excluded = new Set(expandClassicGroupNames(statement.selection.fields.map((field) => field.name), groups).map((name) => resolvedField(fields, name)));
       return { kind: "list", fields: fields.map((field) => field.name).filter((field) => !excluded.has(field)), source };
     }
-    return { kind: "list", fields: statement.selection.fields.map((field) => resolvedField(fields, field.name)), source };
+    return { kind: "list", fields: expandClassicGroupNames(statement.selection.fields.map((field) => field.name), groups).map((name) => resolvedField(fields, name)), source };
   }
   if (statement.type === "FrequencyStatement") {
     if (statement.selection.kind !== "fields" || statement.selection.fields.length !== 1) throw new RangeError("Selected FREQ execution requires exactly one field.");
@@ -165,5 +238,5 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       stratifyBy: resolvedField(fields, strata), source,
     };
   }
-  throw new RangeError("Only selected DEFINE, UNDEFINE, ASSIGN, READ, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, and TABLES commands are enabled in this slice.");
+  throw new RangeError("Only selected READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, and SUMMARIZE commands are enabled in this slice.");
 }

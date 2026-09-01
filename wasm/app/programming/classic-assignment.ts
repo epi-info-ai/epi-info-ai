@@ -62,7 +62,7 @@ function assertCompatible(variable: ClassicSessionVariableDefinition, literal: C
   }
 }
 
-export function resolveClassicDefineCommand(source: string, fields: readonly FieldDefinition[], variables: readonly ClassicSessionVariableDefinition[]): ClassicDefinePlan {
+export function resolveClassicDefineCommand(source: string, fields: readonly FieldDefinition[], variables: readonly ClassicSessionVariableDefinition[], groups: readonly { name: string }[] = []): ClassicDefinePlan {
   const ast = parseClassicProgram(source);
   if (ast.body.length !== 1 || ast.body[0]?.type !== "DefineStatement") throw new RangeError("Select exactly one complete DEFINE command.");
   const statement = ast.body[0];
@@ -70,6 +70,7 @@ export function resolveClassicDefineCommand(source: string, fields: readonly Fie
   if (statement.scope !== "STANDARD") throw new RangeError("Selected DEFINE currently supports Standard session variables only; Global and Permanent lifetimes remain fail-closed.");
   if (caseInsensitive(fields, statement.variable.name)) throw new RangeError(`${statement.variable.name} is a current-form field and cannot be redefined as a session variable.`);
   if (caseInsensitive(variables, statement.variable.name)) throw new RangeError(`${statement.variable.name} is already defined in this Classic session.`);
+  if (caseInsensitive(groups, statement.variable.name)) throw new RangeError(`${statement.variable.name} is already a GROUPVAR in this Classic session.`);
   const definition: ClassicSessionVariableDefinition = {
     name: statement.variable.name, scope: statement.scope, variableType: statement.variableType,
     ...(statement.prompt ? { prompt: statement.prompt } : {}),

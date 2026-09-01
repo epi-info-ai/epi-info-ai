@@ -1,0 +1,7 @@
+*** Epi Info AI bounded DISPLAY validation program
+*** Dataset: foodborne-outbreak-investigation.csv (96 records, 27 fields)
+DEFINE ReviewLabel TEXTINPUT "Review label"
+ASSIGN ReviewLabel = "Priority review"
+DISPLAY DBVARIABLES DEFINE
+DISPLAY DBVARIABLES FIELDVAR
+DISPLAY DBVARIABLES LIST ReviewLabel case_status

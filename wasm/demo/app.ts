@@ -1,6 +1,10 @@
 import { calculateChiSquareTrend, calculateCohortSampleSize, calculatePopulationSurvey, calculateTable2x2, calculateUnmatchedCaseControl, cohortEffectFromOdds, cohortOddsFromOutcomes, cohortOddsFromRisk, deriveFrequency, deriveMeans, deriveRate, deriveStratifiedFrequency, deriveStratifiedTable2x2, unmatchedCaseExposureFromOdds, unmatchedOddsFromExposures } from "./engine.js";
 import { initializeEpiAssist } from "./epi-assist.js";
 import {
+  applyClassicMergeRecords,
+  applyClassicDeleteTableRecords,
+  applyClassicDeleteRecords,
+  applyClassicUndeleteRecords,
   applyHostedProjectSnapshot,
   deleteCurrentProjectProgram,
   getCurrentProjectSnapshot,
@@ -27,6 +31,15 @@ import { resolveClassicSortCommand, type ClassicSortDirection } from "../app/pro
 import { assignmentValueFromInput, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand } from "../app/programming/classic-assignment.js";
 import { ClassicProgramSession } from "../app/programming/classic-session.js";
 import { evaluateClassicIf, resolveClassicIfCommand } from "../app/programming/classic-if.js";
+import { classicDisplayRows, resolveClassicDisplayCommand, type ClassicDisplayMode } from "../app/programming/classic-display.js";
+import { resolveClassicDefineGroupCommand } from "../app/programming/classic-group.js";
+import { applyClassicRelate, resolveClassicRelateCommand } from "../app/programming/classic-relate.js";
+import { resolveClassicWriteCommand, serializeClassicWriteCsv } from "../app/programming/classic-write.js";
+import { applyClassicMerge, resolveClassicMergeCommand, type ClassicMergePlan, type ClassicMergeResult } from "../app/programming/classic-merge.js";
+import { resolveClassicDeleteTableCommand, stageClassicDeleteTable, type ClassicDeleteTablePlan } from "../app/programming/classic-delete.js";
+import { resolveClassicDeleteRecordsCommand, stageClassicDeleteRecords, type ClassicDeleteRecordsResult } from "../app/programming/classic-delete-records.js";
+import { resolveClassicUndeleteRecordsCommand, stageClassicUndeleteRecords, type ClassicUndeleteRecordsResult } from "../app/programming/classic-undelete-records.js";
+import { applyClassicSummarize, resolveClassicSummarizeCommand, type ClassicSummarizeAggregate } from "../app/programming/classic-summarize.js";
 import { renderClassicProgramSurface } from "../app/programming/classic-program-surface.js";
 import { ClassicProgramDocumentService, normalizeClassicProgramName, readClassicProgramFile, safeClassicProgramFileName } from "../app/programming/classic-program-document.js";
 import { assessClassicProgramCatalog, loadClassicProgramExampleCatalog, type ClassicProgramExample, type ClassicProgramExampleCatalog } from "../app/programming/classic-examples.js";
@@ -614,6 +627,7 @@ function renderClassicProgramSession(): void {
   const status = classicProgramSession.selectionStatus(getCurrentProjectData());
   const sort = classicProgramSession.sortStatus();
   const variables = classicProgramSession.variables();
+  const groups = classicProgramSession.groups();
   const label = document.createElement("strong");
   label.textContent = "Active data:";
   let detail = status.canonicalSource
@@ -621,6 +635,7 @@ function renderClassicProgramSession(): void {
     : ` ${source.formName} · ${status.total} records; no selection.`;
   if (sort.canonicalSource) detail += ` ${sort.canonicalSource}`;
   if (variables.length) detail += ` Variables: ${variables.map((variable) => `${variable.name}=${variable.value === null ? "Missing" : String(variable.value)}`).join(", ")}.`;
+  if (groups.length) detail += ` Groups: ${groups.map((group) => `${group.name}=[${group.members.join(", ")}]`).join("; ")}.`;
   requiredElement("#classic-program-session-status").replaceChildren(label, detail);
   requiredElement("#classic-program-source-name").textContent = `${source.formName} · ${status.selected} of ${status.total} records${sort.fields ? ` · sorted by ${sort.fields} field${sort.fields === 1 ? "" : "s"}` : ""}`;
 }
@@ -893,6 +908,32 @@ requiredElement("#classic-program-edit-end").addEventListener("click", () => edi
 const classicCommandDialog = requiredElement<HTMLDialogElement>("#classic-command-dialog");
 const classicCommandDialogKind = requiredElement<HTMLSelectElement>("#classic-command-dialog-kind");
 const classicCommandDialogSource = requiredElement<HTMLSelectElement>("#classic-command-dialog-source");
+const classicCommandDialogRelateCurrentKey = requiredElement<HTMLSelectElement>("#classic-command-dialog-relate-current-key");
+const classicCommandDialogRelateRelatedKey = requiredElement<HTMLSelectElement>("#classic-command-dialog-relate-related-key");
+const classicCommandDialogRelateAll = requiredElement<HTMLInputElement>("#classic-command-dialog-relate-all");
+const classicCommandDialogWriteFile = requiredElement<HTMLInputElement>("#classic-command-dialog-write-file");
+const classicCommandDialogWriteFields = requiredElement<HTMLSelectElement>("#classic-command-dialog-write-fields");
+const classicCommandDialogMergeCurrentKey = requiredElement<HTMLSelectElement>("#classic-command-dialog-merge-current-key");
+const classicCommandDialogMergeSourceKey = requiredElement<HTMLSelectElement>("#classic-command-dialog-merge-source-key");
+const classicMergePreviewDialog = requiredElement<HTMLDialogElement>("#classic-merge-preview-dialog");
+const classicDeletePreviewDialog = requiredElement<HTMLDialogElement>("#classic-delete-preview-dialog");
+const classicDeleteRecordsPreviewDialog = requiredElement<HTMLDialogElement>("#classic-delete-records-preview-dialog");
+const classicUndeleteRecordsPreviewDialog = requiredElement<HTMLDialogElement>("#classic-undelete-records-preview-dialog");
+const classicCommandDialogDeleteAll = requiredElement<HTMLInputElement>("#classic-command-dialog-delete-all");
+const classicCommandDialogDeleteField = requiredElement<HTMLSelectElement>("#classic-command-dialog-delete-field");
+const classicCommandDialogDeleteOperator = requiredElement<HTMLSelectElement>("#classic-command-dialog-delete-operator");
+const classicCommandDialogDeleteValue = requiredElement<HTMLInputElement>("#classic-command-dialog-delete-value");
+const classicCommandDialogDeleteBoolean = requiredElement<HTMLSelectElement>("#classic-command-dialog-delete-boolean");
+const classicCommandDialogUndeleteAll = requiredElement<HTMLInputElement>("#classic-command-dialog-undelete-all");
+const classicCommandDialogUndeleteField = requiredElement<HTMLSelectElement>("#classic-command-dialog-undelete-field");
+const classicCommandDialogUndeleteOperator = requiredElement<HTMLSelectElement>("#classic-command-dialog-undelete-operator");
+const classicCommandDialogUndeleteValue = requiredElement<HTMLInputElement>("#classic-command-dialog-undelete-value");
+const classicCommandDialogUndeleteBoolean = requiredElement<HTMLSelectElement>("#classic-command-dialog-undelete-boolean");
+const classicCommandDialogSummarizeAggregate = requiredElement<HTMLSelectElement>("#classic-command-dialog-summarize-aggregate");
+const classicCommandDialogSummarizeField = requiredElement<HTMLSelectElement>("#classic-command-dialog-summarize-field");
+const classicCommandDialogSummarizeResult = requiredElement<HTMLInputElement>("#classic-command-dialog-summarize-result");
+const classicCommandDialogSummarizeTable = requiredElement<HTMLInputElement>("#classic-command-dialog-summarize-table");
+const classicCommandDialogSummarizeStrata = requiredElement<HTMLSelectElement>("#classic-command-dialog-summarize-strata");
 const classicCommandDialogField = requiredElement<HTMLSelectElement>("#classic-command-dialog-field");
 const classicCommandDialogExposure = requiredElement<HTMLSelectElement>("#classic-command-dialog-exposure");
 const classicCommandDialogOutcome = requiredElement<HTMLSelectElement>("#classic-command-dialog-outcome");
@@ -915,6 +956,10 @@ const classicCommandDialogAssignValue = requiredElement<HTMLInputElement>("#clas
 const classicCommandDialogAssignBoolean = requiredElement<HTMLSelectElement>("#classic-command-dialog-assign-boolean");
 const classicCommandDialogUndefineVariable = requiredElement<HTMLSelectElement>("#classic-command-dialog-undefine-variable");
 const classicCommandDialogUndefineAll = requiredElement<HTMLInputElement>("#classic-command-dialog-undefine-all");
+const classicCommandDialogDisplayMode = requiredElement<HTMLSelectElement>("#classic-command-dialog-display-mode");
+const classicCommandDialogDisplayVariables = requiredElement<HTMLSelectElement>("#classic-command-dialog-display-variables");
+const classicCommandDialogGroupName = requiredElement<HTMLInputElement>("#classic-command-dialog-group-name");
+const classicCommandDialogGroupMembers = requiredElement<HTMLSelectElement>("#classic-command-dialog-group-members");
 const classicCommandDialogIfVariable = requiredElement<HTMLSelectElement>("#classic-command-dialog-if-variable");
 const classicCommandDialogIfOperator = requiredElement<HTMLSelectElement>("#classic-command-dialog-if-operator");
 const classicCommandDialogIfValue = requiredElement<HTMLInputElement>("#classic-command-dialog-if-value");
@@ -1036,15 +1081,61 @@ function classicDefinedFields(baseFields: readonly FieldDefinition[]): FieldDefi
   }
 }
 
+function classicDeleteRecordsValue(): string | number | boolean {
+  const field = classicProgramSession.current(getCurrentProjectData()).fields.find(({ name }) => name === classicCommandDialogDeleteField.value);
+  if (!field) throw new RangeError("Choose a current-form field for DELETE RECORDS.");
+  if (field.type === "checkbox" || field.type === "yes-no") return classicCommandDialogDeleteBoolean.value === "true";
+  const value = classicCommandDialogDeleteValue.value.trim();
+  if (!value) throw new RangeError("Enter a DELETE RECORDS comparison value.");
+  if (field.type === "number") {
+    const number = Number(value);
+    if (!Number.isFinite(number)) throw new RangeError(`${field.prompt} requires a finite numeric value.`);
+    return number;
+  }
+  return value;
+}
+
+function classicUndeleteRecordsValue(): string | number | boolean {
+  const field = classicProgramSession.current(getCurrentProjectData()).fields.find(({ name }) => name === classicCommandDialogUndeleteField.value);
+  if (!field) throw new RangeError("Choose a current-form field for UNDELETE RECORDS.");
+  if (field.type === "checkbox" || field.type === "yes-no") return classicCommandDialogUndeleteBoolean.value === "true";
+  const value = classicCommandDialogUndeleteValue.value.trim();
+  if (!value) throw new RangeError("Enter an UNDELETE RECORDS comparison value.");
+  if (field.type === "number") {
+    const number = Number(value);
+    if (!Number.isFinite(number)) throw new RangeError(`${field.prompt} requires a finite numeric value.`);
+    return number;
+  }
+  return value;
+}
+
 function classicCommandDialogInput(): ClassicAnalysisCommandInput {
   const kind = classicCommandDialogKind.value as ClassicAnalysisCommandKind;
   if (kind === "read") return { kind, table: classicCommandDialogSource.value };
+  if (kind === "relate") return {
+    kind, relatedForm: classicCommandDialogSource.value,
+    keys: [{ currentField: classicCommandDialogRelateCurrentKey.value, relatedField: classicCommandDialogRelateRelatedKey.value }],
+    join: classicCommandDialogRelateAll.checked ? "all" : "matching",
+  };
+  if (kind === "write") return { kind, fileName: classicCommandDialogWriteFile.value, fields: [...classicCommandDialogWriteFields.selectedOptions].map((option) => option.value) };
+  if (kind === "merge") return {
+    kind, sourceForm: classicCommandDialogSource.value,
+    keys: [{ currentField: classicCommandDialogMergeCurrentKey.value, sourceField: classicCommandDialogMergeSourceKey.value }],
+  };
+  if (kind === "delete-table") return { kind, formName: classicCommandDialogSource.value };
+  if (kind === "delete-records") return classicCommandDialogDeleteAll.checked
+    ? { kind, all: true }
+    : { kind, all: false, field: classicCommandDialogDeleteField.value, operator: classicCommandDialogDeleteOperator.value as ClassicSelectionOperator, value: classicDeleteRecordsValue() };
+  if (kind === "undelete-records") return classicCommandDialogUndeleteAll.checked
+    ? { kind, all: true }
+    : { kind, all: false, field: classicCommandDialogUndeleteField.value, operator: classicCommandDialogUndeleteOperator.value as ClassicSelectionOperator, value: classicUndeleteRecordsValue() };
   if (kind === "define") return {
     kind, variable: classicCommandDialogVariable.value,
     scope: classicCommandDialogScope.value as ClassicDefineVariableScope,
     variableType: classicCommandDialogVariableType.value as ClassicDefineVariableType,
     ...(classicCommandDialogPrompt.value.trim() ? { prompt: classicCommandDialogPrompt.value } : {}),
   };
+  if (kind === "define-group") return { kind, group: classicCommandDialogGroupName.value, members: [...classicCommandDialogGroupMembers.selectedOptions].map((option) => option.value) };
   if (kind === "undefine") return { kind, variable: classicCommandDialogUndefineAll.checked ? "*" : classicCommandDialogUndefineVariable.value };
   if (kind === "assign") {
     const variable = selectedClassicVariable();
@@ -1062,6 +1153,10 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
       };
     }),
     ...(classicCommandDialogRecodeElse.value.trim() ? { elseResult: classicCommandDialogRecodeElse.value } : {}),
+  };
+  if (kind === "display") return {
+    kind, mode: classicCommandDialogDisplayMode.value as ClassicDisplayMode,
+    ...(classicCommandDialogDisplayMode.value === "list" ? { variables: [...classicCommandDialogDisplayVariables.selectedOptions].map((option) => option.value) } : {}),
   };
   if (kind === "select") return { kind, field: classicCommandDialogSelectField.value, operator: classicCommandDialogSelectOperator.value as ClassicSelectionOperator, value: classicSelectionDialogValue() };
   if (kind === "cancel-select") return { kind };
@@ -1084,18 +1179,32 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
   if (kind === "list") return { kind, fields: [...classicCommandDialogField.selectedOptions].map((option) => option.value) };
   if (kind === "frequency") return { kind, field: classicCommandDialogField.value, ...(classicCommandDialogStrata.value ? { stratifyBy: classicCommandDialogStrata.value } : {}) };
   if (kind === "means") return { kind, field: classicCommandDialogField.value };
+  if (kind === "summarize") return {
+    kind, aggregate: classicCommandDialogSummarizeAggregate.value as ClassicSummarizeAggregate,
+    field: classicCommandDialogSummarizeField.value, resultField: classicCommandDialogSummarizeResult.value,
+    outputTable: classicCommandDialogSummarizeTable.value,
+    ...(classicCommandDialogSummarizeStrata.value ? { stratifyBy: classicCommandDialogSummarizeStrata.value } : {}),
+  };
   return { kind, exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value, stratifyBy: classicCommandDialogStrata.value };
 }
 
 function updateClassicCommandDialog(): void {
   const source = classicProgramSession.current(getCurrentProjectData());
-  const projectSources = getProjectDataSources();
   const kind = classicCommandDialogKind.value as ClassicAnalysisCommandKind;
+  const projectSources = kind === "read" ? [...getProjectDataSources(), ...classicProgramSession.outTables()] : getProjectDataSources();
   const read = kind === "read";
+  const relate = kind === "relate";
+  const write = kind === "write";
+  const merge = kind === "merge";
+  const deleteTable = kind === "delete-table";
+  const deleteRecords = kind === "delete-records";
+  const undeleteRecords = kind === "undelete-records";
   const define = kind === "define";
+  const defineGroup = kind === "define-group";
   const undefine = kind === "undefine";
   const assign = kind === "assign";
   const recode = kind === "recode";
+  const display = kind === "display";
   const select = kind === "select";
   const cancelSelect = kind === "cancel-select";
   const ifCommand = kind === "if";
@@ -1104,9 +1213,22 @@ function updateClassicCommandDialog(): void {
   const list = kind === "list";
   const means = kind === "means";
   const tables = kind === "tables";
+  const summarize = kind === "summarize";
   const definedFields = classicDefinedFields(source.fields);
   const availableFields = [...source.fields, ...definedFields];
   const sessionVariables = classicProgramSession.variables();
+  const sessionGroups = classicProgramSession.groups();
+  const previousGroupMembers = new Set([...classicCommandDialogGroupMembers.selectedOptions].map((option) => option.value));
+  classicCommandDialogGroupMembers.replaceChildren(
+    ...source.fields.map((field) => new Option(`${field.prompt} (Field)`, field.name, false, previousGroupMembers.has(field.name))),
+    ...sessionVariables.map((variable) => new Option(`${variable.prompt ?? variable.name} (Defined)`, variable.name, false, previousGroupMembers.has(variable.name))),
+  );
+  const previousDisplayVariables = new Set([...classicCommandDialogDisplayVariables.selectedOptions].map((option) => option.value));
+  classicCommandDialogDisplayVariables.replaceChildren(
+    ...source.fields.map((field) => new Option(`${field.prompt} (Field)`, field.name, false, previousDisplayVariables.has(field.name))),
+    ...sessionVariables.map((variable) => new Option(`${variable.prompt ?? variable.name} (Defined)`, variable.name, false, previousDisplayVariables.has(variable.name))),
+  );
+  requiredElement<HTMLElement>("#classic-command-dialog-display-variables-label").hidden = !display || classicCommandDialogDisplayMode.value !== "list";
   const previousUndefineVariable = classicCommandDialogUndefineVariable.value;
   classicCommandDialogUndefineVariable.replaceChildren(...sessionVariables.map((variable) => new Option(`${variable.prompt ?? variable.name} (${variable.variableType})`, variable.name)));
   if (sessionVariables.some((variable) => variable.name === previousUndefineVariable)) classicCommandDialogUndefineVariable.value = previousUndefineVariable;
@@ -1126,10 +1248,31 @@ function updateClassicCommandDialog(): void {
   if (booleanIf && !["=", "<>"].includes(classicCommandDialogIfOperator.value)) classicCommandDialogIfOperator.value = "=";
   requiredElement<HTMLElement>("#classic-command-dialog-if-else-variable-label").hidden = !ifCommand || !classicCommandDialogIfHasElse.checked;
   requiredElement<HTMLElement>("#classic-command-dialog-if-else-value-label").hidden = !ifCommand || !classicCommandDialogIfHasElse.checked;
-  const fields = means ? availableFields.filter((field) => field.type === "number") : availableFields;
+  const fields = means ? availableFields.filter((field) => field.type === "number") : list
+    ? [...availableFields, ...sessionGroups.map((group) => ({ name: group.name, prompt: `${group.name} (group)`, type: "text" as const, required: false }))]
+    : availableFields;
+  const previousWriteFields = new Set([...classicCommandDialogWriteFields.selectedOptions].map((option) => option.value));
+  classicCommandDialogWriteFields.replaceChildren(...source.fields.map((field) => new Option(field.prompt, field.name, false, previousWriteFields.size === 0 || previousWriteFields.has(field.name))));
   const previousSource = classicCommandDialogSource.value;
   classicCommandDialogSource.replaceChildren(...projectSources.map((candidate) => new Option(`${candidate.formName} (${candidate.records.length} records)`, candidate.formName)));
   if (projectSources.some((candidate) => candidate.formName === previousSource)) classicCommandDialogSource.value = previousSource;
+  const relatedSource = projectSources.find((candidate) => candidate.formName === classicCommandDialogSource.value) ?? projectSources[0];
+  const previousCurrentKey = classicCommandDialogRelateCurrentKey.value;
+  classicCommandDialogRelateCurrentKey.replaceChildren(...source.fields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if (source.fields.some((field) => field.name === previousCurrentKey)) classicCommandDialogRelateCurrentKey.value = previousCurrentKey;
+  const currentKeyType = source.fields.find((field) => field.name === classicCommandDialogRelateCurrentKey.value)?.type;
+  const relatedKeyFields = relatedSource?.fields.filter((field) => field.type === currentKeyType) ?? [];
+  const previousRelatedKey = classicCommandDialogRelateRelatedKey.value;
+  classicCommandDialogRelateRelatedKey.replaceChildren(...relatedKeyFields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if (relatedKeyFields.some((field) => field.name === previousRelatedKey)) classicCommandDialogRelateRelatedKey.value = previousRelatedKey;
+  const previousMergeCurrentKey = classicCommandDialogMergeCurrentKey.value;
+  classicCommandDialogMergeCurrentKey.replaceChildren(...source.fields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if (source.fields.some((field) => field.name === previousMergeCurrentKey)) classicCommandDialogMergeCurrentKey.value = previousMergeCurrentKey;
+  const mergeKeyType = source.fields.find((field) => field.name === classicCommandDialogMergeCurrentKey.value)?.type;
+  const mergeSourceFields = relatedSource?.fields.filter((field) => field.type === mergeKeyType) ?? [];
+  const previousMergeSourceKey = classicCommandDialogMergeSourceKey.value;
+  classicCommandDialogMergeSourceKey.replaceChildren(...mergeSourceFields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if (mergeSourceFields.some((field) => field.name === previousMergeSourceKey)) classicCommandDialogMergeSourceKey.value = previousMergeSourceKey;
   const previousField = classicCommandDialogField.value;
   const previousFields = new Set([...classicCommandDialogField.selectedOptions].map((option) => option.value));
   classicCommandDialogField.multiple = list;
@@ -1140,6 +1283,14 @@ function updateClassicCommandDialog(): void {
   classicCommandDialogExposure.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
   classicCommandDialogOutcome.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
   classicCommandDialogStrata.replaceChildren(new Option(tables ? "Choose a stratification field" : "Do not stratify", ""), ...allOptions.map((option) => option.cloneNode(true)));
+  const summaryAggregate = classicCommandDialogSummarizeAggregate.value;
+  const summaryFields = ["AVG", "STDEV", "STDEVP", "SUM", "VAR", "VARP"].includes(summaryAggregate) ? source.fields.filter(({ type }) => type === "number") : source.fields;
+  const previousSummaryField = classicCommandDialogSummarizeField.value;
+  classicCommandDialogSummarizeField.replaceChildren(...summaryFields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if (summaryFields.some(({ name }) => name === previousSummaryField)) classicCommandDialogSummarizeField.value = previousSummaryField;
+  const previousSummaryStrata = classicCommandDialogSummarizeStrata.value;
+  classicCommandDialogSummarizeStrata.replaceChildren(new Option("Do not group", ""), ...source.fields.filter(({ name }) => name !== classicCommandDialogSummarizeField.value).map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if ([...classicCommandDialogSummarizeStrata.options].some(({ value }) => value === previousSummaryStrata)) classicCommandDialogSummarizeStrata.value = previousSummaryStrata;
   const previousRecodeSource = classicCommandDialogRecodeSource.value;
   const numericOptions = source.fields.filter((field) => field.type === "number");
   classicCommandDialogRecodeSource.replaceChildren(...numericOptions.map((field) => new Option(field.prompt, field.name)));
@@ -1159,6 +1310,32 @@ function updateClassicCommandDialog(): void {
   const selectableFields = source.fields.filter((field) => field.type !== "command-button");
   classicCommandDialogSelectField.replaceChildren(...selectableFields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
   if (selectableFields.some((field) => field.name === previousSelectField)) classicCommandDialogSelectField.value = previousSelectField;
+  const previousDeleteField = classicCommandDialogDeleteField.value;
+  classicCommandDialogDeleteField.replaceChildren(...selectableFields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if (selectableFields.some((field) => field.name === previousDeleteField)) classicCommandDialogDeleteField.value = previousDeleteField;
+  const deleteField = source.fields.find(({ name }) => name === classicCommandDialogDeleteField.value);
+  const booleanDelete = deleteField?.type === "checkbox" || deleteField?.type === "yes-no";
+  const deleteAll = deleteRecords && classicCommandDialogDeleteAll.checked;
+  requiredElement<HTMLElement>("#classic-command-dialog-delete-field-label").hidden = !deleteRecords || deleteAll;
+  requiredElement<HTMLElement>("#classic-command-dialog-delete-operator-label").hidden = !deleteRecords || deleteAll;
+  requiredElement<HTMLElement>("#classic-command-dialog-delete-value-label").hidden = !deleteRecords || deleteAll || booleanDelete;
+  requiredElement<HTMLElement>("#classic-command-dialog-delete-boolean-label").hidden = !deleteRecords || deleteAll || !booleanDelete;
+  classicCommandDialogDeleteValue.type = deleteField?.type === "number" ? "number" : deleteField?.type === "date" ? "date" : deleteField?.type === "time" ? "time" : "text";
+  classicCommandDialogDeleteOperator.querySelectorAll<HTMLOptionElement>("option").forEach((option) => { option.disabled = Boolean(booleanDelete && !["=", "<>"].includes(option.value)); });
+  if (booleanDelete && !["=", "<>"].includes(classicCommandDialogDeleteOperator.value)) classicCommandDialogDeleteOperator.value = "=";
+  const previousUndeleteField = classicCommandDialogUndeleteField.value;
+  classicCommandDialogUndeleteField.replaceChildren(...selectableFields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if (selectableFields.some((field) => field.name === previousUndeleteField)) classicCommandDialogUndeleteField.value = previousUndeleteField;
+  const undeleteField = source.fields.find(({ name }) => name === classicCommandDialogUndeleteField.value);
+  const booleanUndelete = undeleteField?.type === "checkbox" || undeleteField?.type === "yes-no";
+  const undeleteAll = undeleteRecords && classicCommandDialogUndeleteAll.checked;
+  requiredElement<HTMLElement>("#classic-command-dialog-undelete-field-label").hidden = !undeleteRecords || undeleteAll;
+  requiredElement<HTMLElement>("#classic-command-dialog-undelete-operator-label").hidden = !undeleteRecords || undeleteAll;
+  requiredElement<HTMLElement>("#classic-command-dialog-undelete-value-label").hidden = !undeleteRecords || undeleteAll || booleanUndelete;
+  requiredElement<HTMLElement>("#classic-command-dialog-undelete-boolean-label").hidden = !undeleteRecords || undeleteAll || !booleanUndelete;
+  classicCommandDialogUndeleteValue.type = undeleteField?.type === "number" ? "number" : undeleteField?.type === "date" ? "date" : undeleteField?.type === "time" ? "time" : "text";
+  classicCommandDialogUndeleteOperator.querySelectorAll<HTMLOptionElement>("option").forEach((option) => { option.disabled = Boolean(booleanUndelete && !["=", "<>"].includes(option.value)); });
+  if (booleanUndelete && !["=", "<>"].includes(classicCommandDialogUndeleteOperator.value)) classicCommandDialogUndeleteOperator.value = "=";
   const selectField = selectedClassicField();
   const booleanSelection = selectField?.type === "checkbox" || selectField?.type === "yes-no";
   requiredElement<HTMLElement>("#classic-command-dialog-select-value-label").hidden = !select || booleanSelection;
@@ -1166,18 +1343,28 @@ function updateClassicCommandDialog(): void {
   classicCommandDialogSelectValue.type = selectField?.type === "number" ? "number" : selectField?.type === "date" ? "date" : selectField?.type === "time" ? "time" : "text";
   classicCommandDialogSelectOperator.querySelectorAll<HTMLOptionElement>('option').forEach((option) => { option.disabled = Boolean(booleanSelection && !["=", "<>"].includes(option.value)); });
   if (booleanSelection && !["=", "<>"].includes(classicCommandDialogSelectOperator.value)) classicCommandDialogSelectOperator.value = "=";
-  requiredElement<HTMLElement>("#classic-command-dialog-source-label").hidden = !read;
+  requiredElement<HTMLElement>("#classic-command-dialog-source-label").hidden = !read && !relate && !merge && !deleteTable;
+  requiredElement("#classic-command-dialog-source-label").firstChild!.textContent = deleteTable ? "Project form data table" : merge ? "Source project form" : relate ? "Related project form" : "Project form";
+  requiredElement<HTMLElement>("#classic-command-dialog-relate").hidden = !relate;
+  requiredElement<HTMLElement>("#classic-command-dialog-write").hidden = !write;
+  requiredElement<HTMLElement>("#classic-command-dialog-merge").hidden = !merge;
+  requiredElement<HTMLElement>("#classic-command-dialog-delete-table").hidden = !deleteTable;
+  requiredElement<HTMLElement>("#classic-command-dialog-delete-records").hidden = !deleteRecords;
+  requiredElement<HTMLElement>("#classic-command-dialog-undelete-records").hidden = !undeleteRecords;
   requiredElement<HTMLElement>("#classic-command-dialog-define").hidden = !define;
+  requiredElement<HTMLElement>("#classic-command-dialog-define-group").hidden = !defineGroup;
   requiredElement<HTMLElement>("#classic-command-dialog-undefine").hidden = !undefine;
   requiredElement<HTMLElement>("#classic-command-dialog-assign").hidden = !assign;
   requiredElement<HTMLElement>("#classic-command-dialog-recode").hidden = !recode;
+  requiredElement<HTMLElement>("#classic-command-dialog-display").hidden = !display;
   requiredElement<HTMLElement>("#classic-command-dialog-select").hidden = !select;
   requiredElement<HTMLElement>("#classic-command-dialog-if").hidden = !ifCommand;
   requiredElement<HTMLElement>("#classic-command-dialog-sort").hidden = !sort;
-  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || define || undefine || assign || recode || select || cancelSelect || ifCommand || sort || cancelSort || tables;
+  requiredElement<HTMLElement>("#classic-command-dialog-summarize").hidden = !summarize;
+  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize;
   requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables;
   requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables;
-  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || define || undefine || assign || recode || select || cancelSelect || ifCommand || sort || cancelSort || list || means;
+  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || means || summarize;
   requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : "Frequency of";
   const byHint = (pattern: RegExp, excluded = new Set<string>()): string | undefined => source.fields.find((field) => !excluded.has(field.name) && pattern.test(`${field.name} ${field.prompt}`))?.name;
   if (kind === "frequency") classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
@@ -1200,9 +1387,18 @@ function updateClassicCommandDialog(): void {
     }
     const command = buildClassicAnalysisCommand(input);
     parseClassicProgram(command);
-    if (input.kind === "define") resolveClassicDefineCommand(command, source.fields, sessionVariables);
+    if (input.kind === "define") resolveClassicDefineCommand(command, source.fields, sessionVariables, sessionGroups);
+    if (input.kind === "relate") resolveClassicRelateCommand(command, source.fields, projectSources);
+    if (input.kind === "write") resolveClassicWriteCommand(command, source.fields, sessionGroups);
+    if (input.kind === "merge") resolveClassicMergeCommand(command, source.fields, projectSources);
+    if (input.kind === "delete-table") resolveClassicDeleteTableCommand(command, projectSources);
+    if (input.kind === "delete-records") resolveClassicDeleteRecordsCommand(command, source.fields);
+    if (input.kind === "undelete-records") resolveClassicUndeleteRecordsCommand(command, source.fields);
+    if (input.kind === "summarize") resolveClassicSummarizeCommand(command, source.fields);
+    if (input.kind === "define-group") resolveClassicDefineGroupCommand(command, source.fields, sessionVariables, sessionGroups);
     if (input.kind === "undefine") resolveClassicUndefineCommand(command, source.fields, sessionVariables);
     if (input.kind === "assign") resolveClassicAssignCommand(command, source.fields, sessionVariables);
+    if (input.kind === "display") resolveClassicDisplayCommand(command, source.fields, sessionVariables);
     if (input.kind === "select" || input.kind === "cancel-select") resolveClassicSelectionCommand(command, source.fields);
     if (input.kind === "if") resolveClassicIfCommand(command, source.fields, sessionVariables);
     if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, source.fields);
@@ -1210,7 +1406,7 @@ function updateClassicCommandDialog(): void {
     requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
   } catch (error) {
-    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "define" ? "DEFINE" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : "TABLES";
+    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "relate" ? "RELATE" : kind === "write" ? "WRITE" : kind === "merge" ? "MERGE" : kind === "delete-table" ? "DELETE TABLES" : kind === "delete-records" ? "DELETE" : kind === "undelete-records" ? "UNDELETE" : kind === "define" ? "DEFINE" : kind === "define-group" ? "DEFINE GROUPVAR" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "display" ? "DISPLAY DBVARIABLES" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : kind === "summarize" ? "SUMMARIZE" : "TABLES";
     requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Choose valid command fields.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
   }
@@ -1221,7 +1417,7 @@ function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"
   classicCommandDialogKind.value = kind;
   if (kind === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
   if (kind === "sort") resetClassicSortRows();
-  const title = kind === "read" ? "Read" : kind === "define" ? "Define" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : "Tables";
+  const title = kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "summarize" ? "Summarize" : "Tables";
   requiredElement("#classic-command-dialog-title").textContent = `${title} Command`;
   updateClassicCommandDialog();
   classicCommandDialog.showModal();
@@ -1246,9 +1442,18 @@ function refreshClassicCommandDialogPreview(): void {
     }
     const command = buildClassicAnalysisCommand(input);
     parseClassicProgram(command);
-    if (input.kind === "define") resolveClassicDefineCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
+    if (input.kind === "define") resolveClassicDefineCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables(), classicProgramSession.groups());
+    if (input.kind === "relate") resolveClassicRelateCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, getProjectDataSources());
+    if (input.kind === "write") resolveClassicWriteCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.groups());
+    if (input.kind === "merge") resolveClassicMergeCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, getProjectDataSources());
+    if (input.kind === "delete-table") resolveClassicDeleteTableCommand(command, getProjectDataSources());
+    if (input.kind === "delete-records") resolveClassicDeleteRecordsCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
+    if (input.kind === "undelete-records") resolveClassicUndeleteRecordsCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
+    if (input.kind === "summarize") resolveClassicSummarizeCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
+    if (input.kind === "define-group") resolveClassicDefineGroupCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables(), classicProgramSession.groups());
     if (input.kind === "undefine") resolveClassicUndefineCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
     if (input.kind === "assign") resolveClassicAssignCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
+    if (input.kind === "display") resolveClassicDisplayCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
     if (input.kind === "select" || input.kind === "cancel-select") resolveClassicSelectionCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
     if (input.kind === "if") resolveClassicIfCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
     if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
@@ -1260,7 +1465,32 @@ function refreshClassicCommandDialogPreview(): void {
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
   }
 }
-for (const select of [classicCommandDialogSource, classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget, classicCommandDialogSelectOperator, classicCommandDialogSelectBoolean, classicCommandDialogAssignBoolean, classicCommandDialogIfOperator]) select.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogSource.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogRelateCurrentKey.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogRelateRelatedKey.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogRelateAll.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogWriteFile.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogWriteFields.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogMergeCurrentKey.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogMergeSourceKey.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogDeleteAll.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogDeleteField.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogDeleteOperator.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogDeleteBoolean.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogDeleteValue.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogUndeleteAll.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogUndeleteField.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogUndeleteOperator.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogUndeleteBoolean.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogUndeleteValue.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogSummarizeAggregate.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogSummarizeField.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogSummarizeResult.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogSummarizeTable.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogSummarizeStrata.addEventListener("change", refreshClassicCommandDialogPreview);
+for (const select of [classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget, classicCommandDialogSelectOperator, classicCommandDialogSelectBoolean, classicCommandDialogAssignBoolean, classicCommandDialogIfOperator]) select.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogDisplayMode.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogDisplayVariables.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogAssignVariable.addEventListener("change", updateClassicCommandDialog);
 classicCommandDialogUndefineVariable.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogUndefineAll.addEventListener("change", updateClassicCommandDialog);
@@ -1268,6 +1498,8 @@ classicCommandDialogSelectField.addEventListener("change", updateClassicCommandD
 for (const select of [classicCommandDialogIfVariable, classicCommandDialogIfThenVariable, classicCommandDialogIfElseVariable]) select.addEventListener("change", updateClassicCommandDialog);
 classicCommandDialogIfHasElse.addEventListener("change", updateClassicCommandDialog);
 for (const input of [classicCommandDialogVariable, classicCommandDialogPrompt, classicCommandDialogRecodeElse, classicCommandDialogSelectValue, classicCommandDialogAssignValue, classicCommandDialogIfValue, classicCommandDialogIfThenValue, classicCommandDialogIfElseValue]) input.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogGroupName.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogGroupMembers.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogRecodeRows.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogSortRows.addEventListener("change", refreshClassicCommandDialogPreview);
 requiredElement("#classic-command-dialog-add-range").addEventListener("click", () => { appendClassicRecodeRange(); refreshClassicCommandDialogPreview(); });
@@ -1287,7 +1519,7 @@ requiredElement("#classic-command-dialog-insert").addEventListener("click", () =
 requiredElement("#classic-program-edit-insert-command").addEventListener("click", () => showClassicCommandDialog());
 requiredElement("#classic-program-toolbar-run").addEventListener("click", () => requiredElement<HTMLButtonElement>("#classic-program-run").click());
 
-const classicOutputTargets = ["#classic-program-output", "#classic-list-output", "#frequency-stratified-output", "#frequency-output", "#means-output", ".stratified-panel"];
+const classicOutputTargets = ["#classic-program-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#frequency-stratified-output", "#frequency-output", "#means-output", ".stratified-panel"];
 let classicOutputPosition = -1;
 function visibleClassicOutputs(): HTMLElement[] {
   return classicOutputTargets.map((selector) => document.querySelector<HTMLElement>(selector)).filter((target): target is HTMLElement => Boolean(target && !target.hidden));
@@ -1503,10 +1735,19 @@ requiredElement("#classic-command-tree").addEventListener("click", (event) => {
 });
 
 requiredElement("#classic-command-read").addEventListener("click", () => showClassicCommandDialog("read"));
+requiredElement("#classic-command-relate").addEventListener("click", () => showClassicCommandDialog("relate"));
+requiredElement("#classic-command-write").addEventListener("click", () => showClassicCommandDialog("write"));
+requiredElement("#classic-command-merge").addEventListener("click", () => showClassicCommandDialog("merge"));
+requiredElement("#classic-command-delete-file-table").addEventListener("click", () => showClassicCommandDialog("delete-table"));
+requiredElement("#classic-command-delete-records").addEventListener("click", () => showClassicCommandDialog("delete-records"));
+requiredElement("#classic-command-undelete-records").addEventListener("click", () => showClassicCommandDialog("undelete-records"));
+requiredElement("#classic-command-summarize").addEventListener("click", () => showClassicCommandDialog("summarize"));
 requiredElement("#classic-command-define").addEventListener("click", () => showClassicCommandDialog("define"));
+requiredElement("#classic-command-define-group").addEventListener("click", () => showClassicCommandDialog("define-group"));
 requiredElement("#classic-command-undefine").addEventListener("click", () => showClassicCommandDialog("undefine"));
 requiredElement("#classic-command-assign").addEventListener("click", () => showClassicCommandDialog("assign"));
 requiredElement("#classic-command-recode").addEventListener("click", () => showClassicCommandDialog("recode"));
+requiredElement("#classic-command-display").addEventListener("click", () => showClassicCommandDialog("display"));
 requiredElement("#classic-command-select").addEventListener("click", () => showClassicCommandDialog("select"));
 requiredElement("#classic-command-cancel-select").addEventListener("click", () => showClassicCommandDialog("cancel-select"));
 requiredElement("#classic-command-if").addEventListener("click", () => showClassicCommandDialog("if"));
@@ -1928,15 +2169,185 @@ function renderClassicListOutput(project: ReturnType<typeof getCurrentProjectDat
   requiredElement<HTMLElement>("#classic-list-output").hidden = false;
 }
 
-const CLASSIC_SELECTED_COMMAND_PLAN_VERSION = "classic-selected-command-v0.7.0";
+function renderClassicDisplayOutput(project: ReturnType<typeof getCurrentProjectData>, source: string): number {
+  const plan = resolveClassicDisplayCommand(source, project.fields, classicProgramSession.variables());
+  const rows = classicDisplayRows(plan, project.formName);
+  requiredElement("#classic-display-output-title").textContent = `Variables · ${project.formName}`;
+  requiredElement("#classic-display-output-count").textContent = `${rows.length} variable${rows.length === 1 ? "" : "s"}`;
+  requiredElement("#classic-display-output-body").replaceChildren(...rows.map((row) => {
+    const tr = document.createElement("tr");
+    for (const value of [row.pageNumber, row.prompt, row.fieldType, row.variable, row.variableValue === null ? "Missing" : String(row.variableValue), row.formatValue, row.specialInfo, row.table]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      tr.append(cell);
+    }
+    return tr;
+  }));
+  requiredElement<HTMLElement>("#classic-display-output").hidden = false;
+  return rows.length;
+}
+
+function renderClassicSummarizeOutput(result: ReturnType<typeof applyClassicSummarize>): void {
+  requiredElement("#classic-summarize-output-title").textContent = result.source.formName;
+  requiredElement("#classic-summarize-output-count").textContent = `${result.groups} row${result.groups === 1 ? "" : "s"}`;
+  requiredElement("#classic-summarize-output-head").replaceChildren(...result.source.fields.map((field) => {
+    const heading = document.createElement("th");
+    heading.scope = "col";
+    heading.textContent = field.prompt;
+    return heading;
+  }));
+  requiredElement("#classic-summarize-output-body").replaceChildren(...result.source.records.map((record) => {
+    const row = document.createElement("tr");
+    row.replaceChildren(...result.source.fields.map((field) => {
+      const cell = document.createElement("td");
+      const value = record[field.name];
+      cell.textContent = value == null ? "Missing" : typeof value === "number" ? String(Math.round(value * 1e10) / 1e10) : String(value);
+      return cell;
+    }));
+    return row;
+  }));
+  requiredElement("#classic-summarize-output-note").textContent = `Included ${result.includedRecords} of ${result.sourceRecords} active records; ${result.excludedMissing} aggregate-field values were missing. The named table is available to READ during this Classic session.`;
+  requiredElement<HTMLElement>("#classic-summarize-output").hidden = false;
+}
+
+const CLASSIC_SELECTED_COMMAND_PLAN_VERSION = "classic-selected-command-v1.0.0";
+let pendingClassicMerge: { plan: ClassicMergePlan; result: ClassicMergeResult } | null = null;
+let pendingClassicDelete: { plan: ClassicDeleteTablePlan; staged: ReturnType<typeof stageClassicDeleteTable> } | null = null;
+let pendingClassicDeleteRecords: ClassicDeleteRecordsResult | null = null;
+let pendingClassicUndeleteRecords: ClassicUndeleteRecordsResult | null = null;
 function runSelectedClassicCommand(): void {
   const fallbackProject = getCurrentProjectData();
   let project = classicProgramSession.current(fallbackProject);
   const selectedSource = classicProgramEditor.getSelectedText();
   try {
-    const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, getProjectDataSources(), classicProgramSession.variables());
+    const selectedAst = parseClassicProgram(selectedSource);
+    const selectedSources = selectedAst.body[0]?.type === "ReadStatement" ? [...getProjectDataSources(), ...classicProgramSession.outTables()] : getProjectDataSources();
+    const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, selectedSources, classicProgramSession.variables(), classicProgramSession.groups());
+    if (command.kind === "relate") {
+      const sources = getProjectDataSources();
+      const plan = resolveClassicRelateCommand(selectedSource, project.fields, sources);
+      const related = sources.find((candidate) => candidate.formName.toLocaleLowerCase("en-US") === plan.relatedForm.toLocaleLowerCase("en-US"))!;
+      const result = applyClassicRelate(project, related, plan);
+      project = classicProgramSession.relate(result.source);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `Related ${result.parentRecords} active records to ${result.relatedRecords} ${plan.relatedForm} records; ${result.outputRecords} combined records are now active (${result.unmatchedParentRecords} unmatched parent records).`;
+      classicProgramCommandStatus.textContent = "Selected RELATE command completed; subsequent LIST, FREQ, and MEANS use the combined active table.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: result.parentRecords,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `RELATE produced ${result.outputRecords} records from ${result.matchedParentRecords} matched and ${result.unmatchedParentRecords} unmatched parent records.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "write") {
+      const plan = resolveClassicWriteCommand(selectedSource, project.fields, classicProgramSession.groups());
+      const csv = serializeClassicWriteCsv(plan, project.records);
+      const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = plan.fileName;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      classicProgramFeedback.textContent = `WRITE prepared ${project.records.length} active records and ${plan.fields.length} fields as ${plan.fileName}.`;
+      classicProgramCommandStatus.textContent = "Selected WRITE REPLACE command completed as an explicit browser CSV download.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `WRITE downloaded ${project.records.length} records and ${plan.fields.length} fields as UTF-8 CSV.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "merge") {
+      const sources = getProjectDataSources();
+      const destination = classicProgramSession.base(fallbackProject);
+      if (!sources.some((candidate) => candidate.formId === destination.formId)) {
+        throw new RangeError("MERGE can modify a saved project form only. READ a project form before running MERGE against a RELATE result.");
+      }
+      const plan = resolveClassicMergeCommand(selectedSource, destination.fields, sources);
+      const sourceForm = sources.find((candidate) => candidate.formName.toLocaleLowerCase("en-US") === plan.sourceForm.toLocaleLowerCase("en-US"))!;
+      const result = applyClassicMerge(destination, sourceForm, plan);
+      pendingClassicMerge = { plan, result };
+      requiredElement("#classic-merge-preview-destination").textContent = destination.formName;
+      requiredElement("#classic-merge-preview-source").textContent = sourceForm.formName;
+      requiredElement("#classic-merge-preview-before").textContent = String(result.destinationRecords);
+      requiredElement("#classic-merge-preview-source-count").textContent = String(result.sourceRecords);
+      requiredElement("#classic-merge-preview-updated").textContent = String(result.updatedRecords);
+      requiredElement("#classic-merge-preview-inserted").textContent = String(result.insertedRecords);
+      requiredElement("#classic-merge-preview-after").textContent = String(result.outputRecords);
+      requiredElement("#classic-merge-preview-fields").textContent = `Shared fields considered: ${result.sharedFields.join(", ")}. Key fields are not overwritten on matched records.`;
+      requiredElement("#classic-merge-preview-feedback").textContent = "Preview ready. No project records have changed.";
+      classicMergePreviewDialog.showModal();
+      classicProgramFeedback.textContent = `MERGE preview: ${result.updatedRecords} source rows would update a destination record and ${result.insertedRecords} would be inserted. No records have changed.`;
+      classicProgramCommandStatus.textContent = "Selected MERGE command is awaiting explicit confirmation in Review Merge.";
+      return;
+    }
+    if (command.kind === "delete-table") {
+      const sources = getProjectDataSources();
+      const plan = resolveClassicDeleteTableCommand(selectedSource, sources);
+      const target = sources.find((candidate) => candidate.formId === plan.formId)!;
+      const staged = stageClassicDeleteTable(target, plan);
+      pendingClassicDelete = { plan, staged };
+      requiredElement("#classic-delete-preview-form").textContent = plan.formName;
+      requiredElement("#classic-delete-preview-records").textContent = String(plan.recordCount);
+      requiredElement<HTMLInputElement>("#classic-delete-preview-confirm").checked = false;
+      requiredElement<HTMLButtonElement>("#classic-delete-preview-apply").disabled = true;
+      requiredElement("#classic-delete-preview-feedback").textContent = "Preview ready. No project records have changed.";
+      classicDeletePreviewDialog.showModal();
+      classicProgramFeedback.textContent = `DELETE TABLES preview: ${plan.recordCount} records would be permanently removed from ${plan.formName}. No records have changed.`;
+      classicProgramCommandStatus.textContent = "Selected DELETE TABLES command is awaiting explicit confirmation.";
+      return;
+    }
+    if (command.kind === "delete-records") {
+      const base = classicProgramSession.base(fallbackProject);
+      const saved = getProjectDataSources().find((candidate) => candidate.formId === base.formId);
+      if (!saved) throw new RangeError("DELETE RECORDS can modify only a saved project form.");
+      const plan = resolveClassicDeleteRecordsCommand(selectedSource, project.fields);
+      const result = stageClassicDeleteRecords(saved, project, plan);
+      if (!result.matchedRecords) throw new RangeError("DELETE RECORDS matched no active records. No preview was opened.");
+      pendingClassicDeleteRecords = result;
+      requiredElement("#classic-delete-records-preview-form").textContent = result.formName;
+      requiredElement("#classic-delete-records-preview-source").textContent = String(result.sourceSnapshot.length);
+      requiredElement("#classic-delete-records-preview-active").textContent = String(result.activeRecords);
+      requiredElement("#classic-delete-records-preview-matched").textContent = String(result.matchedRecords);
+      requiredElement("#classic-delete-records-preview-remaining").textContent = String(result.remainingRecords.length);
+      requiredElement<HTMLInputElement>("#classic-delete-records-preview-confirm").checked = false;
+      requiredElement<HTMLButtonElement>("#classic-delete-records-preview-apply").disabled = true;
+      requiredElement("#classic-delete-records-preview-feedback").textContent = "Preview ready. No project records have changed.";
+      classicDeleteRecordsPreviewDialog.showModal();
+      classicProgramFeedback.textContent = `DELETE RECORDS preview: ${result.matchedRecords} of ${result.activeRecords} active records would move to the Recycle Bin. No records have changed.`;
+      classicProgramCommandStatus.textContent = "Selected DELETE RECORDS command is awaiting explicit confirmation.";
+      return;
+    }
+    if (command.kind === "undelete-records") {
+      const base = classicProgramSession.base(fallbackProject);
+      const saved = getProjectDataSources().find((candidate) => candidate.formId === base.formId);
+      if (!saved) throw new RangeError("UNDELETE RECORDS can restore only into a saved project form.");
+      if (project.formId !== saved.formId || project.records.length !== saved.records.length) {
+        throw new RangeError("UNDELETE RECORDS requires the complete saved form. CANCEL SELECT or READ the form again before restoring records.");
+      }
+      const form = getCurrentProjectSnapshot().forms.find((candidate) => candidate.id === saved.formId)!;
+      const plan = resolveClassicUndeleteRecordsCommand(selectedSource, saved.fields);
+      const result = stageClassicUndeleteRecords(saved, form.deletedRecords ?? [], plan);
+      if (!result.restored.length) throw new RangeError("UNDELETE RECORDS matched no records in the Recycle Bin. No preview was opened.");
+      pendingClassicUndeleteRecords = result;
+      requiredElement("#classic-undelete-records-preview-form").textContent = result.formName;
+      requiredElement("#classic-undelete-records-preview-active").textContent = String(result.sourceSnapshot.length);
+      requiredElement("#classic-undelete-records-preview-deleted").textContent = String(result.archiveSnapshot.length);
+      requiredElement("#classic-undelete-records-preview-matched").textContent = String(result.restored.length);
+      requiredElement("#classic-undelete-records-preview-remaining").textContent = String(result.remainingDeleted.length);
+      requiredElement("#classic-undelete-records-preview-after").textContent = String(result.restoredRecords.length);
+      requiredElement<HTMLInputElement>("#classic-undelete-records-preview-confirm").checked = false;
+      requiredElement<HTMLButtonElement>("#classic-undelete-records-preview-apply").disabled = true;
+      requiredElement("#classic-undelete-records-preview-feedback").textContent = "Preview ready. No project records have changed.";
+      classicUndeleteRecordsPreviewDialog.showModal();
+      classicProgramFeedback.textContent = `UNDELETE RECORDS preview: ${result.restored.length} of ${result.archiveSnapshot.length} deleted records would be restored. No records have changed.`;
+      classicProgramCommandStatus.textContent = "Selected UNDELETE RECORDS command is awaiting explicit confirmation.";
+      return;
+    }
     if (command.kind === "define") {
-      const plan = resolveClassicDefineCommand(selectedSource, project.fields, classicProgramSession.variables());
+      const plan = resolveClassicDefineCommand(selectedSource, project.fields, classicProgramSession.variables(), classicProgramSession.groups());
       const variable = classicProgramSession.defineVariable(plan);
       renderClassicProgramSession();
       classicProgramFeedback.textContent = `Defined Standard ${variable.variableType} session variable ${variable.name}. Its current value is Missing.`;
@@ -1945,6 +2356,20 @@ function runSelectedClassicCommand(): void {
         origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
         projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
         source: selectedSource, canonicalSource: plan.canonicalSource, summary: `Defined Standard ${variable.variableType} session variable ${variable.name}.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "define-group") {
+      const plan = resolveClassicDefineGroupCommand(selectedSource, project.fields, classicProgramSession.variables(), classicProgramSession.groups());
+      const group = classicProgramSession.defineGroup(plan);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `Defined GROUPVAR ${group.name} with ${group.members.length} members. Record data was not changed.`;
+      classicProgramCommandStatus.textContent = "Selected DEFINE GROUPVAR command completed; LIST can now expand the named group.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `Defined GROUPVAR ${group.name} with ${group.members.length} members.`, diagnostics: [],
       });
       return;
     }
@@ -1979,6 +2404,20 @@ function runSelectedClassicCommand(): void {
       });
       return;
     }
+    if (command.kind === "display") {
+      const plan = resolveClassicDisplayCommand(selectedSource, project.fields, classicProgramSession.variables());
+      const rowCount = renderClassicDisplayOutput(project, selectedSource);
+      requiredElement("#classic-display-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `Displayed ${rowCount} current variable${rowCount === 1 ? "" : "s"}. No data or session state was changed.`;
+      classicProgramCommandStatus.textContent = "Selected DISPLAY DBVARIABLES command completed in familiar Output.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `DISPLAY DBVARIABLES rendered ${rowCount} variable${rowCount === 1 ? "" : "s"}.`, diagnostics: [],
+      });
+      return;
+    }
     if (command.kind === "if") {
       const plan = resolveClassicIfCommand(selectedSource, project.fields, classicProgramSession.variables());
       const result = evaluateClassicIf(plan, classicProgramSession.variables());
@@ -1998,7 +2437,7 @@ function runSelectedClassicCommand(): void {
       return;
     }
     if (command.kind === "read") {
-      project = classicProgramSession.read(command.table, getProjectDataSources());
+      project = classicProgramSession.read(command.table, [...getProjectDataSources(), ...classicProgramSession.outTables()]);
       renderClassicProgramSession();
       classicProgramFeedback.textContent = `Read ${project.records.length} records from ${project.formName}. Subsequent selected commands use this active data source.`;
       classicProgramCommandStatus.textContent = "Selected READ command completed; the active Classic Analysis data source changed.";
@@ -2110,6 +2549,22 @@ function runSelectedClassicCommand(): void {
       });
       return;
     }
+    if (command.kind === "summarize") {
+      const plan = resolveClassicSummarizeCommand(selectedSource, project.fields);
+      const result = applyClassicSummarize(project, plan);
+      classicProgramSession.storeOutTable(result.source);
+      renderClassicSummarizeOutput(result);
+      requiredElement("#classic-summarize-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `SUMMARIZE created in-session table ${result.source.formName} with ${result.groups} row${result.groups === 1 ? "" : "s"}.`;
+      classicProgramCommandStatus.textContent = "Selected SUMMARIZE completed; its named output table is available to READ in this Classic session.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: result.sourceRecords,
+        source: selectedSource, canonicalSource: result.canonicalSource,
+        summary: `SUMMARIZE created ${result.source.formName} with ${result.groups} rows from ${result.includedRecords} included values.`, diagnostics: [],
+      });
+      return;
+    }
     if (project.formId !== fallbackProject.formId) throw new RangeError("TABLES value classification is currently bound to the current form. READ the current form or switch projects before running TABLES.");
     classicExposureField.value = command.exposure;
     setValueOptions(classicExposedValues, command.exposure, (value) => /^yes$|^true$|^1$/i.test(value));
@@ -2140,6 +2595,132 @@ function runSelectedClassicCommand(): void {
 }
 
 requiredElement("#classic-program-run-selection").addEventListener("click", runSelectedClassicCommand);
+requiredElement("#classic-merge-preview-apply").addEventListener("click", () => {
+  const pending = pendingClassicMerge;
+  if (!pending) return;
+  try {
+    applyClassicMergeRecords(pending.result.destination);
+    const refreshed = getProjectDataSources().find((candidate) => candidate.formId === pending.result.destination.formId)!;
+    classicProgramSession.merge(refreshed);
+    renderClassicProgramSession();
+    classicProgramFeedback.textContent = `MERGE applied: ${pending.result.updatedRecords} source rows updated destination records and ${pending.result.insertedRecords} records were inserted. ${pending.result.outputRecords} destination records are now active.`;
+    classicProgramCommandStatus.textContent = "Confirmed MERGE completed and was saved in this browser project.";
+    recordProgramRun({
+      origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      projectName: refreshed.projectName, formName: refreshed.formName, sourceRecords: pending.result.sourceRecords,
+      source: pending.plan.source, canonicalSource: pending.plan.canonicalSource,
+      summary: `MERGE updated ${pending.result.updatedRecords} source rows, inserted ${pending.result.insertedRecords} records, and left ${pending.result.outputRecords} destination records.`, diagnostics: [],
+    });
+    pendingClassicMerge = null;
+    classicMergePreviewDialog.close("applied");
+  } catch (error) {
+    requiredElement("#classic-merge-preview-feedback").textContent = error instanceof Error ? error.message : "MERGE could not be applied. No project records were changed.";
+  }
+});
+classicMergePreviewDialog.addEventListener("close", () => {
+  if (classicMergePreviewDialog.returnValue !== "applied") {
+    pendingClassicMerge = null;
+    classicProgramCommandStatus.textContent = "MERGE preview closed without changing project records.";
+  }
+});
+
+requiredElement<HTMLInputElement>("#classic-delete-preview-confirm").addEventListener("change", (event) => {
+  requiredElement<HTMLButtonElement>("#classic-delete-preview-apply").disabled = !(event.currentTarget as HTMLInputElement).checked;
+});
+requiredElement("#classic-delete-preview-apply").addEventListener("click", () => {
+  const pending = pendingClassicDelete;
+  if (!pending) return;
+  try {
+    const currentTarget = getProjectDataSources().find((candidate) => candidate.formId === pending.plan.formId);
+    if (!currentTarget) throw new RangeError("The DELETE TABLES target is no longer in the current project.");
+    const reviewedTarget = stageClassicDeleteTable(currentTarget, pending.plan);
+    applyClassicDeleteTableRecords(reviewedTarget);
+    classicProgramSession.reset(getCurrentProjectData());
+    renderClassicProgramSession();
+    classicProgramFeedback.textContent = `DELETE TABLES applied: ${pending.plan.recordCount} records were removed from ${pending.plan.formName}; the form design was preserved.`;
+    classicProgramCommandStatus.textContent = "Confirmed DELETE TABLES completed and was saved in this browser project.";
+    recordProgramRun({
+      origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      projectName: pending.staged.projectName, formName: pending.plan.formName, sourceRecords: pending.plan.recordCount,
+      source: pending.plan.canonicalSource, canonicalSource: pending.plan.canonicalSource,
+      summary: `DELETE TABLES removed ${pending.plan.recordCount} records and preserved the project form schema.`, diagnostics: [],
+    });
+    pendingClassicDelete = null;
+    classicDeletePreviewDialog.close("applied");
+  } catch (error) {
+    requiredElement("#classic-delete-preview-feedback").textContent = error instanceof Error ? error.message : "DELETE TABLES could not be applied. No project records were changed.";
+  }
+});
+classicDeletePreviewDialog.addEventListener("close", () => {
+  if (classicDeletePreviewDialog.returnValue !== "applied") {
+    pendingClassicDelete = null;
+    classicProgramCommandStatus.textContent = "DELETE TABLES preview closed without changing project records.";
+  }
+});
+
+requiredElement<HTMLInputElement>("#classic-delete-records-preview-confirm").addEventListener("change", (event) => {
+  requiredElement<HTMLButtonElement>("#classic-delete-records-preview-apply").disabled = !(event.currentTarget as HTMLInputElement).checked;
+});
+requiredElement("#classic-delete-records-preview-apply").addEventListener("click", () => {
+  const pending = pendingClassicDeleteRecords;
+  if (!pending) return;
+  try {
+    applyClassicDeleteRecords(pending);
+    const refreshed = getProjectDataSources().find((candidate) => candidate.formId === pending.formId)!;
+    classicProgramSession.reset(refreshed);
+    renderClassicProgramSession();
+    classicProgramFeedback.textContent = `DELETE RECORDS applied: ${pending.matchedRecords} records moved to the Recycle Bin; ${pending.remainingRecords.length} remain active.`;
+    classicProgramCommandStatus.textContent = "Confirmed recoverable DELETE RECORDS completed and was saved in this browser project.";
+    recordProgramRun({
+      origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      projectName: refreshed.projectName, formName: refreshed.formName, sourceRecords: pending.sourceSnapshot.length,
+      source: pending.canonicalSource, canonicalSource: pending.canonicalSource,
+      summary: `DELETE RECORDS moved ${pending.matchedRecords} records to the Recycle Bin and left ${pending.remainingRecords.length} active.`, diagnostics: [],
+    });
+    pendingClassicDeleteRecords = null;
+    classicDeleteRecordsPreviewDialog.close("applied");
+  } catch (error) {
+    requiredElement("#classic-delete-records-preview-feedback").textContent = error instanceof Error ? error.message : "DELETE RECORDS could not be applied. No project records were changed.";
+  }
+});
+classicDeleteRecordsPreviewDialog.addEventListener("close", () => {
+  if (classicDeleteRecordsPreviewDialog.returnValue !== "applied") {
+    pendingClassicDeleteRecords = null;
+    classicProgramCommandStatus.textContent = "DELETE RECORDS preview closed without changing project records.";
+  }
+});
+
+requiredElement<HTMLInputElement>("#classic-undelete-records-preview-confirm").addEventListener("change", (event) => {
+  requiredElement<HTMLButtonElement>("#classic-undelete-records-preview-apply").disabled = !(event.currentTarget as HTMLInputElement).checked;
+});
+requiredElement("#classic-undelete-records-preview-apply").addEventListener("click", () => {
+  const pending = pendingClassicUndeleteRecords;
+  if (!pending) return;
+  try {
+    applyClassicUndeleteRecords(pending);
+    const refreshed = getProjectDataSources().find((candidate) => candidate.formId === pending.formId)!;
+    classicProgramSession.reset(refreshed);
+    renderClassicProgramSession();
+    classicProgramFeedback.textContent = `UNDELETE RECORDS applied: ${pending.restored.length} records restored; ${pending.remainingDeleted.length} remain in the Recycle Bin.`;
+    classicProgramCommandStatus.textContent = "Confirmed UNDELETE RECORDS completed and was saved in this browser project.";
+    recordProgramRun({
+      origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      projectName: refreshed.projectName, formName: refreshed.formName, sourceRecords: pending.sourceSnapshot.length,
+      source: pending.canonicalSource, canonicalSource: pending.canonicalSource,
+      summary: `UNDELETE RECORDS restored ${pending.restored.length} records and left ${pending.remainingDeleted.length} in the Recycle Bin.`, diagnostics: [],
+    });
+    pendingClassicUndeleteRecords = null;
+    classicUndeleteRecordsPreviewDialog.close("applied");
+  } catch (error) {
+    requiredElement("#classic-undelete-records-preview-feedback").textContent = error instanceof Error ? error.message : "UNDELETE RECORDS could not be applied. No project records were changed.";
+  }
+});
+classicUndeleteRecordsPreviewDialog.addEventListener("close", () => {
+  if (classicUndeleteRecordsPreviewDialog.returnValue !== "applied") {
+    pendingClassicUndeleteRecords = null;
+    classicProgramCommandStatus.textContent = "UNDELETE RECORDS preview closed without changing project records.";
+  }
+});
 
 function refreshRatesValueSelector(): void {
   setValueOptions(ratesNumeratorValue, ratesNumeratorField.value, () => false);

@@ -1,0 +1,1 @@
+SUMMARIZE AverageAge :: AVG(age) TO FoodborneAgeBySex STRATAVAR=sex

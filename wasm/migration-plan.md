@@ -699,7 +699,7 @@ automatically executable.
 |---|---|---|---|
 | Legacy grammar evidence | Trace each supported production and semantic decision to GOLD grammar, rule object, User Guide, or fixture | Analysis grammar/parser architecture audited | Add command-by-command production and ambiguity fixtures |
 | Lexer/parser | Deterministic parsing, nested blocks, error recovery, and precise source ranges without evaluation | TypeScript AST V0.4 parses `READ`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, `SELECT`, and `SORT`; expressions include literals, identifiers, calls, unary/binary operators, and nested `IF` blocks | Expand legacy syntax variants and return multiple recoverable diagnostics |
-| Typed AST | Discriminated, versioned nodes with source spans; JSON-safe serialization and migration rules | `classic-ast.ts` defines additive AST `0.5.0`; every statement/expression carries a source span | Publish JSON schema, canonical serializer, comments/trivia policy, and AST compatibility tests |
+| Typed AST | Discriminated, versioned nodes with source spans; JSON-safe serialization and migration rules | `classic-ast.ts` defines additive AST `1.0.0`; every statement/expression carries a source span | Publish JSON schema, canonical serializer, comments/trivia policy, and AST compatibility tests |
 | Name and type resolution | Resolve fields/variables/scopes case-insensitively; reject missing, ambiguous, or type-invalid references | Bounded full-program and selected-command resolvers validate their allowlisted shapes; DEFINE/ASSIGN resolves Standard scalar type/lifetime separately from data fields | Add a standalone schema-aware semantic pass for every parsed command family |
 | Canonical source | Generate stable, reviewable Epi Info source without discarding unsupported text | Existing bounded plan canonicalizes its executable program | Add AST printer and parse-print-parse equivalence fixtures |
 | Execution planner | Lower only validated AST into a versioned allowlisted plan with declared capabilities and effects | Existing bounded program plan is the sole executable subset | Define plan nodes for dataset read/filter, variable mutation, recode, frequency, and tables; reject every unregistered node |
@@ -860,6 +860,16 @@ tests. With the plugin subsystem disabled, all core workflows still pass.
 
 ## Phase 7 - Durable local projects and offline recovery
 
+- Build a reviewed `.mdb`/`.accdb` to SQLite conversion facility outside the
+  browser runtime. Begin from the existing read-only Access inventory converter,
+  add an explicit Access-object-to-Epi-SQLite mapping, preserve the original
+  input, and emit a versioned migration manifest with source/output hashes,
+  warnings, unsupported objects, and converter provenance.
+- Validate conversion with schema/object inventories, table/row/column counts,
+  type/null/date/GUID/blob handling, keys/indexes/relationships, code tables,
+  forms/pages, Check Code source, deleted-state metadata, and referential
+  integrity. Never silently omit Access macros/VBA, OLE/attachments, saved
+  queries, encryption, or provider-specific values.
 - Introduce SQLite WASM in a dedicated Worker with an OPFS strategy selected by
   concurrency and browser-support testing.
 - Add schema migrations, storage quota handling, corruption detection, backup,
@@ -876,6 +886,10 @@ tests. With the plugin subsystem disabled, all core workflows still pass.
 
 A project survives offline reload, can be exported and restored after browser data
 is cleared, and reports actionable storage/update failures without silent loss.
+The Access conversion gate additionally requires repeatable `.mdb` and `.accdb`
+fixtures, immutable source files, deterministic SQLite output, complete migration
+manifests, row/schema reconciliation, and reviewed comparison with the same
+projects opened in desktop Epi Info/Access.
 
 ## Phase 8 - Hosted synchronization hardening
 
@@ -1058,11 +1072,13 @@ without executing source. The audited desktop `RichTextBox`
 accepted tabs and copied indentation but exposed no line-number gutter, column
 ruler, or explicit tab-width setting.
 
-The interpreter-modernization slice now has typed AST `0.5.0` and a source-span
+The interpreter-modernization slice now has typed AST `1.0.0` and a source-span
 parser that includes LIST and SORT among the initial command families. The existing bounded
 executor is lowered from this AST, while every broader parsed program remains
 syntax-only. A separately allowlisted selected-command path now resolves
-current-project READ, Standard DEFINE/ASSIGN/UNDEFINE scalar state, SELECT/SORT session
+current-project READ/RELATE active data, explicit WRITE REPLACE Text downloads, reviewed current-project MERGE, DELETE TABLES, recoverable DELETE/UNDELETE RECORDS mutations, named SUMMARIZE session tables, Standard DEFINE/ASSIGN/UNDEFINE scalar state, named
+DEFINE GROUPVAR session groups with bounded LIST expansion, bounded DISPLAY
+DBVARIABLES Output, SELECT/SORT session
 effects, bounded Standard-variable IF/ELSE branching, and active-session
 LIST/FREQ/MEANS, while external READ targets fail closed. Record-context IF,
 compound expressions, functions, nested/arbitrary blocks, and missing-value
@@ -1082,8 +1098,29 @@ The registry's overall parity status is evidence-gated. `browser-verified`
 requires a real `.pgm` tied to the checksummed foodborne dataset plus a
 machine-asserted expected-output artifact. `legacy-parity-verified` additionally
 requires captured and reviewed output from desktop Epi Info for that same
-program. The bounded IF fixture is the first command entry using this rule; it is
-not yet a desktop parity claim.
+program. The bounded IF, UNDEFINE, DISPLAY, DEFINE GROUPVAR, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, and SUMMARIZE fixtures use this
+rule; none is yet a desktop parity claim.
+
+Browser-constrained legacy commands use a common adaptation contract: retain
+their learned names, syntax, and menu placement; replace ambient desktop
+authority with a capability explicitly granted by the user; validate and
+preview before mutation; keep an auditable command/result record; fail closed
+when the requested adapter is unavailable; and provide a portable fallback.
+WRITE is the first reference: REPLACE Text produces a CSV download, while the
+planned APPEND adapter will choose an existing file, validate and preview the
+combined schema/data, require confirmation, write through a granted handle on
+supporting browsers, and fall back to upload/merge/download elsewhere. MERGE and
+the current-project DELETE TABLES subset now follow this rule. External DELETE
+FILE/TABLE, ROUTEOUT, RUNPGM, and related commands remain adapter work.
+
+The shared adapter should expose a virtual **Project Files** workspace backed by
+origin-private browser storage as the portable baseline. Legacy commands can
+then use coherent file-like create/read/append/replace/delete semantics without
+receiving operating-system paths. A separately labelled **Link local file or
+folder** capability may retain a user-granted File System Access handle where
+the browser supports it. A future managed Tauri/Electron shell may implement the
+same adapter interface with reviewed desktop policy; it must not broaden the
+web deployment's authority or change command semantics invisibly.
 
 The Program Editor also exposes three reviewed runnable examples over the
 foodborne form: life-stage age groups by Sex, broad age bands by Case Status, and

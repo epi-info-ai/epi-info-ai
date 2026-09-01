@@ -1,4 +1,4 @@
-export const CLASSIC_AST_VERSION = "0.5.0" as const;
+export const CLASSIC_AST_VERSION = "1.0.0" as const;
 
 export interface ClassicSourceLocation {
   line: number;
@@ -81,6 +81,50 @@ export interface ClassicReadStatement extends ClassicNode {
   };
 }
 
+export interface ClassicRelateStatement extends ClassicNode {
+  type: "RelateStatement";
+  target: ClassicReadStatement["target"];
+  keys: Array<{ current: ClassicIdentifier; related: ClassicIdentifier }>;
+  join: "matching" | "all";
+}
+
+export interface ClassicWriteStatement extends ClassicNode {
+  type: "WriteStatement";
+  mode: "APPEND" | "REPLACE";
+  format: "Epi7" | "Epi2000" | "Epi 2000" | "Excel 8.0" | "Text";
+  target: { source: string; table?: string; raw: string };
+  selection:
+    | { kind: "fields"; fields: ClassicIdentifier[] }
+    | { kind: "all" }
+    | { kind: "all-except"; fields: ClassicIdentifier[] };
+}
+
+export interface ClassicMergeStatement extends ClassicNode {
+  type: "MergeStatement";
+  target: ClassicReadStatement["target"];
+  keys: Array<{ current: ClassicIdentifier; source: ClassicIdentifier }>;
+  mode: "default" | "APPEND" | "UPDATE" | "RELATE";
+}
+
+export interface ClassicDeleteStatement extends ClassicNode {
+  type: "DeleteStatement";
+  target:
+    | { kind: "external-file"; source: string; raw: string }
+    | { kind: "current-project-table"; table: string; raw: string }
+    | { kind: "external-table"; source: string; table?: string; raw: string }
+    | { kind: "records"; selection: "all" | ClassicExpression; raw: string };
+  permanent: boolean;
+  runSilent: boolean;
+  saveData: boolean;
+}
+
+export interface ClassicUndeleteStatement extends ClassicNode {
+  type: "UndeleteStatement";
+  selection: "all" | ClassicExpression;
+  raw: string;
+  runSilent: boolean;
+}
+
 export interface ClassicFrequencyStatement extends ClassicNode {
   type: "FrequencyStatement";
   selection:
@@ -107,6 +151,16 @@ export interface ClassicMeansStatement extends ClassicNode {
   field: ClassicIdentifier;
 }
 
+export type ClassicAggregateFunction = "AVG" | "COUNT" | "FIRST" | "LAST" | "MAX" | "MIN" | "STDEV" | "STDEVP" | "SUM" | "VAR" | "VARP";
+
+export interface ClassicSummarizeStatement extends ClassicNode {
+  type: "SummarizeStatement";
+  aggregates: Array<{ target: ClassicIdentifier; aggregate: ClassicAggregateFunction; field?: ClassicIdentifier }>;
+  outputTable: ClassicIdentifier;
+  stratifyBy: ClassicIdentifier[];
+  weightBy?: ClassicIdentifier;
+}
+
 export type ClassicVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
 export type ClassicVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 
@@ -119,6 +173,12 @@ export interface ClassicDefineStatement extends ClassicNode {
   initializer?: ClassicExpression;
 }
 
+export interface ClassicDefineGroupStatement extends ClassicNode {
+  type: "DefineGroupStatement";
+  group: ClassicIdentifier;
+  members: ClassicIdentifier[];
+}
+
 export interface ClassicAssignStatement extends ClassicNode {
   type: "AssignStatement";
   target: ClassicIdentifier;
@@ -129,6 +189,13 @@ export interface ClassicUndefineStatement extends ClassicNode {
   type: "UndefineStatement";
   mode: "one" | "all-standard" | "all-global";
   variable?: ClassicIdentifier;
+}
+
+export interface ClassicDisplayStatement extends ClassicNode {
+  type: "DisplayStatement";
+  displayType: "DBVARIABLES";
+  mode: "all" | "defined" | "fields" | "list";
+  variables: ClassicIdentifier[];
 }
 
 export interface ClassicSelectStatement extends ClassicNode {
@@ -173,13 +240,21 @@ export interface ClassicIfStatement extends ClassicNode {
 
 export type ClassicStatement =
   | ClassicReadStatement
+  | ClassicRelateStatement
+  | ClassicWriteStatement
+  | ClassicMergeStatement
+  | ClassicDeleteStatement
+  | ClassicUndeleteStatement
   | ClassicFrequencyStatement
   | ClassicListStatement
   | ClassicTablesStatement
   | ClassicMeansStatement
+  | ClassicSummarizeStatement
   | ClassicDefineStatement
+  | ClassicDefineGroupStatement
   | ClassicAssignStatement
   | ClassicUndefineStatement
+  | ClassicDisplayStatement
   | ClassicSelectStatement
   | ClassicSortStatement
   | ClassicRecodeStatement
@@ -504,13 +579,20 @@ class ProgramParser {
     const line = this.lines[this.cursor++]!;
     const { command, rest, restColumn } = splitCommand(line);
     if (command === "READ") return this.read(line, rest);
+    if (command === "RELATE") return this.relate(line, rest);
+    if (command === "WRITE") return this.write(line, rest);
+    if (command === "MERGE") return this.merge(line, rest);
+    if (command === "DELETE") return this.deleteFileOrTable(line, rest);
+    if (command === "UNDELETE") return this.undeleteRecords(line, rest);
     if (command === "FREQ") return this.frequency(line, rest);
     if (command === "LIST") return this.list(line, rest);
     if (command === "TABLES") return this.tables(line, rest);
     if (command === "MEANS") return this.means(line, rest);
+    if (command === "SUMMARIZE") return this.summarize(line, rest);
     if (command === "DEFINE") return this.define(line, rest, restColumn);
     if (command === "ASSIGN") return this.assign(line, rest, restColumn);
     if (command === "UNDEFINE") return this.undefine(line, rest);
+    if (command === "DISPLAY") return this.display(line, rest);
     if (command === "SELECT") return this.select(line, rest, restColumn);
     if (command === "CANCEL" && /^SELECT$/i.test(rest.trim())) return { type: "SelectStatement", mode: "cancel", span: lineSpan(line) };
     if (command === "SORT") return this.sort(line, rest);
@@ -518,6 +600,159 @@ class ProgramParser {
     if (command === "RECODE") return this.recode(line, rest);
     if (command === "IF") return this.ifStatement(line, rest, restColumn);
     throw new ClassicSyntaxError(line.line, 1, `Unsupported command: ${line.trimmed}`);
+  }
+
+  private relate(line: SourceLine, rest: string): ClassicRelateStatement {
+    const match = rest.match(/^(\{[^}]+\}:\s*(?:\[[^\]]+\]|\S+)|\[[^\]]+\]|\S+)\s+(.+?)(?:\s+(MATCHING|ALL))?$/i);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, "RELATE requires a table, key definition, and optional MATCHING or ALL.");
+    const rawTarget = match[1]!.trim();
+    const external = rawTarget.match(/^(\{[^}]+\}):\s*(.+)$/);
+    const target = external
+      ? { kind: "external-table" as const, source: external[1]!.slice(1, -1), table: identifierName(external[2]!), raw: rawTarget }
+      : { kind: "current-project-table" as const, table: identifierName(rawTarget), raw: rawTarget };
+    const keySource = match[2]!.trim();
+    const clauses = keySource.split(/\s+AND\s+/i);
+    const keys = clauses.map((clause) => {
+      const pair = clause.match(/^(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)\s*::\s*(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)$/);
+      if (!pair) throw new ClassicSyntaxError(line.line, 1, "Each RELATE key must use current-field :: related-field.");
+      return { current: identifier(pair[1]!, line), related: identifier(pair[2]!, line) };
+    });
+    return { type: "RelateStatement", target, keys, join: match[3]?.toUpperCase() === "ALL" ? "all" : "matching", span: lineSpan(line) };
+  }
+
+  private write(line: SourceLine, rest: string): ClassicWriteStatement {
+    const match = rest.match(/^(APPEND|REPLACE)\s+"(Epi7|Epi2000|Epi 2000|Excel 8\.0|Text)"\s+(\{[^}]+\}(?:\s*:\s*(?:\[[^\]]+\]|\S+))?|\S+)\s+(.+)$/i);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, "WRITE requires APPEND or REPLACE, a legacy output format, a destination, and variables or '*'.");
+    const rawTarget = match[3]!.trim();
+    const targetMatch = rawTarget.match(/^\{([^}]+)\}(?:\s*:\s*(.+))?$/);
+    const target = targetMatch
+      ? { source: targetMatch[1]!, ...(targetMatch[2] ? { table: identifierName(targetMatch[2]) } : {}), raw: rawTarget }
+      : { source: identifierName(rawTarget), raw: rawTarget };
+    const tokens = words(match[4]!);
+    let selection: ClassicWriteStatement["selection"];
+    if (tokens[0] === "*") {
+      if (tokens.length === 1) selection = { kind: "all" };
+      else if (tokens[1]?.toUpperCase() === "EXCEPT" && tokens.length > 2) selection = { kind: "all-except", fields: tokens.slice(2).map((value) => identifier(value, line)) };
+      else throw new ClassicSyntaxError(line.line, 1, "WRITE '*' accepts only an optional EXCEPT variable list.");
+    } else {
+      if (!tokens.length) throw new ClassicSyntaxError(line.line, 1, "WRITE requires one or more variables or '*'.");
+      selection = { kind: "fields", fields: tokens.map((value) => identifier(value, line)) };
+    }
+    const format = match[2]!.toLocaleLowerCase("en-US") === "text" ? "Text"
+      : match[2]!.toLocaleLowerCase("en-US") === "epi7" ? "Epi7"
+      : match[2]!.toLocaleLowerCase("en-US") === "epi2000" ? "Epi2000"
+      : match[2]!.toLocaleLowerCase("en-US") === "epi 2000" ? "Epi 2000" : "Excel 8.0";
+    return { type: "WriteStatement", mode: match[1]!.toUpperCase() as "APPEND" | "REPLACE", format, target, selection, span: lineSpan(line) };
+  }
+
+  private merge(line: SourceLine, rest: string): ClassicMergeStatement {
+    const match = rest.match(/^(\{[^}]+\}:\s*(?:\[[^\]]+\]|\S+)|\[[^\]]+\]|\S+)\s+(.+?)(?:\s+(APPEND|UPDATE|RELATE))?$/i);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, "MERGE requires a source table, one or more destination :: source keys, and an optional legacy mode.");
+    const rawTarget = match[1]!.trim();
+    const external = rawTarget.match(/^(\{[^}]+\}):\s*(.+)$/);
+    const target = external
+      ? { kind: "external-table" as const, source: external[1]!.slice(1, -1), table: identifierName(external[2]!), raw: rawTarget }
+      : { kind: "current-project-table" as const, table: identifierName(rawTarget), raw: rawTarget };
+    const clauses = match[2]!.trim().split(/\s+AND\s+/i);
+    const keys = clauses.map((clause) => {
+      const pair = clause.match(/^(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)\s*::\s*(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)$/);
+      if (!pair) throw new ClassicSyntaxError(line.line, 1, "Each MERGE key must use destination-field :: source-field.");
+      return { current: identifier(pair[1]!, line), source: identifier(pair[2]!, line) };
+    });
+    return {
+      type: "MergeStatement", target, keys,
+      mode: (match[3]?.toUpperCase() ?? "default") as ClassicMergeStatement["mode"], span: lineSpan(line),
+    };
+  }
+
+  private deleteFileOrTable(line: SourceLine, rest: string): ClassicDeleteStatement {
+    let body = rest.trim();
+    const options = new Set<string>();
+    while (true) {
+      const option = body.match(/\s+(PERMANENT|SAVEDATA|RUNSILENT)\s*$/i);
+      if (!option) break;
+      options.add(option[1]!.toUpperCase());
+      body = body.slice(0, option.index).trim();
+    }
+    const permanent = options.has("PERMANENT");
+    const runSilent = options.has("RUNSILENT");
+    const saveData = options.has("SAVEDATA");
+    const withoutOptions = words(body);
+    if (!withoutOptions.length) throw new ClassicSyntaxError(line.line, 1, "DELETE requires a record expression, file, or TABLES target.");
+    if (withoutOptions[0]!.toUpperCase() !== "TABLES") {
+      const raw = withoutOptions.join(" ");
+      const file = raw.match(/^\{([^}]+)\}$/);
+      if (file) return { type: "DeleteStatement", target: { kind: "external-file", source: file[1]!, raw }, permanent, runSilent, saveData, span: lineSpan(line) };
+      if (raw === "*") return { type: "DeleteStatement", target: { kind: "records", selection: "all", raw }, permanent, runSilent, saveData, span: lineSpan(line) };
+      const expressionRaw = raw.startsWith("(") && raw.endsWith(")") ? raw.slice(1, -1).trim() : raw;
+      if (!expressionRaw) throw new ClassicSyntaxError(line.line, 1, "DELETE record criteria cannot be empty.");
+      return {
+        type: "DeleteStatement", target: { kind: "records", selection: parseExpression(expressionRaw, line, line.text.indexOf(expressionRaw) + 1), raw },
+        permanent, runSilent, saveData, span: lineSpan(line),
+      };
+    }
+    const raw = withoutOptions.slice(1).join(" ").trim();
+    if (!raw) throw new ClassicSyntaxError(line.line, 1, "DELETE TABLES requires a table or data source.");
+    const externalLong = raw.match(/^\{([^}]+)\}\s*:\s*(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)$/);
+    if (externalLong) return {
+      type: "DeleteStatement",
+      target: { kind: "external-table", source: externalLong[1]!, table: identifierName(externalLong[2]!), raw },
+      permanent, runSilent, saveData, span: lineSpan(line),
+    };
+    const externalShort = raw.match(/^\{([^}]+)\}$/);
+    if (externalShort) return {
+      type: "DeleteStatement", target: { kind: "external-table", source: externalShort[1]!, raw },
+      permanent, runSilent, saveData, span: lineSpan(line),
+    };
+    if (!/^\[[^\]]+\]$/.test(raw)) identifier(raw, line);
+    return {
+      type: "DeleteStatement", target: { kind: "current-project-table", table: identifierName(raw), raw },
+      permanent, runSilent, saveData, span: lineSpan(line),
+    };
+  }
+
+  private undeleteRecords(line: SourceLine, rest: string): ClassicUndeleteStatement {
+    let body = rest.trim();
+    const option = body.match(/\s+RUNSILENT\s*$/i);
+    const runSilent = Boolean(option);
+    if (option) body = body.slice(0, option.index).trim();
+    if (!body) throw new ClassicSyntaxError(line.line, 1, "UNDELETE requires a record expression or '*'.");
+    if (body === "*") return { type: "UndeleteStatement", selection: "all", raw: body, runSilent, span: lineSpan(line) };
+    const expressionRaw = body.startsWith("(") && body.endsWith(")") ? body.slice(1, -1).trim() : body;
+    if (!expressionRaw) throw new ClassicSyntaxError(line.line, 1, "UNDELETE record criteria cannot be empty.");
+    return {
+      type: "UndeleteStatement", selection: parseExpression(expressionRaw, line, line.text.indexOf(expressionRaw) + 1),
+      raw: body, runSilent, span: lineSpan(line),
+    };
+  }
+
+  private summarize(line: SourceLine, rest: string): ClassicSummarizeStatement {
+    const match = rest.match(/^(.+?)\s+TO\s+(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)(.*)$/i);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, "SUMMARIZE requires aggregate expressions followed by TO and an output table name.");
+    const aggregateSource = match[1]!.trim();
+    const aggregatePattern = /(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)\s*::\s*(AVG|COUNT|FIRST|LAST|MAX|MIN|STDEV|STDEVP|SUM|VAR|VARP)\s*\(\s*(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)?\s*\)/gi;
+    const aggregates: ClassicSummarizeStatement["aggregates"] = [];
+    let consumed = "";
+    for (const aggregate of aggregateSource.matchAll(aggregatePattern)) {
+      consumed += aggregate[0];
+      aggregates.push({
+        target: identifier(aggregate[1]!, line), aggregate: aggregate[2]!.toUpperCase() as ClassicAggregateFunction,
+        ...(aggregate[3] ? { field: identifier(aggregate[3], line) } : {}),
+      });
+    }
+    const normalizedExpected = aggregateSource.replace(/[\s,]+/g, "").toLocaleLowerCase("en-US");
+    const normalizedConsumed = consumed.replace(/[\s,]+/g, "").toLocaleLowerCase("en-US");
+    if (!aggregates.length || normalizedExpected !== normalizedConsumed) throw new ClassicSyntaxError(line.line, 1, "Each SUMMARIZE aggregate must use result :: FUNCTION(field), or result :: COUNT().");
+    const options = match[3]!.trim();
+    const weight = options.match(/(?:^|\s)WEIGHTVAR\s*=\s*(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)/i);
+    const strata = options.match(/(?:^|\s)STRATAVAR\s*=\s*(.+?)(?=\s+WEIGHTVAR\s*=|$)/i);
+    const stripped = options.replace(/(?:^|\s)WEIGHTVAR\s*=\s*(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)/ig, "").replace(/(?:^|\s)STRATAVAR\s*=\s*(.+?)(?=\s+WEIGHTVAR\s*=|$)/ig, "").trim();
+    if (stripped) throw new ClassicSyntaxError(line.line, 1, `Unsupported SUMMARIZE option: ${stripped}.`);
+    return {
+      type: "SummarizeStatement", aggregates, outputTable: identifier(match[2]!, line),
+      stratifyBy: strata ? words(strata[1]!).map((name) => identifier(name, line)) : [],
+      ...(weight ? { weightBy: identifier(weight[1]!, line) } : {}), span: lineSpan(line),
+    };
   }
 
   private read(line: SourceLine, rest: string): ClassicReadStatement {
@@ -539,6 +774,27 @@ class ProgramParser {
     }
     if (tokens.length !== 1) throw new ClassicSyntaxError(line.line, 1, "UNDEFINE requires one variable, '*', or '* GLOBAL'.");
     return { type: "UndefineStatement", mode: "one", variable: identifier(tokens[0]!, line), span: lineSpan(line) };
+  }
+
+  private display(line: SourceLine, rest: string): ClassicDisplayStatement {
+    const tokens = words(rest);
+    if (tokens[0]?.toUpperCase() !== "DBVARIABLES") {
+      throw new ClassicSyntaxError(line.line, 1, "This AST slice supports DISPLAY DBVARIABLES only; DBVIEWS and TABLES remain preserved gaps.");
+    }
+    const options = tokens.slice(1);
+    if (options.some((token) => /^OUTTABLE(?:=|$)/i.test(token))) {
+      throw new ClassicSyntaxError(line.line, 1, "DISPLAY OUTTABLE requires a reviewed browser storage adapter.");
+    }
+    if (!options.length) return { type: "DisplayStatement", displayType: "DBVARIABLES", mode: "all", variables: [], span: lineSpan(line) };
+    if (options.length === 1 && options[0]!.toUpperCase() === "DEFINE") {
+      return { type: "DisplayStatement", displayType: "DBVARIABLES", mode: "defined", variables: [], span: lineSpan(line) };
+    }
+    if (options.length === 1 && options[0]!.toUpperCase() === "FIELDVAR") {
+      return { type: "DisplayStatement", displayType: "DBVARIABLES", mode: "fields", variables: [], span: lineSpan(line) };
+    }
+    const list = options[0]!.toUpperCase() === "LIST" ? options.slice(1) : options;
+    if (!list.length) throw new ClassicSyntaxError(line.line, 1, "DISPLAY DBVARIABLES LIST requires at least one variable.");
+    return { type: "DisplayStatement", displayType: "DBVARIABLES", mode: "list", variables: list.map((value) => identifier(value, line)), span: lineSpan(line) };
   }
 
   private frequency(line: SourceLine, rest: string): ClassicFrequencyStatement {
@@ -591,7 +847,13 @@ class ProgramParser {
     return { type: "MeansStatement", field: identifier(tokens[0]!, line), span: lineSpan(line) };
   }
 
-  private define(line: SourceLine, rest: string, restColumn: number): ClassicDefineStatement {
+  private define(line: SourceLine, rest: string, restColumn: number): ClassicDefineStatement | ClassicDefineGroupStatement {
+    const group = rest.match(/^(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)\s+GROUPVAR\s+(.+)$/i);
+    if (group) {
+      const members = words(group[2]!).map((value) => identifier(value, line));
+      if (!members.length) throw new ClassicSyntaxError(line.line, restColumn, "DEFINE GROUPVAR requires at least one member variable.");
+      return { type: "DefineGroupStatement", group: identifier(group[1]!, line), members, span: lineSpan(line) };
+    }
     const initializer = rest.match(/^(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)\s*=\s*(.+)$/);
     if (initializer) return {
       type: "DefineStatement", variable: identifier(initializer[1]!, line), scope: "STANDARD",

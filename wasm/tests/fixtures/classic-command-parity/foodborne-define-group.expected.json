@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "DEFINE GROUPVAR",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96,
+    "fieldCount": 27
+  },
+  "expected": {
+    "group": "FoodSymptoms",
+    "members": ["diarrhea", "vomiting", "nausea", "abdominal_cramps", "fever"],
+    "listFields": ["id", "diarrhea", "vomiting", "nausea", "abdominal_cramps", "fever"],
+    "recordCount": 96,
+    "recordsChanged": false
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Reviewed legacy Epi Info LIST output for the same GROUPVAR program is required before legacy-parity-verified status."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "DISPLAY",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96,
+    "fieldCount": 27
+  },
+  "expected": {
+    "defined": [{ "variable": "ReviewLabel", "value": "Priority review", "specialInfo": "Standard", "table": "Defined" }],
+    "fieldCount": 27,
+    "selected": ["ReviewLabel", "case_status"],
+    "recordCount": 96,
+    "recordsChanged": false,
+    "sessionChanged": false
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "A reviewed HTML Output capture from legacy Epi Info is required before legacy-parity-verified status."
+  }
+}

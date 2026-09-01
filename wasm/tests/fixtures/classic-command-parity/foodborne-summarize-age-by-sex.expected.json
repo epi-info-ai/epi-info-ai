@@ -1,0 +1,10 @@
+{
+  "command": "SUMMARIZE AverageAge :: AVG(age) TO FoodborneAgeBySex STRATAVAR=sex",
+  "expected": {
+    "outputTable": "FoodborneAgeBySex",
+    "rows": [
+      { "sex": "Female", "AverageAge": 43.541666666666664 },
+      { "sex": "Male", "AverageAge": 38.0625 }
+    ]
+  }
+}
