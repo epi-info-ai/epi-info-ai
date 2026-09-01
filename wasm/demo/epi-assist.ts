@@ -64,7 +64,9 @@ function runAction(action: EpiAssistAction): void {
     field.dispatchEvent(new Event("change", { bubbles: true }));
     strata.value = action.stratifyBy ?? "";
     strata.dispatchEvent(new Event("change", { bubbles: true }));
-    requiredElement<HTMLButtonElement>("#frequency-run").click();
+    const runButton = requiredElement<HTMLButtonElement>("#frequency-run");
+    if (runButton.form) runButton.form.requestSubmit(runButton);
+    else runButton.click();
     return;
   }
   clickModule("dashboard");

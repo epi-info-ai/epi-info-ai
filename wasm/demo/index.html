@@ -726,24 +726,29 @@
           </nav>
           <div id="classic-program-toolbar" class="classic-legacy-toolbar" role="toolbar" aria-label="Program Editor commands"></div>
           <p id="classic-program-command-status" class="dashboard-command-status" role="status">Program Editor ready.</p>
-          <fieldset class="classic-project-programs">
-            <legend>Programs in current project</legend>
-            <label for="classic-project-program">Program</label>
-            <select id="classic-project-program"><option value="">No saved programs</option></select>
-            <button id="classic-project-program-open" type="button" disabled>Open</button>
-            <span id="classic-program-document-state">Untitled · saved</span>
-          </fieldset>
+          <details id="classic-program-library" class="classic-program-library">
+            <summary>Project programs and examples</summary>
+            <div class="classic-program-library-body">
+              <fieldset class="classic-project-programs">
+                <legend>Programs in current project</legend>
+                <label for="classic-project-program">Program</label>
+                <select id="classic-project-program"><option value="">No saved programs</option></select>
+                <button id="classic-project-program-open" type="button" disabled>Open</button>
+                <span id="classic-program-document-state">Untitled · saved</span>
+              </fieldset>
+              <fieldset class="classic-program-examples" hidden>
+                <legend>Foodborne illness example programs</legend>
+                <div class="classic-program-example-controls">
+                  <label for="classic-program-example">Choose an example</label>
+                  <select id="classic-program-example" disabled><option>Loading foodborne examples…</option></select>
+                  <button id="classic-program-load-example" type="button" disabled>Load Example</button>
+                </div>
+                <p id="classic-program-example-description" class="classic-program-example-description"></p>
+              </fieldset>
+            </div>
+          </details>
           <p id="classic-program-session-status" class="compatibility-note"><strong>Active data:</strong> current form.</p>
           <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
-          <fieldset class="classic-program-examples" hidden>
-            <legend>Foodborne illness example programs</legend>
-            <div class="classic-program-example-controls">
-              <label for="classic-program-example">Choose an example</label>
-              <select id="classic-program-example" disabled><option>Loading foodborne examples…</option></select>
-              <button id="classic-program-load-example" type="button" disabled>Load Example</button>
-            </div>
-            <p id="classic-program-example-description" class="classic-program-example-description"></p>
-          </fieldset>
           <p id="classic-program-source-label" class="classic-program-label"><strong>Program</strong></p>
           <div id="classic-program-source" class="classic-program-source" aria-labelledby="classic-program-source-label"></div>
           <article id="classic-program-printout" aria-hidden="true"><h1 id="classic-program-print-title">Program</h1><pre id="classic-program-print-source"></pre></article>

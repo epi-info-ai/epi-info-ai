@@ -481,8 +481,6 @@ a:focus-visible {
 
 .classic-program-editor > .panel-heading .step-label,
 .classic-program-editor > .compatibility-note,
-.classic-program-editor > .classic-project-programs,
-.classic-program-editor > .classic-program-examples,
 .classic-program-editor > .classic-program-completion-help {
   display: none;
 }
@@ -492,6 +490,21 @@ a:focus-visible {
 }
 
 .classic-program-editor > .panel-heading h2 { font-size: 0.95rem; }
+
+.classic-program-library {
+  border-bottom: 1px solid #9fb7c4;
+  background: #f6f8f9;
+  font-size: 0.82rem;
+}
+
+.classic-program-library > summary {
+  cursor: pointer;
+  padding: 0.35rem 0.55rem;
+  color: #375363;
+}
+
+.classic-program-library-body { padding: 0 0.55rem 0.55rem; }
+.classic-program-library-body fieldset { margin: 0.4rem 0 0; }
 
 .classic-direct-controls {
   margin: 0.25rem 0 0;

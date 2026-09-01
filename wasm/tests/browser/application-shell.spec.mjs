@@ -15,6 +15,11 @@ async function openClassicDeveloperControls(page) {
   if (!(await controls.evaluate((element) => element.open))) await controls.locator("summary").click();
 }
 
+async function openClassicProgramLibrary(page) {
+  const library = page.locator("#classic-program-library");
+  if (!(await library.evaluate((element) => element.open))) await library.locator("summary").click();
+}
+
 test("legacy application menus expose familiar workflows", async ({ page }) => {
   const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
 
@@ -882,6 +887,7 @@ test("Program Editor saves project programs and exchanges .pgm7 files", async ({
   await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/sample-project.epia.json");
   await expect(page.locator("#main-menu-status")).toContainText("Opened Sample");
   await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
+  await openClassicProgramLibrary(page);
   await expect(page.locator("#classic-project-program option", { hasText: "Statistics" })).toHaveCount(1);
   await page.locator("#classic-project-program").selectOption("Statistics");
   await page.locator("#classic-project-program-open").click();
@@ -1712,6 +1718,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
+  await openClassicProgramLibrary(page);
   await expect(page.locator(".classic-program-examples")).toBeVisible();
   await expect(page.locator("#classic-program-example option")).toHaveCount(4);
   await expect(page.locator("#classic-program-source-name")).toContainText("96 records");
@@ -2154,6 +2161,10 @@ test("Maps uploads and renders the WorldPop GeoTIFF below vector panes", async (
 });
 
 test("Epi Assist previews reviewed actions without loading or contacting a model", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.getByRole("button", { name: /Epi Assist/ }).first().click();
   await expect(page.getByRole("dialog", { name: "Epi Assist" })).toBeVisible();
   await expect(page.locator("#epi-assist-status")).toContainText("not loaded");
@@ -2163,5 +2174,6 @@ test("Epi Assist previews reviewed actions without loading or contacting a model
   await expect(page.locator("#epi-assist-actions button").first()).toBeVisible();
   await page.locator("#epi-assist-actions button").filter({ hasText: "Run Frequency" }).click();
   await expect(page.getByRole("heading", { name: "Analysis" })).toBeVisible();
+  await expect(page.locator("#frequency-feedback")).toContainText("Included");
   await expect(page.locator("#frequency-output")).toBeVisible();
 });
