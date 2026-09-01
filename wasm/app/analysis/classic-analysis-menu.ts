@@ -52,11 +52,11 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
     gap("delete-file-table", "Delete File/Table"), gap("delete-records", "Delete Records"), gap("undelete-records", "Undelete Records"),
   ] },
   { key: "variables", label: "Variables", commands: [
-    command("define", "Define", "classic-command-define"), gap("define-group", "DefineGroup"), gap("undefine", "Undefine"),
-    gap("assign", "Assign"), command("recode", "Recode", "classic-command-recode"), gap("display", "Display"),
+    command("define", "Define", "classic-command-define"), gap("define-group", "DefineGroup"), command("undefine", "Undefine", "classic-command-undefine"),
+    command("assign", "Assign", "classic-command-assign"), command("recode", "Recode", "classic-command-recode"), gap("display", "Display"),
   ] },
   { key: "select-if", label: "Select/If", commands: [
-    gap("select", "Select"), gap("cancel-select", "Cancel Select"), gap("if", "If"), gap("sort", "Sort"), gap("cancel-sort", "Cancel Sort"),
+    command("select", "Select", "classic-command-select"), command("cancel-select", "Cancel Select", "classic-command-cancel-select"), command("if", "If", "classic-command-if"), command("sort", "Sort", "classic-command-sort"), command("cancel-sort", "Cancel Sort", "classic-command-cancel-sort"),
   ] },
   { key: "statistics", label: "Statistics", commands: [
     command("list", "List", "classic-command-list"), command("frequencies", "Frequencies", "classic-command-frequencies"),

@@ -323,6 +323,32 @@ checksums, expected metadata, and combined testing workflow are documented in
   value/to-value/result rows, ELSE, and the inherited `lower < value ≤ upper`
   numeric boundary rule. Together with Frequencies, they can author and run the
   bounded foodborne age-group program without hiding its Epi Info source.
+- Added familiar `SELECT` and `CANCEL SELECT` authoring and selected execution.
+  A schema-aware dialog generates ordinary visible source; repeated SELECT
+  commands narrow the active Classic Analysis session with the legacy cumulative
+  `AND` behavior. The UI reports total, selected, excluded, and missing-comparison
+  counts, and LIST/FREQ/MEANS use the selected records until selection is cancelled.
+  Compound expressions and functions remain fail-closed pending parity work.
+- Added familiar `SORT` and `CANCEL SORT` authoring and selected execution. The
+  ordered variable grid supports ascending/descending multi-field priority,
+  LIST reflects the active order, and cancelling sorting restores source order
+  without changing SELECT membership. AST V0.4 and local history retain the
+  exact reviewed command; legacy collation remains a differential-validation gap.
+- Added bounded selected `DEFINE` and `ASSIGN` session-variable execution. A
+  Standard scalar must be explicitly defined before assignment; the typed Assign
+  dialog accepts type-compatible literals and displays current values in session
+  status. READ clears Standard variables. Data-field mutation, expressions,
+  functions, and Global/Permanent lifetimes remain fail-closed.
+- Added bounded `IF / ELSE / END` authoring and selected execution for initialized
+  Standard variables. Both literal ASSIGN branches are validated before one is
+  chosen, history records the decision, and record data remains immutable. The
+  command inventory now requires a checked-in `.pgm` and asserted foodborne
+  expected output for `browser-verified`, plus reviewed desktop output before
+  the stronger `legacy-parity-verified` status can be used.
+- Added familiar `UNDEFINE variable` and `UNDEFINE *` authoring and selected
+  execution for Standard session variables. Removed variables immediately leave
+  the ASSIGN/IF choices; data records remain unchanged. `UNDEFINE * GLOBAL` is
+  parsed for source fidelity but fails closed until Global lifetime exists.
 - Added a checksummed foodborne Case Status fixture and a V0.9 JupyterLite
   notebook that independently checks the deployed Rust/WASM frequency kernel.
 - Added the V0.10 Classic Analysis `MEANS` slice for one current-form numeric

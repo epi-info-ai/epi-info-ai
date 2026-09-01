@@ -928,14 +928,54 @@ test("typed command dialogs insert visible source and selected commands fail clo
   await expect(page.locator("#classic-program-session-status")).toContainText("Foodborne Outbreak Investigation Form · 96 records");
   await expect(page.locator("#classic-program-command-status")).toContainText("Selected READ command completed");
 
+  const selectIf = tree.locator("details").filter({ hasText: "Select/If" });
+  await selectIf.locator("summary").click();
+  await tree.getByRole("treeitem", { name: "Select", exact: true }).click();
+  await page.locator("#classic-command-dialog-select-field").selectOption("case_status");
+  await page.locator("#classic-command-dialog-select-value").fill("Confirmed");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('SELECT case_status = "Confirmed"');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-session-status")).toContainText("22 of 96 records selected; 74 excluded");
+  await expect(page.locator("#classic-program-session-status")).toContainText('SELECT (case_status = "Confirmed")');
+
+  await tree.getByRole("treeitem", { name: "Sort", exact: true }).click();
+  await page.locator('[data-sort-field="true"]').first().selectOption("age");
+  await page.locator('[data-sort-direction="true"]').first().selectOption("DESC");
+  await page.locator("#classic-command-dialog-add-sort").click();
+  await page.locator('[data-sort-field="true"]').nth(1).selectOption("id");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("SORT age DESCENDING id ASCENDING");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-session-status")).toContainText("SORT age DESCENDING id ASCENDING");
+
   await tree.getByRole("treeitem", { name: "List", exact: true }).click();
   await page.locator("#classic-command-dialog-field").selectOption(["id", "age", "sex"]);
   await expect(page.locator("#classic-command-dialog-preview")).toHaveText("LIST id age sex");
   await page.locator("#classic-command-dialog-insert").click();
   await page.locator("#classic-program-run-selection").click();
   await expect(page.locator("#classic-list-output-head th")).toHaveText(["ID", "Age", "Sex"]);
-  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
-  await expect(page.locator("#classic-list-output-note")).toHaveText("Showing all 96 records.");
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(22);
+  await expect(page.locator("#classic-list-output-note")).toHaveText("Showing all 22 records.");
+  const descendingAges = (await page.locator("#classic-list-output-body tr td:nth-child(2)").allTextContents()).map(Number);
+  expect(descendingAges.every((age, index) => index === 0 || descendingAges[index - 1] >= age)).toBe(true);
+
+  await tree.getByRole("treeitem", { name: "Cancel Sort", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("CANCEL SORT");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-session-status")).not.toContainText("SORT age");
+  await tree.getByRole("treeitem", { name: "List", exact: true }).click();
+  await page.locator("#classic-command-dialog-field").selectOption(["id", "age", "sex"]);
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-list-output-body tr").first().locator("td").first()).toHaveText("P001");
+
+  await tree.getByRole("treeitem", { name: "Cancel Select", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("CANCEL SELECT");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-session-status")).toContainText("96 records; no selection");
 
   await tree.getByRole("treeitem", { name: "Frequencies", exact: true }).click();
   await page.locator("#classic-command-dialog-field").selectOption("case_status");
@@ -970,7 +1010,7 @@ test("typed command dialogs insert visible source and selected commands fail clo
   await page.locator("#classic-program-run-selection").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Select exactly one complete command");
   await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("6");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("11");
 });
 
 test("Define and Recode dialogs author a runnable foodborne program as visible source", async ({ page }) => {
@@ -1016,6 +1056,134 @@ test("Define and Recode dialogs author a runnable foodborne program as visible s
   await expect(page.locator("#classic-program-output-title")).toHaveText("FoodAgeGroup");
   await expect(page.locator("#classic-program-output-rows tr")).toHaveCount(4);
   await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+});
+
+test("selected DEFINE and ASSIGN manage bounded Standard session variables", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  const variables = tree.locator("details").filter({ hasText: "Variables" });
+  await variables.locator("summary").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  await tree.getByRole("treeitem", { name: "Define", exact: true }).click();
+  await page.locator("#classic-command-dialog-variable").fill("ReviewLabel");
+  await page.locator("#classic-command-dialog-variable-type").selectOption("TEXTINPUT");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("DEFINE ReviewLabel TEXTINPUT");
+  await page.locator("#classic-command-dialog-insert").click();
+  await editor.press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-session-status")).toContainText("Variables: ReviewLabel=Missing");
+
+  await tree.getByRole("treeitem", { name: "Assign", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-assign-variable")).toHaveValue("ReviewLabel");
+  await page.locator("#classic-command-dialog-assign-value").fill("Priority review");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('ASSIGN ReviewLabel = "Priority review"');
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-session-status")).toContainText("ReviewLabel=Priority review");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Record data was not changed");
+
+  await editor.fill("ASSIGN age = 20");
+  await editor.press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("cannot mutate data-source fields");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
+
+  await tree.locator("details").filter({ hasText: "Data" }).locator("summary").click();
+  await tree.getByRole("treeitem", { name: "Read", exact: true }).click();
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-session-status")).not.toContainText("Variables:");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("4");
+});
+
+test("bounded IF executes one audited Standard-variable ASSIGN branch", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  const run = page.locator("#classic-program-run-selection");
+  for (const source of ["DEFINE ReviewLabel TEXTINPUT", "DEFINE PriorityFlag YN", 'ASSIGN ReviewLabel = "Priority review"']) {
+    await editor.fill(source);
+    await editor.press("Control+A");
+    await run.click();
+  }
+  await expect(page.locator("#classic-program-session-status")).toContainText("ReviewLabel=Priority review");
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  await tree.locator("details").filter({ hasText: "Select/If" }).locator("summary").click();
+  await tree.getByRole("treeitem", { name: "If", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("if");
+  await page.locator("#classic-command-dialog-if-variable").selectOption("ReviewLabel");
+  await page.locator("#classic-command-dialog-if-value").fill("Priority review");
+  await page.locator("#classic-command-dialog-if-then-variable").selectOption("PriorityFlag");
+  await page.locator("#classic-command-dialog-if-then-value").fill("Yes (+)");
+  await page.locator("#classic-command-dialog-if-else-variable").selectOption("PriorityFlag");
+  await page.locator("#classic-command-dialog-if-else-value").fill("No (-)");
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText('IF ReviewLabel = "Priority review" THEN');
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText("ASSIGN PriorityFlag = (+)");
+  await page.locator("#classic-command-dialog-insert").click();
+  await editor.press("Control+A");
+  await run.click();
+  await expect(page.locator("#classic-program-session-status")).toContainText("PriorityFlag=true");
+  await expect(page.locator("#classic-program-feedback")).toContainText("IF evaluated true; THEN");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Record data was not changed");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("4");
+
+  await editor.fill("IF age >= 18 THEN\n  ASSIGN PriorityFlag = (+)\nEND");
+  await editor.press("Control+A");
+  await run.click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Record-field IF conditions");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
+});
+
+test("UNDEFINE removes one or all Standard session variables", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  const run = page.locator("#classic-program-run-selection");
+  for (const source of ["DEFINE ReviewLabel TEXTINPUT", "DEFINE PriorityFlag YN"]) {
+    await editor.fill(source);
+    await editor.press("Control+A");
+    await run.click();
+  }
+  await expect(page.locator("#classic-program-session-status")).toContainText("ReviewLabel=Missing");
+  await expect(page.locator("#classic-program-session-status")).toContainText("PriorityFlag=Missing");
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  await tree.locator("details").filter({ hasText: "Variables" }).locator("summary").click();
+  await tree.getByRole("treeitem", { name: "Undefine", exact: true }).click();
+  await page.locator("#classic-command-dialog-undefine-variable").selectOption("ReviewLabel");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("UNDEFINE ReviewLabel");
+  await page.locator("#classic-command-dialog-insert").click();
+  await run.click();
+  await expect(page.locator("#classic-program-session-status")).not.toContainText("ReviewLabel=");
+  await expect(page.locator("#classic-program-session-status")).toContainText("PriorityFlag=Missing");
+
+  await tree.getByRole("treeitem", { name: "Undefine", exact: true }).click();
+  await page.locator("#classic-command-dialog-undefine-all").check();
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("UNDEFINE *");
+  await page.locator("#classic-command-dialog-insert").click();
+  await run.click();
+  await expect(page.locator("#classic-program-session-status")).not.toContainText("Variables:");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Undefined 1 Standard session variable");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Record data was not changed");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("4");
 });
 
 test("Program Editor safely runs the taught age-group RECODE and records history", async ({ page }) => {

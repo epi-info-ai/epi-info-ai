@@ -67,7 +67,7 @@ const requiredFiles = [
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=56["']/);
+assert.match(html, /src=["']app\.js\?v=58["']/);
 assert.match(html, /href=["']styles\.css\?v=43["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);
@@ -117,7 +117,15 @@ assert.match(app, /dashboard-menu-epi-curve/);
 assert.match(app, /User-Defined Commands/);
 assert.match(app, /classic-command-frequencies/);
 assert.match(app, /classic-program-toolbar-run/);
-assert.match(app, /classic-selected-command-v0\.2\.0/);
+assert.match(app, /classic-selected-command-v0\.7\.0/);
+assert.match(app, /UNDEFINE \* GLOBAL remains fail-closed/);
+assert.match(app, /Bounded IF does not silently compare Missing values/);
+assert.match(app, /classic-command-assign/);
+assert.match(app, /Record data was not changed/);
+assert.match(app, /classic-command-select/);
+assert.match(app, /CANCEL SELECT/);
+assert.match(app, /classic-command-sort/);
+assert.match(app, /CANCEL SORT/);
 assert.match(app, /Clear Output/);
 assert.match(app, /\.pgm7/);
 assert.match(app, /saveCurrentProjectProgram/);

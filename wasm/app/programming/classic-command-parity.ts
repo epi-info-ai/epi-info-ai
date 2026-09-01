@@ -1,9 +1,10 @@
 export type ClassicCommandGroupKey = "data" | "variables" | "select-if" | "statistics" | "advanced-statistics" | "output" | "user-defined" | "user-interaction" | "options";
-export type ClassicCommandParserState = "none" | "syntax-v0.3";
+export type ClassicCommandParserState = "none" | "syntax-v0.5";
 export type ClassicCommandDialogState = "gap" | "typed-source-v0.1";
 export type ClassicCommandSelectedState = "none" | "executes-v0.1" | "review-required-v0.1";
 export type ClassicCommandFullProgramState = "none" | "bounded-component-v0.1";
 export type ClassicCommandBrowserPolicy = "candidate" | "adapt-required" | "blocked";
+export type ClassicCommandParityStatus = "not-started" | "browser-verified" | "legacy-parity-verified";
 
 export interface ClassicCommandParityEntry {
   id: `CLASSIC-CMD-${string}`;
@@ -17,6 +18,10 @@ export interface ClassicCommandParityEntry {
   selectedExecution: ClassicCommandSelectedState;
   fullProgramExecution: ClassicCommandFullProgramState;
   browserPolicy: ClassicCommandBrowserPolicy;
+  parityStatus: ClassicCommandParityStatus;
+  validationProgram?: string;
+  expectedOutput?: string;
+  legacyOutput?: string;
   evidence: string;
 }
 
@@ -24,13 +29,13 @@ type EntryOverrides = Partial<Omit<ClassicCommandParityEntry, "id" | "group" | "
 const entry = (group: ClassicCommandGroupKey, key: string, legacyName: string, sourceCommand: string, overrides: EntryOverrides = {}): ClassicCommandParityEntry => ({
   id: `CLASSIC-CMD-${group.toUpperCase().replace(/-/g, "_")}-${key.toUpperCase().replace(/-/g, "_")}`,
   group, key, legacyName, sourceCommand,
-  explorer: "visible", parser: "none", dialog: "gap", selectedExecution: "none", fullProgramExecution: "none", browserPolicy: "candidate",
+  explorer: "visible", parser: "none", dialog: "gap", selectedExecution: "none", fullProgramExecution: "none", browserPolicy: "candidate", parityStatus: "not-started",
   evidence: `Epi.Windows.Analysis/Enums.cs:${legacyName}`,
   ...overrides,
 });
 
 export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
-  entry("data", "read", "Read", "READ", { parser: "syntax-v0.3", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", browserPolicy: "adapt-required" }),
+  entry("data", "read", "Read", "READ", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", browserPolicy: "adapt-required" }),
   entry("data", "relate", "Relate", "RELATE", { browserPolicy: "adapt-required" }),
   entry("data", "write", "Write", "WRITE", { browserPolicy: "adapt-required" }),
   entry("data", "merge", "Merge", "MERGE", { browserPolicy: "adapt-required" }),
@@ -38,24 +43,32 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
   entry("data", "delete-records", "DeleteRecord", "DELETE", { browserPolicy: "adapt-required" }),
   entry("data", "undelete-records", "UndeleteRecord", "UNDELETE", { browserPolicy: "adapt-required" }),
 
-  entry("variables", "define", "Define", "DEFINE", { parser: "syntax-v0.3", dialog: "typed-source-v0.1", fullProgramExecution: "bounded-component-v0.1" }),
+  entry("variables", "define", "Define", "DEFINE", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1" }),
   entry("variables", "define-group", "DefineGroup", "DEFINE GROUPVAR"),
-  entry("variables", "undefine", "Undefine", "UNDEFINE"),
-  entry("variables", "assign", "Assign", "ASSIGN", { parser: "syntax-v0.3" }),
-  entry("variables", "recode", "Recode", "RECODE", { parser: "syntax-v0.3", dialog: "typed-source-v0.1", fullProgramExecution: "bounded-component-v0.1" }),
+  entry("variables", "undefine", "Undefine", "UNDEFINE", {
+    parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-undefine-standard-variable.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-undefine-standard-variable.expected.json",
+  }),
+  entry("variables", "assign", "Assign", "ASSIGN", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
+  entry("variables", "recode", "Recode", "RECODE", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", fullProgramExecution: "bounded-component-v0.1" }),
   entry("variables", "display", "Display", "DISPLAY"),
 
-  entry("select-if", "select", "Select", "SELECT", { parser: "syntax-v0.3" }),
-  entry("select-if", "cancel-select", "CancelSelect", "CANCEL SELECT", { parser: "syntax-v0.3" }),
-  entry("select-if", "if", "If", "IF", { parser: "syntax-v0.3" }),
-  entry("select-if", "sort", "Sort", "SORT"),
-  entry("select-if", "cancel-sort", "CancelSort", "CANCEL SORT"),
+  entry("select-if", "select", "Select", "SELECT", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
+  entry("select-if", "cancel-select", "CancelSelect", "CANCEL SELECT", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
+  entry("select-if", "if", "If", "IF", {
+    parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-if-standard-variable.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-if-standard-variable.expected.json",
+  }),
+  entry("select-if", "sort", "Sort", "SORT", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
+  entry("select-if", "cancel-sort", "CancelSort", "CANCEL SORT", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
 
-  entry("statistics", "list", "List", "LIST", { parser: "syntax-v0.3", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
-  entry("statistics", "frequencies", "Frequencies", "FREQ", { parser: "syntax-v0.3", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1" }),
-  entry("statistics", "tables", "Tables", "TABLES", { parser: "syntax-v0.3", dialog: "typed-source-v0.1", selectedExecution: "review-required-v0.1" }),
+  entry("statistics", "list", "List", "LIST", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
+  entry("statistics", "frequencies", "Frequencies", "FREQ", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1" }),
+  entry("statistics", "tables", "Tables", "TABLES", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "review-required-v0.1" }),
   entry("statistics", "match", "Match", "MATCH", { explorer: "legacy-enum-only" }),
-  entry("statistics", "means", "Means", "MEANS", { parser: "syntax-v0.3", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
+  entry("statistics", "means", "Means", "MEANS", { parser: "syntax-v0.5", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
   entry("statistics", "summarize", "Summarize", "SUMMARIZE"),
   entry("statistics", "graph", "Graph", "GRAPH"),
   entry("statistics", "map", "Map", "MAP", { explorer: "legacy-enum-only" }),

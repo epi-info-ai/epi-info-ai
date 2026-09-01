@@ -51,6 +51,10 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-editor.ts",
     "wasm/app/programming/classic-program-document.ts",
     "wasm/app/programming/classic-command-builder.ts",
+    "wasm/app/programming/classic-selection.ts",
+    "wasm/app/programming/classic-sort.ts",
+    "wasm/app/programming/classic-assignment.ts",
+    "wasm/app/programming/classic-if.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
     "wasm/app/programming/classic-program-surface.ts",
@@ -336,6 +340,18 @@ async function checkRequiredAssetsAndUi() {
     group, commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.group === group).length,
   ])), { data: 7, variables: 6, "select-if": 5, statistics: 8, "advanced-statistics": 7, output: 7, "user-defined": 4, "user-interaction": 4, options: 1 });
   assert.deepEqual(commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.explorer === "legacy-enum-only").map((entry) => entry.legacyName), ["Match", "Map", "Reports", "Help"]);
+  for (const entry of commandParity.CLASSIC_COMMAND_PARITY) {
+    assert.ok(["not-started", "browser-verified", "legacy-parity-verified"].includes(entry.parityStatus), `${entry.id} must declare parity status`);
+    if (entry.parityStatus !== "not-started") {
+      assert.ok(entry.validationProgram && entry.expectedOutput, `${entry.id} verified status requires a PGM and expected output`);
+      await assertFile(entry.validationProgram);
+      await assertFile(entry.expectedOutput);
+    }
+    if (entry.parityStatus === "legacy-parity-verified") {
+      assert.ok(entry.legacyOutput, `${entry.id} legacy parity requires captured legacy output`);
+      await assertFile(entry.legacyOutput);
+    }
+  }
   for (const group of classicContract.CLASSIC_COMMAND_GROUPS) {
     for (const entry of group.commands) assert.equal(commandParity.classicCommandParityEntry(group.key, entry.key)?.explorer, "visible", `${group.key}/${entry.key} must be in the legacy command parity set`);
   }
@@ -343,6 +359,14 @@ async function checkRequiredAssetsAndUi() {
   assert.equal(commandParity.classicCommandParityEntry("statistics", "list").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "define").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "recode").dialog, "typed-source-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("variables", "define").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("variables", "undefine").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("variables", "assign").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("select-if", "select").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("select-if", "cancel-select").dialog, "typed-source-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("select-if", "sort").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("select-if", "cancel-sort").dialog, "typed-source-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("select-if", "if").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("user-defined", "execute-file").browserPolicy, "blocked");
 
   const readme = await readFile(repositoryPath("README.md"), "utf8");
@@ -732,7 +756,7 @@ END
 FREQ AgeGroup STRATAVAR=Sex`;
   const plan = programming.parseBoundedClassicProgram(source, imported.schema.fields);
   assert.equal(plan.version, "0.1.0");
-  assert.equal(plan.astVersion, "0.3.0");
+  assert.equal(plan.astVersion, "0.5.0");
   assert.equal(plan.recode.sourceField, "age");
   assert.equal(plan.frequency.stratifyBy, "sex");
   assert.match(plan.canonicalSource, /FREQ AgeGroup STRATAVAR=sex$/);
@@ -753,6 +777,9 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const projectSource = { formId: "foodborne", projectName: "Outbreak Project", formName: "Foodborne Form", fields: imported.schema.fields, records: imported.records };
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "AgeGroup", scope: "STANDARD", variableType: "TEXTINPUT" }), "DEFINE AgeGroup TEXTINPUT");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "define", variable: "CaseCount", scope: "GLOBAL", variableType: "NUMERIC", prompt: "Case count" }), 'DEFINE CaseCount GLOBAL NUMERIC "Case count"');
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "assign", variable: "ReviewLabel", value: "Priority" }), 'ASSIGN ReviewLabel = "Priority"');
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "undefine", variable: "ReviewLabel" }), "UNDEFINE ReviewLabel");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "undefine", variable: "*" }), "UNDEFINE *");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({
     kind: "recode", sourceField: "age", targetVariable: "AgeGroup",
     ranges: [{ from: "LOVALUE", to: "17", result: "0-17" }, { from: "17", to: "HIVALUE", result: "18+" }],
@@ -767,6 +794,18 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("READ {C:\\legacy.mdb}:Oswego", imported.schema.fields, [projectSource]), /external paths/);
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "frequency", field: "case_status", stratifyBy: "sex" }), "FREQ case_status STRATAVAR=sex");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "means", field: "age" }), "MEANS age");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "select", field: "case_status", operator: "=", value: "Confirmed" }), 'SELECT case_status = "Confirmed"');
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "cancel-select" }), "CANCEL SELECT");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "sort", items: [{ field: "age", direction: "DESC" }, { field: "id", direction: "ASC" }] }), "SORT age DESCENDING id ASCENDING");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "cancel-sort" }), "CANCEL SORT");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('SELECT Case_Status = "Confirmed"', imported.schema.fields), { kind: "select", field: "case_status", operator: "=", value: "Confirmed", source: 'SELECT Case_Status = "Confirmed"' });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("CANCEL SELECT", imported.schema.fields), { kind: "cancel-select", source: "CANCEL SELECT" });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("SORT Age DESC ID ASCENDING", imported.schema.fields), { kind: "sort", items: [{ field: "age", direction: "DESC" }, { field: "id", direction: "ASC" }], source: "SORT Age DESC ID ASCENDING" });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("CANCEL SORT", imported.schema.fields), { kind: "cancel-sort", source: "CANCEL SORT" });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("DEFINE ReviewLabel TEXTINPUT", imported.schema.fields), { kind: "define", variable: "ReviewLabel", scope: "STANDARD", variableType: "TEXTINPUT", source: "DEFINE ReviewLabel TEXTINPUT" });
+  const reviewVariable = { name: "ReviewLabel", scope: "STANDARD", variableType: "TEXTINPUT" };
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('ASSIGN ReviewLabel = "Priority"', imported.schema.fields, [], [reviewVariable]), { kind: "assign", variable: "ReviewLabel", value: "Priority", source: 'ASSIGN ReviewLabel = "Priority"' });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("UNDEFINE ReviewLabel", imported.schema.fields, [], [reviewVariable]), { kind: "undefine", variable: "ReviewLabel", source: "UNDEFINE ReviewLabel" });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("MEANS Age", imported.schema.fields), { kind: "means", field: "age", source: "MEANS Age" });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("TABLES potato_salad case_status STRATAVAR=Sex", imported.schema.fields), {
     kind: "tables", exposure: "potato_salad", outcome: "case_status", stratifyBy: "sex",
@@ -774,6 +813,99 @@ FREQ AgeGroup STRATAVAR=Sex`;
   });
   assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("FREQ age\nMEANS age", imported.schema.fields), /exactly one/);
   assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("MEANS sex", imported.schema.fields), /Number field/);
+
+  const selection = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-selection.ts")).href}?selection=${Date.now()}`);
+  const confirmedPlan = selection.resolveClassicSelectionCommand('SELECT Case_Status = "Confirmed"', imported.schema.fields);
+  assert.equal(confirmedPlan.kind, "apply");
+  const confirmed = selection.applyClassicSelection(imported.records, confirmedPlan);
+  assert.ok(confirmed.selectedRecords > 0 && confirmed.selectedRecords < imported.records.length);
+  assert.ok(confirmed.records.every((record) => record.case_status === "Confirmed"));
+  const adults = selection.applyClassicSelection(confirmed.records, selection.resolveClassicSelectionCommand("SELECT Age >= 18", imported.schema.fields));
+  assert.ok(adults.selectedRecords < confirmed.selectedRecords, "a successive legacy SELECT must narrow the current selection");
+  assert.ok(adults.records.every((record) => Number(record.age) >= 18 && record.case_status === "Confirmed"));
+  assert.throws(() => selection.resolveClassicSelectionCommand('SELECT case_status = "Confirmed" AND age >= 18', imported.schema.fields), /one field-to-value comparison/);
+  assert.throws(() => selection.resolveClassicSelectionCommand('SELECT age = "18"', imported.schema.fields), /Number field/);
+
+  const { ClassicProgramSession } = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-session.ts")).href}?session=${Date.now()}`);
+  const session = new ClassicProgramSession();
+  session.reset(projectSource);
+  session.select(confirmed.records, confirmedPlan.canonicalSource, confirmed.excludedMissing);
+  assert.equal(session.current(projectSource).records.length, confirmed.selectedRecords);
+  assert.equal(session.selectionStatus(projectSource).total, 96);
+  assert.match(session.selectionStatus(projectSource).canonicalSource, /^SELECT /);
+  assert.equal(session.cancelSelection(), true);
+  assert.equal(session.current(projectSource).records.length, 96);
+  assert.equal(session.cancelSelection(), false);
+
+  const sorting = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-sort.ts")).href}?sort=${Date.now()}`);
+  const sortPlan = sorting.resolveClassicSortCommand("SORT Age DESCENDING ID ASCENDING", imported.schema.fields);
+  assert.equal(sortPlan.kind, "apply");
+  const sorted = sorting.applyClassicSort(imported.records, sortPlan);
+  const sortedAges = sorted.map((record) => Number(record.age));
+  assert.ok(sortedAges.every((age, index) => index === 0 || sortedAges[index - 1] >= age));
+  const ties = sorting.applyClassicSort([{ group: "A", id: 2 }, { group: "A", id: 1 }, { group: "B", id: 3 }], sorting.resolveClassicSortCommand("SORT group ASC id DESC", [
+    { name: "group", prompt: "Group", type: "text", required: false }, { name: "id", prompt: "ID", type: "number", required: false },
+  ]));
+  assert.deepEqual(ties.map((record) => record.id), [2, 1, 3]);
+  assert.throws(() => sorting.resolveClassicSortCommand("SORT age ASC Age DESC", imported.schema.fields), /only once/);
+  session.sort(sortPlan);
+  assert.equal(session.current(projectSource).records[0].age, sorted[0].age);
+  assert.equal(session.filtered(projectSource).records[0].id, imported.records[0].id, "filter membership must retain source order independently of SORT");
+  assert.equal(session.cancelSort(), true);
+  assert.equal(session.current(projectSource).records[0].id, imported.records[0].id);
+  assert.equal(session.cancelSort(), false);
+
+  const assignment = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-assignment.ts")).href}?assignment=${Date.now()}`);
+  const definePlan = assignment.resolveClassicDefineCommand("DEFINE ReviewLabel TEXTINPUT", imported.schema.fields, []);
+  session.defineVariable(definePlan);
+  const assignPlan = assignment.resolveClassicAssignCommand('ASSIGN ReviewLabel = "Priority"', imported.schema.fields, session.variables());
+  session.assignVariable(assignPlan.variable.name, assignPlan.value);
+  assert.equal(session.variables()[0].value, "Priority");
+  assert.throws(() => assignment.resolveClassicAssignCommand("ASSIGN ReviewLabel = age + 1", imported.schema.fields, session.variables()), /one literal value/);
+  assert.throws(() => assignment.resolveClassicAssignCommand("ASSIGN age = 20", imported.schema.fields, session.variables()), /cannot mutate data-source fields/);
+  assert.throws(() => assignment.resolveClassicDefineCommand("DEFINE Shared GLOBAL TEXTINPUT", imported.schema.fields, session.variables()), /Standard session variables only/);
+  session.read(projectSource.formName, [projectSource]);
+  assert.equal(session.variables().length, 0, "READ must clear Standard session variables");
+
+  const classicIf = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-if.ts")).href}?if=${Date.now()}`);
+  const ifProgramPath = "wasm/tests/fixtures/classic-command-parity/foodborne-if-standard-variable.pgm";
+  const ifExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-if-standard-variable.expected.json",
+  ), "utf8"));
+  const ifProgram = await readFile(repositoryPath(ifProgramPath), "utf8");
+  assert.equal(ifExpected.dataset.recordCount, imported.records.length);
+  assert.equal(ifExpected.dataset.sha256, fixture.dataset.sha256);
+  session.reset(projectSource);
+  for (const source of ["DEFINE ReviewLabel TEXTINPUT", "DEFINE PriorityFlag YN"]) {
+    session.defineVariable(assignment.resolveClassicDefineCommand(source, imported.schema.fields, session.variables()));
+  }
+  const initialize = assignment.resolveClassicAssignCommand('ASSIGN ReviewLabel = "Priority review"', imported.schema.fields, session.variables());
+  session.assignVariable(initialize.variable.name, initialize.value);
+  const ifSource = ifProgram.slice(ifProgram.indexOf("IF ReviewLabel"));
+  const ifPlan = classicIf.resolveClassicIfCommand(ifSource, imported.schema.fields, session.variables());
+  const ifResult = classicIf.evaluateClassicIf(ifPlan, session.variables());
+  assert.equal(ifResult.conditionResult, ifExpected.expected.conditionResult);
+  assert.equal(ifResult.branch, ifExpected.expected.branch);
+  session.assignVariable(ifResult.assignment.variable, ifResult.assignment.value);
+  assert.deepEqual(Object.fromEntries(session.variables().map(({ name, value }) => [name, value])), ifExpected.expected.variables);
+  assert.equal(session.current(projectSource).records.length, ifExpected.expected.recordCount);
+  assert.throws(() => classicIf.resolveClassicIfCommand('IF age >= 18 THEN\nASSIGN PriorityFlag = (+)\nEND', imported.schema.fields, session.variables()), /Record-field IF/);
+  assert.throws(() => classicIf.resolveClassicIfCommand('IF ReviewLabel = "Priority review" THEN\nFREQ case_status\nEND', imported.schema.fields, session.variables()), /exactly one ASSIGN/);
+
+  const undefineExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-undefine-standard-variable.expected.json",
+  ), "utf8"));
+  assert.equal(undefineExpected.dataset.sha256, fixture.dataset.sha256);
+  const undefineOne = assignment.resolveClassicUndefineCommand("UNDEFINE ReviewLabel", imported.schema.fields, session.variables());
+  const removedOne = session.undefineVariable(undefineOne.variable.name);
+  assert.equal(removedOne.name, undefineExpected.expected.individualRemoved);
+  const undefineAll = assignment.resolveClassicUndefineCommand("UNDEFINE *", imported.schema.fields, session.variables());
+  assert.equal(undefineAll.mode, "all-standard");
+  assert.deepEqual(session.undefineAllStandard().map(({ name }) => name), undefineExpected.expected.allStandardRemoved);
+  assert.deepEqual(session.variables(), undefineExpected.expected.remainingVariables);
+  assert.equal(session.current(projectSource).records.length, undefineExpected.expected.recordCount);
+  assert.throws(() => assignment.resolveClassicUndefineCommand("UNDEFINE age", imported.schema.fields, session.variables()), /data-source field/);
+  assert.throws(() => assignment.resolveClassicUndefineCommand("UNDEFINE * GLOBAL", imported.schema.fields, session.variables()), /Global variable lifetime/);
 
   const examples = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-examples.ts")).href}?examples=${Date.now()}`);
   const catalogValue = JSON.parse(await readFile(repositoryPath(
@@ -1592,12 +1724,14 @@ IF Age >= 18 THEN
   FREQ AgeGroup STRATAVAR=Sex WEIGHTVAR=Weight
 ELSE
   TABLES Exposure Ill STRATAVAR=Sex STATISTICS=FISHER
-END`;
+END
+SORT Age DESCENDING ID ASCENDING
+CANCEL SORT`;
   const ast = parser.parseClassicProgram(source);
   assert.equal(ast.type, "Program");
-  assert.equal(ast.astVersion, "0.3.0");
+  assert.equal(ast.astVersion, "0.5.0");
   assert.deepEqual(ast.body.map((statement) => statement.type), [
-    "ReadStatement", "DefineStatement", "AssignStatement", "RecodeStatement", "SelectStatement", "IfStatement",
+    "ReadStatement", "DefineStatement", "AssignStatement", "RecodeStatement", "SelectStatement", "IfStatement", "SortStatement", "SortStatement",
   ]);
   assert.deepEqual(ast.body[0].target, {
     kind: "external-table", source: "{Projects\\Sample\\Sample.prj}", table: "Oswego", raw: "{Projects\\Sample\\Sample.prj}:Oswego",
@@ -1614,11 +1748,14 @@ END`;
   assert.equal(ast.body[5].consequent[0].options.weightBy.name, "Weight");
   assert.equal(ast.body[5].alternate[0].options.statistics, "FISHER");
   assert.equal(ast.body[5].span.end.line, 14);
+  assert.deepEqual(ast.body[6].items.map((item) => [item.field.name, item.direction]), [["Age", "DESC"], ["ID", "ASC"]]);
+  assert.equal(ast.body[7].mode, "cancel");
 
-  const selectionForms = parser.parseClassicProgram("FREQ * EXCEPT Secret NOWRAP\nSELECT\nCANCEL SELECT");
+  const selectionForms = parser.parseClassicProgram("FREQ * EXCEPT Secret NOWRAP\nSELECT\nCANCEL SELECT\nSORT");
   assert.equal(selectionForms.body[0].selection.kind, "all-except");
   assert.equal(selectionForms.body[1].mode, "clear");
   assert.equal(selectionForms.body[2].mode, "cancel");
+  assert.equal(selectionForms.body[3].mode, "clear");
   assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
   assert.throws(() => parser.parseClassicProgram("IF Age > 10 THEN\nFREQ Age"), /IF is missing END/);
   assert.throws(() => parser.parseClassicProgram("ASSIGN Age = (10 + 2"), /closing parenthesis/);

@@ -22,7 +22,11 @@ import { renderClassicAnalysisContract } from "../app/analysis/classic-analysis-
 import { CLASSIC_AST_VERSION, parseClassicProgram } from "../app/programming/classic-ast.js";
 import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
 import { buildClassicAnalysisCommand, resolveSelectedClassicAnalysisCommand, type ClassicAnalysisCommandInput, type ClassicAnalysisCommandKind, type ClassicDefineVariableScope, type ClassicDefineVariableType } from "../app/programming/classic-command-builder.js";
+import { applyClassicSelection, resolveClassicSelectionCommand, type ClassicSelectionOperator } from "../app/programming/classic-selection.js";
+import { resolveClassicSortCommand, type ClassicSortDirection } from "../app/programming/classic-sort.js";
+import { assignmentValueFromInput, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand } from "../app/programming/classic-assignment.js";
 import { ClassicProgramSession } from "../app/programming/classic-session.js";
+import { evaluateClassicIf, resolveClassicIfCommand } from "../app/programming/classic-if.js";
 import { renderClassicProgramSurface } from "../app/programming/classic-program-surface.js";
 import { ClassicProgramDocumentService, normalizeClassicProgramName, readClassicProgramFile, safeClassicProgramFileName } from "../app/programming/classic-program-document.js";
 import { assessClassicProgramCatalog, loadClassicProgramExampleCatalog, type ClassicProgramExample, type ClassicProgramExampleCatalog } from "../app/programming/classic-examples.js";
@@ -607,10 +611,18 @@ const classicProgramCommandStatus = requiredElement<HTMLElement>("#classic-progr
 
 function renderClassicProgramSession(): void {
   const source = classicProgramSession.current(getCurrentProjectData());
+  const status = classicProgramSession.selectionStatus(getCurrentProjectData());
+  const sort = classicProgramSession.sortStatus();
+  const variables = classicProgramSession.variables();
   const label = document.createElement("strong");
   label.textContent = "Active data:";
-  requiredElement("#classic-program-session-status").replaceChildren(label, ` ${source.formName} · ${source.records.length} records.`);
-  requiredElement("#classic-program-source-name").textContent = `${source.formName} · ${source.records.length} records`;
+  let detail = status.canonicalSource
+    ? ` ${source.formName} · ${status.selected} of ${status.total} records selected; ${status.excluded} excluded (${status.excludedMissing} missing comparisons). ${status.canonicalSource}`
+    : ` ${source.formName} · ${status.total} records; no selection.`;
+  if (sort.canonicalSource) detail += ` ${sort.canonicalSource}`;
+  if (variables.length) detail += ` Variables: ${variables.map((variable) => `${variable.name}=${variable.value === null ? "Missing" : String(variable.value)}`).join(", ")}.`;
+  requiredElement("#classic-program-session-status").replaceChildren(label, detail);
+  requiredElement("#classic-program-source-name").textContent = `${source.formName} · ${status.selected} of ${status.total} records${sort.fields ? ` · sorted by ${sort.fields} field${sort.fields === 1 ? "" : "s"}` : ""}`;
 }
 
 function renderClassicProgramDocumentState(): void {
@@ -893,6 +905,92 @@ const classicCommandDialogRecodeSource = requiredElement<HTMLSelectElement>("#cl
 const classicCommandDialogRecodeTarget = requiredElement<HTMLSelectElement>("#classic-command-dialog-recode-target");
 const classicCommandDialogRecodeRows = requiredElement<HTMLTableSectionElement>("#classic-command-dialog-recode-rows");
 const classicCommandDialogRecodeElse = requiredElement<HTMLInputElement>("#classic-command-dialog-recode-else");
+const classicCommandDialogSelectField = requiredElement<HTMLSelectElement>("#classic-command-dialog-select-field");
+const classicCommandDialogSelectOperator = requiredElement<HTMLSelectElement>("#classic-command-dialog-select-operator");
+const classicCommandDialogSelectValue = requiredElement<HTMLInputElement>("#classic-command-dialog-select-value");
+const classicCommandDialogSelectBoolean = requiredElement<HTMLSelectElement>("#classic-command-dialog-select-boolean");
+const classicCommandDialogSortRows = requiredElement<HTMLTableSectionElement>("#classic-command-dialog-sort-rows");
+const classicCommandDialogAssignVariable = requiredElement<HTMLSelectElement>("#classic-command-dialog-assign-variable");
+const classicCommandDialogAssignValue = requiredElement<HTMLInputElement>("#classic-command-dialog-assign-value");
+const classicCommandDialogAssignBoolean = requiredElement<HTMLSelectElement>("#classic-command-dialog-assign-boolean");
+const classicCommandDialogUndefineVariable = requiredElement<HTMLSelectElement>("#classic-command-dialog-undefine-variable");
+const classicCommandDialogUndefineAll = requiredElement<HTMLInputElement>("#classic-command-dialog-undefine-all");
+const classicCommandDialogIfVariable = requiredElement<HTMLSelectElement>("#classic-command-dialog-if-variable");
+const classicCommandDialogIfOperator = requiredElement<HTMLSelectElement>("#classic-command-dialog-if-operator");
+const classicCommandDialogIfValue = requiredElement<HTMLInputElement>("#classic-command-dialog-if-value");
+const classicCommandDialogIfThenVariable = requiredElement<HTMLSelectElement>("#classic-command-dialog-if-then-variable");
+const classicCommandDialogIfThenValue = requiredElement<HTMLInputElement>("#classic-command-dialog-if-then-value");
+const classicCommandDialogIfHasElse = requiredElement<HTMLInputElement>("#classic-command-dialog-if-has-else");
+const classicCommandDialogIfElseVariable = requiredElement<HTMLSelectElement>("#classic-command-dialog-if-else-variable");
+const classicCommandDialogIfElseValue = requiredElement<HTMLInputElement>("#classic-command-dialog-if-else-value");
+
+function selectedClassicVariable() {
+  return classicProgramSession.variables().find((variable) => variable.name === classicCommandDialogAssignVariable.value);
+}
+
+function classicIfVariable(select: HTMLSelectElement) {
+  return classicProgramSession.variables().find((variable) => variable.name === select.value);
+}
+
+function classicIfDialogValue(select: HTMLSelectElement, input: HTMLInputElement) {
+  const variable = classicIfVariable(select);
+  if (!variable) throw new RangeError("Run Standard DEFINE commands before authoring IF.");
+  if (variable.variableType === "YN") {
+    const normalized = input.value.trim().toLocaleLowerCase("en-US");
+    if (["yes", "yes (+)", "true", "(+)", "+"].includes(normalized)) return true;
+    if (["no", "no (-)", "false", "(-)", "-"].includes(normalized)) return false;
+    throw new RangeError(`${variable.name} requires Yes (+) or No (-).`);
+  }
+  return assignmentValueFromInput(variable, input.value);
+}
+
+function appendClassicSortRow(field = "", direction: ClassicSortDirection = "ASC"): void {
+  const source = classicProgramSession.current(getCurrentProjectData());
+  const fields = source.fields.filter((candidate) => candidate.type !== "command-button");
+  const row = document.createElement("tr");
+  const fieldCell = document.createElement("td");
+  const fieldSelect = document.createElement("select");
+  fieldSelect.ariaLabel = "Sort variable";
+  fieldSelect.dataset.sortField = "true";
+  fieldSelect.replaceChildren(...fields.map((candidate) => new Option(candidate.prompt, candidate.name, false, candidate.name === field)));
+  fieldCell.append(fieldSelect);
+  const directionCell = document.createElement("td");
+  const directionSelect = document.createElement("select");
+  directionSelect.ariaLabel = "Sort order";
+  directionSelect.dataset.sortDirection = "true";
+  directionSelect.replaceChildren(new Option("Ascending", "ASC", false, direction === "ASC"), new Option("Descending", "DESC", false, direction === "DESC"));
+  directionCell.append(directionSelect);
+  const action = document.createElement("td");
+  const remove = document.createElement("button");
+  remove.type = "button"; remove.className = "text-button"; remove.textContent = "Remove";
+  remove.addEventListener("click", () => { row.remove(); refreshClassicCommandDialogPreview(); });
+  action.append(remove);
+  row.append(fieldCell, directionCell, action);
+  classicCommandDialogSortRows.append(row);
+}
+
+function resetClassicSortRows(): void {
+  classicCommandDialogSortRows.replaceChildren();
+  const fields = classicProgramSession.current(getCurrentProjectData()).fields;
+  appendClassicSortRow(fields.find((field) => /^(?:id|case.?id)$/i.test(field.name))?.name ?? fields[0]?.name ?? "");
+}
+
+function selectedClassicField(): FieldDefinition | undefined {
+  return classicProgramSession.current(getCurrentProjectData()).fields.find((field) => field.name === classicCommandDialogSelectField.value);
+}
+
+function classicSelectionDialogValue(): string | number | boolean {
+  const field = selectedClassicField();
+  if (!field) throw new RangeError("Choose a field to select.");
+  if (field.type === "number") {
+    const value = Number(classicCommandDialogSelectValue.value);
+    if (!classicCommandDialogSelectValue.value.trim() || !Number.isFinite(value)) throw new RangeError(`${field.prompt} requires a finite numeric value.`);
+    return value;
+  }
+  if (field.type === "checkbox" || field.type === "yes-no") return classicCommandDialogSelectBoolean.value === "true";
+  if (!classicCommandDialogSelectValue.value.trim()) throw new RangeError(`${field.prompt} requires a comparison value.`);
+  return classicCommandDialogSelectValue.value;
+}
 
 function appendClassicRecodeRange(from = "", to = "", result = ""): void {
   const row = document.createElement("tr");
@@ -947,6 +1045,12 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
     variableType: classicCommandDialogVariableType.value as ClassicDefineVariableType,
     ...(classicCommandDialogPrompt.value.trim() ? { prompt: classicCommandDialogPrompt.value } : {}),
   };
+  if (kind === "undefine") return { kind, variable: classicCommandDialogUndefineAll.checked ? "*" : classicCommandDialogUndefineVariable.value };
+  if (kind === "assign") {
+    const variable = selectedClassicVariable();
+    if (!variable) throw new RangeError("Run a Standard DEFINE command before authoring ASSIGN.");
+    return { kind, variable: variable.name, value: assignmentValueFromInput(variable, classicCommandDialogAssignValue.value, classicCommandDialogAssignBoolean.value === "true") };
+  }
   if (kind === "recode") return {
     kind, sourceField: classicCommandDialogRecodeSource.value, targetVariable: classicCommandDialogRecodeTarget.value,
     ranges: [...classicCommandDialogRecodeRows.querySelectorAll<HTMLTableRowElement>("tr")].map((row) => {
@@ -959,6 +1063,24 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
     }),
     ...(classicCommandDialogRecodeElse.value.trim() ? { elseResult: classicCommandDialogRecodeElse.value } : {}),
   };
+  if (kind === "select") return { kind, field: classicCommandDialogSelectField.value, operator: classicCommandDialogSelectOperator.value as ClassicSelectionOperator, value: classicSelectionDialogValue() };
+  if (kind === "cancel-select") return { kind };
+  if (kind === "if") return {
+    kind, conditionVariable: classicCommandDialogIfVariable.value,
+    operator: classicCommandDialogIfOperator.value as ClassicSelectionOperator,
+    compareValue: classicIfDialogValue(classicCommandDialogIfVariable, classicCommandDialogIfValue),
+    thenVariable: classicCommandDialogIfThenVariable.value,
+    thenValue: classicIfDialogValue(classicCommandDialogIfThenVariable, classicCommandDialogIfThenValue),
+    ...(classicCommandDialogIfHasElse.checked ? { elseAssignment: {
+      variable: classicCommandDialogIfElseVariable.value,
+      value: classicIfDialogValue(classicCommandDialogIfElseVariable, classicCommandDialogIfElseValue),
+    } } : {}),
+  };
+  if (kind === "sort") return { kind, items: [...classicCommandDialogSortRows.querySelectorAll<HTMLTableRowElement>("tr")].map((row) => ({
+    field: row.querySelector<HTMLSelectElement>('[data-sort-field="true"]')?.value ?? "",
+    direction: (row.querySelector<HTMLSelectElement>('[data-sort-direction="true"]')?.value ?? "ASC") as ClassicSortDirection,
+  })) };
+  if (kind === "cancel-sort") return { kind };
   if (kind === "list") return { kind, fields: [...classicCommandDialogField.selectedOptions].map((option) => option.value) };
   if (kind === "frequency") return { kind, field: classicCommandDialogField.value, ...(classicCommandDialogStrata.value ? { stratifyBy: classicCommandDialogStrata.value } : {}) };
   if (kind === "means") return { kind, field: classicCommandDialogField.value };
@@ -971,12 +1093,39 @@ function updateClassicCommandDialog(): void {
   const kind = classicCommandDialogKind.value as ClassicAnalysisCommandKind;
   const read = kind === "read";
   const define = kind === "define";
+  const undefine = kind === "undefine";
+  const assign = kind === "assign";
   const recode = kind === "recode";
+  const select = kind === "select";
+  const cancelSelect = kind === "cancel-select";
+  const ifCommand = kind === "if";
+  const sort = kind === "sort";
+  const cancelSort = kind === "cancel-sort";
   const list = kind === "list";
   const means = kind === "means";
   const tables = kind === "tables";
   const definedFields = classicDefinedFields(source.fields);
   const availableFields = [...source.fields, ...definedFields];
+  const sessionVariables = classicProgramSession.variables();
+  const previousUndefineVariable = classicCommandDialogUndefineVariable.value;
+  classicCommandDialogUndefineVariable.replaceChildren(...sessionVariables.map((variable) => new Option(`${variable.prompt ?? variable.name} (${variable.variableType})`, variable.name)));
+  if (sessionVariables.some((variable) => variable.name === previousUndefineVariable)) classicCommandDialogUndefineVariable.value = previousUndefineVariable;
+  classicCommandDialogUndefineVariable.disabled = classicCommandDialogUndefineAll.checked;
+  for (const selectElement of [classicCommandDialogIfVariable, classicCommandDialogIfThenVariable, classicCommandDialogIfElseVariable]) {
+    const previous = selectElement.value;
+    selectElement.replaceChildren(...sessionVariables.map((variable) => new Option(`${variable.prompt ?? variable.name} (${variable.variableType})`, variable.name)));
+    if (sessionVariables.some((variable) => variable.name === previous)) selectElement.value = previous;
+  }
+  for (const [selectElement, input] of [[classicCommandDialogIfVariable, classicCommandDialogIfValue], [classicCommandDialogIfThenVariable, classicCommandDialogIfThenValue], [classicCommandDialogIfElseVariable, classicCommandDialogIfElseValue]] as const) {
+    const variable = classicIfVariable(selectElement);
+    input.type = variable?.variableType === "NUMERIC" ? "number" : variable?.variableType === "DATEFORMAT" ? "date" : variable?.variableType === "TIMEFORMAT" ? "time" : "text";
+    input.placeholder = variable?.variableType === "YN" ? "Yes (+) or No (-)" : "";
+  }
+  const booleanIf = classicIfVariable(classicCommandDialogIfVariable)?.variableType === "YN";
+  classicCommandDialogIfOperator.querySelectorAll<HTMLOptionElement>("option").forEach((option) => { option.disabled = Boolean(booleanIf && !["=", "<>"].includes(option.value)); });
+  if (booleanIf && !["=", "<>"].includes(classicCommandDialogIfOperator.value)) classicCommandDialogIfOperator.value = "=";
+  requiredElement<HTMLElement>("#classic-command-dialog-if-else-variable-label").hidden = !ifCommand || !classicCommandDialogIfHasElse.checked;
+  requiredElement<HTMLElement>("#classic-command-dialog-if-else-value-label").hidden = !ifCommand || !classicCommandDialogIfHasElse.checked;
   const fields = means ? availableFields.filter((field) => field.type === "number") : availableFields;
   const previousSource = classicCommandDialogSource.value;
   classicCommandDialogSource.replaceChildren(...projectSources.map((candidate) => new Option(`${candidate.formName} (${candidate.records.length} records)`, candidate.formName)));
@@ -998,13 +1147,37 @@ function updateClassicCommandDialog(): void {
   const previousRecodeTarget = classicCommandDialogRecodeTarget.value;
   classicCommandDialogRecodeTarget.replaceChildren(...availableFields.map((field) => new Option(`${field.prompt}${definedFields.includes(field) ? " (defined)" : ""}`, field.name)));
   if (availableFields.some((field) => field.name === previousRecodeTarget)) classicCommandDialogRecodeTarget.value = previousRecodeTarget;
+  const previousAssignVariable = classicCommandDialogAssignVariable.value;
+  classicCommandDialogAssignVariable.replaceChildren(...sessionVariables.map((variable) => new Option(`${variable.prompt ?? variable.name} (${variable.variableType})`, variable.name)));
+  if (sessionVariables.some((variable) => variable.name === previousAssignVariable)) classicCommandDialogAssignVariable.value = previousAssignVariable;
+  const assignVariable = selectedClassicVariable();
+  const booleanAssignment = assignVariable?.variableType === "YN";
+  requiredElement<HTMLElement>("#classic-command-dialog-assign-value-label").hidden = !assign || booleanAssignment;
+  requiredElement<HTMLElement>("#classic-command-dialog-assign-boolean-label").hidden = !assign || !booleanAssignment;
+  classicCommandDialogAssignValue.type = assignVariable?.variableType === "NUMERIC" ? "number" : assignVariable?.variableType === "DATEFORMAT" ? "date" : assignVariable?.variableType === "TIMEFORMAT" ? "time" : "text";
+  const previousSelectField = classicCommandDialogSelectField.value;
+  const selectableFields = source.fields.filter((field) => field.type !== "command-button");
+  classicCommandDialogSelectField.replaceChildren(...selectableFields.map((field) => new Option(`${field.prompt} (${field.type})`, field.name)));
+  if (selectableFields.some((field) => field.name === previousSelectField)) classicCommandDialogSelectField.value = previousSelectField;
+  const selectField = selectedClassicField();
+  const booleanSelection = selectField?.type === "checkbox" || selectField?.type === "yes-no";
+  requiredElement<HTMLElement>("#classic-command-dialog-select-value-label").hidden = !select || booleanSelection;
+  requiredElement<HTMLElement>("#classic-command-dialog-select-boolean-label").hidden = !select || !booleanSelection;
+  classicCommandDialogSelectValue.type = selectField?.type === "number" ? "number" : selectField?.type === "date" ? "date" : selectField?.type === "time" ? "time" : "text";
+  classicCommandDialogSelectOperator.querySelectorAll<HTMLOptionElement>('option').forEach((option) => { option.disabled = Boolean(booleanSelection && !["=", "<>"].includes(option.value)); });
+  if (booleanSelection && !["=", "<>"].includes(classicCommandDialogSelectOperator.value)) classicCommandDialogSelectOperator.value = "=";
   requiredElement<HTMLElement>("#classic-command-dialog-source-label").hidden = !read;
   requiredElement<HTMLElement>("#classic-command-dialog-define").hidden = !define;
+  requiredElement<HTMLElement>("#classic-command-dialog-undefine").hidden = !undefine;
+  requiredElement<HTMLElement>("#classic-command-dialog-assign").hidden = !assign;
   requiredElement<HTMLElement>("#classic-command-dialog-recode").hidden = !recode;
-  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || define || recode || tables;
+  requiredElement<HTMLElement>("#classic-command-dialog-select").hidden = !select;
+  requiredElement<HTMLElement>("#classic-command-dialog-if").hidden = !ifCommand;
+  requiredElement<HTMLElement>("#classic-command-dialog-sort").hidden = !sort;
+  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || define || undefine || assign || recode || select || cancelSelect || ifCommand || sort || cancelSort || tables;
   requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables;
   requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables;
-  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || define || recode || list || means;
+  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || define || undefine || assign || recode || select || cancelSelect || ifCommand || sort || cancelSort || list || means;
   requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : "Frequency of";
   const byHint = (pattern: RegExp, excluded = new Set<string>()): string | undefined => source.fields.find((field) => !excluded.has(field.name) && pattern.test(`${field.name} ${field.prompt}`))?.name;
   if (kind === "frequency") classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
@@ -1027,11 +1200,17 @@ function updateClassicCommandDialog(): void {
     }
     const command = buildClassicAnalysisCommand(input);
     parseClassicProgram(command);
+    if (input.kind === "define") resolveClassicDefineCommand(command, source.fields, sessionVariables);
+    if (input.kind === "undefine") resolveClassicUndefineCommand(command, source.fields, sessionVariables);
+    if (input.kind === "assign") resolveClassicAssignCommand(command, source.fields, sessionVariables);
+    if (input.kind === "select" || input.kind === "cancel-select") resolveClassicSelectionCommand(command, source.fields);
+    if (input.kind === "if") resolveClassicIfCommand(command, source.fields, sessionVariables);
+    if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, source.fields);
     requiredElement("#classic-command-dialog-preview").textContent = command;
     requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
   } catch (error) {
-    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "define" ? "DEFINE" : kind === "recode" ? "RECODE" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : "TABLES";
+    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "define" ? "DEFINE" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : "TABLES";
     requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Choose valid command fields.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
   }
@@ -1041,7 +1220,8 @@ function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"
   closeClassicProgramMenus();
   classicCommandDialogKind.value = kind;
   if (kind === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
-  const title = kind === "read" ? "Read" : kind === "define" ? "Define" : kind === "recode" ? "Recode" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : "Tables";
+  if (kind === "sort") resetClassicSortRows();
+  const title = kind === "read" ? "Read" : kind === "define" ? "Define" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : "Tables";
   requiredElement("#classic-command-dialog-title").textContent = `${title} Command`;
   updateClassicCommandDialog();
   classicCommandDialog.showModal();
@@ -1051,6 +1231,7 @@ function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"
 
 classicCommandDialogKind.addEventListener("change", () => {
   if (classicCommandDialogKind.value === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
+  if (classicCommandDialogKind.value === "sort" && classicCommandDialogSortRows.rows.length === 0) resetClassicSortRows();
   updateClassicCommandDialog();
 });
 function refreshClassicCommandDialogPreview(): void {
@@ -1065,6 +1246,12 @@ function refreshClassicCommandDialogPreview(): void {
     }
     const command = buildClassicAnalysisCommand(input);
     parseClassicProgram(command);
+    if (input.kind === "define") resolveClassicDefineCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
+    if (input.kind === "undefine") resolveClassicUndefineCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
+    if (input.kind === "assign") resolveClassicAssignCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
+    if (input.kind === "select" || input.kind === "cancel-select") resolveClassicSelectionCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
+    if (input.kind === "if") resolveClassicIfCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
+    if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
     requiredElement("#classic-command-dialog-preview").textContent = command;
     requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = Object.values(input).some((value) => value === "");
@@ -1073,10 +1260,18 @@ function refreshClassicCommandDialogPreview(): void {
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
   }
 }
-for (const select of [classicCommandDialogSource, classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget]) select.addEventListener("change", refreshClassicCommandDialogPreview);
-for (const input of [classicCommandDialogVariable, classicCommandDialogPrompt, classicCommandDialogRecodeElse]) input.addEventListener("input", refreshClassicCommandDialogPreview);
+for (const select of [classicCommandDialogSource, classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget, classicCommandDialogSelectOperator, classicCommandDialogSelectBoolean, classicCommandDialogAssignBoolean, classicCommandDialogIfOperator]) select.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogAssignVariable.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogUndefineVariable.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogUndefineAll.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogSelectField.addEventListener("change", updateClassicCommandDialog);
+for (const select of [classicCommandDialogIfVariable, classicCommandDialogIfThenVariable, classicCommandDialogIfElseVariable]) select.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogIfHasElse.addEventListener("change", updateClassicCommandDialog);
+for (const input of [classicCommandDialogVariable, classicCommandDialogPrompt, classicCommandDialogRecodeElse, classicCommandDialogSelectValue, classicCommandDialogAssignValue, classicCommandDialogIfValue, classicCommandDialogIfThenValue, classicCommandDialogIfElseValue]) input.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogRecodeRows.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogSortRows.addEventListener("change", refreshClassicCommandDialogPreview);
 requiredElement("#classic-command-dialog-add-range").addEventListener("click", () => { appendClassicRecodeRange(); refreshClassicCommandDialogPreview(); });
+requiredElement("#classic-command-dialog-add-sort").addEventListener("click", () => { appendClassicSortRow(); refreshClassicCommandDialogPreview(); });
 requiredElement("#classic-command-dialog-insert").addEventListener("click", () => {
   try {
     const input = classicCommandDialogInput();
@@ -1309,7 +1504,14 @@ requiredElement("#classic-command-tree").addEventListener("click", (event) => {
 
 requiredElement("#classic-command-read").addEventListener("click", () => showClassicCommandDialog("read"));
 requiredElement("#classic-command-define").addEventListener("click", () => showClassicCommandDialog("define"));
+requiredElement("#classic-command-undefine").addEventListener("click", () => showClassicCommandDialog("undefine"));
+requiredElement("#classic-command-assign").addEventListener("click", () => showClassicCommandDialog("assign"));
 requiredElement("#classic-command-recode").addEventListener("click", () => showClassicCommandDialog("recode"));
+requiredElement("#classic-command-select").addEventListener("click", () => showClassicCommandDialog("select"));
+requiredElement("#classic-command-cancel-select").addEventListener("click", () => showClassicCommandDialog("cancel-select"));
+requiredElement("#classic-command-if").addEventListener("click", () => showClassicCommandDialog("if"));
+requiredElement("#classic-command-sort").addEventListener("click", () => showClassicCommandDialog("sort"));
+requiredElement("#classic-command-cancel-sort").addEventListener("click", () => showClassicCommandDialog("cancel-sort"));
 requiredElement("#classic-command-list").addEventListener("click", () => showClassicCommandDialog("list"));
 requiredElement("#classic-command-frequencies").addEventListener("click", () => showClassicCommandDialog("frequency"));
 requiredElement("#classic-command-means").addEventListener("click", () => showClassicCommandDialog("means"));
@@ -1726,13 +1928,75 @@ function renderClassicListOutput(project: ReturnType<typeof getCurrentProjectDat
   requiredElement<HTMLElement>("#classic-list-output").hidden = false;
 }
 
-const CLASSIC_SELECTED_COMMAND_PLAN_VERSION = "classic-selected-command-v0.2.0";
+const CLASSIC_SELECTED_COMMAND_PLAN_VERSION = "classic-selected-command-v0.7.0";
 function runSelectedClassicCommand(): void {
   const fallbackProject = getCurrentProjectData();
   let project = classicProgramSession.current(fallbackProject);
   const selectedSource = classicProgramEditor.getSelectedText();
   try {
-    const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, getProjectDataSources());
+    const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, getProjectDataSources(), classicProgramSession.variables());
+    if (command.kind === "define") {
+      const plan = resolveClassicDefineCommand(selectedSource, project.fields, classicProgramSession.variables());
+      const variable = classicProgramSession.defineVariable(plan);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `Defined Standard ${variable.variableType} session variable ${variable.name}. Its current value is Missing.`;
+      classicProgramCommandStatus.textContent = "Selected DEFINE command completed; the variable is available to bounded ASSIGN.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource, summary: `Defined Standard ${variable.variableType} session variable ${variable.name}.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "undefine") {
+      const plan = resolveClassicUndefineCommand(selectedSource, project.fields, classicProgramSession.variables());
+      const removed = plan.mode === "all-standard"
+        ? classicProgramSession.undefineAllStandard()
+        : [classicProgramSession.undefineVariable(plan.variable!.name)];
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = plan.mode === "all-standard"
+        ? `Undefined ${removed.length} Standard session variable${removed.length === 1 ? "" : "s"}. Record data was not changed.`
+        : `Undefined Standard session variable ${removed[0]!.name}. Record data was not changed.`;
+      classicProgramCommandStatus.textContent = "Selected UNDEFINE command completed; removed variables are no longer available to ASSIGN or IF.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `UNDEFINE removed ${removed.length} Standard session variable${removed.length === 1 ? "" : "s"}.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "assign") {
+      const plan = resolveClassicAssignCommand(selectedSource, project.fields, classicProgramSession.variables());
+      const variable = classicProgramSession.assignVariable(plan.variable.name, plan.value);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `Assigned ${variable.name} = ${String(variable.value)} in this Classic session. Record data was not changed.`;
+      classicProgramCommandStatus.textContent = "Selected ASSIGN command completed for one Standard session variable.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource, summary: `Assigned Standard session variable ${variable.name}.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "if") {
+      const plan = resolveClassicIfCommand(selectedSource, project.fields, classicProgramSession.variables());
+      const result = evaluateClassicIf(plan, classicProgramSession.variables());
+      if (result.assignment) classicProgramSession.assignVariable(result.assignment.variable, result.assignment.value);
+      renderClassicProgramSession();
+      const effect = result.assignment
+        ? `${result.assignment.variable} = ${String(result.assignment.value)}`
+        : "no assignment (the condition was false and no ELSE was present)";
+      classicProgramFeedback.textContent = `IF evaluated ${String(result.conditionResult)}; ${result.branch.toUpperCase()} produced ${effect}. Record data was not changed.`;
+      classicProgramCommandStatus.textContent = "Selected IF block completed through one validated Standard-variable ASSIGN branch.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `IF evaluated ${String(result.conditionResult)} and selected ${result.branch.toUpperCase()}; ${effect}.`, diagnostics: [],
+      });
+      return;
+    }
     if (command.kind === "read") {
       project = classicProgramSession.read(command.table, getProjectDataSources());
       renderClassicProgramSession();
@@ -1742,6 +2006,64 @@ function runSelectedClassicCommand(): void {
         origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
         projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
         source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command), summary: `READ selected ${project.formName} with ${project.records.length} records.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "select") {
+      const plan = resolveClassicSelectionCommand(selectedSource, project.fields);
+      if (plan.kind !== "apply") throw new Error("The selected command did not contain selection criteria.");
+      const result = applyClassicSelection(classicProgramSession.filtered(fallbackProject).records, plan);
+      classicProgramSession.select(result.records, plan.canonicalSource, result.excludedMissing);
+      project = classicProgramSession.current(fallbackProject);
+      const status = classicProgramSession.selectionStatus(fallbackProject);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `Selected ${status.selected} of ${status.total} records; ${status.excluded} excluded (${status.excludedMissing} missing comparisons). Additional SELECT commands narrow this selection with AND.`;
+      classicProgramCommandStatus.textContent = "Selected SELECT command completed; LIST, FREQ, and MEANS now use the selected records.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: result.sourceRecords,
+        source: selectedSource, canonicalSource: plan.canonicalSource, summary: `SELECT retained ${result.selectedRecords} of ${result.sourceRecords} active records; ${result.excludedRecords} excluded.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "cancel-select") {
+      const hadSelection = classicProgramSession.cancelSelection();
+      project = classicProgramSession.current(fallbackProject);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = hadSelection ? `Selection cancelled; all ${project.records.length} records are active again.` : `No selection was active; all ${project.records.length} records remain active.`;
+      classicProgramCommandStatus.textContent = "Selected CANCEL SELECT command completed; the active data source is unfiltered.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: "CANCEL SELECT", summary: hadSelection ? `CANCEL SELECT restored all ${project.records.length} records.` : "CANCEL SELECT completed with no active selection.", diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "sort") {
+      const plan = resolveClassicSortCommand(selectedSource, project.fields);
+      if (plan.kind !== "apply") throw new Error("The selected command did not contain sort variables.");
+      classicProgramSession.sort(plan);
+      project = classicProgramSession.current(fallbackProject);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `Sorted ${project.records.length} active records by ${plan.items.length} field${plan.items.length === 1 ? "" : "s"}. Selection membership was unchanged.`;
+      classicProgramCommandStatus.textContent = "Selected SORT command completed; LIST now uses the active record order.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource, summary: `SORT ordered ${project.records.length} active records by ${plan.items.length} field${plan.items.length === 1 ? "" : "s"}.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "cancel-sort") {
+      const hadSort = classicProgramSession.cancelSort();
+      project = classicProgramSession.current(fallbackProject);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = hadSort ? `Sort cancelled; ${project.records.length} active records returned to source order.` : `No sort was active; ${project.records.length} records remain in source order.`;
+      classicProgramCommandStatus.textContent = "Selected CANCEL SORT command completed; selection membership was unchanged.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: "CANCEL SORT", summary: hadSort ? `CANCEL SORT restored source order for ${project.records.length} active records.` : "CANCEL SORT completed with no active sort.", diagnostics: [],
       });
       return;
     }

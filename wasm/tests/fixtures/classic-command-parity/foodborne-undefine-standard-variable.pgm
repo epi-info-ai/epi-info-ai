@@ -1,0 +1,7 @@
+*** Epi Info AI bounded UNDEFINE validation program
+*** Dataset: foodborne-outbreak-investigation.csv (96 records)
+DEFINE ReviewLabel TEXTINPUT
+DEFINE PriorityFlag YN
+ASSIGN ReviewLabel = "Priority review"
+UNDEFINE ReviewLabel
+UNDEFINE *

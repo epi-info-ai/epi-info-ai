@@ -698,12 +698,12 @@ automatically executable.
 | Component | Required contract | Current state | Next acceptance boundary |
 |---|---|---|---|
 | Legacy grammar evidence | Trace each supported production and semantic decision to GOLD grammar, rule object, User Guide, or fixture | Analysis grammar/parser architecture audited | Add command-by-command production and ambiguity fixtures |
-| Lexer/parser | Deterministic parsing, nested blocks, error recovery, and precise source ranges without evaluation | TypeScript AST V0.3 parses `READ`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, and `SELECT`; expressions include literals, identifiers, calls, unary/binary operators, and nested `IF` blocks | Expand legacy syntax variants and return multiple recoverable diagnostics |
-| Typed AST | Discriminated, versioned nodes with source spans; JSON-safe serialization and migration rules | `classic-ast.ts` defines additive AST `0.3.0`; every statement/expression carries a source span | Publish JSON schema, canonical serializer, comments/trivia policy, and AST compatibility tests |
-| Name and type resolution | Resolve fields/variables/scopes case-insensitively; reject missing, ambiguous, or type-invalid references | The bounded full-program path and selected READ/LIST/FREQ/MEANS/TABLES resolver validate their allowlisted shapes | Add a standalone schema-aware semantic pass for every parsed command family |
+| Lexer/parser | Deterministic parsing, nested blocks, error recovery, and precise source ranges without evaluation | TypeScript AST V0.4 parses `READ`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `RECODE`, `DEFINE`, `ASSIGN`, `IF`, `SELECT`, and `SORT`; expressions include literals, identifiers, calls, unary/binary operators, and nested `IF` blocks | Expand legacy syntax variants and return multiple recoverable diagnostics |
+| Typed AST | Discriminated, versioned nodes with source spans; JSON-safe serialization and migration rules | `classic-ast.ts` defines additive AST `0.5.0`; every statement/expression carries a source span | Publish JSON schema, canonical serializer, comments/trivia policy, and AST compatibility tests |
+| Name and type resolution | Resolve fields/variables/scopes case-insensitively; reject missing, ambiguous, or type-invalid references | Bounded full-program and selected-command resolvers validate their allowlisted shapes; DEFINE/ASSIGN resolves Standard scalar type/lifetime separately from data fields | Add a standalone schema-aware semantic pass for every parsed command family |
 | Canonical source | Generate stable, reviewable Epi Info source without discarding unsupported text | Existing bounded plan canonicalizes its executable program | Add AST printer and parse-print-parse equivalence fixtures |
 | Execution planner | Lower only validated AST into a versioned allowlisted plan with declared capabilities and effects | Existing bounded program plan is the sole executable subset | Define plan nodes for dataset read/filter, variable mutation, recode, frequency, and tables; reject every unregistered node |
-| Session/runtime | Explicit dataset, selection, variables, output, limits, cancellation, and rollback; no ambient DOM/OS authority | A cloned current-project READ source now drives selected LIST/FREQ/MEANS; selection, variables, rollback, and full-program sequencing remain open | Introduce serializable session V0.1 and transactional statement boundaries |
+| Session/runtime | Explicit dataset, selection, variables, output, limits, cancellation, and rollback; no ambient DOM/OS authority | A cloned READ source, bounded Standard scalar variables, and independent SELECT/SORT state drive selected commands; broader lifetimes, rollback, and full-program sequencing remain open | Introduce serializable session V0.1 and transactional statement boundaries |
 | Operation adapters | TypeScript orchestrates data/UI/storage; validated epidemiologic operations dispatch to Rust/WASM contracts | `FREQ` and `TABLES` operations already exist outside the general interpreter | Bind planner nodes to existing typed operations without duplicating statistical formulas |
 | Audit/provenance | Record source/AST/plan versions, origin, inputs, project revision, approvals, results, warnings, and engine versions | Browser-local bounded run history exists | Unify manual, program, visual, AI, and plugin histories and add immutable export |
 | Compatibility validation | Differential legacy/browser fixtures, metamorphic checks, hostile-input tests, and curriculum programs | Phase 0 covers the nine AST command families, typed selected-command resolution, and fail-closed unsupported input | Promote legacy Sample/training programs progressively; no parity claim without reviewed output comparisons |
@@ -732,12 +732,17 @@ automatically executable.
 9. Only after semantics stabilize, add selected-statement execution, debugger/replay,
    visual round-tripping, and AI drafting over the same AST and plan contracts.
 
-**Current security boundary:** AST V0.3 broadens syntax understanding only.
+**Current security boundary:** AST V0.4 broadens syntax understanding only.
 Full-program execution remains the reviewed `DEFINE TEXTINPUT -> numeric RECODE
 -> FREQ [STRATAVAR]` plan. A separate selected-statement allowlist permits
-current-project READ plus LIST/FREQ/MEANS; external READ fails closed and selected
-TABLES stops for value review. `ASSIGN`, `IF`, and `SELECT` AST nodes cannot yet
-mutate data or invoke operations.
+current-project READ, bounded Standard DEFINE/ASSIGN, SELECT/CANCEL SELECT,
+SORT/CANCEL SORT, and LIST/FREQ/MEANS; external READ
+fails closed and selected TABLES stops for value review. SELECT is limited to one
+schema-typed field-to-literal comparison, applies cumulatively with legacy AND
+semantics, and affects only the Classic session. ASSIGN accepts only a
+type-compatible literal for an explicitly defined Standard session variable and
+cannot mutate records; wider expressions and `IF` cannot yet invoke operations. SORT is limited to current-form
+fields and changes ordering only; its candidate collation remains under differential review.
 
 **Classic command-surface slice complete:** the browser now restores the shipped
 File/View/Tools/Help shell, nine Command Explorer folders, and recognizable
@@ -1005,8 +1010,13 @@ line-list Output and subsequent FREQ/MEANS use the same explicit session. Typed
 DEFINE and numeric RECODE dialogs now expose the legacy scope/type and editable
 range-grid workflow, generate visible source, and can author the complete bounded
 foodborne program with FREQ. Broader displayed DEFINE/RECODE forms remain
-source-only unless a reviewed plan permits them. The next closure is
-SELECT/CANCEL SELECT session semantics; Supabase
+source-only unless a reviewed plan permits them. SELECT/CANCEL SELECT now has a
+typed source dialog, audited cumulative session filtering, explicit counts,
+history, and LIST/FREQ/MEANS integration. SORT/CANCEL SORT now independently
+applies or clears stable, typed, multi-field ordering without changing selection
+membership. Selected DEFINE/ASSIGN now adds bounded Standard scalar state, resets
+it on READ, and rejects field mutation and general expressions. The next
+command-runtime candidate is bounded IF control flow; Supabase
 program/extras sync needs a separate versioned contract and conflict policy.
 
 Phase 5 V0.15 restores Chi Square for Trend as the fourth learned StatCalc menu
@@ -1048,14 +1058,17 @@ without executing source. The audited desktop `RichTextBox`
 accepted tabs and copied indentation but exposed no line-number gutter, column
 ruler, or explicit tab-width setting.
 
-The interpreter-modernization slice now has typed AST `0.3.0` and a source-span
-parser that adds LIST to the initial command families. The existing bounded
+The interpreter-modernization slice now has typed AST `0.5.0` and a source-span
+parser that includes LIST and SORT among the initial command families. The existing bounded
 executor is lowered from this AST, while every broader parsed program remains
 syntax-only. A separately allowlisted selected-command path now resolves
-current-project READ and active-session LIST/FREQ/MEANS, while external READ
-targets fail closed. The next interpreter slice is the standalone schema-aware
-semantic resolver and diagnostic model, followed by canonical printing and the
-capability-labelled execution planner tracked above.
+current-project READ, Standard DEFINE/ASSIGN/UNDEFINE scalar state, SELECT/SORT session
+effects, bounded Standard-variable IF/ELSE branching, and active-session
+LIST/FREQ/MEANS, while external READ targets fail closed. Record-context IF,
+compound expressions, functions, nested/arbitrary blocks, and missing-value
+comparisons remain outside that allowlist. The next interpreter slice is the
+standalone schema-aware semantic resolver and diagnostic model, followed by
+canonical printing and the capability-labelled execution planner tracked above.
 
 Classic commands now form a separate tested parity set. The registry contains
 all 49 entries from the nine legacy enum groups, while preserving the 45-command
@@ -1064,6 +1077,13 @@ and Help. Each command tracks discovery, syntax, dialog generation, semantics,
 selected execution, full-program execution, Output, browser adaptation, and
 validation independently. A visible or successfully parsed command is therefore
 never counted as execution parity.
+
+The registry's overall parity status is evidence-gated. `browser-verified`
+requires a real `.pgm` tied to the checksummed foodborne dataset plus a
+machine-asserted expected-output artifact. `legacy-parity-verified` additionally
+requires captured and reviewed output from desktop Epi Info for that same
+program. The bounded IF fixture is the first command entry using this rule; it is
+not yet a desktop parity claim.
 
 The Program Editor also exposes three reviewed runnable examples over the
 foodborne form: life-stage age groups by Sex, broad age bands by Case Status, and

@@ -1,4 +1,4 @@
-export const CLASSIC_AST_VERSION = "0.3.0" as const;
+export const CLASSIC_AST_VERSION = "0.5.0" as const;
 
 export interface ClassicSourceLocation {
   line: number;
@@ -125,10 +125,22 @@ export interface ClassicAssignStatement extends ClassicNode {
   value: ClassicExpression;
 }
 
+export interface ClassicUndefineStatement extends ClassicNode {
+  type: "UndefineStatement";
+  mode: "one" | "all-standard" | "all-global";
+  variable?: ClassicIdentifier;
+}
+
 export interface ClassicSelectStatement extends ClassicNode {
   type: "SelectStatement";
   mode: "apply" | "clear" | "cancel";
   expression?: ClassicExpression;
+}
+
+export interface ClassicSortStatement extends ClassicNode {
+  type: "SortStatement";
+  mode: "apply" | "clear" | "cancel";
+  items: Array<{ field: ClassicIdentifier; direction: "ASC" | "DESC" }>;
 }
 
 export interface ClassicRecodeValueClause extends ClassicNode {
@@ -167,7 +179,9 @@ export type ClassicStatement =
   | ClassicMeansStatement
   | ClassicDefineStatement
   | ClassicAssignStatement
+  | ClassicUndefineStatement
   | ClassicSelectStatement
+  | ClassicSortStatement
   | ClassicRecodeStatement
   | ClassicIfStatement;
 
@@ -496,8 +510,11 @@ class ProgramParser {
     if (command === "MEANS") return this.means(line, rest);
     if (command === "DEFINE") return this.define(line, rest, restColumn);
     if (command === "ASSIGN") return this.assign(line, rest, restColumn);
+    if (command === "UNDEFINE") return this.undefine(line, rest);
     if (command === "SELECT") return this.select(line, rest, restColumn);
     if (command === "CANCEL" && /^SELECT$/i.test(rest.trim())) return { type: "SelectStatement", mode: "cancel", span: lineSpan(line) };
+    if (command === "SORT") return this.sort(line, rest);
+    if (command === "CANCEL" && /^SORT$/i.test(rest.trim())) return { type: "SortStatement", mode: "cancel", items: [], span: lineSpan(line) };
     if (command === "RECODE") return this.recode(line, rest);
     if (command === "IF") return this.ifStatement(line, rest, restColumn);
     throw new ClassicSyntaxError(line.line, 1, `Unsupported command: ${line.trimmed}`);
@@ -512,6 +529,16 @@ class ProgramParser {
       : { kind: "current-project-table" as const, table: identifierName(raw), raw };
     if (target.kind === "current-project-table" && !/^\[[^\]]+\]$/.test(raw)) identifier(target.table, line);
     return { type: "ReadStatement", target, span: lineSpan(line) };
+  }
+
+  private undefine(line: SourceLine, rest: string): ClassicUndefineStatement {
+    const tokens = words(rest);
+    if (tokens.length === 1 && tokens[0] === "*") return { type: "UndefineStatement", mode: "all-standard", span: lineSpan(line) };
+    if (tokens.length === 2 && tokens[0] === "*" && tokens[1]!.toUpperCase() === "GLOBAL") {
+      return { type: "UndefineStatement", mode: "all-global", span: lineSpan(line) };
+    }
+    if (tokens.length !== 1) throw new ClassicSyntaxError(line.line, 1, "UNDEFINE requires one variable, '*', or '* GLOBAL'.");
+    return { type: "UndefineStatement", mode: "one", variable: identifier(tokens[0]!, line), span: lineSpan(line) };
   }
 
   private frequency(line: SourceLine, rest: string): ClassicFrequencyStatement {
@@ -597,6 +624,21 @@ class ProgramParser {
   private select(line: SourceLine, rest: string, restColumn: number): ClassicSelectStatement {
     if (!rest.trim()) return { type: "SelectStatement", mode: "clear", span: lineSpan(line) };
     return { type: "SelectStatement", mode: "apply", expression: parseExpression(rest, line, restColumn), span: lineSpan(line) };
+  }
+
+  private sort(line: SourceLine, rest: string): ClassicSortStatement {
+    const tokens = words(rest);
+    if (!tokens.length) return { type: "SortStatement", mode: "clear", items: [], span: lineSpan(line) };
+    const items: ClassicSortStatement["items"] = [];
+    let cursor = 0;
+    while (cursor < tokens.length) {
+      const field = identifier(tokens[cursor++]!, line);
+      const option = tokens[cursor]?.toUpperCase();
+      const direction = option === "DESC" || option === "DESCENDING" ? "DESC" : "ASC";
+      if (["ASC", "ASCENDING", "DESC", "DESCENDING"].includes(option ?? "")) cursor++;
+      items.push({ field, direction });
+    }
+    return { type: "SortStatement", mode: "apply", items, span: lineSpan(line) };
   }
 
   private recode(line: SourceLine, rest: string): ClassicRecodeStatement {

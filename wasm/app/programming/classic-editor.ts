@@ -50,7 +50,7 @@ export interface ClassicProgramLintStatus {
 const epiInfoLanguage = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
-    if (stream.match(/^(?:READ|LIST|FREQ|MEANS|TABLES|RECODE|TO|DEFINE|ASSIGN|IF|THEN|ELSE|END|SELECT|CANCEL|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
+    if (stream.match(/^(?:READ|LIST|FREQ|MEANS|TABLES|RECODE|TO|DEFINE|UNDEFINE|ASSIGN|IF|THEN|ELSE|END|SELECT|SORT|CANCEL|ASC|ASCENDING|DESC|DESCENDING|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
     if (stream.match(/^(?:STRATAVAR|WEIGHTVAR|OUTTABLE|PSUVAR|STATISTICS|COLUMNSIZE)\b/i)) return "propertyName";
     if (stream.match(/^(?:LOVALUE|HIVALUE|TRUE|FALSE|YES|NO|NOWRAP|ONEISYES|FISHER|NONE)\b/i)) return "atom";
     if (stream.match(/^"(?:[^"]|"")*"?/)) return "string";
@@ -99,6 +99,24 @@ function createCompletionSource(getFields: () => readonly FieldDefinition[]) {
       return completionResult(context.pos - fragment.length, definedVariables(context.state.doc.toString()));
     }
 
+    const assignment = /^\s*ASSIGN\s+([A-Za-z_][A-Za-z0-9_]*)?$/i.exec(before);
+    if (assignment) {
+      const fragment = assignment[1] ?? "";
+      return completionResult(context.pos - fragment.length, definedVariables(context.state.doc.toString()));
+    }
+
+    const undefine = /^\s*UNDEFINE\s+([A-Za-z_][A-Za-z0-9_]*)?$/i.exec(before);
+    if (undefine) {
+      const fragment = undefine[1] ?? "";
+      return completionResult(context.pos - fragment.length, [{ label: "*", detail: "all Standard variables", type: "keyword" }, ...definedVariables(context.state.doc.toString())]);
+    }
+
+    const ifVariable = /^\s*IF\s+([A-Za-z_][A-Za-z0-9_]*)?$/i.exec(before);
+    if (ifVariable) {
+      const fragment = ifVariable[1] ?? "";
+      return completionResult(context.pos - fragment.length, definedVariables(context.state.doc.toString()));
+    }
+
     const strata = /\bSTRATAVAR\s*=\s*([A-Za-z_][A-Za-z0-9_]*)?$/i.exec(before);
     if (strata) {
       const fragment = strata[1] ?? "";
@@ -111,17 +129,25 @@ function createCompletionSource(getFields: () => readonly FieldDefinition[]) {
       return completionResult(context.pos - fragment.length, [...fields.map(fieldCompletion), ...definedVariables(context.state.doc.toString())]);
     }
 
+    const sort = /^\s*SORT(?:\s+(?:[A-Za-z_][A-Za-z0-9_]*|\[[^\]]+\])(?:\s+(?:ASC|ASCENDING|DESC|DESCENDING))?)*\s+([A-Za-z_][A-Za-z0-9_]*)?$/i.exec(before);
+    if (sort) {
+      const fragment = sort[1] ?? "";
+      return completionResult(context.pos - fragment.length, fields.map(fieldCompletion));
+    }
+
     const command = /^\s*([A-Za-z]*)$/.exec(before);
     if (command && (context.explicit || command[1]!.length > 0)) {
       return completionResult(context.pos - command[1]!.length, [
         { label: "READ", detail: "open a data source", type: "keyword" },
         { label: "DEFINE", detail: "declare a variable", type: "keyword" },
+        { label: "UNDEFINE", detail: "remove a defined variable", type: "keyword" },
         { label: "ASSIGN", detail: "set a variable value", type: "keyword" },
         { label: "IF", detail: "conditionally run statements", type: "keyword" },
         { label: "RECODE", detail: "group numeric values", type: "keyword" },
         { label: "FREQ", detail: "frequency table", type: "keyword" },
         { label: "TABLES", detail: "cross-tabulation", type: "keyword" },
         { label: "SELECT", detail: "filter records", type: "keyword" },
+        { label: "SORT", detail: "order active records", type: "keyword" },
       ]);
     }
 

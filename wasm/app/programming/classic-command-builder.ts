@@ -1,8 +1,12 @@
 import type { FieldDefinition } from "../contracts/core.ts";
 import type { MapDataSource } from "../contracts/maps.ts";
 import { parseClassicProgram, type ClassicAnalysisOptions } from "./classic-ast.ts";
+import { buildClassicSelectionCommand, resolveClassicSelectionCommand, type ClassicSelectionOperator } from "./classic-selection.ts";
+import { buildClassicSortCommand, resolveClassicSortCommand, type ClassicSortDirection } from "./classic-sort.ts";
+import { buildClassicAssignmentCommand, buildClassicUndefineCommand, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand, type ClassicSessionVariableDefinition, type ClassicVariableValue } from "./classic-assignment.ts";
+import { buildClassicIfCommand, resolveClassicIfCommand, type ClassicIfInput } from "./classic-if.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "define" | "recode" | "list" | "frequency" | "means" | "tables";
+export type ClassicAnalysisCommandKind = "read" | "define" | "undefine" | "assign" | "recode" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -11,13 +15,20 @@ export interface ClassicRecodeRangeInput { from: string; to?: string; result: st
 export type ClassicAnalysisCommandInput =
   | { kind: "read"; table: string }
   | { kind: "define"; variable: string; scope: ClassicDefineVariableScope; variableType: ClassicDefineVariableType; prompt?: string }
+  | { kind: "undefine"; variable: string | "*" }
+  | { kind: "assign"; variable: string; value: ClassicVariableValue }
   | { kind: "recode"; sourceField: string; targetVariable: string; ranges: ClassicRecodeRangeInput[]; elseResult?: string }
+  | { kind: "select"; field: string; operator: ClassicSelectionOperator; value: string | number | boolean }
+  | { kind: "cancel-select" }
+  | ({ kind: "if" } & ClassicIfInput)
+  | { kind: "sort"; items: Array<{ field: string; direction: ClassicSortDirection }> }
+  | { kind: "cancel-sort" }
   | { kind: "list"; fields: string[] }
   | { kind: "frequency"; field: string; stratifyBy?: string }
   | { kind: "means"; field: string }
   | { kind: "tables"; exposure: string; outcome: string; stratifyBy: string };
 
-type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "define" | "recode" }>;
+type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" }>;
 export type ResolvedClassicAnalysisCommand = SelectedExecutableClassicCommandInput & { source: string };
 
 const fieldToken = (name: string): string => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
@@ -41,6 +52,8 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
     const prompt = input.prompt?.trim() ? ` ${JSON.stringify(input.prompt.trim())}` : "";
     return `DEFINE ${variableToken(input.variable)}${scope} ${input.variableType}${prompt}`;
   }
+  if (input.kind === "undefine") return buildClassicUndefineCommand(input.variable);
+  if (input.kind === "assign") return buildClassicAssignmentCommand(input.variable, input.value);
   if (input.kind === "recode") {
     if (!input.ranges.length && input.elseResult === undefined) throw new RangeError("RECODE requires at least one range or ELSE result.");
     const lines = input.ranges.map((range) => {
@@ -52,6 +65,11 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
     if (input.elseResult !== undefined && input.elseResult.trim()) lines.push(`  ELSE = ${JSON.stringify(input.elseResult)}`);
     return `RECODE ${fieldToken(input.sourceField)} TO ${variableToken(input.targetVariable)}\n${lines.join("\n")}\nEND`;
   }
+  if (input.kind === "select") return buildClassicSelectionCommand(input.field, input.operator, input.value);
+  if (input.kind === "cancel-select") return "CANCEL SELECT";
+  if (input.kind === "if") return buildClassicIfCommand(input);
+  if (input.kind === "sort") return buildClassicSortCommand(input.items);
+  if (input.kind === "cancel-sort") return "CANCEL SORT";
   if (input.kind === "list") return `LIST ${input.fields.length ? input.fields.map(fieldToken).join(" ") : "*"}`;
   if (input.kind === "frequency") return `FREQ ${fieldToken(input.field)}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}`;
   if (input.kind === "means") return `MEANS ${fieldToken(input.field)}`;
@@ -73,11 +91,41 @@ function assertBoundedOptions(options: ClassicAnalysisOptions, allowStrata: bool
   return options.stratifyBy[0]?.name;
 }
 
-export function resolveSelectedClassicAnalysisCommand(source: string, fields: readonly FieldDefinition[], dataSources: readonly MapDataSource[] = []): ResolvedClassicAnalysisCommand {
-  if (!source.trim()) throw new RangeError("Select one complete READ, LIST, FREQ, MEANS, or TABLES command in the Program Editor.");
+export function resolveSelectedClassicAnalysisCommand(source: string, fields: readonly FieldDefinition[], dataSources: readonly MapDataSource[] = [], variables: readonly ClassicSessionVariableDefinition[] = []): ResolvedClassicAnalysisCommand {
+  if (!source.trim()) throw new RangeError("Select one complete DEFINE, UNDEFINE, ASSIGN, READ, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, or TABLES command in the Program Editor.");
   const ast = parseClassicProgram(source);
   if (ast.body.length !== 1) throw new RangeError("Select exactly one complete command. Multiple statements were not run.");
   const statement = ast.body[0]!;
+  if (statement.type === "DefineStatement") {
+    const definition = resolveClassicDefineCommand(source, fields, variables);
+    return { kind: "define", variable: definition.name, scope: definition.scope, variableType: definition.variableType, ...(definition.prompt ? { prompt: definition.prompt } : {}), source };
+  }
+  if (statement.type === "UndefineStatement") {
+    const plan = resolveClassicUndefineCommand(source, fields, variables);
+    return { kind: "undefine", variable: plan.mode === "all-standard" ? "*" : plan.variable!.name, source };
+  }
+  if (statement.type === "AssignStatement") {
+    const assignment = resolveClassicAssignCommand(source, fields, variables);
+    return { kind: "assign", variable: assignment.variable.name, value: assignment.value, source };
+  }
+  if (statement.type === "SelectStatement") {
+    const selection = resolveClassicSelectionCommand(source, fields);
+    if (selection.kind === "cancel") return { kind: "cancel-select", source };
+    return { kind: "select", field: selection.field, operator: selection.operator, value: selection.value, source };
+  }
+  if (statement.type === "IfStatement") {
+    const plan = resolveClassicIfCommand(source, fields, variables);
+    return {
+      kind: "if", conditionVariable: plan.condition.variable.name, operator: plan.condition.operator, compareValue: plan.condition.value,
+      thenVariable: plan.consequent.variable.name, thenValue: plan.consequent.value,
+      ...(plan.alternate ? { elseAssignment: { variable: plan.alternate.variable.name, value: plan.alternate.value } } : {}), source,
+    };
+  }
+  if (statement.type === "SortStatement") {
+    const sort = resolveClassicSortCommand(source, fields);
+    if (sort.kind === "cancel") return { kind: "cancel-sort", source };
+    return { kind: "sort", items: sort.items.map(({ field, direction }) => ({ field, direction })), source };
+  }
   if (statement.type === "ReadStatement") {
     if (statement.target.kind !== "current-project-table") throw new RangeError("Selected READ supports current-project forms only; external paths require a reviewed browser adapter.");
     const matches = dataSources.filter((candidate) => candidate.formName.toLocaleLowerCase("en-US") === statement.target.table.toLocaleLowerCase("en-US"));
@@ -117,5 +165,5 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       stratifyBy: resolvedField(fields, strata), source,
     };
   }
-  throw new RangeError("Only selected READ, LIST, FREQ, MEANS, and TABLES commands are enabled in this slice.");
+  throw new RangeError("Only selected DEFINE, UNDEFINE, ASSIGN, READ, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, and TABLES commands are enabled in this slice.");
 }

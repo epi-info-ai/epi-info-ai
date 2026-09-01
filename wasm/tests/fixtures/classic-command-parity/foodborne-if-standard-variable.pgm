@@ -1,0 +1,10 @@
+*** Epi Info AI bounded IF validation program
+*** Dataset: foodborne-outbreak-investigation.csv (96 records)
+DEFINE ReviewLabel TEXTINPUT
+DEFINE PriorityFlag YN
+ASSIGN ReviewLabel = "Priority review"
+IF ReviewLabel = "Priority review" THEN
+  ASSIGN PriorityFlag = (+)
+ELSE
+  ASSIGN PriorityFlag = (-)
+END

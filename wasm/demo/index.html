@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=43" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-  <script type="module" src="app.js?v=56"></script>
+  <script type="module" src="app.js?v=58"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -783,7 +783,7 @@
           <form method="dialog">
             <div class="legacy-dialog-titlebar"><h2 id="classic-command-dialog-title">Insert Command</h2><button value="cancel" aria-label="Close">×</button></div>
             <div class="legacy-dialog-body classic-program-dialog-body">
-              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="define">Define</option><option value="recode">Recode</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option></select></label>
+              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="define">Define</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option></select></label>
               <label id="classic-command-dialog-source-label" hidden>Project form<select id="classic-command-dialog-source"></select></label>
               <fieldset id="classic-command-dialog-define" hidden>
                 <legend>Variable definition</legend>
@@ -791,6 +791,19 @@
                 <label>Scope<select id="classic-command-dialog-scope"><option value="STANDARD">Standard</option><option value="GLOBAL">Global</option><option value="PERMANENT">Permanent</option></select></label>
                 <label>Variable type<select id="classic-command-dialog-variable-type"><option value="TEXTINPUT">Text</option><option value="NUMERIC">Numeric</option><option value="YN">Yes/No</option><option value="DATEFORMAT">Date</option><option value="DATETIMEFORMAT">Date/Time</option><option value="TIMEFORMAT">Time</option></select></label>
                 <label>Prompt (optional)<input id="classic-command-dialog-prompt" autocomplete="off"></label>
+              </fieldset>
+              <fieldset id="classic-command-dialog-assign" hidden>
+                <legend>Assignment</legend>
+                <label>Assign variable<select id="classic-command-dialog-assign-variable"></select></label>
+                <label id="classic-command-dialog-assign-value-label">Value<input id="classic-command-dialog-assign-value" autocomplete="off"></label>
+                <label id="classic-command-dialog-assign-boolean-label" hidden>Value<select id="classic-command-dialog-assign-boolean"><option value="true">Yes (+)</option><option value="false">No (-)</option></select></label>
+                <p class="method-note">This reviewed slice assigns one literal to a Standard session variable. Run its DEFINE command first. Field mutation, functions, arithmetic, and Global/Permanent lifetimes remain fail-closed.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-undefine" hidden>
+                <legend>Remove defined variable</legend>
+                <label>Available variable<select id="classic-command-dialog-undefine-variable"></select></label>
+                <label class="checkbox-row"><input id="classic-command-dialog-undefine-all" type="checkbox"> Undefine all Standard variables</label>
+                <p class="inline-feedback">Legacy `UNDEFINE * GLOBAL` remains unavailable because Global lifetime is not implemented.</p>
               </fieldset>
               <fieldset id="classic-command-dialog-recode" hidden>
                 <legend>Recoding</legend>
@@ -800,6 +813,32 @@
                 <div class="form-actions"><button id="classic-command-dialog-add-range" class="secondary-button" type="button">Add range</button></div>
                 <label>ELSE result (optional)<input id="classic-command-dialog-recode-else" autocomplete="off"></label>
                 <p class="method-note">Numeric range matching follows legacy Epi Info boundaries: greater than the lower value and less than or equal to the upper value.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-select" hidden>
+                <legend>Select Criteria</legend>
+                <label>Available variable<select id="classic-command-dialog-select-field"></select></label>
+                <label>Comparison<select id="classic-command-dialog-select-operator"><option value="=">Equals (=)</option><option value="&lt;&gt;">Does not equal (&lt;&gt;)</option><option value=">">Greater than (&gt;)</option><option value="&gt;=">Greater than or equal (&gt;=)</option><option value="&lt;">Less than (&lt;)</option><option value="&lt;=">Less than or equal (&lt;=)</option></select></label>
+                <label id="classic-command-dialog-select-value-label">Value<input id="classic-command-dialog-select-value" autocomplete="off"></label>
+                <label id="classic-command-dialog-select-boolean-label" hidden>Value<select id="classic-command-dialog-select-boolean"><option value="true">Yes (+)</option><option value="false">No (-)</option></select></label>
+                <p class="method-note">This reviewed slice supports one typed field-to-value comparison per SELECT. Like legacy Classic Analysis, additional SELECT commands narrow the current selection with AND. Missing values do not match.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-if" hidden>
+                <legend>If / Then / Else</legend>
+                <label>If variable<select id="classic-command-dialog-if-variable"></select></label>
+                <label>Comparison<select id="classic-command-dialog-if-operator"><option value="=">Equals (=)</option><option value="&lt;&gt;">Does not equal (&lt;&gt;)</option><option value=">">Greater than (&gt;)</option><option value="&gt;=">Greater than or equal (&gt;=)</option><option value="&lt;">Less than (&lt;)</option><option value="&lt;=">Less than or equal (&lt;=)</option></select></label>
+                <label>If value<input id="classic-command-dialog-if-value" autocomplete="off"></label>
+                <label>Then assign<select id="classic-command-dialog-if-then-variable"></select></label>
+                <label>Then value<input id="classic-command-dialog-if-then-value" autocomplete="off"></label>
+                <label class="checkbox-row"><input id="classic-command-dialog-if-has-else" type="checkbox" checked> Include ELSE assignment</label>
+                <label id="classic-command-dialog-if-else-variable-label">Else assign<select id="classic-command-dialog-if-else-variable"></select></label>
+                <label id="classic-command-dialog-if-else-value-label">Else value<input id="classic-command-dialog-if-else-value" autocomplete="off"></label>
+                <p class="inline-feedback">This bounded slice evaluates one initialized Standard variable and executes exactly one validated ASSIGN branch. Record fields and other commands remain blocked.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-sort" hidden>
+                <legend>Sort Variables</legend>
+                <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Variable</th><th>Sort order</th><th></th></tr></thead><tbody id="classic-command-dialog-sort-rows"></tbody></table></div>
+                <div class="form-actions"><button id="classic-command-dialog-add-sort" class="secondary-button" type="button">Add sort variable</button></div>
+                <p class="method-note">Variables are applied in the displayed order. Missing values sort first ascending and last descending in this candidate; exact legacy collation remains under differential review.</p>
               </fieldset>
               <label id="classic-command-dialog-field-label">Frequency of<select id="classic-command-dialog-field"></select></label>
               <label id="classic-command-dialog-exposure-label" hidden>Exposure variable<select id="classic-command-dialog-exposure"></select></label>
