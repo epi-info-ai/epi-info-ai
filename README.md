@@ -95,7 +95,9 @@ Current capabilities include:
 - guarded Classic Program New/Open/Save/Save As/Delete with project-backed
   source, Author/Comments/Created/Updated metadata, dirty-state feedback,
   familiar Find/Replace, source-only browser printing, and official `.pgm7`
-  text-file import/export; unsupported legacy commands remain editable but
+  text-file import/export; saved programs and dataset-compatible examples are
+  selected through the familiar Open Pgm dialog rather than a duplicate editor
+  library; unsupported legacy commands remain editable but
   non-executable;
 - typed Frequencies, Means, and Tables builders that insert visible Epi Info
   source, plus fail-closed execution of one selected FREQ or MEANS statement;

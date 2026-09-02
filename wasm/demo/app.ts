@@ -668,9 +668,7 @@ function refreshClassicProjectPrograms(): void {
   const programs = getCurrentProjectPrograms();
   const options = programs.map((program) => new Option(program.name, program.name));
   const empty = new Option(programs.length === 0 ? "No saved programs" : "Choose a saved program", "");
-  requiredElement<HTMLSelectElement>("#classic-project-program").replaceChildren(empty, ...options);
-  requiredElement<HTMLButtonElement>("#classic-project-program-open").disabled = programs.length === 0;
-  requiredElement<HTMLSelectElement>("#classic-program-dialog-project").replaceChildren(empty.cloneNode(true), ...options.map((option) => option.cloneNode(true)));
+  requiredElement<HTMLSelectElement>("#classic-program-dialog-project").replaceChildren(empty, ...options);
 }
 
 function guardUnsavedClassicProgram(): boolean {
@@ -720,6 +718,7 @@ function showClassicProgramDialog(mode: ClassicProgramDialogMode): void {
   requiredElement<HTMLButtonElement>("#classic-program-dialog-primary").textContent = saveMode ? "Save to Current Project" : "Open";
   requiredElement<HTMLButtonElement>("#classic-program-dialog-export").hidden = !saveAsMode;
   requiredElement<HTMLButtonElement>("#classic-program-dialog-delete").hidden = saveMode;
+  classicProgramExamplesFieldset.hidden = saveMode || classicProgramExamples.length === 0;
   requiredElement<HTMLInputElement>("#classic-program-author").readOnly = !saveMode;
   requiredElement<HTMLTextAreaElement>("#classic-program-comment").readOnly = !saveMode;
   requiredElement<HTMLInputElement>("#classic-program-name").value = classicProgramDocument.state.name === "Untitled" ? "" : classicProgramDocument.state.name;
@@ -745,7 +744,6 @@ function saveClassicProgramToProject(name = classicProgramDocument.state.name, m
   const program = saveCurrentProjectProgram(normalizedName, classicProgramEditor.getValue(), metadata);
   classicProgramDocument.markSaved(program.name, program.source, "project", program);
   refreshClassicProjectPrograms();
-  requiredElement<HTMLSelectElement>("#classic-project-program").value = program.name;
   classicProgramCommandStatus.textContent = `Saved “${program.name}” in the current project.`;
   renderClassicProgramDocumentState();
   return true;
@@ -774,15 +772,11 @@ function exportClassicProgramFile(): void {
   }
 }
 
-requiredElement<HTMLSelectElement>("#classic-project-program").addEventListener("change", (event) => {
-  requiredElement<HTMLButtonElement>("#classic-project-program-open").disabled = !(event.currentTarget as HTMLSelectElement).value;
-});
 requiredElement<HTMLSelectElement>("#classic-program-dialog-project").addEventListener("change", (event) => {
   const name = (event.currentTarget as HTMLSelectElement).value;
   renderClassicProgramDialogMetadata(getCurrentProjectPrograms().find((program) => program.name === name));
   requiredElement<HTMLButtonElement>("#classic-program-dialog-delete").disabled = !name;
 });
-requiredElement("#classic-project-program-open").addEventListener("click", () => openClassicProgram(requiredElement<HTMLSelectElement>("#classic-project-program").value));
 for (const selector of ["#classic-program-file-new", "#classic-program-toolbar-new"]) requiredElement(selector).addEventListener("click", newClassicProgram);
 for (const selector of ["#classic-program-file-open", "#classic-program-toolbar-open"]) requiredElement(selector).addEventListener("click", () => showClassicProgramDialog("open"));
 for (const selector of ["#classic-program-file-save", "#classic-program-toolbar-save"]) requiredElement(selector).addEventListener("click", saveClassicProgram);
@@ -1829,6 +1823,7 @@ function loadSelectedClassicProgramExample(focusEditor = true): void {
   classicProgramFeedback.textContent = `Loaded “${example.title}”. Review the visible source and cut points before running.`;
   requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
   classicProgramOutput.hidden = true;
+  if (classicProgramDialog.open) classicProgramDialog.close();
   if (focusEditor) classicProgramEditor.focus();
 }
 
@@ -1878,7 +1873,7 @@ async function refreshClassicProgramExamples(): Promise<void> {
     const firstCompatible = availability.programs.find((program) => program.compatible)?.example;
     classicProgramExampleSelect.value = firstCompatible?.id ?? "";
     classicProgramExampleSelect.disabled = !firstCompatible;
-    classicProgramExamplesFieldset.hidden = false;
+    classicProgramExamplesFieldset.hidden = classicProgramDialogMode !== "open";
     renderClassicProgramExampleDescription();
     if (firstCompatible && !classicExampleSourceLoaded) loadSelectedClassicProgramExample(false);
     classicProgramFeedback.textContent = availability.message;

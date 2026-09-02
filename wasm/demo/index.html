@@ -731,7 +731,7 @@
         </dialog>
         <section class="panel classic-program-editor" data-module-view="classic" aria-labelledby="classic-program-title">
           <div class="classic-program-editor-chrome">
-          <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><span id="classic-program-source-name" class="calculation-time">Current project data</span></div>
+          <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><div class="classic-program-heading-state"><span id="classic-program-source-name" class="calculation-time">Current project data</span><span id="classic-program-document-state">Untitled · saved</span></div></div>
           <nav id="classic-program-menu" class="designer-menu classic-program-menu" aria-label="Program Editor menu">
             <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">File</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor File" data-classic-program-menu-host="file"></div></details>
             <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Edit</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor Edit" data-classic-program-menu-host="edit"></div></details>
@@ -740,27 +740,6 @@
           <div id="classic-program-toolbar" class="classic-legacy-toolbar" role="toolbar" aria-label="Program Editor commands"></div>
           </div>
           <p id="classic-program-command-status" class="dashboard-command-status" role="status">Program Editor ready.</p>
-          <details id="classic-program-library" class="classic-program-library">
-            <summary>Project programs and examples</summary>
-            <div class="classic-program-library-body">
-              <fieldset class="classic-project-programs">
-                <legend>Programs in current project</legend>
-                <label for="classic-project-program">Program</label>
-                <select id="classic-project-program"><option value="">No saved programs</option></select>
-                <button id="classic-project-program-open" type="button" disabled>Open</button>
-                <span id="classic-program-document-state">Untitled · saved</span>
-              </fieldset>
-              <fieldset class="classic-program-examples" hidden>
-                <legend>Foodborne illness example programs</legend>
-                <div class="classic-program-example-controls">
-                  <label for="classic-program-example">Choose an example</label>
-                  <select id="classic-program-example" disabled><option>Loading foodborne examples…</option></select>
-                  <button id="classic-program-load-example" type="button" disabled>Load Example</button>
-                </div>
-                <p id="classic-program-example-description" class="classic-program-example-description"></p>
-              </fieldset>
-            </div>
-          </details>
           <p id="classic-program-session-status" class="compatibility-note"><strong>Active data:</strong> current form.</p>
           <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
           <p id="classic-program-source-label" class="classic-program-label"><strong>Program</strong></p>
@@ -791,6 +770,15 @@
                 <label>Date updated<input id="classic-program-updated" readonly></label>
               </div>
               <label id="classic-program-file-label">Program file<input id="classic-program-file" type="file" accept=".pgm,.pgm7,text/plain"></label>
+              <fieldset class="classic-program-examples" hidden>
+                <legend><span class="new-branch-tag">New branch</span> Foodborne illness example programs</legend>
+                <div class="classic-program-example-controls">
+                  <label for="classic-program-example">Choose an example</label>
+                  <select id="classic-program-example" disabled><option>Loading foodborne examples…</option></select>
+                  <button id="classic-program-load-example" type="button" disabled>Load Example</button>
+                </div>
+                <p id="classic-program-example-description" class="classic-program-example-description"></p>
+              </fieldset>
               <p id="classic-program-dialog-feedback" class="inline-feedback" role="status"></p>
             </div>
             <div class="legacy-dialog-actions">

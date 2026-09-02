@@ -120,8 +120,11 @@ operations. Cancel now mirrors the legacy enabled lifecycle: it is disabled whil
 idle, becomes enabled during execution, and safely stops a sequential program
 between statements while retaining completed work and audited history. Project
 programs and `.pgm7` files share one guarded document state;
-the project dialog also preserves Author, Comments, Created, Updated, and
-confirmed Delete. File and toolbar Print share a source-only browser print path,
+the familiar Open Pgm dialog is the single program-selection surface and also
+contains compatible dataset examples under an explicit **New branch** label.
+The project dialog preserves Author, Comments, Created, Updated, and confirmed
+Delete; the editor header reports only the active document state. File and
+toolbar Print share a source-only browser print path,
 while Page Setup remains a visible platform limitation whose settings are
 available within the browser print dialog.
 Command Explorer Frequencies, Means, and Tables now open typed variable dialogs

@@ -603,21 +603,6 @@ a:focus-visible {
 
 .classic-program-editor-chrome > .panel-heading h2 { font-size: 0.95rem; }
 
-.classic-program-library {
-  border-bottom: 1px solid #9fb7c4;
-  background: #f6f8f9;
-  font-size: 0.82rem;
-}
-
-.classic-program-library > summary {
-  cursor: pointer;
-  padding: 0.35rem 0.55rem;
-  color: #375363;
-}
-
-.classic-program-library-body { padding: 0 0.55rem 0.55rem; }
-.classic-program-library-body fieldset { margin: 0.4rem 0 0; }
-
 .classic-direct-controls {
   margin: 0.25rem 0 0;
   border: 1px solid #9fb7c4;
@@ -637,19 +622,8 @@ a:focus-visible {
   padding: 0.75rem;
 }
 
-.classic-project-programs {
-  display: grid;
-  grid-template-columns: auto minmax(12rem, 1fr) auto minmax(9rem, auto);
-  align-items: center;
-  gap: 0.55rem;
-  margin: 0.7rem 0;
-  padding: 0.65rem;
-}
-
-.classic-project-programs legend,
-.classic-project-programs label { font-weight: 700; }
-.classic-project-programs select { min-width: 0; }
-#classic-program-document-state { color: #506271; font-size: 0.84rem; text-align: right; }
+.classic-program-heading-state { display: grid; justify-items: end; gap: 0.2rem; }
+#classic-program-document-state { color: #506271; font-size: 0.78rem; text-align: right; }
 .classic-program-dialog-body { display: grid; gap: 0.7rem; }
 .classic-program-dialog-body > label:not(.checkbox-option) { display: grid; gap: 0.25rem; font-weight: 700; }
 .classic-program-date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
@@ -657,7 +631,7 @@ a:focus-visible {
 #classic-program-printout { display: none; }
 
 @media (max-width: 650px) {
-  .classic-project-programs { grid-template-columns: 1fr; align-items: stretch; }
+  .classic-program-heading-state { justify-items: start; }
   #classic-program-document-state { text-align: left; }
 }
 

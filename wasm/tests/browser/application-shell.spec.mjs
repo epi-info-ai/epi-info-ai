@@ -15,11 +15,6 @@ async function openClassicDeveloperControls(page) {
   if (!(await controls.evaluate((element) => element.open))) await controls.locator("summary").click();
 }
 
-async function openClassicProgramLibrary(page) {
-  const library = page.locator("#classic-program-library");
-  if (!(await library.evaluate((element) => element.open))) await library.locator("summary").click();
-}
-
 test("legacy application menus expose familiar workflows", async ({ page }) => {
   const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
 
@@ -983,10 +978,11 @@ test("Program Editor saves project programs and exchanges .pgm7 files", async ({
   await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/sample-project.epia.json");
   await expect(page.locator("#main-menu-status")).toContainText("Opened Sample");
   await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
-  await openClassicProgramLibrary(page);
-  await expect(page.locator("#classic-project-program option", { hasText: "Statistics" })).toHaveCount(1);
-  await page.locator("#classic-project-program").selectOption("Statistics");
-  await page.locator("#classic-project-program-open").click();
+  await expect(page.locator("#classic-program-library")).toHaveCount(0);
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(page.locator("#classic-program-dialog-project option", { hasText: "Statistics" })).toHaveCount(1);
+  await page.locator("#classic-program-dialog-project").selectOption("Statistics");
+  await page.locator("#classic-program-dialog-primary").click();
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("ROUTEOUT");
   await expect(page.locator("#classic-program-document-state")).toHaveText("Statistics · saved");
 
@@ -1001,7 +997,9 @@ test("Program Editor saves project programs and exchanges .pgm7 files", async ({
   await page.locator("#classic-program-comment").fill("Foodborne demonstration program");
   await page.locator("#classic-program-dialog-primary").click();
   await expect(page.locator("#classic-program-document-state")).toHaveText("Foodborne Quick Check · saved");
-  await expect(page.locator("#classic-project-program option", { hasText: "Foodborne Quick Check" })).toHaveCount(1);
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(page.locator("#classic-program-dialog-project option", { hasText: "Foodborne Quick Check" })).toHaveCount(1);
+  await page.getByRole("dialog", { name: "Open Program" }).getByRole("button", { name: "Cancel", exact: true }).click();
 
   await page.locator("#classic-program-menu summary").getByText("Edit", { exact: true }).click();
   await page.locator("#classic-program-edit-replace").click();
@@ -1077,7 +1075,9 @@ test("Program Editor opens and runs the demo foodborne PGM through visible Outpu
   await expect(page.locator("#classic-program-name")).toHaveValue("foodborne-age-groups-by-sex");
   await page.locator("#classic-program-dialog-primary").click();
   await expect(page.locator("#classic-program-document-state")).toHaveText("foodborne-age-groups-by-sex \u00b7 saved");
-  await expect(page.locator("#classic-project-program option", { hasText: "foodborne-age-groups-by-sex" })).toHaveCount(1);
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(page.locator("#classic-program-dialog-project option", { hasText: "foodborne-age-groups-by-sex" })).toHaveCount(1);
+  await page.getByRole("dialog", { name: "Open Program" }).getByRole("button", { name: "Cancel", exact: true }).click();
 
   await page.locator("#classic-program-menu summary").getByText("File", { exact: true }).click();
   await page.locator("#classic-program-file-save-as").click();
@@ -1934,9 +1934,6 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
-  await openClassicProgramLibrary(page);
-  await expect(page.locator(".classic-program-examples")).toBeVisible();
-  await expect(page.locator("#classic-program-example option")).toHaveCount(4);
   await expect(page.locator("#classic-program-source-name")).toContainText("96 records");
   await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeVisible();
   await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
@@ -1976,6 +1973,9 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await editor.press("a");
   await editor.press("Enter");
   await expect(editor).toContainText("RECODE age");
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(page.locator(".classic-program-examples")).toBeVisible();
+  await expect(page.locator("#classic-program-example option")).toHaveCount(4);
   await page.locator("#classic-program-example").selectOption("age-band-by-case-status");
   await expect(page.locator("#classic-program-example-description")).toContainText("Case Status");
   await page.locator("#classic-program-load-example").click();
@@ -1986,6 +1986,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#classic-program-output-title")).toHaveText("BroadAgeGroup by case_status");
   await expect(page.locator("#classic-program-history-count")).toHaveText("1");
 
+  await page.locator("#classic-program-toolbar-open").click();
   await page.locator("#classic-program-example").selectOption("life-stage-by-sex");
   await page.locator("#classic-program-load-example").click();
   await page.locator("#classic-program-verify").click();
