@@ -1,0 +1,30 @@
+*** Epi Info AI foodborne Classic Analysis command tour
+*** Dataset: foodborne-outbreak-investigation.csv (96 records)
+*** PARITY ACCEPTANCE TARGET - not yet a legacy-parity-verified demo program.
+*** Choose Run Commands with no selection to execute this tour in source order.
+*** As in Epi Info 7, highlighting one complete command or block first runs only
+*** that selected source.
+
+LIST ID Age Sex case_status onset_date
+
+FREQ case_status
+
+FREQ case_status STRATAVAR=Sex
+
+MEANS Age
+
+SELECT case_status = "Confirmed" AND Age >= 18
+
+FREQ Sex
+
+CANCEL SELECT
+
+SORT Age DESCENDING
+
+LIST ID Age Sex case_status
+
+CANCEL SORT
+
+SUMMARIZE AverageAge :: AVG(Age) TO FoodborneAgeBySex STRATAVAR=Sex
+
+GRAPH case_status GRAPHTYPE="Bar" TITLETEXT="Foodborne cases by status" XTITLE="Count" YTITLE="Case Status"

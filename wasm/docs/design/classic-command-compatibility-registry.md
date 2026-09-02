@@ -44,6 +44,20 @@ requires captured, reviewed output from desktop Epi Info for the same program.
 This prevents a browser-only test from being mislabeled as parity with the old
 interpreter.
 
+The `.pgm` must also pass through the visible Program Editor acceptance path:
+load the foodborne project, use **Open Pgm**, inspect the CodeMirror source and
+diagnostics, verify/run it, compare Output and session effects, and assert its
+history entry. Direct parser or engine invocation is supporting evidence only
+and cannot by itself earn `browser-verified` status.
+
+Program-level completion is stricter still: every distinct legacy command family
+referenced by a `.pgm7` acceptance program must be `legacy-parity-verified` before
+that program may be described as parity-complete. Successful bounded composition
+or sequential browser execution does not waive unimplemented syntax variants,
+session semantics, errors, output behavior, or desktop-differential evidence.
+The foodborne command tour is therefore an acceptance target, not yet a parity
+demo.
+
 ## Current group baseline
 
 | Group | Legacy entries | Explorer-visible | Current implementation floor |
@@ -100,9 +114,37 @@ example, selected execution can be browser-tested while its command remains
 | `DISPLAY` | AST 0.7 | V0.1 familiar DBVARIABLES choices | Renders all, defined, field, or selected variable metadata in Output | None | DBVIEWS/TABLES, external database choice, OUTTABLE persistence, exact legacy formatting/type labels, desktop differential HTML |
 | `RECODE` | AST 0.7 | V0.1 numeric range grid | No | Bounded numeric ranges to text | Value/date recodes, fill-ranges/reverse options, missing rules, broader target types, selected execution |
 | `ASSIGN` | AST 0.7 | V0.1 literal assignment | Assigns one type-compatible literal to a defined Standard session variable | None | Record-by-record field mutation, missing syntax, identifiers/functions/operators, Global/Permanent variables, full-program sequencing |
-| `SELECT`, `CANCEL SELECT` | AST 0.7 | V0.1 | One typed field-to-literal comparison applies cumulative session filtering; cancel restores the READ source | None | AND/OR/LIKE/functions/arithmetic, missing-value syntax, exact collation, full-program sequencing, differential validation |
+| `SELECT`, `CANCEL SELECT` | AST 1.0 | V0.2 | Typed compound expressions apply cumulative session filtering; supports parentheses, `AND`/`OR`/`XOR`/`NOT`, comparisons, case-insensitive legacy `LIKE` with `*`, missing `(.)`, concatenation, arithmetic, Standard-variable references, and a reviewed initial function set; cancel restores the READ source | General sequential `.pgm7` runner | Complete legacy function catalog and arity/type behavior, date arithmetic, exact CurrentCulture collation/conversions, legacy Output wording, desktop differential validation, experienced-user review |
 | `SORT`, `CANCEL SORT` | AST 0.7 | V0.1 | Stable typed multi-field ordering replaces prior sort; cancel restores source order without changing selection | None | Exact DataView culture/case/null collation, defined variables, full-program sequencing, differential validation |
 | `IF` | AST 0.7 | V0.1 Standard-variable condition/branches | Executes one validated literal ASSIGN in THEN or ELSE | None | Record-by-record field context, compound expressions/functions, arbitrary/nested statement blocks, missing-value parity, full-program transactions, desktop differential output |
+
+### SELECT expression-function parity set
+
+The legacy `Rule_FunctionCall` dispatcher is the parity floor: 46 callable names,
+not an inferred set of modern JavaScript helpers. The names are `ABS`, `COS`,
+`DAY`, `DAYS`, `FORMAT`, `HOUR`, `HOURS`, `MINUTE`, `MINUTES`, `MONTH`, `MONTHS`,
+`NUMTODATE`, `NUMTOTIME`, `RECORDCOUNT`, `GROUPROWINDEX`, `LAGVALUE`, `SECOND`,
+`SECONDS`, `SYSTEMDATE`, `SYSTEMTIME`, `TXTTODATE`, `TXTTONUM`, `YEAR`, `YEARS`,
+`STRLEN`, `SUBSTRING`, `RND`, `EXP`, `LN`, `ROUND`, `LOG`, `SQRT`, `POISSONLCL`,
+`POISSONUCL`, `SIN`, `TAN`, `TRUNC`, `STEP`, `UPPERCASE`, `FINDTEXT`, `ENVIRON`,
+`EXISTS`, `FILEDATE`, `ZSCORE`, `PFROMZ`, and `EPIWEEK`.
+
+V0.2 parity-reviews `ABS`, `ROUND`, `STRLEN`, and `UPPERCASE`, including argument
+counts, null propagation, and `ROUND` midpoint-away-from-zero behavior. The other
+42 remain fail-closed. `LEN`, `LENGTH`, `LOWERCASE`, and `TRIM` are deliberately
+not treated as aliases because the legacy dispatcher does not expose them; adding
+one would require an explicit new-branch registry entry. Promotion of SELECT to
+`legacy-parity-verified` requires every dispatcher function applicable to an
+expression to have a typed contract and legacy differential fixture, or an
+explicitly documented browser adaptation/deprecation decision.
+
+`DEFINE`, `RECODE`, and `FREQ` are now one explicit full-parity work set. The
+foodborne age-group PGM is its non-regression anchor, not the definition of
+completeness. Their authoritative clause/type/option matrix and promotion gates
+are recorded in
+`docs/design/programming-ide-compatibility-inventory.md#define-recode-and-freq-full-parity-set`;
+all three remain below `legacy-parity-verified` until that matrix and desktop
+differential fixtures pass.
 
 ## Browser policy
 
@@ -149,11 +191,13 @@ Typed DEFINE and numeric RECODE dialogs now let the bounded foodborne program be
 authored through the familiar tree while keeping its complete source visible.
 Their controls intentionally exceed current execution authority: broader DEFINE
 types/scopes and general RECODE syntax remain source-only unless a reviewed plan
-supports them. Typed `SELECT` now validates one field-to-literal comparison,
+supports them. Typed `SELECT` V0.2 validates compound expressions, including
+parentheses, boolean/comparison operators, legacy `LIKE "pattern*"`, missing
+`(.)`, arithmetic, Standard variables, and a reviewed initial function set. It
 narrows the active session cumulatively with legacy `AND` semantics, reports
 total/selected/excluded/missing counts, and makes LIST/FREQ/MEANS consume the
 selected records. Bare `SELECT` and `CANCEL SELECT` restore the READ source.
-Wider expression semantics remain fail-closed. Typed `SORT` now validates ordered
+Unreviewed functions remain fail-closed. Typed `SORT` now validates ordered
 current-form fields, replaces the prior sort, applies stable type-aware ascending
 or descending ordering, and leaves SELECT membership intact; bare `SORT` and
 `CANCEL SORT` restore source order. Exact legacy culture/case/null collation is

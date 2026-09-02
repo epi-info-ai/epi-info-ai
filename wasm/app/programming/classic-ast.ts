@@ -29,6 +29,11 @@ export interface ClassicLiteralExpression extends ClassicNode {
   valueType: "string" | "number" | "boolean" | "date";
 }
 
+export interface ClassicMissingExpression extends ClassicNode {
+  type: "Missing";
+  raw: "(.)";
+}
+
 export interface ClassicIdentifierExpression extends ClassicNode {
   type: "IdentifierExpression";
   name: string;
@@ -55,6 +60,7 @@ export interface ClassicCallExpression extends ClassicNode {
 
 export type ClassicExpression =
   | ClassicLiteralExpression
+  | ClassicMissingExpression
   | ClassicIdentifierExpression
   | ClassicUnaryExpression
   | ClassicBinaryExpression
@@ -308,7 +314,7 @@ interface SourceLine {
   offset: number;
 }
 
-type ExpressionTokenKind = "identifier" | "number" | "string" | "date" | "boolean" | "operator" | "left" | "right" | "comma" | "eof";
+type ExpressionTokenKind = "identifier" | "number" | "string" | "date" | "boolean" | "missing" | "operator" | "left" | "right" | "comma" | "eof";
 
 interface ExpressionToken {
   kind: ExpressionTokenKind;
@@ -359,6 +365,7 @@ function tokenizeExpression(source: string, line: SourceLine, sourceColumn: numb
     if (/\s/.test(source[cursor]!)) { cursor++; continue; }
     const start = cursor;
     const remaining = source.slice(cursor);
+    if (remaining.startsWith("(.)")) { cursor += 3; tokens.push({ kind: "missing", text: "(.)", start, end: cursor }); continue; }
     const boolean = remaining.match(/^\((?:\+|-)\)/);
     if (boolean) { cursor += boolean[0].length; tokens.push({ kind: "boolean", text: boolean[0], start, end: cursor }); continue; }
     const date = remaining.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}(?![\d/])/);
@@ -418,7 +425,8 @@ function parseExpression(source: string, line: SourceLine, sourceColumn: number)
     const token = current();
     if (token.kind === "operator" && ["+", "-", "NOT"].includes(token.text.toUpperCase())) {
       cursor++;
-      const argument = primary();
+      // Legacy grammar defines NOT over a complete comparison, while unary +/- bind to one primary.
+      const argument = token.text.toUpperCase() === "NOT" ? binary(4) : primary();
       return { type: "UnaryExpression", operator: token.text.toUpperCase() as ClassicUnaryExpression["operator"], argument, span: span(token.start, argument.span.end.offset - line.offset - sourceColumn + 1) };
     }
     if (token.kind === "left") {
@@ -444,6 +452,10 @@ function parseExpression(source: string, line: SourceLine, sourceColumn: number)
       cursor++;
       const upper = token.text.toUpperCase();
       return { type: "Literal", value: upper === "TRUE" || upper === "YES" || upper === "(+)" , raw: token.text, valueType: "boolean", span: span(token.start, token.end) };
+    }
+    if (token.kind === "missing") {
+      cursor++;
+      return { type: "Missing", raw: "(.)", span: span(token.start, token.end) };
     }
     if (token.kind === "identifier") {
       cursor++;

@@ -42,7 +42,8 @@ export type ClassicAnalysisCommandInput =
   | { kind: "assign"; variable: string; value: ClassicVariableValue }
   | { kind: "recode"; sourceField: string; targetVariable: string; ranges: ClassicRecodeRangeInput[]; elseResult?: string }
   | { kind: "display"; mode: ClassicDisplayMode; variables?: string[] }
-  | { kind: "select"; field: string; operator: ClassicSelectionOperator; value: string | number | boolean }
+  | { kind: "select"; field: string; operator: ClassicSelectionOperator; value: string | number | boolean; expression?: never }
+  | { kind: "select"; expression: string; field?: never; operator?: never; value?: never }
   | { kind: "cancel-select" }
   | ({ kind: "if" } & ClassicIfInput)
   | { kind: "sort"; items: Array<{ field: string; direction: ClassicSortDirection }> }
@@ -101,7 +102,9 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
     return `RECODE ${fieldToken(input.sourceField)} TO ${variableToken(input.targetVariable)}\n${lines.join("\n")}\nEND`;
   }
   if (input.kind === "display") return buildClassicDisplayCommand(input);
-  if (input.kind === "select") return buildClassicSelectionCommand(input.field, input.operator, input.value);
+  if (input.kind === "select") return input.expression === undefined
+    ? buildClassicSelectionCommand(input.field, input.operator, input.value)
+    : `SELECT ${input.expression}`;
   if (input.kind === "cancel-select") return "CANCEL SELECT";
   if (input.kind === "if") return buildClassicIfCommand(input);
   if (input.kind === "sort") return buildClassicSortCommand(input.items);
@@ -156,9 +159,12 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
     return { kind: "assign", variable: assignment.variable.name, value: assignment.value, source };
   }
   if (statement.type === "SelectStatement") {
-    const selection = resolveClassicSelectionCommand(source, fields);
+    const sessionVariables = variables.map((variable) => ({ ...variable, value: null }));
+    const selection = resolveClassicSelectionCommand(source, fields, sessionVariables);
     if (selection.kind === "cancel") return { kind: "cancel-select", source };
-    return { kind: "select", field: selection.field, operator: selection.operator, value: selection.value, source };
+    return selection.mode === "comparison"
+      ? { kind: "select", field: selection.field, operator: selection.operator, value: selection.value, source }
+      : { kind: "select", expression: selection.canonicalSource.replace(/^SELECT\s+/i, ""), source };
   }
   if (statement.type === "IfStatement") {
     const plan = resolveClassicIfCommand(source, fields, variables);

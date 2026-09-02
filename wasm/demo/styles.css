@@ -308,8 +308,9 @@ a:focus-visible {
 }
 
 .classic-workspace-shell {
+  --classic-command-explorer-width: 15rem;
   display: grid;
-  grid-template-columns: minmax(12.5rem, 15rem) minmax(0, 1fr);
+  grid-template-columns: var(--classic-command-explorer-width) minmax(0, 1fr);
   gap: 0;
   align-items: stretch;
   min-height: calc(100vh - 12.5rem);
@@ -327,12 +328,84 @@ a:focus-visible {
   color: #17394a;
 }
 
-.classic-command-explorer h2 {
-  margin: 0;
-  padding: 0.55rem 0.65rem;
+.classic-command-explorer-titlebar {
+  display: flex;
+  align-items: stretch;
+  min-height: 2.2rem;
   border-bottom: 1px solid #9fb7c4;
   background: linear-gradient(#eaf3f7, #d7e7ef);
+}
+
+.classic-command-explorer-titlebar h2 {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0.55rem 0.65rem;
   font-size: 0.9rem;
+}
+
+.classic-command-explorer-titlebar button {
+  flex: 0 0 2rem;
+  border: 0;
+  border-left: 1px solid #9fb7c4;
+  background: transparent;
+  color: #17394a;
+  font: 700 1.2rem/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.classic-command-explorer-titlebar button:hover,
+.classic-command-explorer-titlebar button:focus-visible {
+  background: #fff;
+  outline: 2px solid #197da2;
+  outline-offset: -2px;
+}
+
+.classic-command-explorer-resizer {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: -0.2rem;
+  bottom: 0;
+  width: 0.4rem;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.classic-command-explorer-resizer:hover,
+.classic-command-explorer-resizer:focus-visible,
+.classic-workspace-shell[data-resizing-command-explorer="true"] .classic-command-explorer-resizer {
+  background: #197da2;
+  outline: 0;
+}
+
+.classic-workspace-shell[data-command-explorer-collapsed="true"] {
+  grid-template-columns: 2rem minmax(0, 1fr);
+}
+
+.classic-workspace-shell[data-command-explorer-collapsed="true"] .classic-command-explorer {
+  overflow: hidden;
+}
+
+.classic-workspace-shell[data-command-explorer-collapsed="true"] .classic-command-explorer-titlebar {
+  height: 100%;
+  border-bottom: 0;
+}
+
+.classic-workspace-shell[data-command-explorer-collapsed="true"] .classic-command-explorer-titlebar h2,
+.classic-workspace-shell[data-command-explorer-collapsed="true"] .classic-analysis-command-root,
+.classic-workspace-shell[data-command-explorer-collapsed="true"] #classic-command-tree,
+.classic-workspace-shell[data-command-explorer-collapsed="true"] .classic-command-explorer-resizer {
+  display: none;
+}
+
+.classic-workspace-shell[data-command-explorer-collapsed="true"] .classic-command-explorer-titlebar button {
+  flex-basis: 100%;
+  width: 2rem;
+  padding: 0.6rem 0.35rem;
+  border-left: 0;
+  writing-mode: vertical-rl;
+  font-size: 0.78rem;
+  line-height: 1.2;
 }
 
 .classic-analysis-command-root {
@@ -432,6 +505,14 @@ a:focus-visible {
   border-top: 0;
 }
 
+.classic-program-editor-chrome {
+  position: sticky;
+  z-index: 12;
+  top: 0;
+  background: #f2f5f7;
+  box-shadow: 0 2px 4px rgba(24, 56, 72, 0.12);
+}
+
 .classic-dock-window-title {
   padding: 0.35rem 0.55rem;
   border-bottom: 1px solid #9fb7c4;
@@ -460,7 +541,8 @@ a:focus-visible {
 
 .classic-legacy-toolbar button:hover,
 .classic-legacy-toolbar button:focus-visible { border-color: #7892a5; background: #fff; }
-.classic-legacy-toolbar button[aria-disabled="true"] { color: #647985; }
+.classic-legacy-toolbar button[aria-disabled="true"],
+.classic-legacy-toolbar button:disabled { color: #647985; cursor: not-allowed; }
 .classic-output-browser {
   box-sizing: border-box;
   height: calc(100% - 4.4rem);
@@ -477,19 +559,49 @@ a:focus-visible {
   border-radius: 0;
   box-shadow: none;
 }
-.classic-program-menu { margin: 0.75rem 0 0; border: 1px solid #9fb7c4; border-bottom: 0; background: #f2f5f7; }
+.classic-opened-output-body iframe {
+  width: 100%;
+  min-height: 22rem;
+  border: 1px solid #9fb7c4;
+  background: #fff;
+}
+.classic-opened-output-body img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.classic-opened-output-body pre { overflow: auto; white-space: pre-wrap; }
+.classic-output-bookmark-list { margin: 0 0 0.8rem; padding-left: 1.2rem; }
+.classic-output-bookmark-list button { padding: 0.2rem 0.35rem; border: 0; color: #075d84; background: transparent; text-decoration: underline; cursor: pointer; }
 
-.classic-program-editor > .panel-heading .step-label,
+.classic-workspace-shell[data-output-maximized="true"] { grid-template-columns: minmax(0, 1fr); }
+.classic-workspace-shell[data-output-maximized="true"] .classic-workspace-content { margin-left: 0; }
+.classic-workspace-shell[data-output-maximized="true"] .classic-command-explorer,
+.classic-workspace-shell[data-output-maximized="true"] .classic-program-editor,
+.classic-workspace-shell[data-output-maximized="true"] .classic-direct-controls { display: none; }
+.classic-workspace-shell[data-output-maximized="true"] .classic-output-window {
+  height: calc(100dvh - var(--shell-titlebar-height) - var(--shell-menubar-height) - 5rem);
+  min-height: 24rem;
+  resize: none;
+}
+.classic-program-menu { margin: 0; border: 1px solid #9fb7c4; border-bottom: 0; background: #f2f5f7; }
+
+/* The legacy Edit menu is taller than the lower Program Editor dock at common
+   laptop heights. Keep it anchored below Edit, but scroll within the menu so
+   later familiar commands never fall behind the Classic status bar. */
+.classic-program-menu .legacy-menu-popup {
+  max-height: min(14rem, 40dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.classic-program-editor-chrome > .panel-heading .step-label,
 .classic-program-editor > .compatibility-note,
 .classic-program-editor > .classic-program-completion-help {
   display: none;
 }
 
-.classic-program-editor > .panel-heading {
+.classic-program-editor-chrome > .panel-heading {
   padding: 0.35rem 0.55rem;
 }
 
-.classic-program-editor > .panel-heading h2 { font-size: 0.95rem; }
+.classic-program-editor-chrome > .panel-heading h2 { font-size: 0.95rem; }
 
 .classic-program-library {
   border-bottom: 1px solid #9fb7c4;
@@ -550,6 +662,19 @@ a:focus-visible {
 }
 
 @media print {
+  body.printing-classic-output * { visibility: hidden !important; }
+  body.printing-classic-output .classic-output-print-document,
+  body.printing-classic-output .classic-output-print-document * { visibility: visible !important; }
+  body.printing-classic-output .classic-output-print-document {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    overflow: visible;
+    margin: 0;
+    padding: 0.25in;
+    color: #000;
+    background: #fff;
+  }
   body.printing-classic-program * { visibility: hidden !important; }
   body.printing-classic-program #classic-program-printout {
     display: block !important;
@@ -586,18 +711,27 @@ a:focus-visible {
 
 @media (max-width: 900px) {
   .classic-workspace-shell {
-    grid-template-columns: 1fr;
+    position: relative;
+    display: block;
   }
 
   .classic-command-explorer {
-    position: static;
-    max-height: 16rem;
-    border-right: 0;
-    border-bottom: 1px solid #9fb7c4;
+    position: absolute;
+    z-index: 20;
+    inset: 0 auto 0 0;
+    width: min(var(--classic-command-explorer-width), calc(100% - 2rem));
+    max-height: none;
+    border-right: 1px solid #7892a5;
+    box-shadow: 0.3rem 0 0.8rem rgba(17, 54, 74, 0.18);
   }
 
-  .classic-command-group-items {
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  .classic-workspace-shell[data-command-explorer-collapsed="true"] .classic-command-explorer {
+    width: 2rem;
+    box-shadow: none;
+  }
+
+  .classic-workspace-content {
+    margin-left: 2rem;
   }
 
   .classic-output-window { height: 22rem; }
@@ -3248,8 +3382,8 @@ body.map-fullscreen-fallback {
   border: 1px solid #8198aa;
   background: #fff;
   color: #102f45;
-  font-family: Consolas, "Courier New", monospace;
-  font-size: 0.95rem;
+  font-family: var(--classic-program-font-family, Consolas, "Courier New", monospace);
+  font-size: var(--classic-program-font-size, 0.95rem);
 }
 
 .classic-program-source .cm-editor.cm-focused {
@@ -3268,6 +3402,12 @@ body.map-fullscreen-fallback {
   min-height: 10rem;
   padding: 0.55rem 0;
   caret-color: #102f45;
+}
+
+.classic-program-source .cm-content,
+.classic-program-source .cm-gutters {
+  font-family: var(--classic-program-font-family, Consolas, "Courier New", monospace) !important;
+  font-size: var(--classic-program-font-size, 0.95rem) !important;
 }
 
 .classic-program-source .cm-gutters {
@@ -3328,6 +3468,19 @@ body.map-fullscreen-fallback {
   color: #405767;
   font-family: Consolas, "Courier New", monospace;
   font-size: 0.78rem;
+}
+
+.classic-program-font-dialog {
+  width: min(28rem, calc(100vw - 2rem));
+}
+
+.classic-program-font-preview {
+  min-height: 4rem;
+  padding: 0.8rem;
+  border: 1px solid #8198aa;
+  background: #fff;
+  color: #102f45;
+  overflow-wrap: anywhere;
 }
 
 .classic-program-live-status {

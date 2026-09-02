@@ -517,6 +517,22 @@ test("Classic Analysis preserves its four-menu shell and Command Explorer", asyn
   const menu = page.getByRole("navigation", { name: "Classic Analysis menu" });
   await expect(menu.locator("summary")).toHaveText(["File", "View", "Tools", "Help"]);
   await menu.getByText("View", { exact: true }).click();
+  const explorerToggle = menu.getByRole("menuitemcheckbox", { name: "Command Explorer", exact: true });
+  await expect(explorerToggle).toHaveAttribute("aria-checked", "true");
+  await explorerToggle.click();
+  await expect(page.locator(".classic-workspace-shell")).toHaveAttribute("data-command-explorer-collapsed", "true");
+  await expect(page.locator("#classic-command-explorer-toggle")).toHaveAttribute("aria-label", "Show Command Explorer");
+  await expect(page.locator("#classic-command-tree")).toHaveAttribute("aria-hidden", "true");
+  await page.locator("#classic-command-explorer-toggle").click();
+  await expect(page.locator(".classic-workspace-shell")).toHaveAttribute("data-command-explorer-collapsed", "false");
+
+  const explorerResizer = page.locator("#classic-command-explorer-resizer");
+  await explorerResizer.focus();
+  await explorerResizer.press("ArrowRight");
+  await expect(explorerResizer).toHaveAttribute("aria-valuenow", "250");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.classic-workspace-preferences.v1"))?.commandExplorerWidth)).toBe(250);
+
+  await menu.getByText("View", { exact: true }).click();
   const statusBar = menu.getByRole("menuitemcheckbox", { name: "Status Bar", exact: true });
   await expect(statusBar).toHaveAttribute("aria-checked", "true");
   await statusBar.click();
@@ -897,6 +913,72 @@ test("Program Editor and Output preserve the legacy menus and toolbar order", as
   await expect(page.locator("#classic-output-navigation-status")).toHaveText("Command history opened.");
 });
 
+test("Output opens safe files and supports bookmarks print and maximize", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
+  for (const selector of ["#classic-output-open", "#classic-output-bookmark", "#classic-output-print", "#classic-output-maximize"]) {
+    await expect(page.locator(selector)).not.toHaveAttribute("aria-disabled", "true");
+  }
+
+  await page.locator("#classic-output-file").setInputFiles({
+    name: "saved-analysis.html",
+    mimeType: "text/html",
+    buffer: Buffer.from("<!doctype html><title>Saved analysis</title><h1>Foodborne output</h1><p>96 records</p>"),
+  });
+  await expect(page.locator("#classic-opened-output")).toBeVisible();
+  await expect(page.locator("#classic-opened-output-title")).toHaveText("saved-analysis.html");
+  await expect(page.locator("#classic-opened-output-body iframe")).toHaveAttribute("sandbox", "");
+
+  await page.locator("#classic-output-bookmark").click();
+  await expect(page.locator("#classic-output-bookmark-dialog")).toBeVisible();
+  await page.locator("#classic-output-bookmark-name").fill("Foodborne saved output");
+  await page.locator("#classic-output-bookmark-save").click();
+  await expect(page.locator("#classic-output-navigation-status")).toContainText("Bookmarked current output");
+
+  await page.evaluate(() => { window.__epiOutputPrintCalls = 0; window.print = () => { window.__epiOutputPrintCalls += 1; }; });
+  await page.locator("#classic-output-print").click();
+  await expect.poll(() => page.evaluate(() => window.__epiOutputPrintCalls)).toBe(1);
+  await expect(page.locator("#classic-output-navigation-status")).toContainText("browser print dialog");
+
+  const workspace = page.locator(".classic-workspace-shell");
+  await page.locator("#classic-output-maximize").click();
+  await expect(workspace).toHaveAttribute("data-output-maximized", "true");
+  await expect(page.locator("#classic-program-title")).toBeHidden();
+  await expect(page.locator("#classic-output-maximize span")).toHaveText("Restore");
+  await page.locator("#classic-output-maximize").click();
+  await expect(workspace).toHaveAttribute("data-output-maximized", "false");
+  await expect(page.locator("#classic-program-title")).toBeVisible();
+
+  await page.locator("#classic-output-clear").click();
+  await expect(page.locator("#classic-opened-output")).toBeHidden();
+  await page.locator("#classic-output-history").click();
+  await page.getByRole("button", { name: "Foodborne saved output" }).click();
+  await expect(page.locator("#classic-opened-output")).toBeVisible();
+});
+
+test("Program Editor Cut Copy and Paste preserve exact source", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(page.url()).origin });
+  await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  const source = "FREQ Age\nMEANS Age";
+  await editor.fill(source);
+  await editor.press("Control+A");
+
+  await page.locator("#classic-program-menu summary", { hasText: "Edit" }).click();
+  await page.locator("#classic-program-edit-copy").click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Copied the selected program text to the clipboard.");
+
+  await page.locator("#classic-program-menu summary", { hasText: "Edit" }).click();
+  await page.locator("#classic-program-edit-cut").click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Cut the selected program text to the clipboard.");
+  await expect(editor).toHaveText("");
+  expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n")).toBe(source);
+
+  await page.locator("#classic-program-menu summary", { hasText: "Edit" }).click();
+  await page.locator("#classic-program-edit-paste").click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Pasted clipboard text into the current program.");
+  await expect(editor.locator(".cm-line")).toHaveText(["FREQ Age", "MEANS Age"]);
+});
+
 test("Program Editor saves project programs and exchanges .pgm7 files", async ({ page }) => {
   await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/sample-project.epia.json");
   await expect(page.locator("#main-menu-status")).toContainText("Opened Sample");
@@ -930,6 +1012,11 @@ test("Program Editor saves project programs and exchanges .pgm7 files", async ({
   await expect(editor).toContainText("MEANS age");
   await page.locator("#classic-program-search-dialog button", { hasText: "Close" }).click();
   await page.locator("#classic-program-toolbar-save").click();
+  await expect(page.locator("#classic-program-dialog-title")).toHaveText("Save Program");
+  await expect(page.locator("#classic-program-author")).toBeEditable();
+  await expect(page.locator("#classic-program-author")).toHaveValue("Demo Analyst");
+  await page.locator("#classic-program-author").fill("Demo Analyst Updated");
+  await page.locator("#classic-program-dialog-primary").click();
   await expect(page.locator("#classic-program-document-state")).toHaveText("Foodborne Quick Check · saved");
 
   await page.locator("#classic-program-menu summary").getByText("File", { exact: true }).click();
@@ -947,7 +1034,7 @@ test("Program Editor saves project programs and exchanges .pgm7 files", async ({
 
   await page.locator("#classic-program-toolbar-open").click();
   await page.locator("#classic-program-dialog-project").selectOption("Foodborne Quick Check");
-  await expect(page.locator("#classic-program-author")).toHaveValue("Demo Analyst");
+  await expect(page.locator("#classic-program-author")).toHaveValue("Demo Analyst Updated");
   await expect(page.locator("#classic-program-comment")).toHaveValue("Foodborne demonstration program");
   await expect(page.locator("#classic-program-created")).not.toHaveValue("");
   await expect(page.locator("#classic-program-updated")).not.toHaveValue("");
@@ -956,6 +1043,121 @@ test("Program Editor saves project programs and exchanges .pgm7 files", async ({
   await expect(page.locator("#classic-program-dialog-feedback")).toContainText("Deleted");
   await expect(page.locator("#classic-program-dialog-project option", { hasText: "Foodborne Quick Check" })).toHaveCount(0);
   await expect(editor).toContainText("FREQ case_status");
+});
+
+test("Program Editor opens and runs the demo foodborne PGM through visible Output and history", async ({ page }) => {
+  const expectedProgramSource = await readFile("wasm/demo/examples/foodborne-age-groups-by-sex.pgm", "utf8");
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-toolbar-open").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne-age-groups-by-sex.pgm");
+
+  const editor = page.locator("#classic-program-source .cm-content");
+  await expect(editor).toContainText("DEFINE AgeGroup TEXTINPUT");
+  await expect(editor).toContainText("FREQ AgeGroup STRATAVAR=Sex");
+  await expect(page.locator("#classic-program-document-state")).toHaveText("foodborne-age-groups-by-sex · saved");
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await page.locator("#classic-program-run").click();
+
+  await expect(page.locator("#classic-program-output-title")).toHaveText("AgeGroup by sex");
+  await expect(page.locator("#classic-program-output-rows tr")).toHaveCount(8);
+  await expect(page.locator("#classic-program-output-rows")).toContainText("Female");
+  await expect(page.locator("#classic-program-output-rows")).toContainText("Male");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed DEFINE → RECODE → FREQ for 96 records");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+
+  // A runnable external PGM must also complete the familiar Save Pgm workflow.
+  await page.locator("#classic-program-toolbar-save").click();
+  await expect(page.locator("#classic-program-dialog")).toBeVisible();
+  await expect(page.locator("#classic-program-name")).toHaveValue("foodborne-age-groups-by-sex");
+  await page.locator("#classic-program-dialog-primary").click();
+  await expect(page.locator("#classic-program-document-state")).toHaveText("foodborne-age-groups-by-sex \u00b7 saved");
+  await expect(page.locator("#classic-project-program option", { hasText: "foodborne-age-groups-by-sex" })).toHaveCount(1);
+
+  await page.locator("#classic-program-menu summary").getByText("File", { exact: true }).click();
+  await page.locator("#classic-program-file-save-as").click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#classic-program-dialog-export").click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("foodborne-age-groups-by-sex.pgm7");
+  expect(await readFile(await download.path(), "utf8")).toBe(expectedProgramSource);
+});
+
+test("Program Editor runs the foodborne pgm7 command tour sequentially", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-toolbar-open").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne-classic-command-tour.pgm7");
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+
+  await page.locator("#classic-program-toolbar-run").click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 12 of 12 commands succeeded.");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 12 commands in source order");
+  await expect(page.locator("#classic-program-session-status")).toContainText("96 records; no selection");
+  await expect(page.locator("#classic-program-session-status")).not.toContainText("SORT Age");
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
+  await expect(page.locator("#classic-summarize-output-body tr")).toHaveCount(2);
+  await expect(page.locator("#classic-graph-output-title")).toHaveText("Foodborne cases by status");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("13");
+
+  const editorChromeRemainsVisible = await page.locator(".classic-program-editor").evaluate((editor) => {
+    editor.scrollTop = editor.scrollHeight;
+    const editorRect = editor.getBoundingClientRect();
+    const chromeRect = editor.querySelector(".classic-program-editor-chrome").getBoundingClientRect();
+    return chromeRect.top >= editorRect.top - 1 && chromeRect.bottom <= editorRect.bottom + 1;
+  });
+  expect(editorChromeRemainsVisible).toBe(true);
+  await expect(page.locator("#classic-program-title")).toBeVisible();
+  await expect(page.locator("#classic-program-menu")).toBeVisible();
+  await expect(page.locator("#classic-program-toolbar")).toBeVisible();
+
+  await page.locator("#classic-output-clear").click();
+  await expect(page.locator("#classic-output-navigation-status")).toHaveText("Output cleared. Command history is retained.");
+  for (const selector of ["#classic-program-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-program-history-output"]) {
+    await expect(page.locator(selector)).toBeHidden();
+  }
+  await expect(page.locator("#classic-program-history-count")).toHaveText("13");
+  await page.locator("#classic-output-history").click();
+  await expect(page.locator("#classic-program-history-output")).toBeVisible();
+  await expect(page.locator("#classic-program-history-count")).toHaveText("13");
+});
+
+test("Program Editor Cancel stops a sequential run and retains completed work", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-toolbar-new").click();
+
+  const cancel = page.locator("#classic-program-toolbar-cancel");
+  const run = page.locator("#classic-program-toolbar-run");
+  await expect(cancel).toBeDisabled();
+  const editor = page.locator("#classic-program-source .cm-content");
+  await editor.fill(Array.from({ length: 250 }, () => "FREQ case_status").join("\n"));
+  await run.click();
+  await expect(cancel).toBeEnabled();
+  await expect.poll(async () => Number(await page.locator("#classic-program-history-count").textContent())).toBeGreaterThan(0);
+  await cancel.click();
+
+  await expect(page.locator("#classic-program-command-status")).toContainText("Program cancelled by user");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Completed output, session effects, and history were retained");
+  await expect(cancel).toBeDisabled();
+  await expect(run).toBeEnabled();
+  await expect(page.locator("#frequency-output")).toBeVisible();
+  await expect(page.locator("#classic-program-history-rows tr").first().locator("td").nth(2)).toHaveText("cancelled");
+  await expect(page.locator("#classic-program-history-rows")).toContainText("succeeded");
 });
 
 test("typed command dialogs insert visible source and selected commands fail closed", async ({ page }) => {
@@ -973,7 +1175,7 @@ test("typed command dialogs insert visible source and selected commands fail clo
   await tree.getByRole("treeitem", { name: "Read", exact: true }).click();
   await expect(page.locator("#classic-command-dialog-source option")).toContainText(["Foodborne Outbreak Investigation Form (96 records)"]);
   await page.locator("#classic-command-dialog-insert").click();
-  await page.locator("#classic-program-run-selection").click();
+  await page.locator("#classic-program-toolbar-run").click();
   await expect(page.locator("#classic-program-session-status")).toContainText("Foodborne Outbreak Investigation Form · 96 records");
   await expect(page.locator("#classic-program-command-status")).toContainText("Selected READ command completed");
 
@@ -1751,7 +1953,20 @@ test("Program Editor safely runs the taught age-group RECODE and records history
     lineNumbers: true,
     tabSize: 8,
     indentWithTabs: false,
+    fontFamily: "Consolas",
+    fontSize: 15,
   });
+  await page.locator("#classic-program-menu summary").filter({ hasText: /^Fonts$/ }).click();
+  await page.locator("#classic-program-font").click();
+  await expect(page.getByRole("dialog", { name: "Set Editor Font" })).toBeVisible();
+  await page.locator("#classic-program-font-family").selectOption("Courier New");
+  await page.locator("#classic-program-font-size").fill("18");
+  await expect(page.locator("#classic-program-font-preview")).toHaveCSS("font-size", "18px");
+  await page.locator("#classic-program-font-apply").click();
+  await expect(page.locator("#classic-program-source .cm-content")).toHaveCSS("font-size", "18px");
+  await expect(page.locator("#classic-program-source .cm-content")).toHaveCSS("font-family", /Courier New/);
+  await expect(page.locator("#classic-program-font-status")).toHaveText("Courier New · 18 px");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.program-editor-preferences.v1")))).toMatchObject({ fontFamily: "Courier New", fontSize: 18 });
   const editor = page.locator("#classic-program-source .cm-content");
   await editor.fill("RECODE ");
   const completionList = page.locator("#classic-program-source .cm-tooltip-autocomplete");

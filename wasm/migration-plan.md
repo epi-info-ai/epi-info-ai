@@ -737,9 +737,10 @@ Full-program execution remains the reviewed `DEFINE TEXTINPUT -> numeric RECODE
 -> FREQ [STRATAVAR]` plan. A separate selected-statement allowlist permits
 current-project READ, bounded Standard DEFINE/ASSIGN, SELECT/CANCEL SELECT,
 SORT/CANCEL SORT, and LIST/FREQ/MEANS; external READ
-fails closed and selected TABLES stops for value review. SELECT is limited to one
-schema-typed field-to-literal comparison, applies cumulatively with legacy AND
-semantics, and affects only the Classic session. ASSIGN accepts only a
+fails closed and selected TABLES stops for value review. SELECT V0.2 accepts
+schema-typed compound expressions, applies cumulatively with legacy AND
+semantics, and affects only the Classic session; unreviewed functions still fail
+closed pending the complete legacy function/type matrix. ASSIGN accepts only a
 type-compatible literal for an explicitly defined Standard session variable and
 cannot mutate records; wider expressions and `IF` cannot yet invoke operations. SORT is limited to current-form
 fields and changes ordering only; its candidate collation remains under differential review.
@@ -751,10 +752,13 @@ and Means route to the existing bounded implementations; all other legacy
 commands remain explicit gaps. The follow-on slice now restores the exact nested
 Program Editor File/Edit/Fonts and toolbar orders plus the Output toolbar. Safe
 CodeMirror edit/navigation commands, saved PGM and `.pgm7` lifecycle,
-Find/Replace, bounded Run Commands, Output navigation, and History are active;
-clipboard/print, bookmarks, clear/cancel, metadata/delete, and general command
-dialogs remain subsequent slices and do not acquire execution authority from
-this structural work.
+Find/Replace, permission-aware Cut/Copy/Paste, browser printing, bounded
+Run/Cancel, Output navigation/Open/Bookmark/Print/Maximize/Clear, History, and
+program metadata/delete are active. Opened HTML is sandboxed with a network-
+denying content policy, bookmarks remain session-scoped like the desktop
+Session History, and TIFF viewing remains an explicit browser adaptation gap.
+Remaining command dialogs do not acquire execution authority from this
+structural work.
 
 **Legacy docking parity decision:** the default desktop arrangement follows the
 manual and `AnalysisMainForm` source: Command Explorer is the left dock, Output
@@ -1034,8 +1038,11 @@ DEFINE and numeric RECODE dialogs now expose the legacy scope/type and editable
 range-grid workflow, generate visible source, and can author the complete bounded
 foodborne program with FREQ. Broader displayed DEFINE/RECODE forms remain
 source-only unless a reviewed plan permits them. SELECT/CANCEL SELECT now has a
-typed source dialog, audited cumulative session filtering, explicit counts,
-history, and LIST/FREQ/MEANS integration. SORT/CANCEL SORT now independently
+typed source dialog, audited cumulative compound-expression filtering, explicit
+counts, history, and LIST/FREQ/MEANS integration. Its V0.2 evaluator covers
+boolean/comparison/arithmetic operators, missing `(.)`, wildcard LIKE, Standard
+variables, and a reviewed initial function set; the remaining function/date/
+collation matrix stays open. SORT/CANCEL SORT now independently
 applies or clears stable, typed, multi-field ordering without changing selection
 membership. Selected DEFINE/ASSIGN now adds bounded Standard scalar state, resets
 it on READ, and rejects field mutation and general expressions. The next

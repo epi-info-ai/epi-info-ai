@@ -14,6 +14,7 @@ export interface ClassicProgramEditor {
   setValue(value: string): void;
   setLineNumbers(visible: boolean): void;
   setTabSettings(tabSize: ClassicProgramTabSize, indentWithTabs: boolean): void;
+  setFont(fontFamily: string, fontSize: number): void;
   refreshDiagnostics(): void;
   undo(): boolean;
   redo(): boolean;
@@ -24,6 +25,7 @@ export interface ClassicProgramEditor {
   replaceText(query: string, replacement: string, replaceAll?: boolean, caseSensitive?: boolean, wholeWord?: boolean): number;
   getSelectedText(): string;
   replaceSelection(value: string, selectInserted?: boolean): void;
+  replaceSelectedText(value: string): void;
   focus(): void;
   destroy(): void;
 }
@@ -34,6 +36,8 @@ export interface ClassicProgramEditorPreferences {
   lineNumbers: boolean;
   tabSize: ClassicProgramTabSize;
   indentWithTabs: boolean;
+  fontFamily: string;
+  fontSize: number;
 }
 
 export interface ClassicProgramCursorPosition {
@@ -180,10 +184,14 @@ export function createClassicProgramEditor(
 ): ClassicProgramEditor {
   const lineNumberConfiguration = new Compartment();
   const tabConfiguration = new Compartment();
+  const fontConfiguration = new Compartment();
   const tabExtensions = (tabSize: ClassicProgramTabSize, indentWithTabs: boolean) => [
     EditorState.tabSize.of(tabSize),
     indentUnit.of(indentWithTabs ? "\t" : " ".repeat(tabSize)),
   ];
+  const fontExtension = (fontFamily: string, fontSize: number) => EditorView.editorAttributes.of({
+    style: `--classic-program-font-family: "${fontFamily.replace(/"/g, "\\\"")}"; --classic-program-font-size: ${fontSize}px`,
+  });
   const collectDiagnostics = (editorView: EditorView): Diagnostic[] => {
     try {
       const source = editorView.state.doc.toString();
@@ -224,6 +232,7 @@ export function createClassicProgramEditor(
         minimalSetup,
         lineNumberConfiguration.of(preferences.lineNumbers ? lineNumbers() : []),
         tabConfiguration.of(tabExtensions(preferences.tabSize, preferences.indentWithTabs)),
+        fontConfiguration.of(fontExtension(preferences.fontFamily, preferences.fontSize)),
         epiInfoLanguage,
         syntaxHighlighting(defaultHighlightStyle),
         liveSyntaxLinter,
@@ -259,6 +268,9 @@ export function createClassicProgramEditor(
     },
     setTabSettings(tabSize, indentWithTabs) {
       view.dispatch({ effects: tabConfiguration.reconfigure(tabExtensions(tabSize, indentWithTabs)) });
+    },
+    setFont(fontFamily, fontSize) {
+      view.dispatch({ effects: fontConfiguration.reconfigure(fontExtension(fontFamily, fontSize)) });
     },
     refreshDiagnostics() {
       view.dispatch(setDiagnostics(view.state, collectDiagnostics(view)));
@@ -306,6 +318,18 @@ export function createClassicProgramEditor(
       view.dispatch({
         changes: { from: selection.from, to: selection.to, insert: inserted },
         selection: selectInserted ? { anchor: from, head: from + value.length } : { anchor: from + value.length },
+      });
+      view.focus();
+    },
+    replaceSelectedText(value) {
+      const selection = view.state.selection.main;
+      // CodeMirror stores canonical LF line breaks even when the Windows
+      // clipboard supplies CRLF. Calculate the new cursor against the same
+      // normalized text that the editor will store.
+      const normalizedValue = value.replace(/\r\n?/g, "\n");
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: normalizedValue },
+        selection: { anchor: selection.from + normalizedValue.length },
       });
       view.focus();
     },

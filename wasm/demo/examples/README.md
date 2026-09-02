@@ -1,6 +1,6 @@
 # Integrated test examples
 
-These five files exercise project migration, form, data-entry, mapping, labeling, and time-lapse
+These files exercise project migration, form, data-entry, programming, mapping, labeling, and time-lapse
 workflow together. They are copied into the production demo so testers can download
 them directly from GitLab Pages.
 
@@ -43,6 +43,27 @@ editable Program Editor exercises using the dataset's `Age`, `Sex`, and
 no execution privilege beyond the ordinary AST and bounded planner.
 
 SHA-256: `A05410D99F11FD938AEDFBA9387C44E91FC18521EBF29124A72A66BD678ACA21`
+
+### Foodborne Program Editor files
+
+[`foodborne-age-groups-by-sex.pgm`](foodborne-age-groups-by-sex.pgm) is the
+runnable `DEFINE -> RECODE -> FREQ` acceptance program. **Run Commands** executes
+its currently allowlisted full-program plan and produces the age-group-by-sex
+frequency table.
+
+SHA-256: `E22085C3578C913AA88F6474A639107C2E4B3B0516BCBC10F7AA2FAF67773EEC`
+
+[`foodborne-classic-command-tour.pgm7`](foodborne-classic-command-tour.pgm7) is
+an official-extension **parity acceptance target** for `LIST`, `FREQ`, `MEANS`, `SELECT`,
+`CANCEL SELECT`, `SORT`, `CANCEL SORT`, `SUMMARIZE`, and `GRAPH`. Choose the
+familiar **Run Commands** toolbar button with no selection to execute all twelve
+statements in source order. Like Epi Info 7, highlighting one complete command or
+block first makes the same toolbar run only that selected source. This proves the
+current bounded browser paths compose; it is not a full-parity claim. The file
+becomes a completed demo program only when every referenced command is
+`legacy-parity-verified` in the command compatibility registry.
+
+SHA-256: `7F617DD58CBF8573C949ABE9DA37C66E442004B1AEB50D202A558ACF6C88F472`
 
 ## City of Toledo neighborhoods
 

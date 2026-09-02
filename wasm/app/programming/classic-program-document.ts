@@ -1,6 +1,7 @@
 import type { ProjectProgram } from "../contracts/project-package.ts";
 
 export const CLASSIC_PROGRAM_FILE_EXTENSION = ".pgm7";
+export const CLASSIC_PROGRAM_IMPORT_EXTENSIONS = [".pgm", ".pgm7"] as const;
 export const MAX_CLASSIC_PROGRAM_BYTES = 1024 * 1024;
 
 export type ClassicProgramOrigin = "untitled" | "project" | "file";
@@ -17,7 +18,7 @@ export interface ClassicProgramDocumentState {
 }
 
 export function normalizeClassicProgramName(value: string): string {
-  const name = value.trim().replace(/\.pgm7$/i, "");
+  const name = value.trim().replace(/\.pgm7?$/i, "");
   if (!name) throw new RangeError("Enter a program name.");
   if (name.length > 100) throw new RangeError("Program names are limited to 100 characters.");
   if (/[\\/:*?"<>|\u0000-\u001f]/.test(name)) throw new RangeError("Program names cannot contain file-path characters.");
@@ -29,10 +30,10 @@ export function safeClassicProgramFileName(name: string): string {
 }
 
 export async function readClassicProgramFile(file: File): Promise<{ name: string; source: string }> {
-  if (!file.name.toLowerCase().endsWith(CLASSIC_PROGRAM_FILE_EXTENSION)) throw new RangeError("Choose an Epi Info .pgm7 program file.");
+  if (!CLASSIC_PROGRAM_IMPORT_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) throw new RangeError("Choose an Epi Info .pgm or .pgm7 program file.");
   if (file.size > MAX_CLASSIC_PROGRAM_BYTES) throw new RangeError("Program files are limited to 1 MB.");
   const source = (await file.text()).replace(/^\uFEFF/, "");
-  if (source.includes("\u0000")) throw new RangeError("The selected program is not a text .pgm7 file.");
+  if (source.includes("\u0000")) throw new RangeError("The selected program is not a text .pgm or .pgm7 file.");
   return { name: normalizeClassicProgramName(file.name), source };
 }
 

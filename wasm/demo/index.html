@@ -697,10 +697,14 @@
           <details class="legacy-menu compact-legacy-menu legacy-menu-right"><summary aria-haspopup="menu">Help</summary><div class="legacy-menu-popup" role="menu" aria-label="Classic Analysis Help" data-classic-menu-host="help"></div></details>
         </nav>
         <div class="classic-workspace-shell" data-module-view="classic">
-          <aside class="classic-command-explorer" aria-labelledby="classic-command-explorer-title">
-            <h2 id="classic-command-explorer-title">Command Explorer</h2>
+          <aside id="classic-command-explorer" class="classic-command-explorer" aria-labelledby="classic-command-explorer-title">
+            <div class="classic-command-explorer-titlebar">
+              <h2 id="classic-command-explorer-title">Command Explorer</h2>
+              <button id="classic-command-explorer-toggle" type="button" aria-controls="classic-command-tree" aria-expanded="true" aria-label="Hide Command Explorer" title="Hide Command Explorer (Ctrl+Alt+C)">‹</button>
+            </div>
             <div class="classic-analysis-command-root"><span aria-hidden="true">▾</span> Analysis Commands</div>
             <div id="classic-command-tree" role="tree" aria-label="Classic Analysis commands"></div>
+            <div id="classic-command-explorer-resizer" class="classic-command-explorer-resizer" role="separator" aria-label="Resize Command Explorer" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="480" aria-valuenow="240" tabindex="0"></div>
           </aside>
           <div class="classic-workspace-content">
         <div class="workspace-heading" data-module-view="classic">
@@ -710,6 +714,7 @@
         <section class="panel classic-output-window" data-module-view="classic" aria-labelledby="classic-output-window-title">
           <div class="classic-dock-window-title"><h2 id="classic-output-window-title">Output</h2></div>
           <div id="classic-output-toolbar" class="classic-legacy-toolbar" role="toolbar" aria-label="Output navigation"></div>
+          <input id="classic-output-file" type="file" accept=".htm,.html,.xml,.gif,.jpeg,.jpg,.bmp,.png,text/html,application/xml,text/xml,image/gif,image/jpeg,image/bmp,image/png" hidden>
           <div id="classic-output-browser" class="classic-output-browser" tabindex="-1">
             <div id="classic-output-welcome">
               <strong>Epi Info AI</strong>
@@ -717,7 +722,15 @@
             </div>
           </div>
         </section>
+        <dialog id="classic-output-bookmark-dialog" class="legacy-dialog" aria-labelledby="classic-output-bookmark-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-output-bookmark-title">Bookmark Output</h2><button value="cancel" aria-label="Close">Ã—</button></div>
+            <div class="legacy-dialog-body"><label>Bookmark name<input id="classic-output-bookmark-name" maxlength="100"></label><p id="classic-output-bookmark-feedback" class="inline-feedback" role="status"></p></div>
+            <div class="legacy-dialog-actions"><button id="classic-output-bookmark-save" type="button" class="primary-button">OK</button><button value="cancel">Cancel</button></div>
+          </form>
+        </dialog>
         <section class="panel classic-program-editor" data-module-view="classic" aria-labelledby="classic-program-title">
+          <div class="classic-program-editor-chrome">
           <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><span id="classic-program-source-name" class="calculation-time">Current project data</span></div>
           <nav id="classic-program-menu" class="designer-menu classic-program-menu" aria-label="Program Editor menu">
             <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">File</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor File" data-classic-program-menu-host="file"></div></details>
@@ -725,6 +738,7 @@
             <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Fonts</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor Fonts" data-classic-program-menu-host="fonts"></div></details>
           </nav>
           <div id="classic-program-toolbar" class="classic-legacy-toolbar" role="toolbar" aria-label="Program Editor commands"></div>
+          </div>
           <p id="classic-program-command-status" class="dashboard-command-status" role="status">Program Editor ready.</p>
           <details id="classic-program-library" class="classic-program-library">
             <summary>Project programs and examples</summary>
@@ -752,7 +766,7 @@
           <p id="classic-program-source-label" class="classic-program-label"><strong>Program</strong></p>
           <div id="classic-program-source" class="classic-program-source" aria-labelledby="classic-program-source-label"></div>
           <article id="classic-program-printout" aria-hidden="true"><h1 id="classic-program-print-title">Program</h1><pre id="classic-program-print-source"></pre></article>
-          <div class="classic-program-editor-status" aria-label="Program Editor status"><span id="classic-program-cursor-position">Ln 1, Col 1</span><span id="classic-program-tab-status">Tab width 4 · Tabs</span></div>
+          <div class="classic-program-editor-status" aria-label="Program Editor status"><span id="classic-program-cursor-position">Ln 1, Col 1</span><span id="classic-program-font-status">Consolas · 15 px</span><span id="classic-program-tab-status">Tab width 4 · Tabs</span></div>
           <p id="classic-program-completion-help" class="classic-program-completion-help">Command Assist: after <code>RECODE</code>, eligible numeric fields appear automatically. Use arrow keys and Enter or Tab to insert a suggestion; Ctrl+Space opens suggestions manually.</p>
           <p id="classic-program-live-status" class="classic-program-live-status" role="status">Live syntax check is starting.</p>
           <div class="form-actions">
@@ -776,7 +790,7 @@
                 <label>Date created<input id="classic-program-created" readonly></label>
                 <label>Date updated<input id="classic-program-updated" readonly></label>
               </div>
-              <label id="classic-program-file-label">Program file<input id="classic-program-file" type="file" accept=".pgm7,text/plain"></label>
+              <label id="classic-program-file-label">Program file<input id="classic-program-file" type="file" accept=".pgm,.pgm7,text/plain"></label>
               <p id="classic-program-dialog-feedback" class="inline-feedback" role="status"></p>
             </div>
             <div class="legacy-dialog-actions">
@@ -785,6 +799,18 @@
               <button id="classic-program-dialog-delete" class="danger-button" type="button" hidden>Delete</button>
               <button value="cancel">Cancel</button>
             </div>
+          </form>
+        </dialog>
+        <dialog id="classic-program-font-dialog" class="legacy-dialog classic-program-font-dialog" aria-labelledby="classic-program-font-dialog-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-program-font-dialog-title">Set Editor Font</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <label>Font<select id="classic-program-font-family"><option value="Consolas">Consolas</option><option value="Cascadia Mono">Cascadia Mono</option><option value="Courier New">Courier New</option><option value="Lucida Console">Lucida Console</option><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option></select></label>
+              <label>Size (pixels)<input id="classic-program-font-size" type="number" min="8" max="32" step="1" value="15" inputmode="numeric"></label>
+              <div id="classic-program-font-preview" class="classic-program-font-preview" aria-label="Font preview">FREQ case_status</div>
+              <p class="method-note">The setting applies only to the Program Editor and is saved in this browser.</p>
+            </div>
+            <div class="legacy-dialog-actions"><button id="classic-program-font-apply" class="dialog-primary" type="button">Apply</button><button value="cancel">Cancel</button></div>
           </form>
         </dialog>
         <dialog id="classic-command-dialog" class="legacy-dialog" aria-labelledby="classic-command-dialog-title">
@@ -1058,10 +1084,16 @@
           <div class="panel-heading"><div><p class="step-label">PROGRAM OUTPUT</p><h2 id="classic-program-output-title">AgeGroup frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>
           <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Stratum</th><th scope="col">Age group</th><th scope="col">Frequency</th><th scope="col">Percent</th><th scope="col">Cum. Percent</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead><tbody id="classic-program-output-rows"></tbody></table></div>
         </section>
+        <section id="classic-opened-output" class="panel" data-module-view="classic" aria-labelledby="classic-opened-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">OPENED OUTPUT</p><h2 id="classic-opened-output-title">Opened output</h2></div></div>
+          <div id="classic-opened-output-body" class="classic-opened-output-body"></div>
+        </section>
         <section id="classic-program-history-output" class="panel" data-module-view="classic" aria-labelledby="classic-program-history-title" hidden>
           <details id="classic-program-history">
             <summary id="classic-program-history-title">Command history (<span id="classic-program-history-count">0</span>)</summary>
             <p class="compatibility-note">Local V0.1 history records verification and execution from this Program Editor. Manual, Visual Epi Info, Epi Assist, and plugin origins join this same contract in later slices.</p>
+            <h3>Output bookmarks (<span id="classic-output-bookmark-count">0</span>)</h3>
+            <ul id="classic-output-bookmark-list" class="classic-output-bookmark-list"><li>No bookmarks in this session.</li></ul>
             <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Time</th><th scope="col">Origin</th><th scope="col">Status</th><th scope="col">Command</th><th scope="col">Summary</th></tr></thead><tbody id="classic-program-history-rows"></tbody></table></div>
           </details>
         </section>

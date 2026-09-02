@@ -1,0 +1,9 @@
+DEFINE AgeGroup TEXTINPUT
+RECODE Age TO AgeGroup
+  LOVALUE - 4 = "0-4"
+  4 - 17 = "5-17"
+  17 - 44 = "18-44"
+  44 - 64 = "45-64"
+  64 - HIVALUE = "65+"
+END
+FREQ AgeGroup STRATAVAR=Sex

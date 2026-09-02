@@ -116,7 +116,10 @@ feedback. View > Status Bar is functional. The nested Program Editor now preserv
 the shipped File/Edit/Fonts menus and New/Open/Save/Print/Run/Cancel toolbar order.
 New/Open/Save/Save As, Undo, Redo, Find/Find Next/Replace, Select All, Program
 Beginning/End, Command Explorer handoff, and Run Commands use reviewed browser
-operations. Project programs and `.pgm7` files share one guarded document state;
+operations. Cancel now mirrors the legacy enabled lifecycle: it is disabled while
+idle, becomes enabled during execution, and safely stops a sequential program
+between statements while retaining completed work and audited history. Project
+programs and `.pgm7` files share one guarded document state;
 the project dialog also preserves Author, Comments, Created, Updated, and
 confirmed Delete. File and toolbar Print share a source-only browser print path,
 while Page Setup remains a visible platform limitation whose settings are
@@ -128,9 +131,12 @@ stops at explicit exposed/case value review because those classifications are no
 present in its source text.
 The Output toolbar preserves
 Previous/Next/Last/History/Open/Bookmark/Print/Maximize/Clear Output order; its
-navigation and History paths are active. Clipboard commands, Output printing,
-bookmarks, clearing, Supabase program synchronization,
-command-specific dialogs, and complete command execution remain visible named gaps.
+navigation, History, Open, Bookmark, Print, Maximize/Restore, and Clear Output
+paths are active. Clear Output mirrors the legacy `tsbClear_Click` blank-page
+behavior while retaining session history and bookmarks. Browser Open uses a
+permissioned picker for bounded HTML/XML/common image files; HTML runs in a
+scriptless, network-denied sandbox. TIFF viewing, Supabase program synchronization,
+remaining command-specific dialogs, and complete command execution remain named gaps.
 
 ## Immediate Form Designer File-menu matrix
 

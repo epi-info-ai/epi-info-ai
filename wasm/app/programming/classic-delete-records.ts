@@ -47,7 +47,7 @@ export function resolveClassicDeleteRecordsCommand(source: string, fields: reado
   const expression = statement.target.raw.startsWith("(") && statement.target.raw.endsWith(")")
     ? statement.target.raw.slice(1, -1).trim() : statement.target.raw;
   const selection = resolveClassicSelectionCommand(`SELECT ${expression}`, fields);
-  if (selection.kind !== "apply") throw new RangeError("DELETE RECORDS requires record criteria or '*'.");
+  if (selection.kind !== "apply" || selection.mode !== "comparison") throw new RangeError("DELETE RECORDS currently requires one reviewed field-to-value comparison or '*'.");
   return {
     version: CLASSIC_DELETE_RECORDS_PLAN_VERSION, source,
     canonicalSource: buildClassicDeleteRecordsCommand({ all: false, field: selection.field, operator: selection.operator, value: selection.value }),
@@ -67,13 +67,13 @@ export function stageClassicDeleteRecords(base: MapDataSource, active: MapDataSo
   const comparison = plan.selection.kind === "comparison" ? plan.selection : undefined;
   const matchedActive = !comparison
     ? structuredClone(active.records)
-    : applyClassicSelection(active.records, {
-      kind: "apply", version: "0.1.0", astVersion: "1.0.0", source: plan.source,
-      canonicalSource: plan.canonicalSource.replace(/^DELETE \(/, "SELECT ").replace(/\)$/, ""),
-      field: comparison.field,
-      fieldType: base.fields.find(({ name }) => name === comparison.field)!.type,
-      operator: comparison.operator, value: comparison.value,
-    }).records;
+    : (() => {
+      const selectionPlan = resolveClassicSelectionCommand(
+        plan.canonicalSource.replace(/^DELETE \(/, "SELECT ").replace(/\)$/, ""), base.fields,
+      );
+      if (selectionPlan.kind !== "apply") throw new RangeError("DELETE RECORDS selection could not be reconstructed.");
+      return applyClassicSelection(active.records, selectionPlan).records;
+    })();
   if (matchedActive.length > CLASSIC_DELETE_RECORDS_LIMIT) {
     throw new RangeError(`DELETE RECORDS is limited to ${CLASSIC_DELETE_RECORDS_LIMIT.toLocaleString("en-US")} recoverable records per reviewed operation.`);
   }

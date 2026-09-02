@@ -568,17 +568,23 @@ const classicCaseValues = requiredElement<HTMLSelectElement>("#classic-case-valu
 const classicConfidenceLevel = requiredElement<HTMLSelectElement>("#classic-confidence-level");
 const classicFeedback = requiredElement<HTMLElement>("#classic-tables-feedback");
 const CLASSIC_PROGRAM_PREFERENCES_KEY = "epi-info-ai.program-editor-preferences.v1";
+const CLASSIC_PROGRAM_FONT_FAMILIES = ["Consolas", "Cascadia Mono", "Courier New", "Lucida Console", "Arial", "Times New Roman"] as const;
 function readClassicProgramPreferences(): ClassicProgramEditorPreferences {
   try {
     const value = JSON.parse(localStorage.getItem(CLASSIC_PROGRAM_PREFERENCES_KEY) ?? "null") as Partial<ClassicProgramEditorPreferences> | null;
     const tabSize = value?.tabSize === 2 || value?.tabSize === 4 || value?.tabSize === 8 ? value.tabSize : 4;
+    const fontFamily = typeof value?.fontFamily === "string" && CLASSIC_PROGRAM_FONT_FAMILIES.includes(value.fontFamily as typeof CLASSIC_PROGRAM_FONT_FAMILIES[number]) ? value.fontFamily : "Consolas";
+    const requestedFontSize = Number(value?.fontSize);
+    const fontSize = Number.isInteger(requestedFontSize) && requestedFontSize >= 8 && requestedFontSize <= 32 ? requestedFontSize : 15;
     return {
       lineNumbers: value?.lineNumbers ?? true,
       tabSize,
       indentWithTabs: value?.indentWithTabs ?? true,
+      fontFamily,
+      fontSize,
     };
   } catch {
-    return { lineNumbers: true, tabSize: 4, indentWithTabs: true };
+    return { lineNumbers: true, tabSize: 4, indentWithTabs: true, fontFamily: "Consolas", fontSize: 15 };
   }
 }
 
@@ -625,6 +631,14 @@ const classicProgramLineNumbersButton = requiredElement<HTMLButtonElement>("#vie
 const classicProgramIndentTabsButton = requiredElement<HTMLButtonElement>("#view-program-indent-tabs");
 renderClassicProgramSurface(requiredElement("#classic-program-menu"), requiredElement("#classic-program-toolbar"), requiredElement("#classic-output-toolbar"));
 const classicProgramCommandStatus = requiredElement<HTMLElement>("#classic-program-command-status");
+const classicProgramToolbarRun = requiredElement<HTMLButtonElement>("#classic-program-toolbar-run");
+const classicProgramToolbarCancel = requiredElement<HTMLButtonElement>("#classic-program-toolbar-cancel");
+let classicProgramRunController: AbortController | null = null;
+classicProgramToolbarCancel.disabled = true;
+const classicProgramFontDialog = requiredElement<HTMLDialogElement>("#classic-program-font-dialog");
+const classicProgramFontFamily = requiredElement<HTMLSelectElement>("#classic-program-font-family");
+const classicProgramFontSize = requiredElement<HTMLInputElement>("#classic-program-font-size");
+const classicProgramFontPreview = requiredElement<HTMLElement>("#classic-program-font-preview");
 
 function renderClassicProgramSession(): void {
   const source = classicProgramSession.current(getCurrentProjectData());
@@ -684,7 +698,7 @@ function newClassicProgram(): void {
   classicProgramEditor.focus();
 }
 
-type ClassicProgramDialogMode = "open" | "save-as";
+type ClassicProgramDialogMode = "open" | "save" | "save-as";
 let classicProgramDialogMode: ClassicProgramDialogMode = "open";
 const classicProgramDialog = requiredElement<HTMLDialogElement>("#classic-program-dialog");
 const formatProgramTimestamp = (value?: string): string => value ? new Date(value).toLocaleString() : "";
@@ -698,19 +712,22 @@ function renderClassicProgramDialogMetadata(program?: ProjectProgram): void {
 function showClassicProgramDialog(mode: ClassicProgramDialogMode): void {
   classicProgramDialogMode = mode;
   refreshClassicProjectPrograms();
-  const saveMode = mode === "save-as";
-  requiredElement("#classic-program-dialog-title").textContent = saveMode ? "Save Program As" : "Open Program";
+  const saveMode = mode !== "open";
+  const saveAsMode = mode === "save-as";
+  requiredElement("#classic-program-dialog-title").textContent = saveAsMode ? "Save Program As" : saveMode ? "Save Program" : "Open Program";
   requiredElement<HTMLElement>("#classic-program-name-label").hidden = !saveMode;
   requiredElement<HTMLElement>("#classic-program-file-label").hidden = saveMode;
   requiredElement<HTMLButtonElement>("#classic-program-dialog-primary").textContent = saveMode ? "Save to Current Project" : "Open";
-  requiredElement<HTMLButtonElement>("#classic-program-dialog-export").hidden = !saveMode;
+  requiredElement<HTMLButtonElement>("#classic-program-dialog-export").hidden = !saveAsMode;
   requiredElement<HTMLButtonElement>("#classic-program-dialog-delete").hidden = saveMode;
   requiredElement<HTMLInputElement>("#classic-program-author").readOnly = !saveMode;
   requiredElement<HTMLTextAreaElement>("#classic-program-comment").readOnly = !saveMode;
   requiredElement<HTMLInputElement>("#classic-program-name").value = classicProgramDocument.state.name === "Untitled" ? "" : classicProgramDocument.state.name;
   requiredElement<HTMLInputElement>("#classic-program-file").value = "";
-  requiredElement("#classic-program-dialog-feedback").textContent = saveMode
-    ? "Save in the current project or download an interoperable .pgm7 text file."
+  requiredElement("#classic-program-dialog-feedback").textContent = saveAsMode
+    ? "Save under another project name or download an interoperable .pgm7 text file."
+    : saveMode
+      ? "Review the program name, Author, and Comments before saving in the current project."
     : "Choose a project program or a .pgm7 text file.";
   const selectedName = classicProgramDocument.state.origin === "project" ? classicProgramDocument.state.name : "";
   const projectSelect = requiredElement<HTMLSelectElement>("#classic-program-dialog-project");
@@ -735,8 +752,7 @@ function saveClassicProgramToProject(name = classicProgramDocument.state.name, m
 }
 
 function saveClassicProgram(): void {
-  if (classicProgramDocument.state.origin !== "project") { showClassicProgramDialog("save-as"); return; }
-  saveClassicProgramToProject();
+  showClassicProgramDialog("save");
 }
 
 function exportClassicProgramFile(): void {
@@ -906,6 +922,53 @@ const editorAction = (action: () => boolean, message: string): void => {
 };
 requiredElement("#classic-program-edit-undo").addEventListener("click", () => editorAction(() => classicProgramEditor.undo(), "Undo applied to the current program."));
 requiredElement("#classic-program-edit-redo").addEventListener("click", () => editorAction(() => classicProgramEditor.redo(), "Redo applied to the current program."));
+const classicClipboardUnavailableMessage = "Clipboard access was blocked by the browser or organizational policy. Use Ctrl+X, Ctrl+C, or Ctrl+V in the Program Editor.";
+
+async function writeClassicProgramClipboard(cut: boolean): Promise<void> {
+  closeClassicProgramMenus();
+  const selected = classicProgramEditor.getSelectedText();
+  if (!selected) {
+    classicProgramCommandStatus.textContent = `Select program text before using ${cut ? "Cut" : "Copy"}.`;
+    classicProgramEditor.focus();
+    return;
+  }
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard write is unavailable.");
+    await navigator.clipboard.writeText(selected);
+    if (cut) classicProgramEditor.replaceSelectedText("");
+    classicProgramCommandStatus.textContent = cut
+      ? "Cut the selected program text to the clipboard."
+      : "Copied the selected program text to the clipboard.";
+  } catch {
+    classicProgramCommandStatus.textContent = classicClipboardUnavailableMessage;
+  }
+  classicProgramEditor.focus();
+}
+
+async function pasteClassicProgramClipboard(): Promise<void> {
+  let value: string;
+  try {
+    if (!navigator.clipboard?.readText) throw new Error("Clipboard read is unavailable.");
+    value = await navigator.clipboard.readText();
+  } catch {
+    closeClassicProgramMenus();
+    classicProgramCommandStatus.textContent = classicClipboardUnavailableMessage;
+    classicProgramEditor.focus();
+    return;
+  }
+  closeClassicProgramMenus();
+  if (!value) {
+    classicProgramCommandStatus.textContent = "The clipboard contains no text to paste.";
+  } else {
+    classicProgramEditor.replaceSelectedText(value);
+    classicProgramCommandStatus.textContent = "Pasted clipboard text into the current program.";
+  }
+  classicProgramEditor.focus();
+}
+
+requiredElement("#classic-program-edit-cut").addEventListener("click", () => { void writeClassicProgramClipboard(true); });
+requiredElement("#classic-program-edit-copy").addEventListener("click", () => { void writeClassicProgramClipboard(false); });
+requiredElement("#classic-program-edit-paste").addEventListener("click", () => { void pasteClassicProgramClipboard(); });
 requiredElement("#classic-program-edit-select-all").addEventListener("click", () => editorAction(() => classicProgramEditor.selectAll(), "Selected the complete program."));
 requiredElement("#classic-program-edit-beginning").addEventListener("click", () => editorAction(() => classicProgramEditor.moveToBeginning(), "Cursor moved to Program Beginning."));
 requiredElement("#classic-program-edit-end").addEventListener("click", () => editorAction(() => classicProgramEditor.moveToEnd(), "Cursor moved to Program End."));
@@ -1562,9 +1625,21 @@ requiredElement("#classic-command-dialog-insert").addEventListener("click", () =
   }
 });
 requiredElement("#classic-program-edit-insert-command").addEventListener("click", () => showClassicCommandDialog());
-requiredElement("#classic-program-toolbar-run").addEventListener("click", () => requiredElement<HTMLButtonElement>("#classic-program-run").click());
+classicProgramToolbarRun.addEventListener("click", () => {
+  // Legacy ProgramEditor.btnRun_Click executes highlighted source first and
+  // falls back to the complete PGM only when the editor has no selection.
+  void startClassicProgramTask((signal) => classicProgramEditor.getSelectedText().trim()
+    ? runSelectedClassicCommand(undefined, false, signal)
+    : runClassicProgram(false, signal));
+});
+classicProgramToolbarCancel.addEventListener("click", () => {
+  if (!classicProgramRunController || classicProgramRunController.signal.aborted) return;
+  classicProgramRunController.abort();
+  classicProgramToolbarCancel.disabled = true;
+  classicProgramCommandStatus.textContent = "Cancellation requested; the current statement will finish safely.";
+});
 
-const classicOutputTargets = ["#classic-program-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-program-history-output"];
+const classicOutputTargets = ["#classic-program-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
 const classicOutputBrowser = requiredElement<HTMLElement>("#classic-output-browser");
 for (const selector of classicOutputTargets) {
   const output = document.querySelector<HTMLElement>(selector);
@@ -1601,6 +1676,132 @@ requiredElement("#classic-output-history").addEventListener("click", () => {
   history.scrollIntoView({ behavior: "smooth", block: "start" });
   requiredElement("#classic-output-navigation-status").textContent = "Command history opened.";
 });
+requiredElement("#classic-output-clear").addEventListener("click", () => {
+  // Legacy OutputWindow.tsbClear_Click navigates the result browser to
+  // about:blank. It does not erase SessionHistory, so History can reopen it.
+  for (const output of visibleClassicOutputs()) output.hidden = true;
+  classicOutputPosition = -1;
+  classicOutputBrowser.scrollTop = 0;
+  requiredElement("#classic-output-navigation-status").textContent = "Output cleared. Command history is retained.";
+  classicOutputBrowser.focus();
+});
+
+function currentClassicOutput(): HTMLElement | undefined {
+  const outputs = visibleClassicOutputs();
+  if (outputs.length === 0) return undefined;
+  if (classicOutputPosition < 0) return outputs.at(-1);
+  return outputs[Math.max(0, Math.min(classicOutputPosition, outputs.length - 1))] ?? outputs.at(-1);
+}
+
+const classicOutputFile = requiredElement<HTMLInputElement>("#classic-output-file");
+requiredElement("#classic-output-open").addEventListener("click", () => classicOutputFile.click());
+classicOutputFile.addEventListener("change", async () => {
+  const file = classicOutputFile.files?.[0];
+  classicOutputFile.value = "";
+  if (!file) return;
+  const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
+  const allowed = new Set(["htm", "html", "xml", "gif", "jpeg", "jpg", "bmp", "png"]);
+  if (!allowed.has(extension)) {
+    requiredElement("#classic-output-navigation-status").textContent = "Choose a legacy HTML, XML, GIF, JPEG, BMP, or PNG output file. TIFF rendering remains a browser adaptation gap.";
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    requiredElement("#classic-output-navigation-status").textContent = "The selected output exceeds the 10 MB browser safety limit.";
+    return;
+  }
+  const body = requiredElement<HTMLElement>("#classic-opened-output-body");
+  if (extension === "htm" || extension === "html") {
+    const frame = document.createElement("iframe");
+    frame.title = `Saved Epi Info output: ${file.name}`;
+    frame.setAttribute("sandbox", "");
+    const policy = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:">`;
+    frame.srcdoc = `${policy}${await file.text()}`;
+    body.replaceChildren(frame);
+  } else if (extension === "xml") {
+    const source = document.createElement("pre");
+    source.textContent = await file.text();
+    body.replaceChildren(source);
+  } else {
+    const image = document.createElement("img");
+    image.alt = `Saved Epi Info output from ${file.name}`;
+    const objectUrl = URL.createObjectURL(file);
+    image.src = objectUrl;
+    image.addEventListener("load", () => URL.revokeObjectURL(objectUrl), { once: true });
+    image.addEventListener("error", () => URL.revokeObjectURL(objectUrl), { once: true });
+    body.replaceChildren(image);
+  }
+  requiredElement("#classic-opened-output-title").textContent = file.name;
+  const opened = requiredElement<HTMLElement>("#classic-opened-output");
+  opened.hidden = false;
+  classicOutputPosition = visibleClassicOutputs().indexOf(opened);
+  visitClassicOutput(classicOutputPosition);
+  requiredElement("#classic-output-navigation-status").textContent = `Opened ${file.name} in the sandboxed Output viewer.`;
+});
+
+interface ClassicOutputBookmark { id: string; name: string; outputId: string }
+const classicOutputBookmarks: ClassicOutputBookmark[] = [];
+const classicOutputBookmarkDialog = requiredElement<HTMLDialogElement>("#classic-output-bookmark-dialog");
+const classicOutputBookmarkName = requiredElement<HTMLInputElement>("#classic-output-bookmark-name");
+function renderClassicOutputBookmarks(): void {
+  requiredElement("#classic-output-bookmark-count").textContent = String(classicOutputBookmarks.length);
+  const list = requiredElement("#classic-output-bookmark-list");
+  if (classicOutputBookmarks.length === 0) {
+    const empty = document.createElement("li"); empty.textContent = "No bookmarks in this session."; list.replaceChildren(empty); return;
+  }
+  list.replaceChildren(...classicOutputBookmarks.map((bookmark) => {
+    const item = document.createElement("li");
+    const button = document.createElement("button"); button.type = "button"; button.textContent = bookmark.name;
+    button.addEventListener("click", () => {
+      const output = document.getElementById(bookmark.outputId);
+      if (!output) { requiredElement("#classic-output-navigation-status").textContent = `Bookmark “${bookmark.name}” is no longer available in this session.`; return; }
+      output.hidden = false;
+      classicOutputPosition = visibleClassicOutputs().indexOf(output);
+      visitClassicOutput(classicOutputPosition);
+    });
+    item.append(button); return item;
+  }));
+}
+requiredElement("#classic-output-bookmark").addEventListener("click", () => {
+  const output = currentClassicOutput();
+  if (!output) { requiredElement("#classic-output-navigation-status").textContent = "Create or open output before adding a bookmark."; return; }
+  classicOutputBookmarkName.value = output.querySelector("h2, h3")?.textContent?.trim() ?? "Output";
+  requiredElement("#classic-output-bookmark-feedback").textContent = "";
+  classicOutputBookmarkDialog.showModal();
+  classicOutputBookmarkName.focus();
+});
+requiredElement("#classic-output-bookmark-save").addEventListener("click", () => {
+  const output = currentClassicOutput();
+  const name = classicOutputBookmarkName.value.trim();
+  if (!output || !name) { requiredElement("#classic-output-bookmark-feedback").textContent = "Enter a bookmark name for the current output."; return; }
+  classicOutputBookmarks.push({ id: crypto.randomUUID(), name, outputId: output.id });
+  renderClassicOutputBookmarks();
+  classicOutputBookmarkDialog.close();
+  requiredElement("#classic-output-navigation-status").textContent = `Bookmarked current output as “${name}”.`;
+});
+
+requiredElement("#classic-output-print").addEventListener("click", () => {
+  const output = currentClassicOutput();
+  if (!output) { requiredElement("#classic-output-navigation-status").textContent = "Create or open output before printing."; return; }
+  output.classList.add("classic-output-print-document");
+  document.body.classList.add("printing-classic-output");
+  const cleanup = (): void => { document.body.classList.remove("printing-classic-output"); output.classList.remove("classic-output-print-document"); };
+  globalThis.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
+  globalThis.setTimeout(cleanup, 0);
+  requiredElement("#classic-output-navigation-status").textContent = "Current output sent to the browser print dialog.";
+});
+
+const classicOutputWorkspaceShell = requiredElement<HTMLElement>(".classic-workspace-shell");
+const classicOutputMaximize = requiredElement<HTMLButtonElement>("#classic-output-maximize");
+function setClassicOutputMaximized(maximized: boolean): void {
+  classicOutputWorkspaceShell.dataset.outputMaximized = String(maximized);
+  classicOutputMaximize.setAttribute("aria-pressed", String(maximized));
+  classicOutputMaximize.querySelector("span")!.textContent = maximized ? "Restore" : "Maximize";
+  requiredElement("#classic-output-navigation-status").textContent = maximized ? "Output maximized; Command Explorer and Program Editor are hidden." : "Output restored with Command Explorer and Program Editor.";
+}
+classicOutputMaximize.addEventListener("click", () => setClassicOutputMaximized(classicOutputWorkspaceShell.dataset.outputMaximized !== "true"));
+globalThis.addEventListener("keydown", (event) => { if (event.key === "Escape" && classicOutputWorkspaceShell.dataset.outputMaximized === "true") setClassicOutputMaximized(false); });
+renderClassicOutputBookmarks();
 
 function selectedClassicProgramExample(): ClassicProgramExample | undefined {
   return classicProgramExamples.find((example) => example.id === classicProgramExampleSelect.value);
@@ -1702,14 +1903,45 @@ function renderClassicProgramPreferences(): void {
     button.textContent = `${selected ? "✓ " : ""}${button.dataset.programTabSize} columns`;
   }
   requiredElement("#classic-program-tab-status").textContent = `Tab width ${classicProgramPreferences.tabSize} · ${classicProgramPreferences.indentWithTabs ? "Tabs" : "Spaces"}`;
+  requiredElement("#classic-program-font-status").textContent = `${classicProgramPreferences.fontFamily} · ${classicProgramPreferences.fontSize} px`;
 }
 
 function persistAndApplyClassicProgramPreferences(): void {
   saveClassicProgramPreferences();
   classicProgramEditor.setLineNumbers(classicProgramPreferences.lineNumbers);
   classicProgramEditor.setTabSettings(classicProgramPreferences.tabSize, classicProgramPreferences.indentWithTabs);
+  classicProgramEditor.setFont(classicProgramPreferences.fontFamily, classicProgramPreferences.fontSize);
   renderClassicProgramPreferences();
 }
+
+function renderClassicProgramFontPreview(): void {
+  classicProgramFontPreview.style.fontFamily = classicProgramFontFamily.value;
+  classicProgramFontPreview.style.fontSize = `${classicProgramFontSize.valueAsNumber || 15}px`;
+}
+
+requiredElement("#classic-program-font").addEventListener("click", () => {
+  classicProgramFontFamily.value = classicProgramPreferences.fontFamily;
+  classicProgramFontSize.value = String(classicProgramPreferences.fontSize);
+  renderClassicProgramFontPreview();
+  closeClassicProgramMenus();
+  classicProgramFontDialog.showModal();
+  classicProgramFontFamily.focus();
+});
+classicProgramFontFamily.addEventListener("change", renderClassicProgramFontPreview);
+classicProgramFontSize.addEventListener("input", renderClassicProgramFontPreview);
+requiredElement("#classic-program-font-apply").addEventListener("click", () => {
+  const fontFamily = classicProgramFontFamily.value;
+  const fontSize = classicProgramFontSize.valueAsNumber;
+  if (!CLASSIC_PROGRAM_FONT_FAMILIES.includes(fontFamily as typeof CLASSIC_PROGRAM_FONT_FAMILIES[number]) || !Number.isInteger(fontSize) || fontSize < 8 || fontSize > 32) {
+    classicProgramFontSize.reportValidity();
+    return;
+  }
+  classicProgramPreferences = { ...classicProgramPreferences, fontFamily, fontSize };
+  persistAndApplyClassicProgramPreferences();
+  classicProgramFontDialog.close();
+  classicProgramCommandStatus.textContent = `Editor font changed to ${fontFamily}, ${fontSize} px.`;
+  classicProgramEditor.focus();
+});
 
 classicProgramLineNumbersButton.addEventListener("click", () => {
   classicProgramPreferences = { ...classicProgramPreferences, lineNumbers: !classicProgramPreferences.lineNumbers };
@@ -1766,9 +1998,115 @@ renderClassicAnalysisContract(requiredElement("#classic-analysis-menu"), require
 
 const classicMessageArea = requiredElement<HTMLElement>("#classic-message-area");
 const classicStatusbar = requiredElement<HTMLElement>("#classic-statusbar");
+const classicWorkspaceShell = requiredElement<HTMLElement>(".classic-workspace-shell");
+const classicCommandExplorerTree = requiredElement<HTMLElement>("#classic-command-tree");
+const classicCommandExplorerToggle = requiredElement<HTMLButtonElement>("#classic-command-explorer-toggle");
+const classicCommandExplorerResizer = requiredElement<HTMLElement>("#classic-command-explorer-resizer");
+const classicCommandExplorerMenuToggle = requiredElement<HTMLButtonElement>("#classic-menu-command-explorer");
 const classicStatusbarToggle = requiredElement<HTMLButtonElement>("#classic-menu-status-bar");
+const CLASSIC_WORKSPACE_PREFERENCES_KEY = "epi-info-ai.classic-workspace-preferences.v1";
+const CLASSIC_COMMAND_EXPLORER_MIN_WIDTH = 200;
+const CLASSIC_COMMAND_EXPLORER_MAX_WIDTH = 480;
+type ClassicWorkspacePreferences = { commandExplorerCollapsed: boolean; commandExplorerWidth: number };
+
+function readClassicWorkspacePreferences(): ClassicWorkspacePreferences {
+  try {
+    const value = JSON.parse(localStorage.getItem(CLASSIC_WORKSPACE_PREFERENCES_KEY) ?? "null") as Partial<ClassicWorkspacePreferences> | null;
+    const storedWidth = Number(value?.commandExplorerWidth);
+    return {
+      commandExplorerCollapsed: value?.commandExplorerCollapsed ?? window.matchMedia("(max-width: 900px)").matches,
+      commandExplorerWidth: Number.isFinite(storedWidth)
+        ? Math.min(CLASSIC_COMMAND_EXPLORER_MAX_WIDTH, Math.max(CLASSIC_COMMAND_EXPLORER_MIN_WIDTH, storedWidth))
+        : 240,
+    };
+  } catch {
+    return { commandExplorerCollapsed: window.matchMedia("(max-width: 900px)").matches, commandExplorerWidth: 240 };
+  }
+}
+
+let classicWorkspacePreferences = readClassicWorkspacePreferences();
+
+function saveClassicWorkspacePreferences(): void {
+  try {
+    localStorage.setItem(CLASSIC_WORKSPACE_PREFERENCES_KEY, JSON.stringify(classicWorkspacePreferences));
+  } catch {
+    // Docking remains usable when browser preference storage is unavailable.
+  }
+}
+
+function renderClassicCommandExplorerDock(): void {
+  const collapsed = classicWorkspacePreferences.commandExplorerCollapsed;
+  classicWorkspaceShell.style.setProperty("--classic-command-explorer-width", `${classicWorkspacePreferences.commandExplorerWidth}px`);
+  classicWorkspaceShell.dataset.commandExplorerCollapsed = String(collapsed);
+  classicCommandExplorerToggle.setAttribute("aria-expanded", String(!collapsed));
+  classicCommandExplorerToggle.setAttribute("aria-label", collapsed ? "Show Command Explorer" : "Hide Command Explorer");
+  classicCommandExplorerToggle.title = `${collapsed ? "Show" : "Hide"} Command Explorer (Ctrl+Alt+C)`;
+  classicCommandExplorerToggle.textContent = collapsed ? "Command Explorer ›" : "‹";
+  classicCommandExplorerTree.setAttribute("aria-hidden", String(collapsed));
+  classicCommandExplorerResizer.setAttribute("aria-valuenow", String(classicWorkspacePreferences.commandExplorerWidth));
+  classicCommandExplorerMenuToggle.setAttribute("aria-checked", String(!collapsed));
+}
+
+function setClassicCommandExplorerCollapsed(collapsed: boolean): void {
+  classicWorkspacePreferences.commandExplorerCollapsed = collapsed;
+  renderClassicCommandExplorerDock();
+  saveClassicWorkspacePreferences();
+  classicMessageArea.textContent = `Message Area: Command Explorer ${collapsed ? "hidden" : "shown"}.`;
+}
+
+function setClassicCommandExplorerWidth(width: number, save = false): void {
+  const availableWidth = Math.max(CLASSIC_COMMAND_EXPLORER_MIN_WIDTH, classicWorkspaceShell.getBoundingClientRect().width - 320);
+  classicWorkspacePreferences.commandExplorerWidth = Math.round(Math.min(CLASSIC_COMMAND_EXPLORER_MAX_WIDTH, availableWidth, Math.max(CLASSIC_COMMAND_EXPLORER_MIN_WIDTH, width)));
+  renderClassicCommandExplorerDock();
+  if (save) saveClassicWorkspacePreferences();
+}
+
+classicCommandExplorerMenuToggle.setAttribute("role", "menuitemcheckbox");
 classicStatusbarToggle.setAttribute("role", "menuitemcheckbox");
 classicStatusbarToggle.setAttribute("aria-checked", "true");
+renderClassicCommandExplorerDock();
+
+classicCommandExplorerToggle.addEventListener("click", () => {
+  setClassicCommandExplorerCollapsed(!classicWorkspacePreferences.commandExplorerCollapsed);
+});
+
+classicCommandExplorerMenuToggle.addEventListener("click", () => {
+  setClassicCommandExplorerCollapsed(!classicWorkspacePreferences.commandExplorerCollapsed);
+});
+
+classicCommandExplorerResizer.addEventListener("pointerdown", (event) => {
+  if (classicWorkspacePreferences.commandExplorerCollapsed) return;
+  event.preventDefault();
+  classicCommandExplorerResizer.setPointerCapture(event.pointerId);
+  classicWorkspaceShell.dataset.resizingCommandExplorer = "true";
+});
+
+classicCommandExplorerResizer.addEventListener("pointermove", (event) => {
+  if (!classicCommandExplorerResizer.hasPointerCapture(event.pointerId)) return;
+  setClassicCommandExplorerWidth(event.clientX - classicWorkspaceShell.getBoundingClientRect().left);
+});
+
+function finishClassicCommandExplorerResize(event: PointerEvent): void {
+  if (!classicCommandExplorerResizer.hasPointerCapture(event.pointerId)) return;
+  classicCommandExplorerResizer.releasePointerCapture(event.pointerId);
+  delete classicWorkspaceShell.dataset.resizingCommandExplorer;
+  saveClassicWorkspacePreferences();
+}
+
+classicCommandExplorerResizer.addEventListener("pointerup", finishClassicCommandExplorerResize);
+classicCommandExplorerResizer.addEventListener("pointercancel", finishClassicCommandExplorerResize);
+classicCommandExplorerResizer.addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  event.preventDefault();
+  setClassicCommandExplorerWidth(classicWorkspacePreferences.commandExplorerWidth + (event.key === "ArrowLeft" ? -10 : 10), true);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!event.ctrlKey || !event.altKey || event.code !== "KeyC" || classicWorkspaceShell.hidden) return;
+  event.preventDefault();
+  setClassicCommandExplorerCollapsed(!classicWorkspacePreferences.commandExplorerCollapsed);
+  classicCommandExplorerToggle.focus();
+});
 
 requiredElement("#classic-analysis-menu").addEventListener("click", (event) => {
   const command = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button") : null;
@@ -2032,9 +2370,63 @@ function renderProgramFrequency(plan: BoundedClassicProgramPlan, records: EpiRec
   };
 }
 
-function runClassicProgram(verifyOnly: boolean): void {
+class ClassicProgramCancelledError extends Error {
+  constructor() { super("Program execution was cancelled by the user."); this.name = "ClassicProgramCancelledError"; }
+}
+
+function assertClassicProgramNotCancelled(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new ClassicProgramCancelledError();
+}
+
+function isClassicProgramCancellation(error: unknown): boolean {
+  return error instanceof ClassicProgramCancelledError;
+}
+
+async function yieldClassicProgramTurn(signal?: AbortSignal): Promise<void> {
+  await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));
+  assertClassicProgramNotCancelled(signal);
+}
+
+function renderClassicProgramRunState(running: boolean): void {
+  classicProgramToolbarRun.disabled = running;
+  classicProgramToolbarCancel.disabled = !running;
+  requiredElement<HTMLButtonElement>("#classic-program-run").disabled = running;
+  requiredElement<HTMLButtonElement>("#classic-program-run-selection").disabled = running;
+  requiredElement<HTMLButtonElement>("#classic-program-verify").disabled = running;
+  requiredElement<HTMLElement>(".classic-program-editor").setAttribute("aria-busy", String(running));
+}
+
+async function startClassicProgramTask(task: (signal: AbortSignal) => Promise<void>): Promise<void> {
+  if (classicProgramRunController) return;
+  const controller = new AbortController();
+  classicProgramRunController = controller;
+  renderClassicProgramRunState(true);
+  try {
+    await task(controller.signal);
+  } finally {
+    if (classicProgramRunController === controller) classicProgramRunController = null;
+    renderClassicProgramRunState(false);
+  }
+}
+
+async function runClassicProgram(verifyOnly: boolean, signal?: AbortSignal): Promise<void> {
   let project = getCurrentProjectData();
   try {
+    assertClassicProgramNotCancelled(signal);
+    const sourceText = classicProgramEditor.getValue();
+    const parsed = parseClassicProgram(sourceText);
+    const boundedShape = parsed.body.length === 3
+      && parsed.body[0]?.type === "DefineStatement"
+      && parsed.body[1]?.type === "RecodeStatement"
+      && parsed.body[2]?.type === "FrequencyStatement";
+    if (!boundedShape) {
+      if (verifyOnly) {
+        classicProgramFeedback.textContent = `Program syntax verified for ${parsed.body.length} statements. Semantic checks run in sequence when you choose Run Commands; nothing was run.`;
+        return;
+      }
+      await runSequentialClassicProgram(sourceText, parsed, signal);
+      return;
+    }
     const validated = validateProgram();
     project = validated.source;
     if (verifyOnly) {
@@ -2048,6 +2440,7 @@ function runClassicProgram(verifyOnly: boolean): void {
       return;
     }
     const applied = applyBoundedClassicProgram(project.records, validated.plan);
+    assertClassicProgramNotCancelled(signal);
     const output = renderProgramFrequency(validated.plan, applied.records);
     classicProgramFeedback.textContent = `Executed DEFINE → RECODE → FREQ for ${output.included} records and produced ${output.rows} output rows. The current form was not modified.`;
     recordProgramRun({
@@ -2057,6 +2450,16 @@ function runClassicProgram(verifyOnly: boolean): void {
       summary: `Produced ${output.rows} frequency rows from ${output.included} included records.`, diagnostics: [],
     });
   } catch (error) {
+    if (isClassicProgramCancellation(error)) {
+      classicProgramFeedback.textContent = "Program cancelled before execution completed. Completed output and history were retained.";
+      classicProgramCommandStatus.textContent = "Program cancelled by user.";
+      recordProgramRun({
+        origin: "user-program", status: "cancelled", planVersion: CLASSIC_PROGRAM_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: classicProgramEditor.getValue(), summary: "Program cancelled by user.", diagnostics: [],
+      });
+      return;
+    }
     const message = error instanceof Error ? error.message : "Unable to verify the program.";
     classicProgramFeedback.textContent = `${message} Nothing was run.`;
     classicProgramOutput.hidden = true;
@@ -2414,11 +2817,12 @@ let pendingClassicMerge: { plan: ClassicMergePlan; result: ClassicMergeResult } 
 let pendingClassicDelete: { plan: ClassicDeleteTablePlan; staged: ReturnType<typeof stageClassicDeleteTable> } | null = null;
 let pendingClassicDeleteRecords: ClassicDeleteRecordsResult | null = null;
 let pendingClassicUndeleteRecords: ClassicUndeleteRecordsResult | null = null;
-async function runSelectedClassicCommand(): Promise<void> {
+async function runSelectedClassicCommand(sourceOverride?: string, rethrow = false, signal?: AbortSignal): Promise<void> {
   const fallbackProject = getCurrentProjectData();
   let project = classicProgramSession.current(fallbackProject);
-  const selectedSource = classicProgramEditor.getSelectedText();
+  const selectedSource = sourceOverride ?? classicProgramEditor.getSelectedText();
   try {
+    assertClassicProgramNotCancelled(signal);
     const selectedAst = parseClassicProgram(selectedSource);
     const selectedSources = selectedAst.body[0]?.type === "ReadStatement" ? [...getProjectDataSources(), ...classicProgramSession.outTables()] : getProjectDataSources();
     const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, selectedSources, classicProgramSession.variables(), classicProgramSession.groups());
@@ -2430,6 +2834,7 @@ async function runSelectedClassicCommand(): Promise<void> {
       const targetLabel = plan.target === "duckdb" ? "DuckDB" : "SQLite";
       classicProgramCommandStatus.textContent = `FILE CONVERT is reading user tables and building a ${targetLabel} database.`;
       const result = await convertAccessFile(file, plan);
+      assertClassicProgramNotCancelled(signal);
       const mime = plan.target === "duckdb" ? "application/octet-stream" : "application/vnd.sqlite3";
       const url = URL.createObjectURL(new Blob([Uint8Array.from(result.bytes).buffer], { type: mime }));
       const link = document.createElement("a");
@@ -2682,7 +3087,7 @@ async function runSelectedClassicCommand(): Promise<void> {
       return;
     }
     if (command.kind === "select") {
-      const plan = resolveClassicSelectionCommand(selectedSource, project.fields);
+      const plan = resolveClassicSelectionCommand(selectedSource, project.fields, classicProgramSession.variables());
       if (plan.kind !== "apply") throw new Error("The selected command did not contain selection criteria.");
       const result = applyClassicSelection(classicProgramSession.filtered(fallbackProject).records, plan);
       classicProgramSession.select(result.records, plan.canonicalSource, result.excludedMissing);
@@ -2847,6 +3252,17 @@ async function runSelectedClassicCommand(): Promise<void> {
       source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command), summary: "Verified selected TABLES fields; awaiting exposed/case value review.", diagnostics: [],
     });
   } catch (error) {
+    if (isClassicProgramCancellation(error)) {
+      classicProgramFeedback.textContent = "Selected command cancelled. Any previously completed output and history were retained.";
+      classicProgramCommandStatus.textContent = "Selected command cancelled by user.";
+      recordProgramRun({
+        origin: "user-program", status: "cancelled", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, summary: "Selected command cancelled by user.", diagnostics: [],
+      });
+      if (rethrow) throw error;
+      return;
+    }
     const message = error instanceof Error ? error.message : "Unable to run the selected command.";
     classicProgramFeedback.textContent = `${message} Nothing was run.`;
     classicProgramCommandStatus.textContent = "Selected command rejected before execution.";
@@ -2855,10 +3271,57 @@ async function runSelectedClassicCommand(): Promise<void> {
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
       source: selectedSource, summary: "Selected command rejected before execution.", diagnostics: [message],
     });
+    if (rethrow) throw error;
   }
 }
 
-requiredElement("#classic-program-run-selection").addEventListener("click", runSelectedClassicCommand);
+const CLASSIC_SEQUENTIAL_PROGRAM_PLAN_VERSION = "classic-sequential-program-v0.1.0";
+async function runSequentialClassicProgram(source: string, ast: ReturnType<typeof parseClassicProgram>, signal?: AbortSignal): Promise<void> {
+  const normalizedSource = source.replace(/\r\n?/g, "\n");
+  const initial = getCurrentProjectData();
+  let completed = 0;
+  classicProgramCommandStatus.textContent = `Running ${ast.body.length} commands in source orderâ€¦`;
+  try {
+    for (const [index, statement] of ast.body.entries()) {
+      classicProgramCommandStatus.textContent = `Running command ${index + 1} of ${ast.body.length}...`;
+      await yieldClassicProgramTurn(signal);
+      const statementSource = normalizedSource.slice(statement.span.start.offset, statement.span.end.offset).trim();
+      await runSelectedClassicCommand(statementSource, true, signal);
+      completed++;
+    }
+    const active = classicProgramSession.current(initial);
+    classicProgramFeedback.textContent = `Executed all ${completed} commands in source order for ${initial.records.length} source records. Review the generated Output documents and history.`;
+    classicProgramCommandStatus.textContent = `Program completed: ${completed} of ${ast.body.length} commands succeeded.`;
+    recordProgramRun({
+      origin: "user-program", status: "succeeded", planVersion: CLASSIC_SEQUENTIAL_PROGRAM_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      projectName: active.projectName, formName: active.formName, sourceRecords: initial.records.length,
+      source, summary: `Sequential program completed all ${completed} commands.`, diagnostics: [],
+    });
+  } catch (error) {
+    if (isClassicProgramCancellation(error)) {
+      classicProgramFeedback.textContent = `Program cancelled after ${completed} of ${ast.body.length} commands. Completed output, session effects, and history were retained; later commands were not run.`;
+      classicProgramCommandStatus.textContent = `Program cancelled by user after ${completed} of ${ast.body.length} commands.`;
+      recordProgramRun({
+        origin: "user-program", status: "cancelled", planVersion: CLASSIC_SEQUENTIAL_PROGRAM_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: initial.projectName, formName: initial.formName, sourceRecords: initial.records.length,
+        source, summary: `Sequential program cancelled after ${completed} commands.`, diagnostics: [],
+      });
+      return;
+    }
+    const message = error instanceof Error ? error.message : "The command failed.";
+    classicProgramFeedback.textContent = `Program stopped after ${completed} of ${ast.body.length} commands: ${message}`;
+    classicProgramCommandStatus.textContent = `Program stopped at command ${completed + 1}; later commands were not run.`;
+    recordProgramRun({
+      origin: "user-program", status: "failed", planVersion: CLASSIC_SEQUENTIAL_PROGRAM_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      projectName: initial.projectName, formName: initial.formName, sourceRecords: initial.records.length,
+      source, summary: `Sequential program stopped after ${completed} commands.`, diagnostics: [message],
+    });
+  }
+}
+
+requiredElement("#classic-program-run-selection").addEventListener("click", () => {
+  void startClassicProgramTask((signal) => runSelectedClassicCommand(undefined, false, signal));
+});
 requiredElement("#classic-merge-preview-apply").addEventListener("click", () => {
   const pending = pendingClassicMerge;
   if (!pending) return;
@@ -3275,8 +3738,8 @@ classicOutcomeField.addEventListener("change", () => {
 classicStrataField.addEventListener("change", updateClassicCommandPreview);
 classicProgramExampleSelect.addEventListener("change", renderClassicProgramExampleDescription);
 classicProgramLoadExampleButton.addEventListener("click", () => loadSelectedClassicProgramExample());
-requiredElement("#classic-program-verify").addEventListener("click", () => runClassicProgram(true));
-requiredElement("#classic-program-run").addEventListener("click", () => runClassicProgram(false));
+requiredElement("#classic-program-verify").addEventListener("click", () => void startClassicProgramTask((signal) => runClassicProgram(true, signal)));
+requiredElement("#classic-program-run").addEventListener("click", () => void startClassicProgramTask((signal) => runClassicProgram(false, signal)));
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="classic"], [data-module="classic"]')) {
   button.addEventListener("click", () => void refreshClassicProgramExamples());
   button.addEventListener("click", refreshClassicProgramContext);

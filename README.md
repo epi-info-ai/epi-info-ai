@@ -87,9 +87,11 @@ Current capabilities include:
   remaining legacy gadgets and canvas operations;
 - the familiar Classic Analysis shell, nine-folder Command Explorer, nested
   Program Editor File/Edit/Fonts menus and toolbar, and Output navigation toolbar;
-  safe editor navigation, undo/redo/select-all, bounded Run Commands, source-only
-  browser printing, and command History work while clipboard and other unported
-  operations remain named gaps;
+  safe editor navigation, undo/redo/cut/copy/paste/select-all, bounded Run/Cancel,
+  source-only browser printing, Output navigation/Open/Bookmark/Print/Maximize/Clear,
+  and command History;
+  clipboard policy blocks retain explicit keyboard-shortcut guidance, while
+  other unported operations remain named gaps;
 - guarded Classic Program New/Open/Save/Save As/Delete with project-backed
   source, Author/Comments/Created/Updated metadata, dirty-state feedback,
   familiar Find/Replace, source-only browser printing, and official `.pgm7`

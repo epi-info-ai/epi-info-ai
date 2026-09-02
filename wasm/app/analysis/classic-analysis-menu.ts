@@ -44,7 +44,11 @@ const newBranchCommand = (key: string, label: string, domId: string): ClassicCom
 // AnalysisMainForm.Designer.cs and AnalysisMainForm.resx define this four-menu shell.
 export const CLASSIC_ANALYSIS_MENUS: readonly ClassicTopMenu[] = [
   { key: "file", label: "File", commands: [gap("statistics-plugins", "Add Statistics Plug-ins..."), gap("exit", "Exit")] },
-  { key: "view", label: "View", commands: [command("status-bar", "Status Bar", "classic-menu-status-bar"), gap("logs", "Epi Info Logs...")] },
+  { key: "view", label: "View", commands: [
+    command("command-explorer", "Command Explorer", "classic-menu-command-explorer"),
+    command("status-bar", "Status Bar", "classic-menu-status-bar"),
+    gap("logs", "Epi Info Logs..."),
+  ] },
   { key: "tools", label: "Tools", commands: [gap("options", "Options...")] },
   { key: "help", label: "Help", commands: [gap("contents", "Contents", "F1"), gap("about", "About Epi Info 7")] },
 ] as const;

@@ -1,0 +1,6 @@
+*** Legacy SELECT expression parity fixture for the canonical foodborne dataset
+SELECT case_status = "Confirmed" AND age >= 18
+SELECT id LIKE "P00*"
+SELECT onset_date = (.)
+SELECT (age + 2) >= 20 AND NOT sex = "Unknown"
+CANCEL SELECT

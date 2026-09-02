@@ -335,6 +335,7 @@ async function checkRequiredAssetsAndUi() {
   assert.deepEqual(newBranches.commands.map((entry) => [entry.label, entry.newBranch]), [["Quality Profile", true], ["Convert Access Database", true]]);
   const programSurface = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program-surface.ts")).href}?menu=${Date.now()}`);
   assert.deepEqual(programSurface.CLASSIC_PROGRAM_MENUS.map((menu) => menu.label), ["File", "Edit", "Fonts"]);
+  assert.equal(programSurface.CLASSIC_PROGRAM_MENUS[2].entries.find((entry) => entry.kind === "command" && entry.key === "editor-font").disposition, "implemented");
   assert.deepEqual(programSurface.CLASSIC_PROGRAM_MENUS[0].entries.filter((entry) => entry.kind === "command").map((entry) => entry.label), [
     "New...", "Open Pgm...", "Save Pgm", "Save Pgm As...", "Print...", "Page Setup...",
   ]);
@@ -346,6 +347,7 @@ async function checkRequiredAssetsAndUi() {
   ]);
   const programDocuments = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program-document.ts")).href}?document=${Date.now()}`);
   assert.equal(programDocuments.normalizeClassicProgramName(" Statistics.pgm7 "), "Statistics");
+  assert.equal(programDocuments.normalizeClassicProgramName(" Foodborne Check.pgm "), "Foodborne Check");
   assert.equal(programDocuments.safeClassicProgramFileName("Foodborne Check"), "Foodborne-Check.pgm7");
   assert.throws(() => programDocuments.normalizeClassicProgramName("bad/name"), /file-path characters/);
   const commandParity = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-command-parity.ts")).href}?parity=${Date.now()}`);
@@ -927,7 +929,25 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const adults = selection.applyClassicSelection(confirmed.records, selection.resolveClassicSelectionCommand("SELECT Age >= 18", imported.schema.fields));
   assert.ok(adults.selectedRecords < confirmed.selectedRecords, "a successive legacy SELECT must narrow the current selection");
   assert.ok(adults.records.every((record) => Number(record.age) >= 18 && record.case_status === "Confirmed"));
-  assert.throws(() => selection.resolveClassicSelectionCommand('SELECT case_status = "Confirmed" AND age >= 18', imported.schema.fields), /one field-to-value comparison/);
+  const compoundPlan = selection.resolveClassicSelectionCommand('SELECT case_status = "Confirmed" AND age >= 18', imported.schema.fields);
+  assert.equal(compoundPlan.mode, "expression");
+  const compound = selection.applyClassicSelection(imported.records, compoundPlan);
+  assert.equal(compound.selectedRecords, 21);
+  assert.deepEqual(compound.records.map(({ id }) => id), adults.records.map(({ id }) => id), "compound AND and successive SELECT must select the same records");
+  const like = selection.applyClassicSelection(imported.records, selection.resolveClassicSelectionCommand('SELECT id LIKE "P00*"', imported.schema.fields));
+  assert.equal(like.selectedRecords, 9, "legacy LIKE uses a case-insensitive '*' wildcard");
+  const missing = selection.applyClassicSelection(imported.records, selection.resolveClassicSelectionCommand("SELECT onset_date = (.)", imported.schema.fields));
+  assert.equal(missing.selectedRecords, 52, "legacy missing-to-missing equality must select missing values");
+  const arithmetic = selection.applyClassicSelection(imported.records, selection.resolveClassicSelectionCommand("SELECT (age + 2) >= 20 AND NOT sex = \"Unknown\"", imported.schema.fields));
+  assert.equal(arithmetic.selectedRecords, imported.records.filter((record) => Number(record.age) >= 18).length);
+  const threshold = { name: "AdultAge", scope: "STANDARD", variableType: "NUMERIC", value: 18 };
+  const variablePlan = selection.resolveClassicSelectionCommand("SELECT age >= AdultAge", imported.schema.fields, [threshold]);
+  assert.equal(selection.applyClassicSelection(imported.records, variablePlan).selectedRecords, imported.records.filter((record) => Number(record.age) >= 18).length);
+  assert.equal(selection.applyClassicSelection(imported.records, selection.resolveClassicSelectionCommand('SELECT UPPERCASE(sex) = "FEMALE"', imported.schema.fields)).selectedRecords, 48);
+  assert.equal(selection.applyClassicSelection(imported.records, selection.resolveClassicSelectionCommand("SELECT STRLEN(id) = 4", imported.schema.fields)).selectedRecords, 96);
+  assert.equal(selection.applyClassicSelection(imported.records, selection.resolveClassicSelectionCommand("SELECT ROUND(-1.25, 1) = -1.3", imported.schema.fields)).selectedRecords, 96, "ROUND must use legacy midpoint-away-from-zero behavior");
+  assert.throws(() => selection.resolveClassicSelectionCommand("SELECT ROUND(age, 1, 2) > 0", imported.schema.fields), /requires 1 or 2 arguments/);
+  assert.throws(() => selection.resolveClassicSelectionCommand("SELECT UNSUPPORTED(age) > 0", imported.schema.fields), /not yet a parity-reviewed SELECT function/);
   assert.throws(() => selection.resolveClassicSelectionCommand('SELECT age = "18"', imported.schema.fields), /Number field/);
 
   const { ClassicProgramSession } = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-session.ts")).href}?session=${Date.now()}`);
@@ -2066,6 +2086,13 @@ CANCEL SORT`;
   assert.equal(graph.body[0].type, "GraphStatement");
   assert.equal(graph.body[0].field.name, "Case_Status");
   assert.equal(graph.body[0].graphType, "Bar");
+  const commandTourSource = await readFile(repositoryPath("wasm/demo/examples/foodborne-classic-command-tour.pgm7"), "utf8");
+  const commandTour = parser.parseClassicProgram(commandTourSource);
+  assert.deepEqual(commandTour.body.map(({ type }) => type), [
+    "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement",
+    "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
+    "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement",
+  ]);
   assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
   assert.throws(() => parser.parseClassicProgram("IF Age > 10 THEN\nFREQ Age"), /IF is missing END/);
   assert.throws(() => parser.parseClassicProgram("ASSIGN Age = (10 + 2"), /closing parenthesis/);

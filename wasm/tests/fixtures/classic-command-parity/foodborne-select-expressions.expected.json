@@ -1,0 +1,15 @@
+{
+  "command": "SELECT / CANCEL SELECT",
+  "dataset": "foodborne-outbreak-investigation.csv",
+  "expectations": {
+    "confirmedAdults": 21,
+    "idLikeP00Wildcard": 9,
+    "missingOnsetDate": 52,
+    "cancelRestoresSourceRows": 96
+  },
+  "legacyEvidence": [
+    "Epi.Core.Interpreter/Rules/Rule_Select.cs",
+    "Epi.Core.Interpreter/Rules/Rule_CompareExp.cs",
+    "Epi.Core.Interpreter/grammar/EpiInfo.Analysis.Grammar.grm"
+  ]
+}

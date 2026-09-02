@@ -2,7 +2,7 @@ export const RUN_HISTORY_VERSION = 1 as const;
 export const RUN_HISTORY_STORAGE_KEY = "epi-info-ai.run-history.v1";
 
 export type RunOrigin = "manual" | "user-program" | "visual-flow" | "epi-assist" | "plugin";
-export type RunStatus = "verified" | "succeeded" | "failed";
+export type RunStatus = "verified" | "succeeded" | "failed" | "cancelled";
 
 export interface ProgramRunHistoryEntry {
   version: typeof RUN_HISTORY_VERSION;
@@ -28,7 +28,7 @@ function isEntry(value: unknown): value is ProgramRunHistoryEntry {
     && typeof entry.id === "string"
     && typeof entry.occurredAt === "string"
     && ["manual", "user-program", "visual-flow", "epi-assist", "plugin"].includes(String(entry.origin))
-    && ["verified", "succeeded", "failed"].includes(String(entry.status))
+    && ["verified", "succeeded", "failed", "cancelled"].includes(String(entry.status))
     && typeof entry.source === "string"
     && typeof entry.summary === "string"
     && Array.isArray(entry.diagnostics);

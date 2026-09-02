@@ -43,7 +43,7 @@ export function resolveClassicUndeleteRecordsCommand(source: string, fields: rea
   };
   const expression = statement.raw.startsWith("(") && statement.raw.endsWith(")") ? statement.raw.slice(1, -1).trim() : statement.raw;
   const selection = resolveClassicSelectionCommand(`SELECT ${expression}`, fields);
-  if (selection.kind !== "apply") throw new RangeError("UNDELETE RECORDS requires record criteria or '*'.");
+  if (selection.kind !== "apply" || selection.mode !== "comparison") throw new RangeError("UNDELETE RECORDS currently requires one reviewed field-to-value comparison or '*'.");
   return {
     version: CLASSIC_UNDELETE_RECORDS_PLAN_VERSION, source,
     canonicalSource: buildClassicUndeleteRecordsCommand({ all: false, field: selection.field, operator: selection.operator, value: selection.value }),
@@ -52,11 +52,10 @@ export function resolveClassicUndeleteRecordsCommand(source: string, fields: rea
 }
 
 export function stageClassicUndeleteRecords(base: MapDataSource, deletedRecords: readonly DeletedRecord[], plan: ClassicUndeleteRecordsPlan): ClassicUndeleteRecordsResult {
-  const selectionPlan = plan.selection.kind === "all" ? undefined : {
-    kind: "apply", version: "0.1.0", astVersion: "1.0.0", source: plan.source,
-    canonicalSource: plan.canonicalSource.replace(/^UNDELETE \(/, "SELECT ").replace(/\)$/, ""),
-    field: plan.selection.field, fieldType: plan.selection.fieldType, operator: plan.selection.operator, value: plan.selection.value,
-  } as const;
+  const selectionPlan = plan.selection.kind === "all" ? undefined : resolveClassicSelectionCommand(
+    plan.canonicalSource.replace(/^UNDELETE \(/, "SELECT ").replace(/\)$/, ""), base.fields,
+  );
+  if (selectionPlan?.kind === "cancel") throw new RangeError("UNDELETE RECORDS selection could not be reconstructed.");
   const restored = deletedRecords.filter(({ record }) => !selectionPlan || applyClassicSelection([record], selectionPlan).selectedRecords === 1).map((item) => structuredClone(item));
   if (restored.length > CLASSIC_UNDELETE_RECORDS_LIMIT) throw new RangeError(`UNDELETE RECORDS is limited to ${CLASSIC_UNDELETE_RECORDS_LIMIT.toLocaleString("en-US")} records per reviewed operation.`);
   const restoredIds = new Set(restored.map(({ archiveId }) => archiveId));
