@@ -55,15 +55,17 @@ SHA-256: `E22085C3578C913AA88F6474A639107C2E4B3B0516BCBC10F7AA2FAF67773EEC`
 
 [`foodborne-classic-command-tour.pgm7`](foodborne-classic-command-tour.pgm7) is
 an official-extension **parity acceptance target** for `LIST`, `FREQ`, `MEANS`, `SELECT`,
-`CANCEL SELECT`, `SORT`, `CANCEL SORT`, `SUMMARIZE`, and `GRAPH`. Choose the
-familiar **Run Commands** toolbar button with no selection to execute all twelve
-statements in source order. Like Epi Info 7, highlighting one complete command or
-block first makes the same toolbar run only that selected source. This proves the
-current bounded browser paths compose; it is not a full-parity claim. The file
-becomes a completed demo program only when every referenced command is
-`legacy-parity-verified` in the command compatibility registry.
+`CANCEL SELECT`, `SORT`, `CANCEL SORT`, `SUMMARIZE`, and `GRAPH`, followed by the
+explicitly labeled new-branch `EPIAI QUALITY *` profile. Choose the familiar **Run
+Commands** toolbar button with no selection to execute all thirteen statements in
+source order. Like Epi Info 7, highlighting one complete command or block first
+makes the same toolbar run only that selected source. This proves the current
+bounded browser paths compose; it is not a full-parity claim. The file becomes a
+completed legacy demo program only when every legacy command it references is
+`legacy-parity-verified` in the command compatibility registry; `EPIAI QUALITY`
+remains independently governed as a new branch.
 
-SHA-256: `7F617DD58CBF8573C949ABE9DA37C66E442004B1AEB50D202A558ACF6C88F472`
+SHA-256: `2104C65403EE053B08AF8C67FDD505B37CB1CB5F9BFABA7D11A11A7DB5B7F4D3`
 
 ## City of Toledo neighborhoods
 

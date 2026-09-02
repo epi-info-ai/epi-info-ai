@@ -1100,36 +1100,46 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne-classic-command-tour.pgm7");
   await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
 
+  const sourceEditor = page.locator("#classic-program-source .cm-content");
+  const sourceScroller = page.locator("#classic-program-source .cm-scroller");
+  await sourceEditor.focus();
+  await sourceEditor.press("Control+End");
+  await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  for (let line = 0; line < 40; line++) await sourceEditor.press("ArrowUp");
+  await expect(page.locator("#classic-program-cursor-position")).toContainText("Ln 1, Col ");
+  await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeLessThanOrEqual(6);
+  expect(await sourceEditor.locator(".cm-line").first().evaluate((line, scroller) => {
+    const lineBox = line.getBoundingClientRect();
+    const scrollerBox = scroller.getBoundingClientRect();
+    return lineBox.top >= scrollerBox.top && lineBox.bottom <= scrollerBox.bottom;
+  }, await sourceScroller.elementHandle())).toBe(true);
+
   await page.locator("#classic-program-toolbar-run").click();
-  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 12 of 12 commands succeeded.");
-  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 12 commands in source order");
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 13 of 13 commands succeeded.");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 13 commands in source order");
   await expect(page.locator("#classic-program-session-status")).toContainText("96 records; no selection");
   await expect(page.locator("#classic-program-session-status")).not.toContainText("SORT Age");
   await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
   await expect(page.locator("#classic-summarize-output-body tr")).toHaveCount(2);
   await expect(page.locator("#classic-graph-output-title")).toHaveText("Foodborne cases by status");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("13");
+  await expect(page.locator("#classic-quality-output")).toBeVisible();
+  await expect(page.locator("#classic-quality-output-count")).toHaveText("96 records · 27 fields");
+  await expect(page.locator('#classic-quality-output-body tr[data-field-name="hospitalization_date"]')).toContainText("74");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("14");
 
-  const editorChromeRemainsVisible = await page.locator(".classic-program-editor").evaluate((editor) => {
-    editor.scrollTop = editor.scrollHeight;
-    const editorRect = editor.getBoundingClientRect();
-    const chromeRect = editor.querySelector(".classic-program-editor-chrome").getBoundingClientRect();
-    return chromeRect.top >= editorRect.top - 1 && chromeRect.bottom <= editorRect.bottom + 1;
-  });
-  expect(editorChromeRemainsVisible).toBe(true);
   await expect(page.locator("#classic-program-title")).toBeVisible();
   await expect(page.locator("#classic-program-menu")).toBeVisible();
   await expect(page.locator("#classic-program-toolbar")).toBeVisible();
 
   await page.locator("#classic-output-clear").click();
   await expect(page.locator("#classic-output-navigation-status")).toHaveText("Output cleared. Command history is retained.");
-  for (const selector of ["#classic-program-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-program-history-output"]) {
+  for (const selector of ["#classic-program-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-quality-output", "#classic-program-history-output"]) {
     await expect(page.locator(selector)).toBeHidden();
   }
-  await expect(page.locator("#classic-program-history-count")).toHaveText("13");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("14");
   await page.locator("#classic-output-history").click();
   await expect(page.locator("#classic-program-history-output")).toBeVisible();
-  await expect(page.locator("#classic-program-history-count")).toHaveText("13");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("14");
 });
 
 test("Program Editor Cancel stops a sequential run and retains completed work", async ({ page }) => {

@@ -28,3 +28,6 @@ CANCEL SORT
 SUMMARIZE AverageAge :: AVG(Age) TO FoodborneAgeBySex STRATAVAR=Sex
 
 GRAPH case_status GRAPHTYPE="Bar" TITLETEXT="Foodborne cases by status" XTITLE="Count" YTITLE="Case Status"
+
+*** NEW BRANCH - browser-native quality profile; not an Epi Info 7 command
+EPIAI QUALITY *

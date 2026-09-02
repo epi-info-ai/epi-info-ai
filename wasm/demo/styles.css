@@ -500,15 +500,13 @@ a:focus-visible {
 }
 
 .classic-program-editor {
-  max-height: min(34rem, 48vh);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   border-top: 0;
 }
 
 .classic-program-editor-chrome {
-  position: sticky;
-  z-index: 12;
-  top: 0;
+  position: static;
   background: #f2f5f7;
   box-shadow: 0 2px 4px rgba(24, 56, 72, 0.12);
 }
@@ -3352,6 +3350,7 @@ body.map-fullscreen-fallback {
 }
 
 .classic-program-source .cm-editor {
+  height: clamp(14rem, 38dvh, 24rem);
   min-height: 10rem;
   border: 1px solid #8198aa;
   background: #fff;
@@ -3367,9 +3366,11 @@ body.map-fullscreen-fallback {
 }
 
 .classic-program-source .cm-scroller {
-  min-height: 10rem;
+  min-height: 0;
   line-height: 1.45;
   overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 0.75rem;
 }
 
 .classic-program-source .cm-content {

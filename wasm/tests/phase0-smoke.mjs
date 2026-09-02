@@ -2092,6 +2092,7 @@ CANCEL SORT`;
     "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement",
     "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
     "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement",
+    "EpiAiQualityStatement",
   ]);
   assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
   assert.throws(() => parser.parseClassicProgram("IF Age > 10 THEN\nFREQ Age"), /IF is missing END/);
