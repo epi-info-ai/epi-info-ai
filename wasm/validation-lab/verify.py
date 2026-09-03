@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 from pathlib import Path
 
 import nbformat
@@ -38,6 +39,8 @@ TABLES_FIXTURES = [
     REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher.expected.json",
     REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-missing.expected.json",
 ]
+TABLES_ADJUSTED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.expected.json"
+TABLES_WEIGHTED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-weighted.expected.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -83,8 +86,9 @@ def verify_notebook() -> None:
     assert "foodborne-tables-fisher-v0.5.json" in source
     assert "Fisher-Freeman-Halton" in source
     assert "foodborne-tables-missing-v0.6.json" in source
+    assert "foodborne-tables-adjusted-v0.8.json" in source
     assert "SET MISSING=ON" in source
-    assert "TABLES is not yet a Rust/WASM kernel" in source
+    assert "adjusted output produced by the Rust/WASM kernel" in source
 
     unmatched = nbformat.read(NOTEBOOKS[7], as_version=4)
     source = "\n".join(cell.source for cell in unmatched.cells)
@@ -277,6 +281,54 @@ def verify_foodborne_tables() -> None:
                     for exposure in fixture["exposureValues"]] == [row["counts"] for row in stratum["rows"]]
 
 
+def verify_foodborne_tables_adjusted() -> None:
+    fixture = json.loads(TABLES_ADJUSTED_FIXTURE.read_text(encoding="utf-8"))
+    data = (REPOSITORY / fixture["dataset"]["file"]).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+    rows = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    request = fixture["request"]
+    orientation = request["orientation"]
+    strata = []
+    for expected in fixture["strata"]:
+        members = [row for row in rows if row[request["strataHeaders"][0]] == expected["value"]]
+        cells = [[sum(row[request["exposureHeader"]] == exposure and row[request["outcomeHeader"]] == outcome
+                      for row in members)
+                  for outcome in [orientation["case"], orientation["nonCase"]]]
+                 for exposure in [orientation["exposed"], orientation["unexposed"]]]
+        assert cells == expected["cells"]
+        strata.append((*cells[0], *cells[1]))
+    expected = fixture["adjusted"]
+    tolerance = fixture["tolerance"]
+    mh_or = sum(a * d / (a + b + c + d) for a, b, c, d in strata) / sum(
+        b * c / (a + b + c + d) for a, b, c, d in strata)
+    mh_rr = sum(a * (c + d) / (a + b + c + d) for a, b, c, d in strata) / sum(
+        c * (a + b) / (a + b + c + d) for a, b, c, d in strata)
+    observed_minus_expected = sum(a - (a + b) * (a + c) / (a + b + c + d) for a, b, c, d in strata)
+    variance = sum((a + b) * (c + d) * (a + c) * (b + d) /
+                   ((a + b + c + d) ** 2 * (a + b + c + d - 1)) for a, b, c, d in strata)
+    uncorrected = observed_minus_expected ** 2 / variance
+    corrected = max(0, abs(observed_minus_expected) - 0.5) ** 2 / variance
+    assert math.isclose(mh_or, expected["adjustedOddsRatio"], abs_tol=tolerance, rel_tol=0)
+    assert math.isclose(mh_rr, expected["adjustedRiskRatio"], abs_tol=tolerance, rel_tol=0)
+    assert math.isclose(uncorrected, expected["mantelHaenszelUncorrected"], abs_tol=tolerance, rel_tol=0)
+    assert math.isclose(corrected, expected["mantelHaenszelCorrected"], abs_tol=tolerance, rel_tol=0)
+    assert math.isclose(math.erfc(math.sqrt(uncorrected / 2)), expected["mantelHaenszelUncorrectedP"], abs_tol=tolerance, rel_tol=0)
+
+
+def verify_foodborne_tables_weighted() -> None:
+    fixture = json.loads(TABLES_WEIGHTED_FIXTURE.read_text(encoding="utf-8"))
+    data = (REPOSITORY / fixture["dataset"]["file"]).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+    records = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    exposures = ["No", "Yes"]
+    outcomes = ["Confirmed", "Not a case", "Probable", "Suspected"]
+    cells = [[sum(float(record["Age"]) for record in records
+                  if record["Potato Salad"] == exposure and record["Case Status"] == outcome)
+              for outcome in outcomes] for exposure in exposures]
+    assert cells == [row["counts"] for row in fixture["rows"]]
+    assert sum(sum(row) for row in cells) == fixture["weightedTotal"]
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
@@ -288,5 +340,7 @@ if __name__ == "__main__":
     verify_unmatched()
     verify_chi_square_trend()
     verify_foodborne_tables()
+    verify_foodborne_tables_adjusted()
+    verify_foodborne_tables_weighted()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

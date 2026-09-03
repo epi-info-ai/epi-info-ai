@@ -1,6 +1,7 @@
 import type { EpiRecord, FieldDefinition, FieldType } from "../contracts/core.ts";
+import type { StratifiedTable2x2Input } from "../contracts/engine.ts";
 
-export const CLASSIC_TABLES_PLAN_VERSION = "classic-tables-v0.7.0" as const;
+export const CLASSIC_TABLES_PLAN_VERSION = "classic-tables-v0.9.0" as const;
 export const CLASSIC_TABLES_FISHER_MAX_TABLES = 200_000;
 export const CLASSIC_TABLES_FISHER_TOLERANCE = 3.45254e-7;
 
@@ -16,6 +17,8 @@ export interface ClassicTablesPlan {
   outcomeType: FieldType;
   strataFields: string[];
   strataPrompts: string[];
+  weightField?: string;
+  weightPrompt?: string;
   statistics?: "FISHER";
   includeMissing: boolean;
   representationOfMissing: string;
@@ -88,10 +91,29 @@ export interface ClassicTablesResult {
   sourceRecords: number;
   includedRecords: number;
   excludedMissing: number;
+  excludedInvalidWeight: number;
+  zeroWeightRecords: number;
+  weightedTotal: number;
+  weightField?: string;
   includedMissing: number;
   exposureValues: string[];
   outcomeValues: string[];
   strata: ClassicTablesStratum[];
+}
+
+export function classicTablesStratified2x2Input(result: ClassicTablesResult): StratifiedTable2x2Input | null {
+  if (result.weightField || result.strata.length < 2 || result.strata.some((stratum) => !stratum.twoByTwo)) return null;
+  return {
+    confidenceLevel: 0.95,
+    strata: result.strata.map((stratum, index) => ({
+      id: `classic-table-stratum-${index + 1}`,
+      label: stratum.value,
+      exposedCases: stratum.twoByTwo!.input.exposedCases,
+      exposedNonCases: stratum.twoByTwo!.input.exposedNonCases,
+      unexposedCases: stratum.twoByTwo!.input.unexposedCases,
+      unexposedNonCases: stratum.twoByTwo!.input.unexposedNonCases,
+    })),
+  };
 }
 
 const token = (name: string): string => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
@@ -250,6 +272,7 @@ export function resolveClassicTablesPlan(
   outcome: string,
   stratifyBy?: string | readonly string[],
   statistics?: "FISHER",
+  weightBy?: string,
   includeMissing = false,
   representationOfMissing = "Missing",
 ): ClassicTablesPlan {
@@ -257,14 +280,18 @@ export function resolveClassicTablesPlan(
   const outcomeField = resolveField(fields, outcome);
   const requestedStrata = typeof stratifyBy === "string" ? [stratifyBy] : [...(stratifyBy ?? [])];
   const strataFields = requestedStrata.map((field) => resolveField(fields, field));
-  const selectedFields = [exposureField.name, outcomeField.name, ...strataFields.map(({ name }) => name)];
+  const weightField = weightBy ? resolveField(fields, weightBy) : undefined;
+  if (weightField && weightField.type !== "number") throw new RangeError(`${weightField.name} must be a Number field for TABLES WEIGHTVAR.`);
+  if (weightField && statistics === "FISHER") throw new RangeError("TABLES STATISTICS=FISHER is not available with WEIGHTVAR because exact tests require unweighted integer observations.");
+  const selectedFields = [exposureField.name, outcomeField.name, ...strataFields.map(({ name }) => name), ...(weightField ? [weightField.name] : [])];
   if (new Set(selectedFields.map(key)).size !== selectedFields.length) throw new RangeError(
-    strataFields.length ? "TABLES exposure, outcome, and STRATAVAR fields must all be different." : "TABLES exposure and outcome must use different fields.",
+    weightField ? "TABLES exposure, outcome, STRATAVAR, and WEIGHTVAR fields must all be different."
+      : strataFields.length ? "TABLES exposure, outcome, and STRATAVAR fields must all be different." : "TABLES exposure and outcome must use different fields.",
   );
   return {
     version: CLASSIC_TABLES_PLAN_VERSION,
     source,
-    canonicalSource: `TABLES ${token(exposureField.name)} ${token(outcomeField.name)}${strataFields.length ? ` STRATAVAR=${strataFields.map(({ name }) => token(name)).join(" ")}` : ""}${statistics ? ` STATISTICS=${statistics}` : ""}`,
+    canonicalSource: `TABLES ${token(exposureField.name)} ${token(outcomeField.name)}${strataFields.length ? ` STRATAVAR=${strataFields.map(({ name }) => token(name)).join(" ")}` : ""}${weightField ? ` WEIGHTVAR=${token(weightField.name)}` : ""}${statistics ? ` STATISTICS=${statistics}` : ""}`,
     exposureField: exposureField.name,
     exposurePrompt: exposureField.prompt,
     exposureType: exposureField.type,
@@ -273,6 +300,7 @@ export function resolveClassicTablesPlan(
     outcomeType: outcomeField.type,
     strataFields: strataFields.map(({ name }) => name),
     strataPrompts: strataFields.map(({ prompt }) => prompt),
+    ...(weightField ? { weightField: weightField.name, weightPrompt: weightField.prompt } : {}),
     ...(statistics ? { statistics } : {}),
     includeMissing,
     representationOfMissing,
@@ -281,17 +309,29 @@ export function resolveClassicTablesPlan(
 
 export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicTablesPlan): ClassicTablesResult {
   let includedMissing = 0;
+  let excludedMissing = 0;
+  let excludedInvalidWeight = 0;
+  let zeroWeightRecords = 0;
   const included = records.flatMap((record) => {
     const exposure = category(record[plan.exposureField]);
     const outcome = category(record[plan.outcomeField]);
     const strata = plan.strataFields.map((field) => category(record[field]));
     const hasMissing = !exposure || !outcome || strata.some((value) => !value);
-    if (hasMissing && !plan.includeMissing) return [];
+    if (hasMissing && !plan.includeMissing) { excludedMissing++; return []; }
     if (hasMissing) includedMissing++;
+    let weight = 1;
+    if (plan.weightField) {
+      const rawWeight = record[plan.weightField];
+      if (rawWeight === null || rawWeight === undefined || String(rawWeight).trim() === "") { excludedInvalidWeight++; return []; }
+      weight = typeof rawWeight === "number" ? rawWeight : Number(rawWeight);
+      if (!Number.isFinite(weight) || weight < 0) { excludedInvalidWeight++; return []; }
+      if (weight === 0) zeroWeightRecords++;
+    }
     const normalizedStrata = strata.map((value) => value ?? plan.representationOfMissing);
     return [{
       exposure: exposure ?? plan.representationOfMissing,
       outcome: outcome ?? plan.representationOfMissing,
+      weight,
       stratumKey: JSON.stringify(normalizedStrata),
       stratum: normalizedStrata.length === 0
         ? "All records"
@@ -311,18 +351,20 @@ export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicT
   const strata = strataValues.map(({ key: stratumKey, value }) => {
     const members = included.filter((item) => item.stratumKey === stratumKey);
     const countRows = exposureValues.map((exposureValue) => {
-      const counts = outcomeValues.map((outcomeValue) => members.filter((item) => item.exposure === exposureValue && item.outcome === outcomeValue).length);
+      const counts = outcomeValues.map((outcomeValue) => members
+        .filter((item) => item.exposure === exposureValue && item.outcome === outcomeValue)
+        .reduce((sum, item) => sum + item.weight, 0));
       return { exposureValue, counts, total: counts.reduce((sum, count) => sum + count, 0) };
     });
     const columnTotals = outcomeValues.map((_, index) => countRows.reduce((sum, row) => sum + row.counts[index]!, 0));
-    const total = members.length;
+    const total = members.reduce((sum, item) => sum + item.weight, 0);
     const rows = countRows.map((row) => ({
       ...row,
       rowPercents: row.counts.map((count) => row.total ? count / row.total * 100 : 0),
       columnPercents: row.counts.map((count, index) => columnTotals[index] ? count / columnTotals[index]! * 100 : 0),
       expectedCounts: row.counts.map((_, index) => total ? row.total * columnTotals[index]! / total : 0),
     }));
-    const twoByTwo = isTwoByTwo ? {
+    const twoByTwo = isTwoByTwo && !plan.weightField ? {
       exposedValue: exposureValues[0]!, unexposedValue: exposureValues[1]!,
       caseValue: outcomeValues[0]!, nonCaseValue: outcomeValues[1]!,
       input: {
@@ -334,7 +376,7 @@ export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicT
       value, rows, columnTotals,
       columnPercents: columnTotals.map((count) => total ? count / total * 100 : 0),
       total, pearson: pearson(rows, columnTotals, total), ...(twoByTwo ? { twoByTwo } : {}),
-      ...(plan.statistics === "FISHER" && !twoByTwo ? { fisherExact: calculateBoundedFisherExact(rows.map(({ counts }) => counts)) } : {}),
+      ...(plan.statistics === "FISHER" && !plan.weightField && !twoByTwo ? { fisherExact: calculateBoundedFisherExact(rows.map(({ counts }) => counts)) } : {}),
     };
   });
   return {
@@ -343,7 +385,11 @@ export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicT
     canonicalSource: plan.canonicalSource,
     sourceRecords: records.length,
     includedRecords: included.length,
-    excludedMissing: records.length - included.length,
+    excludedMissing,
+    excludedInvalidWeight,
+    zeroWeightRecords,
+    weightedTotal: included.reduce((sum, item) => sum + item.weight, 0),
+    ...(plan.weightField ? { weightField: plan.weightField } : {}),
     includedMissing,
     exposureValues,
     outcomeValues,

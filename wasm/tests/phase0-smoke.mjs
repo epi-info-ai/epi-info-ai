@@ -916,7 +916,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const tables = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-tables.ts")).href}?tables=${Date.now()}`);
   const tablesPlan = tables.resolveClassicTablesPlan(tablesProgram, projectSource.fields, tablesCommand.exposure, tablesCommand.outcome, tablesCommand.stratifyBy);
   const tablesResult = tables.applyClassicTables(projectSource.records, tablesPlan);
-  assert.equal(tablesPlan.version, "classic-tables-v0.7.0");
+  assert.equal(tablesPlan.version, "classic-tables-v0.9.0");
   assert.equal(tablesResult.operation, tablesExpected.operation);
   for (const property of ["sourceRecords", "includedRecords", "excludedMissing", "exposureValues", "outcomeValues", "strata"]) {
     assert.deepEqual(tablesResult[property], tablesExpected[property]);
@@ -1007,6 +1007,41 @@ FREQ AgeGroup STRATAVAR=Sex`;
     value, total, cells: rows.map(({ counts }) => counts),
   })), multipleStrataExpected.strata);
 
+  const adjustedTablesProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.pgm",
+  ), "utf8");
+  const adjustedTablesExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.expected.json",
+  ), "utf8"));
+  const adjustedTablesCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(adjustedTablesProgram, projectSource.fields);
+  assert.deepEqual(adjustedTablesCommand, {
+    kind: "tables", exposure: "potato_salad", outcome: "hamburger", stratifyBy: ["sex"], source: adjustedTablesProgram,
+  });
+  const adjustedTablesPlan = tables.resolveClassicTablesPlan(
+    adjustedTablesProgram, projectSource.fields, adjustedTablesCommand.exposure, adjustedTablesCommand.outcome, adjustedTablesCommand.stratifyBy,
+  );
+  const adjustedTablesCategorical = tables.applyClassicTables(projectSource.records, adjustedTablesPlan);
+  const adjustedTablesInput = tables.classicTablesStratified2x2Input(adjustedTablesCategorical);
+  assert.ok(adjustedTablesInput);
+  assert.deepEqual(adjustedTablesInput.strata.map(({ label, exposedCases, exposedNonCases, unexposedCases, unexposedNonCases }) => ({
+    value: label, cells: [[exposedCases, exposedNonCases], [unexposedCases, unexposedNonCases]],
+  })), adjustedTablesExpected.strata.map(({ value, cells }) => ({ value, cells })));
+  const { calculateStratifiedTable2x2 } = await importEngineWithFileFetch();
+  const adjustedTablesResult = calculateStratifiedTable2x2(adjustedTablesInput);
+  const adjustedExpected = adjustedTablesExpected.adjusted;
+  near(adjustedTablesResult.estimates.adjustedOddsRatio.estimate, adjustedExpected.adjustedOddsRatio, adjustedTablesExpected.tolerance, "TABLES stratified MH OR");
+  near(adjustedTablesResult.estimates.adjustedOddsRatio.confidenceInterval.lower, adjustedExpected.adjustedOddsRatioLower, adjustedTablesExpected.tolerance, "TABLES stratified MH OR lower");
+  near(adjustedTablesResult.estimates.adjustedOddsRatio.confidenceInterval.upper, adjustedExpected.adjustedOddsRatioUpper, adjustedTablesExpected.tolerance, "TABLES stratified MH OR upper");
+  near(adjustedTablesResult.estimates.adjustedRiskRatio.estimate, adjustedExpected.adjustedRiskRatio, adjustedTablesExpected.tolerance, "TABLES stratified MH RR");
+  near(adjustedTablesResult.estimates.adjustedRiskRatio.confidenceInterval.lower, adjustedExpected.adjustedRiskRatioLower, adjustedTablesExpected.tolerance, "TABLES stratified MH RR lower");
+  near(adjustedTablesResult.estimates.adjustedRiskRatio.confidenceInterval.upper, adjustedExpected.adjustedRiskRatioUpper, adjustedTablesExpected.tolerance, "TABLES stratified MH RR upper");
+  near(adjustedTablesResult.estimates.adjustedConditionalOddsRatio.estimate.value, adjustedExpected.conditionalOddsRatio, adjustedTablesExpected.tolerance, "TABLES stratified conditional OR");
+  near(adjustedTablesResult.tests.mantelHaenszelUncorrected.value, adjustedExpected.mantelHaenszelUncorrected, adjustedTablesExpected.tolerance, "TABLES stratified MH chi-square");
+  near(adjustedTablesResult.tests.breslowDayTaroneOddsRatio.value, adjustedExpected.breslowDayTaroneOddsRatio, adjustedTablesExpected.tolerance, "TABLES stratified Breslow-Day-Tarone");
+  assert.equal(adjustedTablesResult.diagnostics.informativeStrata, adjustedExpected.informativeStrata);
+  assert.equal(tables.classicTablesStratified2x2Input(twoByTwoResult), null, "unstratified 2 x 2 must not claim adjustment");
+  assert.equal(tables.classicTablesStratified2x2Input(tablesResult), null, "M x N strata must not infer exposed/case classifications");
+
   const classicAst = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-ast.ts")).href}?missing=${Date.now()}`);
   const missingSettings = classicAst.parseClassicProgram("SET (.)=\"Not recorded\"\nSET MISSING=ON\nTABLES vomiting Sex\nSET MISSING=OFF\nSET (.)=\"Missing\"");
   assert.deepEqual(missingSettings.body.map(({ type }) => type), ["SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement"]);
@@ -1020,7 +1055,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("SET IGNORE=OFF", projectSource.fields), {
     kind: "set-missing", enabled: true, source: "SET IGNORE=OFF",
   });
-  const missingPlan = tables.resolveClassicTablesPlan("TABLES vomiting Sex", projectSource.fields, "vomiting", "sex", undefined, undefined, true, "Not recorded");
+  const missingPlan = tables.resolveClassicTablesPlan("TABLES vomiting Sex", projectSource.fields, "vomiting", "sex", undefined, undefined, undefined, true, "Not recorded");
   const missingResult = tables.applyClassicTables(projectSource.records, missingPlan);
   const missingExpected = JSON.parse(await readFile(repositoryPath(
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-missing.expected.json",
@@ -1035,6 +1070,53 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(excludedMissingResult.includedRecords, 94);
   assert.equal(excludedMissingResult.excludedMissing, 2);
   assert.equal(excludedMissingResult.includedMissing, 0);
+
+  const weightedTablesProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-weighted.pgm",
+  ), "utf8");
+  const weightedTablesExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-weighted.expected.json",
+  ), "utf8"));
+  const weightedTablesCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(weightedTablesProgram, projectSource.fields);
+  assert.deepEqual(weightedTablesCommand, {
+    kind: "tables", exposure: "potato_salad", outcome: "case_status", weightBy: "age", source: weightedTablesProgram,
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand(weightedTablesCommand), "TABLES potato_salad case_status WEIGHTVAR=age");
+  const weightedTablesPlan = tables.resolveClassicTablesPlan(
+    weightedTablesProgram, projectSource.fields, weightedTablesCommand.exposure, weightedTablesCommand.outcome,
+    weightedTablesCommand.stratifyBy, weightedTablesCommand.statistics, weightedTablesCommand.weightBy,
+  );
+  const weightedTablesResult = tables.applyClassicTables(projectSource.records, weightedTablesPlan);
+  assert.equal(weightedTablesPlan.canonicalSource, weightedTablesExpected.canonicalSource);
+  assert.equal(weightedTablesResult.weightedTotal, weightedTablesExpected.weightedTotal);
+  assert.equal(weightedTablesResult.excludedInvalidWeight, 0);
+  assert.equal(weightedTablesResult.zeroWeightRecords, 0);
+  assert.deepEqual(weightedTablesResult.strata[0].rows.map(({ exposureValue, counts, total }) => ({ exposureValue, counts, total })), weightedTablesExpected.rows);
+  assert.equal(weightedTablesResult.strata[0].twoByTwo, undefined);
+  assert.equal(tables.classicTablesStratified2x2Input(weightedTablesResult), null);
+  assert.throws(
+    () => commandBuilder.resolveSelectedClassicAnalysisCommand("TABLES potato_salad case_status WEIGHTVAR=Sex", projectSource.fields),
+    /must be a Number field/,
+  );
+  assert.throws(
+    () => commandBuilder.resolveSelectedClassicAnalysisCommand("TABLES potato_salad case_status WEIGHTVAR=Age STATISTICS=FISHER", projectSource.fields),
+    /not available with WEIGHTVAR/,
+  );
+  const invalidWeightPlan = tables.resolveClassicTablesPlan("TABLES exposure outcome WEIGHTVAR=weight", [
+    { name: "exposure", prompt: "Exposure", type: "yes-no", required: false },
+    { name: "outcome", prompt: "Outcome", type: "yes-no", required: false },
+    { name: "weight", prompt: "Weight", type: "number", required: false },
+  ], "exposure", "outcome", undefined, undefined, "weight");
+  const invalidWeightResult = tables.applyClassicTables([
+    { exposure: "Yes", outcome: "Yes", weight: 1.5 },
+    { exposure: "Yes", outcome: "No", weight: 0 },
+    { exposure: "No", outcome: "Yes", weight: -1 },
+    { exposure: "No", outcome: "No", weight: null },
+  ], invalidWeightPlan);
+  assert.equal(invalidWeightResult.includedRecords, 2);
+  assert.equal(invalidWeightResult.weightedTotal, 1.5);
+  assert.equal(invalidWeightResult.zeroWeightRecords, 1);
+  assert.equal(invalidWeightResult.excludedInvalidWeight, 2);
 
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "quality" }), "EPIAI QUALITY *");
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("EPIAI QUALITY *", imported.schema.fields), { kind: "quality", source: "EPIAI QUALITY *" });
@@ -2455,10 +2537,13 @@ async function checkValidationLabSource() {
     "foodborne-tables-fisher-v0.5.json",
     "Fisher-Freeman-Halton",
     "foodborne-tables-missing-v0.6.json",
+    "foodborne-tables-adjusted-v0.8.json",
+    "foodborne-tables-weighted-v0.9.json",
     "SET MISSING=ON",
     "chi2_contingency",
-    "TypeScript result contract",
-    "not yet a Rust/WASM kernel",
+    "Rust/WASM kernel",
+    "Mantel-Haenszel OR, RR",
+    "WEIGHTVAR frequency weights",
   ]) {
     assert.ok(tablesSource.includes(requiredText), `TABLES validation notebook must retain ${requiredText}`);
   }
@@ -2588,7 +2673,7 @@ CANCEL SORT`;
   const commandTour = parser.parseClassicProgram(commandTourSource);
   assert.deepEqual(commandTour.body.map(({ type }) => type), [
     "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement", "SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement", "TablesStatement", "TablesStatement",
-    "TablesStatement", "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
+    "TablesStatement", "TablesStatement", "TablesStatement", "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
     "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement",
     "EpiAiQualityStatement",
   ]);

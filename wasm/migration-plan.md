@@ -1144,7 +1144,7 @@ current-project READ/RELATE active data, explicit WRITE REPLACE Text downloads, 
 DEFINE GROUPVAR session groups with bounded LIST expansion, bounded DISPLAY
 DBVARIABLES Output, SELECT/SORT session
 effects, bounded Standard-variable IF/ELSE branching, and active-session
-LIST/FREQ/MEANS/TABLES and session `SET MISSING=OFF/ON`, while external READ targets fail closed. TABLES V0.7
+LIST/FREQ/MEANS/TABLES and session `SET MISSING=OFF/ON`, while external READ targets fail closed. TABLES V0.9
 renders all observed exposure/outcome categories unstratified or by one or more strata fields; reports counts,
 row/column percentages, totals, expected counts, Pearson chi-square/df/probability,
 and sparse-cell warnings; and reports missing exclusions. When an observed table
@@ -1191,13 +1191,16 @@ syntax remain separately labeled modern branches rather than retroactive legacy
 parity claims.
 
 **Next Statistics slice — complete TABLES incrementally:** retain the current
-V0.7 unstratified/multiple-strata categorical M×N counts, percentages, totals, expected counts, Pearson
+V0.9 unstratified/multiple-strata categorical M×N counts, percentages, totals, expected counts, Pearson
 statistics, sparse-cell warnings, and JupyterLite comparison as the tested floor;
 bounded `STATISTICS=FISHER` now covers 2 × N tables with a 200,000-table limit;
 and session `SET MISSING`, inverse `SET IGNORE`, and `SET (.)="label"` now
 preserve the legacy default and configurable display label; multiple `STRATAVAR`
 fields now produce labeled Cartesian strata and are exercised in the command tour;
-next add multiple exposure/outcome forms, `WEIGHTVAR`, and reviewed `OUTTABLE`. After those general
+finite non-negative numeric `WEIGHTVAR` frequency weights now have typed dialog,
+foodborne fixture, browser, and independent JupyterLite coverage, with weighted
+exact/binary inference disabled; next add multiple exposure/outcome forms and
+reviewed `OUTTABLE`. After those general
 tables, close stratified 2 × 2 Mantel–Haenszel and homogeneity outputs. Each increment
 requires a foodborne `.pgm`, machine-asserted expected output, browser execution,
 and ultimately reviewed desktop differential evidence.

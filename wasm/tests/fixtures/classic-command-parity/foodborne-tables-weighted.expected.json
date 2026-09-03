@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.categorical",
+  "planVersion": "classic-tables-v0.9.0",
+  "status": "browser-candidate",
+  "purpose": "Mechanical frequency-weight validation only; Age is not an epidemiologically meaningful survey weight.",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "canonicalSource": "TABLES potato_salad case_status WEIGHTVAR=age",
+  "weightedTotal": 3917,
+  "rows": [
+    { "exposureValue": "No", "counts": [0, 1686, 33, 298], "total": 2017 },
+    { "exposureValue": "Yes", "counts": [1007, 444, 449, 0], "total": 1900 }
+  ]
+}

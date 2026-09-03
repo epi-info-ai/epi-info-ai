@@ -462,7 +462,7 @@ discrepancy to its detailed evidence record.
 - Broader legacy output, zero/fractional-cell decisions, property/boundary,
   implementation, and statistical review remain open. G5 stays consolidated.
 
-### Classic TABLES V0.6 validation
+### Classic TABLES V0.9 validation
 
 - `validate-tables.ipynb` derives both the unstratified foodborne potato-salad by
   case-status matrix and the two matrices within Sex directly from the checksummed CSV.
@@ -479,10 +479,16 @@ discrepancy to its detailed evidence record.
   default (OFF), two excluded records, `SET MISSING=ON`, the visible two-record
   custom `Not recorded` row, and restoration to OFF plus the default `Missing`
   label in source order.
-- The notebook explicitly states that the general TABLES host is not yet a
-  Rust/WASM interpreter and does not treat contract validation as desktop Epi
-  Info parity.
-- General R × C Fisher, stratified 2×2 measures, weights, output tables, syntax breadth,
+- The `TABLES potato_salad hamburger STRATAVAR=Sex` fixture fixes two explicit
+  binary strata. The notebook independently derives their cells and recomputes
+  Mantel–Haenszel OR/RR, corrected and uncorrected association statistics, and
+  the df=1 probability; Phase 0 additionally anchors conditional OR and all
+  Rust/WASM homogeneity results.
+- The mechanical `TABLES potato_salad case_status WEIGHTVAR=Age` fixture fixes
+  weighted N at 3,917 and the complete 2 × 4 weighted matrix. Python independently
+  sums the frequency weights; Age is not claimed to be a meaningful survey weight.
+- The notebook does not treat candidate contract validation as desktop Epi Info parity.
+- General R × C Fisher, exact legacy weight edge/error behavior, output tables, syntax breadth,
   desktop differential evidence, and G5 approval remain open.
 
 ### Later releases

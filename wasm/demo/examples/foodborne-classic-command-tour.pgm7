@@ -25,7 +25,12 @@ SET (.)="Missing"
 
 TABLES potato_salad hamburger
 
+TABLES potato_salad hamburger STRATAVAR=Sex
+
 TABLES potato_salad case_status STRATAVAR=Sex STATISTICS=FISHER
+
+*** Mechanical WEIGHTVAR demonstration only: Age is not a defensible survey weight
+TABLES potato_salad case_status WEIGHTVAR=Age
 
 TABLES potato_salad hamburger STRATAVAR=Sex case_status
 

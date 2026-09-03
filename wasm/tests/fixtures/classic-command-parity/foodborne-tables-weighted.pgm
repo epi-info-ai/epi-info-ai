@@ -1,0 +1,2 @@
+*** Mechanical WEIGHTVAR validation only: Age is not an epidemiologically meaningful survey weight
+TABLES potato_salad case_status WEIGHTVAR=Age

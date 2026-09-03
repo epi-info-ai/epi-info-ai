@@ -1,4 +1,4 @@
-# Classic TABLES method contract — V0.7
+# Classic TABLES method contract — V0.9
 
 ## Scope
 
@@ -19,6 +19,21 @@ and log-sum-exp, uses the `3.45254e-7` comparison tolerance found in legacy
 `SingleMxN`, and stops at a visible 200,000-table limit. Unsupported shapes or
 limit breaches retain the categorical output and report exact statistics as
 unavailable.
+
+`WEIGHTVAR=<number field>` treats each participating row as a frequency weight,
+matching the accumulation role inspected in legacy `cWorkingTable.cs`. The
+browser accepts finite non-negative values, audits missing/invalid exclusions
+and zero-weight rows, and displays both participating records and weighted N.
+Exact and 2 × 2 risk/odds inference are not applied to weighted observations in
+this slice; those methods require a separately validated weighted contract.
+
+When a stratified result contains at least two true 2 × 2 tables, the exact
+displayed affirmative-first cells are sent to the `epi.stratified2x2` Rust/WASM
+Worker. TABLES appends adjusted Mantel–Haenszel odds and risk ratios with 95%
+confidence limits, the conditional maximum-likelihood odds ratio with Fisher
+limits, corrected and uncorrected association tests, and Breslow–Day, Tarone,
+and legacy Epi Info odds/risk-ratio homogeneity tests. M×N tables never enter
+this adapter, so the host does not invent exposed or case classifications.
 
 Records with a null, undefined, or blank selected value are excluded and counted
 in the audit by the legacy default `SET MISSING=OFF`. `SET MISSING=ON` persists
@@ -57,6 +72,8 @@ TABLES potato_salad case_status STRATAVAR=Sex
 TABLES potato_salad case_status
 TABLES potato_salad case_status STATISTICS=FISHER
 TABLES potato_salad hamburger
+TABLES potato_salad hamburger STRATAVAR=Sex
+TABLES potato_salad case_status WEIGHTVAR=Age
 SET (.)="Not recorded"
 SET MISSING=ON
 TABLES vomiting Sex
@@ -95,11 +112,26 @@ cross-product OR is `1.0869565217391304`, RR is `1.0416666666666667`, RD is
 those cells to the validated Rust/WebAssembly `epi.table2x2` operation rather
 than duplicating its formulas in the transitional TypeScript interpreter.
 
+The stratified binary fixture uses Female cells `[[6,18],[1,23]]` and Male
+cells `[[19,5],[23,1]]`. Its adjusted Mantel–Haenszel OR is
+`1.1804511278195489`, adjusted RR is `1.0416666666666667`, uncorrected
+association χ² is `0.08719851576994433`, and Breslow–Day–Tarone homogeneity χ²
+is `7.1716825020480925`. Complete confidence intervals, p-values, conditional
+OR, and homogeneity anchors live in
+`foodborne-tables-stratified-two-by-two.expected.json`.
+
+The mechanical `WEIGHTVAR=Age` fixture has weighted N `3917`; its No row is
+`[0, 1686, 33, 298]` and Yes row is `[1007, 444, 449, 0]`. Age is deliberately
+not represented as an epidemiologically meaningful survey weight—the fixture
+only makes the legacy accumulation behavior deterministic and immediately
+testable on the canonical data.
+
 ## Evidence and open gates
 
 - Phase 0 derives the result from the checksummed foodborne CSV and asserts the
-  complete V0.7 mapping contract, multiple-strata labels and exact cells, missing-value session behavior, bounded 2 × N exact anchor and limit
-  behavior, plus Rust/WebAssembly 2 × 2 anchors.
+  complete V0.9 mapping contract, multiple-strata labels, weighted cells, and exact cells,
+  missing-value session behavior, bounded 2 × N exact anchor and limit
+  behavior, plus Rust/WebAssembly single and stratified 2 × 2 anchors.
 - Browser tests open the PGM through the visible Program Editor and inspect its
   tables, percentages, statistics, expected counts, warnings, and history.
 - `validate-tables.ipynb` independently repeats the derivation with Python and
@@ -107,5 +139,5 @@ than duplicating its formulas in the transitional TypeScript interpreter.
 
 This evidence earns only `browser-verified`. Desktop Epi Info differential
 output, exact formatting/order review, missing-value variants,
-multiple exposure/outcome forms, weights, output tables, general R × C Fisher, and stratified 2 × 2 output
+multiple exposure/outcome forms, exact legacy weight edge/error behavior, output tables, and general R × C Fisher
 remain open before legacy parity can be claimed.

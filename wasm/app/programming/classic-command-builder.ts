@@ -53,7 +53,7 @@ export type ClassicAnalysisCommandInput =
   | { kind: "list"; fields: string[] }
   | { kind: "frequency"; field: string; stratifyBy?: string }
   | { kind: "means"; field: string }
-  | { kind: "tables"; exposure: string; outcome: string; stratifyBy?: string[]; statistics?: "FISHER" };
+  | { kind: "tables"; exposure: string; outcome: string; stratifyBy?: string[]; weightBy?: string; statistics?: "FISHER" };
 
 type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" }>;
 export type ResolvedClassicAnalysisCommand = SelectedExecutableClassicCommandInput & { source: string };
@@ -119,7 +119,7 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "list") return `LIST ${input.fields.length ? input.fields.map(fieldToken).join(" ") : "*"}`;
   if (input.kind === "frequency") return `FREQ ${fieldToken(input.field)}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}`;
   if (input.kind === "means") return `MEANS ${fieldToken(input.field)}`;
-  return `TABLES ${fieldToken(input.exposure)} ${fieldToken(input.outcome)}${input.stratifyBy?.length ? ` STRATAVAR=${input.stratifyBy.map(fieldToken).join(" ")}` : ""}${input.statistics ? ` STATISTICS=${input.statistics}` : ""}`;
+  return `TABLES ${fieldToken(input.exposure)} ${fieldToken(input.outcome)}${input.stratifyBy?.length ? ` STRATAVAR=${input.stratifyBy.map(fieldToken).join(" ")}` : ""}${input.weightBy ? ` WEIGHTVAR=${fieldToken(input.weightBy)}` : ""}${input.statistics ? ` STATISTICS=${input.statistics}` : ""}`;
 }
 
 function resolvedField(fields: readonly FieldDefinition[], requested: string): string {
@@ -270,17 +270,22 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
   }
   if (statement.type === "TablesStatement") {
     if (statement.exposure === "*" || !statement.outcome) throw new RangeError("Selected TABLES execution requires exposure and outcome fields.");
-    if (statement.options.weightBy || statement.options.outputTable || statement.options.psuVariable || (statement.options.statistics && statement.options.statistics !== "FISHER") || statement.options.columnSize || statement.options.noWrap || statement.options.oneIsYes) {
+    if (statement.options.outputTable || statement.options.psuVariable || (statement.options.statistics && statement.options.statistics !== "FISHER") || statement.options.columnSize || statement.options.noWrap || statement.options.oneIsYes) {
       throw new RangeError("The selected TABLES command uses options that are not enabled in this bounded executor.");
     }
     const strata = statement.options.stratifyBy.map(({ name }) => resolvedField(fields, name));
-    const names = [statement.exposure.name, statement.outcome.name, ...strata].map((name) => name.toLocaleLowerCase("en-US"));
+    const weightBy = statement.options.weightBy ? resolvedField(fields, statement.options.weightBy.name) : undefined;
+    if (weightBy && fields.find((candidate) => candidate.name === weightBy)?.type !== "number") throw new RangeError(`${weightBy} must be a Number field for TABLES WEIGHTVAR.`);
+    if (weightBy && statement.options.statistics === "FISHER") throw new RangeError("TABLES STATISTICS=FISHER is not available with WEIGHTVAR because exact tests require unweighted integer observations.");
+    const names = [statement.exposure.name, statement.outcome.name, ...strata, ...(weightBy ? [weightBy] : [])].map((name) => name.toLocaleLowerCase("en-US"));
     if (new Set(names).size !== names.length) throw new RangeError(
-      strata.length ? "TABLES exposure, outcome, and STRATAVAR fields must all be different." : "TABLES exposure and outcome must use different fields.",
+      weightBy ? "TABLES exposure, outcome, STRATAVAR, and WEIGHTVAR fields must all be different."
+        : strata.length ? "TABLES exposure, outcome, and STRATAVAR fields must all be different." : "TABLES exposure and outcome must use different fields.",
     );
     return {
       kind: "tables", exposure: resolvedField(fields, statement.exposure.name), outcome: resolvedField(fields, statement.outcome.name),
       ...(strata.length ? { stratifyBy: strata } : {}), source,
+      ...(weightBy ? { weightBy } : {}),
       ...(statement.options.statistics === "FISHER" ? { statistics: "FISHER" as const } : {}),
     };
   }

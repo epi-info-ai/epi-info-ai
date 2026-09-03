@@ -66,6 +66,8 @@ const requiredFiles = [
   "validation-fixtures/foodborne-tables-unstratified-v0.3.json",
   "validation-fixtures/foodborne-tables-fisher-v0.5.json",
   "validation-fixtures/foodborne-tables-missing-v0.6.json",
+  "validation-fixtures/foodborne-tables-adjusted-v0.8.json",
+  "validation-fixtures/foodborne-tables-weighted-v0.9.json",
   "build-manifest.json",
 ];
 requiredFiles.push("sqlite3.wasm");
@@ -74,7 +76,7 @@ requiredFiles.push("duckdb-eh.wasm", "duckdb-browser-eh.worker.js");
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=89["']/);
+assert.match(html, /src=["']app\.js\?v=90["']/);
 assert.match(html, /href=["']styles\.css\?v=59["']/);
 assert.match(html, /id=["']study-area-dialog["']/);
 assert.match(html, /id=["']main-menu["']/);

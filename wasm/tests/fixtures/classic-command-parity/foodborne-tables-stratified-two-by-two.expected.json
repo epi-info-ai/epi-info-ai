@@ -1,0 +1,55 @@
+{
+  "operation": "classic.tables.categorical",
+  "planVersion": "classic-tables-v0.9.0",
+  "canonicalSource": "TABLES potato_salad hamburger STRATAVAR=sex",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "rows": 96
+  },
+  "request": {
+    "exposureHeader": "Potato Salad",
+    "outcomeHeader": "Hamburger",
+    "strataHeaders": ["Sex"],
+    "orientation": {
+      "exposed": "Yes",
+      "unexposed": "No",
+      "case": "Yes",
+      "nonCase": "No"
+    }
+  },
+  "sourceRecords": 96,
+  "includedRecords": 96,
+  "excludedMissing": 0,
+  "strata": [
+    { "value": "Female", "total": 48, "cells": [[6, 18], [1, 23]] },
+    { "value": "Male", "total": 48, "cells": [[19, 5], [23, 1]] }
+  ],
+  "adjusted": {
+    "engineVersion": "0.8.0",
+    "adjustedOddsRatio": 1.1804511278195489,
+    "adjustedOddsRatioLower": 0.38115078184879314,
+    "adjustedOddsRatioUpper": 3.655941248267591,
+    "adjustedRiskRatio": 1.0416666666666667,
+    "adjustedRiskRatioLower": 0.7887392152426026,
+    "adjustedRiskRatioUpper": 1.3757011487132613,
+    "conditionalOddsRatio": 1.1908887924792644,
+    "conditionalOddsRatioLower": 0.3147893445892349,
+    "conditionalOddsRatioUpper": 4.655682246593694,
+    "mantelHaenszelUncorrected": 0.08719851576994433,
+    "mantelHaenszelUncorrectedP": 0.7677693392471483,
+    "mantelHaenszelCorrected": 0,
+    "mantelHaenszelCorrectedP": 1,
+    "breslowDayOddsRatio": 7.1721200732450265,
+    "breslowDayOddsRatioP": 0.007404521746081681,
+    "breslowDayTaroneOddsRatio": 7.1716825020480925,
+    "breslowDayTaroneOddsRatioP": 0.007406328017729958,
+    "legacyBreslowDayOddsRatio": 5.748063135564375,
+    "legacyBreslowDayOddsRatioP": 0.016506846431393087,
+    "legacyBreslowDayRiskRatio": 3.586824983662101,
+    "legacyBreslowDayRiskRatioP": 0.058239414026635836,
+    "informativeStrata": 2
+  },
+  "tolerance": 1e-12,
+  "reviewState": "browser-and-independent-validation-candidate; desktop Epi Info differential pending"
+}

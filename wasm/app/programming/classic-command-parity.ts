@@ -115,8 +115,8 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
   }),
   entry("statistics", "tables", "Tables", "TABLES", {
     parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1", parityStatus: "browser-verified",
-    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher.pgm",
-    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher.expected.json",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.expected.json",
   }),
   entry("statistics", "match", "Match", "MATCH", { explorer: "legacy-enum-only" }),
   entry("statistics", "means", "Means", "MEANS", {

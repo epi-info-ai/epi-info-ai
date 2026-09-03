@@ -433,6 +433,12 @@ checksums, expected metadata, and combined testing workflow are documented in
   source. The reviewed browser subset creates one named in-session output table
   from one aggregate and optional grouping field; the foodborne example computes
   average age by sex. Multiple aggregates and `WEIGHTVAR` remain explicit gaps.
+- Added Classic `TABLES ... WEIGHTVAR=<number field>` frequency weights from the
+  legacy C# working-table behavior. The typed dialog lists numeric fields,
+  weighted counts/totals and invalid or zero weights are auditable, and exact
+  and 2 × 2 risk/odds inference remain disabled for weighted observations. The
+  foodborne command tour uses Age only as a deterministic mechanical test
+  weight; it is explicitly not presented as a defensible survey weight.
 - Added the first three Statistics > Graph parity slices based on the legacy C#
   `GraphDialog`, grammar, and test programs. A visible one-variable
   `GRAPH` command now distinguishes familiar horizontal `Bar`, vertical
@@ -505,7 +511,7 @@ checksums, expected metadata, and combined testing workflow are documented in
 ## TODO
 
 - **Next Statistics slice — continue Classic Analysis `TABLES` parity.** The
-  current browser-verified V0.6 floor renders unstratified or one-stratum categorical counts, row/column
+  current browser-verified V0.9 floor renders unstratified and multi-stratum categorical counts, row/column
   percentages, totals, expected counts, Pearson chi-square/df/probability, and
   sparse-cell warnings for two fields and one `STRATAVAR`. A true observed 2 × 2
   table also receives the familiar Single Table Analysis: odds ratios, risk
@@ -515,10 +521,14 @@ checksums, expected metadata, and combined testing workflow are documented in
   statistical contracts. `STATISTICS=FISHER` now supplies bounded 2 × N exact
   testing with a visible 200,000-table limit. `SET MISSING=OFF/ON`, inverse
   `SET IGNORE`, and `SET (.)="label"` preserve the legacy OFF/`Missing`
-  defaults in ordered programs. Next implement and test:
-  - multiple-variable and multiple-`STRATAVAR` forms;
-  - `WEIGHTVAR` and reviewed `OUTTABLE` behavior; and
-  - legacy-compatible stratified 2 × 2 Mantel–Haenszel and homogeneity output.
+  defaults in ordered programs. A stratified binary TABLES command now sends
+  its displayed cells to the validated Rust/WASM Worker and appends adjusted
+  Mantel–Haenszel OR/RR, confidence limits, association tests, conditional OR,
+  and homogeneity tests. Next implement and test:
+  `WEIGHTVAR` now supplies finite, non-negative numeric frequency weights with
+  an independent JupyterLite check. Next implement and test:
+  - multiple exposure/outcome variables and GROUPVAR expansion; and
+  - reviewed `OUTTABLE` behavior.
   Preserve the legacy dialog and visible command source, add foodborne `.pgm`
   fixtures and expected results for every increment, and do not mark TABLES
   legacy-parity-verified until desktop differential output is reviewed.

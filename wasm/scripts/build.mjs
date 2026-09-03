@@ -117,6 +117,14 @@ await cp(
   join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-missing.expected.json"),
   join(validationFixtureDirectory, "foodborne-tables-missing-v0.6.json"),
 );
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.expected.json"),
+  join(validationFixtureDirectory, "foodborne-tables-adjusted-v0.8.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-weighted.expected.json"),
+  join(validationFixtureDirectory, "foodborne-tables-weighted-v0.9.json"),
+);
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));
 const commonOptions = {
