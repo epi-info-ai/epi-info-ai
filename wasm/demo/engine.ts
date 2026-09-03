@@ -200,7 +200,9 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
 
 async function loadWasm(): Promise<EpiWasmExports> {
   const engineUrl = typeof document === "undefined"
-    ? new URL("./epi2x2.wasm", import.meta.url)
+    // In a Worker, location points at the root worker entry even when this
+    // shared engine module was emitted into /chunks by the bundler.
+    ? new URL("./epi2x2.wasm", globalThis.location.href)
     : new URL("epi2x2.wasm", document.baseURI);
   const response = await fetch(engineUrl);
   if (!response.ok) throw new Error(`Unable to load the WASM engine (${response.status}).`);

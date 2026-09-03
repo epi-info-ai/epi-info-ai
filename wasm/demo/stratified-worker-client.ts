@@ -61,7 +61,7 @@ function terminateWorker(error?: Error | DOMException): boolean {
 
 function activeWorker(): Worker {
   if (worker) return worker;
-  worker = new Worker(new URL("./stratified-worker.js?v=2", import.meta.url), {
+  worker = new Worker(new URL("./stratified-worker.js?v=3", document.baseURI), {
     type: "module",
     name: "epi-info-stratified-analysis",
   });
