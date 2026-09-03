@@ -37,12 +37,12 @@ SHA-256: `ED94C4201ABD251304DB8B3FDDF3C8733BBC46D46BBBCB0F115B7804C6740B9D`
 
 [`foodborne-outbreak-investigation.programs.json`](foodborne-outbreak-investigation.programs.json)
 is the versioned program catalog owned by this example dataset. It binds itself to
-the CSV filename, SHA-256, and 96-record expectation and supplies three visible,
-editable Program Editor exercises using the dataset's `Age`, `Sex`, and
-`case_status` fields. The catalog is validated before use, and its source receives
+the CSV filename, SHA-256, and 96-record expectation and supplies six visible,
+editable Program Editor exercises using the dataset's `Age`, `Sex`,
+`case_status`, `potato_salad`, and `hamburger` fields. The catalog is validated before use, and its source receives
 no execution privilege beyond the ordinary AST and bounded planner.
 
-SHA-256: `A05410D99F11FD938AEDFBA9387C44E91FC18521EBF29124A72A66BD678ACA21`
+SHA-256: `A7D13195D09FC7185741685514381A365448F3F9E6322D80CFF9FD548F833583`
 
 ### Foodborne Program Editor files
 
@@ -54,10 +54,10 @@ frequency table.
 SHA-256: `E22085C3578C913AA88F6474A639107C2E4B3B0516BCBC10F7AA2FAF67773EEC`
 
 [`foodborne-classic-command-tour.pgm7`](foodborne-classic-command-tour.pgm7) is
-an official-extension **parity acceptance target** for `LIST`, `FREQ`, `MEANS`, `SELECT`,
+an official-extension **parity acceptance target** for `LIST`, `FREQ`, `MEANS`, `TABLES`, `SET MISSING`, `SELECT`,
 `CANCEL SELECT`, `SORT`, `CANCEL SORT`, `SUMMARIZE`, and `GRAPH`, followed by the
 explicitly labeled new-branch `EPIAI QUALITY *` profile. Choose the familiar **Run
-Commands** toolbar button with no selection to execute all thirteen statements in
+Commands** toolbar button with no selection to execute all twenty-one statements in
 source order. Like Epi Info 7, highlighting one complete command or block first
 makes the same toolbar run only that selected source. This proves the current
 bounded browser paths compose; it is not a full-parity claim. The file becomes a
@@ -65,7 +65,7 @@ completed legacy demo program only when every legacy command it references is
 `legacy-parity-verified` in the command compatibility registry; `EPIAI QUALITY`
 remains independently governed as a new branch.
 
-SHA-256: `2104C65403EE053B08AF8C67FDD505B37CB1CB5F9BFABA7D11A11A7DB5B7F4D3`
+SHA-256: `3212803BEB9616C8D2BC992C6F51DEE40F1AECF38BF9BB07432ABB68264E0161`
 
 ## City of Toledo neighborhoods
 

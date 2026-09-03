@@ -10,10 +10,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI - 2 x 2 Table Demo</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=47" />
+    <link rel="stylesheet" href="styles.css?v=59" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=73"></script>
+    <script type="module" src="app.js?v=89"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -37,7 +37,7 @@
         <div class="legacy-menu-popup" role="menu" aria-label="File">
           <button id="file-open-project" type="button" role="menuitem">Open Project...</button>
           <button id="file-save-project" type="button" role="menuitem">Save Project As...</button>
-          <input id="project-package-open" class="sr-only" type="file" accept=".epia,.json,.epia.json,application/json" />
+          <input id="project-package-open" class="sr-only" type="file" accept=".epia,.json,.epia.json,application/json,application/vnd.epi-info-ai.project" />
           <div class="legacy-menu-separator" role="separator"></div>
           <button id="file-exit" type="button" role="menuitem">Exit</button>
         </div>
@@ -119,31 +119,31 @@
 
     <div class="app-shell" hidden>
       <nav class="module-rail" aria-label="Epi Info AI modules">
-        <button id="main-menu-button" class="module-button main-menu-button" type="button">
+        <button id="main-menu-button" class="module-button main-menu-button" type="button" aria-label="Main Menu">
           <span class="module-icon" aria-hidden="true">⌂</span>
           <span>Main Menu</span>
         </button>
-        <button class="module-button" type="button" data-module="forms">
+        <button class="module-button" type="button" data-module="forms" aria-label="Create Forms">
           <span class="module-icon" aria-hidden="true">▦</span>
           <span>Create Forms</span>
         </button>
-        <button class="module-button" type="button" data-module="data">
+        <button class="module-button" type="button" data-module="data" aria-label="Enter Data">
           <span class="module-icon" aria-hidden="true">▤</span>
           <span>Enter Data</span>
         </button>
-        <button class="module-button" type="button" data-module="dashboard">
+        <button class="module-button" type="button" data-module="dashboard" aria-label="Visual Dashboard">
           <span class="module-icon" aria-hidden="true">▥</span>
           <span>Visual Dashboard</span>
         </button>
-        <button class="module-button" type="button" data-module="classic">
+        <button class="module-button" type="button" data-module="classic" aria-label="Classic Analysis">
           <span class="module-icon" aria-hidden="true">›_</span>
           <span>Classic Analysis</span>
         </button>
-        <button class="module-button" type="button" data-module="maps" data-map-context="standalone">
+        <button class="module-button" type="button" data-module="maps" data-map-context="standalone" aria-label="Maps">
           <span class="module-icon" aria-hidden="true">⌖</span>
           <span>Maps</span>
         </button>
-        <button class="module-button active" type="button" data-module="statcalc" aria-current="page">
+        <button class="module-button active" type="button" data-module="statcalc" aria-current="page" aria-label="StatCalc">
           <span class="module-icon" aria-hidden="true">2×2</span>
           <span>StatCalc</span>
         </button>
@@ -378,6 +378,17 @@
               <button id="map-fit-points" type="button">Fit Layers</button>
               <span id="map-status" role="status">Map ready</span>
               <span id="map-basemap-status" class="map-basemap-status" role="status" aria-live="polite"></span>
+              <div id="map-offline-recovery" class="map-offline-recovery" data-state="available" hidden>
+                <strong id="map-offline-recovery-title">Offline package needs attention</strong>
+                <span id="map-offline-recovery-detail"></span>
+                <div class="map-offline-recovery-actions">
+                  <button id="map-offline-restore-project" type="button">Restore project backup...</button>
+                  <button id="map-offline-reimport" type="button">Re-import PMTiles...</button>
+                  <input id="map-offline-reimport-file" class="sr-only" type="file" accept=".pmtiles,application/octet-stream" />
+                  <button id="map-offline-use-blank" type="button">Continue with blank map</button>
+                  <button id="map-offline-detach" type="button">Detach offline package</button>
+                </div>
+              </div>
             </div>
 
             <div class="map-workspace">
@@ -387,6 +398,7 @@
                 <fieldset class="map-basemap-picker" aria-label="Map background">
                   <label title="Satellite imagery requires a configured imagery provider"><input type="radio" name="map-basemap" value="satellite" disabled /> Satellite</label>
                   <label><input type="radio" name="map-basemap" value="street" checked /> Street</label>
+                  <label id="map-basemap-offline-label" title="Import a raster PMTiles package in the current project's study area."><input id="map-basemap-offline" type="radio" name="map-basemap" value="offline" disabled /> Offline package</label>
                   <label><input type="radio" name="map-basemap" value="blank" /> Blank</label>
                 </fieldset>
                 <div id="map-empty-state" class="map-empty-state">Select Add Data Layer &gt; Case Cluster, then choose a data source.</div>
@@ -731,7 +743,7 @@
         </dialog>
         <section class="panel classic-program-editor" data-module-view="classic" aria-labelledby="classic-program-title">
           <div class="classic-program-editor-chrome">
-          <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><div class="classic-program-heading-state"><span id="classic-program-source-name" class="calculation-time">Current project data</span><span id="classic-program-document-state">Untitled · saved</span></div></div>
+          <div class="panel-heading"><div><p class="step-label">PROGRAM EDITOR · SAFE V0.1</p><h2 id="classic-program-title">Program Editor</h2></div><div class="classic-program-heading-actions"><div class="classic-program-heading-state"><span id="classic-program-source-name" class="calculation-time">Current project data</span><span id="classic-program-document-state">Untitled · saved</span></div><button id="classic-program-assist-toggle" class="classic-program-assist-toggle" type="button" aria-controls="classic-program-assist" aria-expanded="true"><span class="new-branch-tag">AI</span> Epi Assist</button></div></div>
           <nav id="classic-program-menu" class="designer-menu classic-program-menu" aria-label="Program Editor menu">
             <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">File</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor File" data-classic-program-menu-host="file"></div></details>
             <details class="legacy-menu compact-legacy-menu"><summary aria-haspopup="menu">Edit</summary><div class="legacy-menu-popup" role="menu" aria-label="Program Editor Edit" data-classic-program-menu-host="edit"></div></details>
@@ -739,23 +751,53 @@
           </nav>
           <div id="classic-program-toolbar" class="classic-legacy-toolbar" role="toolbar" aria-label="Program Editor commands"></div>
           </div>
-          <p id="classic-program-command-status" class="dashboard-command-status" role="status">Program Editor ready.</p>
-          <p id="classic-program-session-status" class="compatibility-note"><strong>Active data:</strong> current form.</p>
-          <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
-          <p id="classic-program-source-label" class="classic-program-label"><strong>Program</strong></p>
-          <div id="classic-program-source" class="classic-program-source" aria-labelledby="classic-program-source-label"></div>
-          <article id="classic-program-printout" aria-hidden="true"><h1 id="classic-program-print-title">Program</h1><pre id="classic-program-print-source"></pre></article>
-          <div class="classic-program-editor-status" aria-label="Program Editor status"><span id="classic-program-cursor-position">Ln 1, Col 1</span><span id="classic-program-font-status">Consolas · 15 px</span><span id="classic-program-tab-status">Tab width 4 · Tabs</span></div>
-          <p id="classic-program-completion-help" class="classic-program-completion-help">Command Assist: after <code>RECODE</code>, eligible numeric fields appear automatically. Use arrow keys and Enter or Tab to insert a suggestion; Ctrl+Space opens suggestions manually.</p>
-          <p id="classic-program-live-status" class="classic-program-live-status" role="status">Live syntax check is starting.</p>
-          <div class="form-actions">
-            <button id="classic-program-verify" type="button">Verify Program</button>
-            <button id="classic-program-run-selection" type="button">Run Selected Command</button>
-            <button id="classic-program-run" class="primary-button" type="button">Run Commands</button>
+          <div id="classic-program-workbench" class="classic-program-workbench" data-assist-open="true">
+            <div class="classic-program-primary">
+              <p id="classic-program-command-status" class="dashboard-command-status" role="status">Program Editor ready.</p>
+              <p id="classic-program-session-status" class="compatibility-note"><strong>Active data:</strong> current form.</p>
+              <p class="compatibility-note">This bounded first slice verifies and runs only <code>DEFINE … TEXTINPUT</code>, numeric <code>RECODE … END</code>, and <code>FREQ … [STRATAVAR=…]</code>. Unsupported source is never evaluated or translated to JavaScript.</p>
+              <p id="classic-program-source-label" class="classic-program-label"><strong>Program</strong></p>
+              <div id="classic-program-source" class="classic-program-source" aria-labelledby="classic-program-source-label"></div>
+              <article id="classic-program-printout" aria-hidden="true"><h1 id="classic-program-print-title">Program</h1><pre id="classic-program-print-source"></pre></article>
+              <div class="classic-program-editor-status" aria-label="Program Editor status"><span id="classic-program-cursor-position">Ln 1, Col 1</span><span id="classic-program-font-status">Consolas · 15 px</span><span id="classic-program-tab-status">Tab width 4 · Tabs</span></div>
+              <p id="classic-program-completion-help" class="classic-program-completion-help">Command Assist: after <code>RECODE</code>, eligible numeric fields appear automatically. Use arrow keys and Enter or Tab to insert a suggestion; Ctrl+Space opens suggestions manually.</p>
+              <p id="classic-program-live-status" class="classic-program-live-status" role="status">Live syntax check is starting.</p>
+              <div class="form-actions">
+                <button id="classic-program-verify" type="button">Verify Program</button>
+                <button id="classic-program-run-selection" type="button">Run Selected Command</button>
+                <button id="classic-program-run" class="primary-button" type="button">Run Commands</button>
+              </div>
+              <p id="classic-program-feedback" class="inline-feedback" role="status">Load the foodborne form, then verify or run this bounded program.</p>
+              <div id="classic-message-area" class="classic-message-area" role="status"><strong>Message Area:</strong> Ready.</div>
+            </div>
+            <aside id="classic-program-assist" class="classic-program-assist" aria-labelledby="classic-program-assist-title">
+              <div class="classic-program-assist-titlebar">
+                <div><span class="new-branch-tag">New branch</span><h3 id="classic-program-assist-title">Epi Assist</h3></div>
+                <button id="classic-program-assist-close" type="button" aria-label="Close Epi Assist" title="Close Epi Assist">×</button>
+              </div>
+              <div class="classic-program-assist-body">
+                <div class="classic-program-assist-model"><span class="engine-dot" aria-hidden="true"></span><span><strong>Local IBM Granite</strong><small>Editor-aware planning prototype</small></span></div>
+                <p class="classic-program-assist-boundary"><strong>Nothing runs automatically.</strong> Epi Assist proposes a typed plan and visible Epi Info source for your review.</p>
+                <div class="classic-program-assist-tasks" role="group" aria-label="Epi Assist task">
+                  <button type="button" data-assist-task="Plan analysis" aria-pressed="true">Plan</button>
+                  <button type="button" data-assist-task="Explain selection" aria-pressed="false">Explain</button>
+                  <button type="button" data-assist-task="Fix diagnostics" aria-pressed="false">Fix</button>
+                  <button type="button" data-assist-task="Validate program" aria-pressed="false">Validate</button>
+                </div>
+                <label for="classic-program-assist-prompt"><span id="classic-program-assist-task-label">Plan analysis</span><textarea id="classic-program-assist-prompt" rows="3">Show the age distribution by sex</textarea></label>
+                <button id="classic-program-assist-preview" class="primary-button" type="button">Continue to local Granite</button>
+                <p id="classic-program-assist-status" class="inline-feedback" role="status">Continue to choose a local model and review its proposed tool call.</p>
+                <article id="classic-program-assist-proposal" class="classic-program-assist-proposal" aria-labelledby="classic-program-assist-proposal-title">
+                  <p class="step-label">REVIEWED PLAN PREVIEW</p>
+                  <h4 id="classic-program-assist-proposal-title">Age distribution stratified by Sex</h4>
+                  <dl><div><dt>Fields</dt><dd><code>Age</code> · Number; <code>Sex</code> · Text</dd></div><div><dt>Compatibility</dt><dd>Current command path</dd></div></dl>
+                  <pre><code>FREQ Age STRATAVAR=Sex</code></pre>
+                  <div class="classic-program-assist-actions"><button type="button" disabled title="Enabled when the typed-plan integration is implemented">Insert at cursor</button><button type="button" disabled title="Execution always requires a separate review action">Run selection</button></div>
+                </article>
+              </div>
+            </aside>
+            <button id="classic-program-assist-reopen" class="classic-program-assist-reopen" type="button" aria-controls="classic-program-assist" aria-label="Show Epi Assist"><span class="new-branch-tag">AI</span><span>Epi Assist</span></button>
           </div>
-          <p id="classic-program-feedback" class="inline-feedback" role="status">Load the foodborne form, then verify or run this bounded program.</p>
-          <div id="classic-program-canonical" class="classic-command-preview" hidden><strong>Validated effective program</strong><pre id="classic-program-canonical-source"></pre></div>
-          <div id="classic-message-area" class="classic-message-area" role="status"><strong>Message Area:</strong> Ready.</div>
         </section>
         <dialog id="classic-program-dialog" class="legacy-dialog" aria-labelledby="classic-program-dialog-title">
           <form method="dialog">
@@ -805,7 +847,7 @@
           <form method="dialog">
             <div class="legacy-dialog-titlebar"><h2 id="classic-command-dialog-title">Insert Command</h2><button value="cancel" aria-label="Close">×</button></div>
             <div class="legacy-dialog-body classic-program-dialog-body">
-              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="summarize">Summarize</option><option value="graph">Graph</option><option value="quality">NEW BRANCH — Quality Profile</option></select></label>
+              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="summarize">Summarize</option><option value="graph">Graph</option><option value="set-missing">Set</option><option value="quality">NEW BRANCH — Quality Profile</option></select></label>
               <label id="classic-command-dialog-source-label" hidden>Project form<select id="classic-command-dialog-source"></select></label>
               <fieldset id="classic-command-dialog-relate" hidden>
                 <legend>Relate tables</legend>
@@ -934,6 +976,11 @@
                 <label>Y-axis title<input id="classic-command-dialog-graph-y-title" value="Case Status" autocomplete="off"></label>
                 <p class="method-note">Bar preserves the familiar horizontal orientation, Column uses vertical columns, and Pie shows category shares. All reviewed one-variable branches retain an auditable data table; unsupported variants remain visible gaps.</p>
               </fieldset>
+              <fieldset id="classic-command-dialog-set-missing" hidden>
+                <legend>Missing values</legend>
+                <label class="checkbox-row"><input id="classic-command-dialog-include-missing" type="checkbox"> Include missing values in analyses</label>
+                <p class="method-note">Produces <code>SET MISSING=ON</code> or <code>SET MISSING=OFF</code>. The legacy default is OFF; missing values display as “Missing”.</p>
+              </fieldset>
               <fieldset id="classic-command-dialog-quality" hidden>
                 <legend><span class="new-branch-label">NEW BRANCH</span> Quality profile</legend>
                 <p>Profile completeness and existing field-validation issues across every field in the active line list. This command is read-only.</p>
@@ -949,6 +996,7 @@
               <label id="classic-command-dialog-exposure-label" hidden>Exposure variable<select id="classic-command-dialog-exposure"></select></label>
               <label id="classic-command-dialog-outcome-label" hidden>Outcome variable<select id="classic-command-dialog-outcome"></select></label>
               <label id="classic-command-dialog-strata-label">Stratify by<select id="classic-command-dialog-strata"><option value="">Do not stratify</option></select></label>
+              <label id="classic-command-dialog-fisher-label" class="checkbox-row" hidden><input id="classic-command-dialog-fisher" type="checkbox"> Show Fisher's Exact (bounded 2 × N)</label>
               <div class="classic-command-preview"><strong>Command source</strong><code id="classic-command-dialog-preview">FREQ</code></div>
               <p class="compatibility-note">The dialog inserts ordinary, visible Epi Info source. It does not execute or grant the command additional authority.</p>
               <p id="classic-command-dialog-feedback" class="inline-feedback" role="status"></p>
@@ -1069,8 +1117,13 @@
           <div class="compatibility-note"><strong>Migration warnings</strong><ul id="classic-file-convert-output-warnings"></ul></div>
         </section>
         <section id="classic-program-output" class="panel" data-module-view="classic" aria-labelledby="classic-program-output-title" hidden>
-          <div class="panel-heading"><div><p class="step-label">PROGRAM OUTPUT</p><h2 id="classic-program-output-title">AgeGroup frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>
-          <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Stratum</th><th scope="col">Age group</th><th scope="col">Frequency</th><th scope="col">Percent</th><th scope="col">Cum. Percent</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead><tbody id="classic-program-output-rows"></tbody></table></div>
+          <div class="panel-heading"><div><p class="step-label">PROGRAM OUTPUT</p><h2 id="classic-program-output-title">Frequency</h2></div><span class="calculation-time">Within-stratum percentages · 95% confidence limits</span></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th scope="col">Stratum</th><th id="classic-program-output-variable-heading" scope="col">Value</th><th scope="col">Frequency</th><th scope="col">Percent</th><th scope="col">Cum. Percent</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead><tbody id="classic-program-output-rows"></tbody></table></div>
+        </section>
+        <section id="classic-sequential-output" class="panel" data-module-view="classic" aria-labelledby="classic-sequential-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">PROGRAM RUN OUTPUT</p><h2 id="classic-sequential-output-title">Commands and retained results</h2></div><span id="classic-sequential-output-count" class="calculation-time"></span></div>
+          <p class="inline-feedback">Every source statement is listed in order. Output-producing commands retain a read-only snapshot below their audit summary.</p>
+          <div id="classic-sequential-output-body" class="classic-sequential-output-body"></div>
         </section>
         <section id="classic-opened-output" class="panel" data-module-view="classic" aria-labelledby="classic-opened-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label">OPENED OUTPUT</p><h2 id="classic-opened-output-title">Opened output</h2></div></div>
@@ -1152,6 +1205,11 @@
             <p id="classic-tables-feedback" class="inline-feedback" role="status">Choose variables from the current form. Records with blanks in a selected field are excluded and reported.</p>
           </form>
         </section>
+        <section id="classic-tables-categorical-output" class="panel" data-module-view="classic" aria-labelledby="classic-tables-categorical-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">TABLES output</p><h2 id="classic-tables-categorical-title">Cross-tabulation</h2></div><span id="classic-tables-categorical-count" class="calculation-time"></span></div>
+          <p id="classic-tables-categorical-note" class="method-note"></p>
+          <div id="classic-tables-categorical-body"></div>
+        </section>
         <section class="panel stratified-panel" data-module-view="classic" aria-labelledby="stratified-title">
           <div class="panel-heading">
             <div>
@@ -1189,7 +1247,7 @@
         </details>
 
         <footer class="audit-strip" data-module-view="classic">
-          <span><strong>Operations</strong> epi.frequency · epi.means · epi.stratified2x2</span>
+          <span><strong>Operations</strong> epi.frequency · epi.means · classic.tables.categorical · epi.stratified2x2</span>
           <span><strong>Status</strong> Candidates · consolidated G5 review pending</span>
         </footer>
           </div>
@@ -1341,6 +1399,29 @@
       </form>
     </dialog>
 
+    <dialog id="location-preview-dialog" class="legacy-dialog location-preview-dialog" aria-labelledby="location-preview-dialog-title">
+      <div class="legacy-dialog-frame">
+        <header class="legacy-dialog-titlebar">
+          <strong id="location-preview-dialog-title">Preview Location on OpenStreetMap</strong>
+          <button type="button" data-close-location-preview aria-label="Close">×</button>
+        </header>
+        <div class="legacy-dialog-body location-preview-body">
+          <p><strong>Address:</strong> <span id="location-preview-address"></span></p>
+          <p class="dialog-note">The point is part of the current unsaved record. Drag it or click another location to update the signed latitude and longitude fields immediately.</p>
+          <div id="location-preview-map" class="location-preview-map" aria-label="OpenStreetMap location preview"></div>
+          <dl class="location-preview-coordinates" aria-label="Current point coordinates">
+            <div><dt>Latitude</dt><dd><output id="location-preview-latitude">Not set</output></dd></div>
+            <div><dt>Longitude</dt><dd><output id="location-preview-longitude">Not set</output></dd></div>
+          </dl>
+          <p id="location-preview-status" class="dialog-note location-preview-status" role="status" aria-live="polite"></p>
+          <p class="dialog-note geocode-attribution">OpenStreetMap tiles require an internet connection. Point placement and coordinate editing remain available if tiles cannot be retrieved.</p>
+        </div>
+        <footer class="legacy-dialog-actions">
+          <button type="button" data-close-location-preview>Done</button>
+        </footer>
+      </div>
+    </dialog>
+
     <dialog id="epi-assist-dialog" class="legacy-dialog epi-assist-dialog" aria-labelledby="epi-assist-title">
       <div class="legacy-dialog-frame">
         <header class="legacy-dialog-titlebar">
@@ -1354,6 +1435,13 @@
           <section class="epi-assist-model" aria-labelledby="epi-assist-model-title">
             <div>
               <h2 id="epi-assist-model-title">Local IBM Granite</h2>
+              <label for="epi-assist-model"><strong>Test model</strong></label>
+              <select id="epi-assist-model">
+                <option value="granite-4.0-350m-wasm">Granite 4.0 350M (CPU compatibility, q4)</option>
+                <option value="granite-4.0-350m-webgpu">Granite 4.0 350M (WebGPU, fp16)</option>
+                <option value="granite-4.0-1b">Granite 4.0 1B (WebGPU, q4)</option>
+              </select>
+              <p id="epi-assist-model-description">WebGPU; approximately 709 MB for the selected model files.</p>
               <p>Granite 4.0 350M Instruct · WebGPU · approximately 709 MB for the selected fp16 model files.</p>
             </div>
             <span class="local-only-badge">Local inference</span>
@@ -1552,6 +1640,16 @@
           <label for="database-name">Database name</label>
           <input id="database-name" name="databaseName" type="text" value="Outbreak Project" required maxlength="80" />
 
+          <fieldset class="project-study-area-fieldset">
+            <legend>Study area (optional)</legend>
+            <p id="project-study-area-summary">No study area selected. You can add one later.</p>
+            <div class="project-study-area-actions">
+              <button id="project-study-area-open" type="button">Define Study Area...</button>
+              <button id="project-study-area-remove" type="button" hidden>Remove</button>
+            </div>
+            <small>Defining an area now records its boundary and a recommended offline zoom plan. It does not download map tiles yet.</small>
+          </fieldset>
+
           <div id="supabase-settings" class="dialog-conditional-fields" hidden>
             <label for="supabase-url">Supabase project URL</label>
             <input id="supabase-url" name="supabaseUrl" type="url" placeholder="https://your-project.supabase.co" autocomplete="url" spellcheck="false" />
@@ -1572,6 +1670,76 @@
           <button value="cancel" type="button" data-close-project-dialog>Cancel</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="study-area-dialog" class="legacy-dialog study-area-dialog" aria-labelledby="study-area-dialog-title">
+      <div class="legacy-dialog-frame">
+        <div class="legacy-dialog-titlebar">
+          <strong id="study-area-dialog-title">Preview Study Area</strong>
+          <button type="button" data-close-study-area aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <label for="study-area-name">Study area name</label>
+          <input id="study-area-name" type="text" maxlength="100" />
+          <p>Draw a bounding box over the planned investigation area, or enter signed WGS84 decimal-degree bounds. A dataset is not required.</p>
+          <div class="study-area-toolbar">
+            <button id="study-area-draw" type="button">Draw Bounding Box</button>
+            <button id="study-area-clear" type="button">Clear</button>
+            <span id="study-area-draw-status" role="status" aria-live="polite">Draw a box or enter its signed decimal-degree bounds.</span>
+          </div>
+          <div id="project-study-area-map" class="study-area-map" aria-label="Study area preview map"></div>
+          <fieldset>
+            <legend>Bounding box</legend>
+            <div class="study-area-coordinate-grid">
+              <label for="study-area-west">West
+                <input id="study-area-west" type="number" min="-180" max="180" step="0.00001" placeholder="-83.75000" />
+              </label>
+              <label for="study-area-south">South
+                <input id="study-area-south" type="number" min="-90" max="90" step="0.00001" placeholder="41.50000" />
+              </label>
+              <label for="study-area-east">East
+                <input id="study-area-east" type="number" min="-180" max="180" step="0.00001" placeholder="-83.45000" />
+              </label>
+              <label for="study-area-north">North
+                <input id="study-area-north" type="number" min="-90" max="90" step="0.00001" placeholder="41.75000" />
+              </label>
+            </div>
+          </fieldset>
+          <label for="study-area-max-zoom">Planned maximum zoom</label>
+          <select id="study-area-max-zoom">
+            <option value="12">12 - regional orientation</option>
+            <option value="13">13 - district overview</option>
+            <option value="14">14 - town or neighborhood</option>
+            <option value="15" selected>15 - streets and field navigation</option>
+            <option value="16">16 - detailed local investigation</option>
+          </select>
+          <label for="study-area-provider">Offline map source</label>
+          <select id="study-area-provider">
+            <option value="osm-standard" selected>OpenStreetMap Standard - online preview only</option>
+            <option value="browser-pmtiles">Browser-local PMTiles package - preferred offline path</option>
+            <option value="approved-xyz">Organization-approved/self-hosted XYZ</option>
+          </select>
+          <p id="study-area-provider-policy" class="study-area-policy-note">Interactive preview is available, but the public Standard tile service does not permit offline prefetch or bulk download.</p>
+          <fieldset id="study-area-pmtiles-fields" class="study-area-pmtiles-fields" hidden>
+            <legend>Browser-local PMTiles archive</legend>
+            <label for="study-area-pmtiles-file">PMTiles v3 file</label>
+            <input id="study-area-pmtiles-file" type="file" accept=".pmtiles,application/octet-stream" />
+            <label for="study-area-pmtiles-attribution">Map attribution</label>
+            <input id="study-area-pmtiles-attribution" type="text" maxlength="500" placeholder="Example: © OpenStreetMap contributors" />
+            <label for="study-area-pmtiles-license">Data license or terms reference</label>
+            <input id="study-area-pmtiles-license" type="text" maxlength="300" placeholder="Example: ODbL-1.0" />
+            <button id="study-area-pmtiles-validate" type="button">Validate Archive</button>
+            <p id="study-area-pmtiles-status" class="study-area-pmtiles-status" data-state="empty" role="status" aria-live="polite">Select a PMTiles archive, enter its attribution and license, then validate it.</p>
+          </fieldset>
+          <p id="study-area-summary" class="dialog-note" role="status" aria-live="polite">No valid study-area bounding box selected.</p>
+          <p id="study-area-package-estimate" class="study-area-package-estimate" data-state="empty" role="status" aria-live="polite">Select a valid bounding box to estimate its offline package.</p>
+          <p class="dialog-note"><strong>Browser cache is opportunistic, not offline coverage.</strong> Previously viewed tiles may be evicted or incomplete. Initial planned-package limit: 100 MiB. Manual bounds remain usable without tiles; an approved package download is a later slice.</p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button id="study-area-apply" class="dialog-primary" type="button" disabled>Apply Study Area</button>
+          <button type="button" data-close-study-area>Cancel</button>
+        </div>
+      </div>
     </dialog>
 
     <dialog id="case-cluster-dialog" class="legacy-dialog" aria-labelledby="case-cluster-dialog-title">

@@ -1,9 +1,9 @@
 import { buildGuidedProposal, parseEpiAssistToolCalls } from "../app/assistant/proposals.ts";
+import { resolveEpiAssistFrequencyIntent } from "../app/assistant/intent.ts";
+import { EPI_ASSIST_MODELS, epiAssistModel } from "../app/assistant/models.ts";
 import { EPI_ASSIST_CONTEXT_VERSION, type EpiAssistAction, type EpiAssistContext, type EpiAssistProposal, type EpiAssistRunMetadata } from "../app/contracts/assistant.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
 import { buildDataQualityReport } from "../app/forms/data-quality.ts";
-
-const MODEL_LABEL = "IBM Granite 4.0 350M Instruct";
 
 function requiredElement<T extends Element = HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -102,9 +102,10 @@ function renderRunMetadata(metadata?: EpiAssistRunMetadata): void {
 }
 
 function renderProposal(proposal: EpiAssistProposal, context: EpiAssistContext, source: "granite" | "guided" | "granite-fallback", metadata?: EpiAssistRunMetadata): void {
+  const modelLabel = metadata ? EPI_ASSIST_MODELS.find((model) => model.modelId === metadata.model.id)?.label ?? metadata.model.id : "IBM Granite";
   requiredElement("#epi-assist-result").hidden = false;
   requiredElement("#epi-assist-result-source").textContent = source === "granite"
-    ? `Local proposal from ${MODEL_LABEL}`
+    ? `Local proposal from ${modelLabel}`
     : source === "granite-fallback"
       ? "Safe guided fallback after an incomplete Granite response"
       : "Deterministic guided suggestions (Granite not used)";
@@ -135,30 +136,70 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
   const loadButton = requiredElement<HTMLButtonElement>("#epi-assist-load");
   const askButton = requiredElement<HTMLButtonElement>("#epi-assist-ask");
   const prompt = requiredElement<HTMLTextAreaElement>("#epi-assist-prompt");
+  const modelSelect = requiredElement<HTMLSelectElement>("#epi-assist-model");
+  const modelDescription = requiredElement<HTMLElement>("#epi-assist-model-description");
   let worker: Worker | null = null;
   let ready = false;
   let pendingContext: EpiAssistContext | null = null;
+  let startupTimer: number | null = null;
+  let workerFailed = false;
+  const selectedModel = () => epiAssistModel(modelSelect.value);
+
+  const clearStartupTimer = () => {
+    if (startupTimer !== null) window.clearTimeout(startupTimer);
+    startupTimer = null;
+  };
+
+  const reportWorkerStartupFailure = (message: string) => {
+    clearStartupTimer();
+    workerFailed = true;
+    ready = false;
+    status.textContent = `${message} The model was not loaded and no project data was sent.`;
+    loadButton.disabled = false;
+    askButton.disabled = true;
+  };
+
+  const renderSelectedModel = () => {
+    const selected = selectedModel();
+    const execution = selected.device === "wasm" ? "CPU via WebAssembly; broad browser compatibility but slower inference" : "WebGPU; requires a usable GPU adapter";
+    modelDescription.textContent = `${execution}; approximately ${selected.approximateSize} for the selected ${selected.dtype} model files. Changing models unloads the current Worker.`;
+    loadButton.textContent = `Load ${selected.label.replace(" Instruct", "")}`;
+  };
+  renderSelectedModel();
 
   const ensureWorker = () => {
     if (worker) return worker;
-    worker = new Worker(new URL("./epi-assist-worker.js?v=4", import.meta.url), { type: "module" });
+    // Resolve from the deployed page, not import.meta.url: esbuild may place this
+    // module in /chunks while the worker entry point remains at the app root.
+    worker = new Worker(new URL("./epi-assist-worker.js?v=7", document.baseURI), { type: "module" });
     worker.addEventListener("message", (event: MessageEvent<Record<string, unknown>>) => {
+      if (workerFailed) return;
+      clearStartupTimer();
       if (event.data.type === "status") status.textContent = String(event.data.message ?? "Working locally…");
       if (event.data.type === "progress") {
         const percent = typeof event.data.progress === "number" ? ` ${Math.round(event.data.progress)}%` : "";
-        status.textContent = `Preparing Granite model${percent}. First use downloads model weights; later uses can open the browser cache.`;
+        const file = typeof event.data.file === "string" ? ` · ${event.data.file.split("/").at(-1)}` : "";
+        const stage = typeof event.data.status === "string" ? ` (${event.data.status})` : "";
+        status.textContent = `Preparing Granite model${percent}${stage}${file}. First use downloads model weights; later uses can open the browser cache.`;
       }
       if (event.data.type === "ready") {
         ready = true;
         loadButton.disabled = true;
         askButton.disabled = false;
-        status.textContent = `${MODEL_LABEL} is ready for local inference.`;
+        status.textContent = `${String(event.data.label ?? selectedModel().label)} is ready for local inference.`;
       }
       if (event.data.type === "result") {
         try {
           if (!pendingContext) throw new Error("The current form context is no longer available.");
           const metadata = isRunMetadata(event.data.metadata) ? event.data.metadata : undefined;
-          renderProposal(parseEpiAssistToolCalls(String(event.data.response ?? ""), pendingContext), pendingContext, "granite", metadata);
+          const proposal = parseEpiAssistToolCalls(String(event.data.response ?? ""), pendingContext);
+          const expectedFrequency = resolveEpiAssistFrequencyIntent(metadata?.prompt.user ?? "", pendingContext);
+          if (expectedFrequency && !proposal.actions.some((action) => action.kind === "run-frequency"
+            && action.fieldName === expectedFrequency.fieldName
+            && action.stratifyBy === expectedFrequency.stratifyBy)) {
+            throw new Error(`Granite did not preserve the requested ${expectedFrequency.fieldName} by ${expectedFrequency.stratifyBy} distribution.`);
+          }
+          renderProposal(proposal, pendingContext, "granite", metadata);
           status.textContent = "Proposal ready. Review an action before running it.";
         } catch (error) {
           if (!pendingContext) {
@@ -172,20 +213,44 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
         }
       }
       if (event.data.type === "error") {
-        status.textContent = `${String(event.data.message ?? "Granite failed to start.")} No project data was sent to a server.`;
-        loadButton.disabled = false;
-        askButton.disabled = true;
+        reportWorkerStartupFailure(String(event.data.message ?? "Granite failed to start."));
       }
+    });
+    worker.addEventListener("error", (event) => {
+      const detail = event.message ? `: ${event.message}` : ".";
+      reportWorkerStartupFailure(`The local Granite worker could not start${detail}`);
+    });
+    worker.addEventListener("messageerror", () => {
+      reportWorkerStartupFailure("The browser could not read a message from the local Granite worker.");
     });
     return worker;
   };
 
   for (const opener of document.querySelectorAll<HTMLElement>("[data-open-epi-assist]")) opener.addEventListener("click", () => dialog.showModal());
   for (const closer of document.querySelectorAll<HTMLElement>("[data-close-epi-assist]")) closer.addEventListener("click", () => dialog.close());
+  modelSelect.addEventListener("change", () => {
+    worker?.terminate();
+    clearStartupTimer();
+    worker = null;
+    workerFailed = false;
+    ready = false;
+    pendingContext = null;
+    loadButton.disabled = false;
+    askButton.disabled = true;
+    requiredElement<HTMLElement>("#epi-assist-result").hidden = true;
+    renderSelectedModel();
+    status.textContent = `${selectedModel().label} selected. Loading is user initiated.`;
+  });
   loadButton.addEventListener("click", () => {
+    workerFailed = false;
     loadButton.disabled = true;
     status.textContent = "Starting the local Granite model…";
-    ensureWorker().postMessage({ type: "load" });
+    startupTimer = window.setTimeout(() => {
+      reportWorkerStartupFailure("The local Granite worker did not respond within 15 seconds. Check browser content-blocking policies or choose the CPU compatibility model.");
+      worker?.terminate();
+      worker = null;
+    }, 15_000);
+    ensureWorker().postMessage({ type: "load", modelKey: selectedModel().key });
   });
   requiredElement("#epi-assist-guided").addEventListener("click", () => {
     const context = contextFrom(getSource());
@@ -202,6 +267,6 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
     pendingContext = contextFrom(getSource());
     askButton.disabled = true;
     status.textContent = "Sending schema and aggregate counts to Granite inside this browser…";
-    ensureWorker().postMessage({ type: "generate", prompt: request, context: pendingContext });
+    ensureWorker().postMessage({ type: "generate", modelKey: selectedModel().key, prompt: request, context: pendingContext });
   });
 }

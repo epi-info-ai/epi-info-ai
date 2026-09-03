@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "FREQ case_status",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96
+  },
+  "expected": {
+    "sourceRecords": 96,
+    "includedRecords": 96,
+    "excludedMissing": 0,
+    "categoryCount": 4,
+    "categories": [
+      { "value": "Confirmed", "frequency": 22 },
+      { "value": "Not a case", "frequency": 52 },
+      { "value": "Probable", "frequency": 16 },
+      { "value": "Suspected", "frequency": 6 }
+    ]
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Independent exact-confidence validation exists; reviewed desktop Epi Info FREQ output remains required for legacy-parity-verified status."
+  }
+}

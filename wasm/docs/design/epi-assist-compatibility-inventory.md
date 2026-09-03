@@ -9,12 +9,15 @@ the user back to Data Quality, `FREQ`, and Epi Curve using those existing screen
 
 ## V0.1 model and privacy boundary
 
-- Provider: IBM Granite 4.0 350M Instruct, using the official browser ONNX model
-  through Transformers.js and WebGPU.
+- Provider: selectable IBM Granite 4.0 350M Instruct for CPU/WebAssembly
+  compatibility (`q4`, approximately 576 MB), 350M WebGPU (`fp16`, approximately
+  709 MB), or Granite 4.0 1B WebGPU (`q4`, approximately 1.78 GB), using browser
+  ONNX models through Transformers.js. Changing the selection terminates the
+  current Worker so multiple models are not retained in execution memory.
 - Inference: inside a dedicated browser Worker. No prompt, schema, aggregate, or
   record is submitted to an inference API.
-- First use: model loading is user initiated and retrieves approximately 709 MB
-  of fp16 model files from the configured model host. Browser caching is enabled;
+- First use: model loading is user initiated and retrieves the selected model
+  files from the configured model host. Browser caching is enabled;
   a network-independent/offline claim requires a later self-hosted and packaged
   model distribution review.
 - Context: field name, prompt, type, record count, missing counts/percentages, and
@@ -34,7 +37,7 @@ the user back to Data Quality, `FREQ`, and Epi Curve using those existing screen
   alter records, call the Rust kernel directly, access storage credentials, or
   make network requests through a host tool.
 - Provenance: every model result exposes its exact local user and system prompts,
-  prompt/tool/context schema versions, model ID/revision, WebGPU dtype, runtime
+  prompt/tool/context schema versions, model ID/revision, execution device and dtype, runtime
   version, and generation settings. User prompts remain local by default. The
   prototype's mutable `main` model revision must be replaced by an approved pinned
   revision and artifact hashes before production claims.

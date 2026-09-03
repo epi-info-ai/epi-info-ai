@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.categorical",
+  "planVersion": "classic-tables-v0.7.0",
+  "status": "browser-candidate",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "rows": 96
+  },
+  "request": {
+    "source": "TABLES potato_salad case_status STATISTICS=FISHER",
+    "method": "Fisher-Freeman-Halton probability ordering",
+    "maximumTables": 200000,
+    "tolerance": 3.45254e-7
+  },
+  "expected": {
+    "counts": [[0, 40, 2, 6], [22, 12, 14, 0]],
+    "tablesEnumerated": 2737,
+    "twoTailedPValue": 5.552362909835065e-14
+  }
+}

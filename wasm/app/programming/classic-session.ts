@@ -15,6 +15,8 @@ export class ClassicProgramSession {
   #variables = new Map<string, ClassicSessionVariable>();
   #groups = new Map<string, ClassicGroupDefinition>();
   #outTables = new Map<string, MapDataSource>();
+  #includeMissing = false;
+  #missingLabel = "Missing";
 
   #clearSelection(): void {
     this.#selectedRecords = null;
@@ -34,6 +36,8 @@ export class ClassicProgramSession {
     this.#clearVariables();
     this.#clearGroups();
     this.#clearOutTables();
+    this.#includeMissing = false;
+    this.#missingLabel = "Missing";
   }
   syncDefault(source: MapDataSource): void {
     if (!this.#explicitRead) {
@@ -75,6 +79,14 @@ export class ClassicProgramSession {
   variables(): ClassicSessionVariable[] { return [...this.#variables.values()].map((variable) => structuredClone(variable)); }
   groups(): ClassicGroupDefinition[] { return [...this.#groups.values()].map((group) => structuredClone(group)); }
   outTables(): MapDataSource[] { return [...this.#outTables.values()].map((source) => structuredClone(source)); }
+  includeMissing(): boolean { return this.#includeMissing; }
+  setIncludeMissing(enabled: boolean): void { this.#includeMissing = enabled; }
+  missingLabel(): string { return this.#missingLabel; }
+  setMissingLabel(value: string): void {
+    const normalized = value.trim();
+    if (!normalized) throw new RangeError("The missing-value display label cannot be blank.");
+    this.#missingLabel = normalized;
+  }
   storeOutTable(source: MapDataSource): MapDataSource {
     const key = source.formName.toLocaleLowerCase("en-US");
     this.#outTables.set(key, structuredClone(source));

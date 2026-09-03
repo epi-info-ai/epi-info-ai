@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "LIST ID Age Sex case_status onset_date",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96
+  },
+  "expected": {
+    "fields": ["id", "age", "sex", "case_status", "onset_date"],
+    "recordCount": 96,
+    "rowsSha256": "453be7153cbb809f6cde0037487dc5c7012f769f2f06d0a9acc7f6e8a4a0ace1",
+    "firstRows": [
+      { "id": "P001", "age": "34", "sex": "Female", "case_status": "Confirmed", "onset_date": "2026-01-10" },
+      { "id": "P002", "age": "28", "sex": "Male", "case_status": "Confirmed", "onset_date": "2026-01-11" },
+      { "id": "P003", "age": "67", "sex": "Male", "case_status": "Confirmed", "onset_date": "2026-01-11" }
+    ],
+    "lastRows": [
+      { "id": "P094", "age": "38", "sex": "Female", "case_status": "Not a case", "onset_date": "" },
+      { "id": "P095", "age": "49", "sex": "Male", "case_status": "Not a case", "onset_date": "" },
+      { "id": "P096", "age": "74", "sex": "Female", "case_status": "Not a case", "onset_date": "" }
+    ]
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Reviewed desktop Epi Info LIST output, formatting, and paging remain required for legacy-parity-verified status."
+  }
+}

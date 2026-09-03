@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.categorical",
+  "planVersion": "classic-tables-v0.7.0",
+  "status": "browser-candidate",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "rows": 96
+  },
+  "request": {
+    "source": "SET (.)=\"Not recorded\"\nSET MISSING=ON\nTABLES vomiting Sex\nSET MISSING=OFF\nSET (.)=\"Missing\"",
+    "legacyDefault": "OFF",
+    "representationDuringTable": "Not recorded"
+  },
+  "expected": {
+    "includedRecords": 96,
+    "excludedMissing": 0,
+    "includedMissing": 2,
+    "missingExposureCounts": [0, 2],
+    "missingExposureTotal": 2,
+    "settingAfterProgram": "OFF",
+    "representationAfterProgram": "Missing"
+  }
+}

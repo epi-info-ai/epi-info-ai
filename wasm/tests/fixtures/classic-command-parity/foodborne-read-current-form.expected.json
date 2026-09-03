@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "READ [Foodborne Outbreak Investigation Form]",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96,
+    "fieldCount": 27
+  },
+  "expected": {
+    "activeForm": "Foodborne Outbreak Investigation Form",
+    "activeRecords": 96,
+    "activeFields": 27,
+    "selectionCleared": true,
+    "sortCleared": true,
+    "standardVariablesCleared": true,
+    "groupsCleared": true,
+    "sessionOutputTablesCleared": true
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "This fixture validates the current-project browser subset. External project, Access, SQL, password, and exact desktop READ output behavior remain required for legacy-parity-verified status."
+  }
+}

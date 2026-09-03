@@ -199,7 +199,10 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
 }
 
 async function loadWasm(): Promise<EpiWasmExports> {
-  const response = await fetch(new URL("./epi2x2.wasm", import.meta.url));
+  const engineUrl = typeof document === "undefined"
+    ? new URL("./epi2x2.wasm", import.meta.url)
+    : new URL("epi2x2.wasm", document.baseURI);
+  const response = await fetch(engineUrl);
   if (!response.ok) throw new Error(`Unable to load the WASM engine (${response.status}).`);
 
   if (WebAssembly.instantiateStreaming) {

@@ -101,9 +101,26 @@ await cp(
   join(wasmDirectory, "tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"),
   join(validationFixtureDirectory, "chi-square-trend-v0.15.json"),
 );
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.expected.json"),
+  join(validationFixtureDirectory, "foodborne-tables-stratified-v0.3.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status-unstratified.expected.json"),
+  join(validationFixtureDirectory, "foodborne-tables-unstratified-v0.3.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-fisher.expected.json"),
+  join(validationFixtureDirectory, "foodborne-tables-fisher-v0.5.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-missing.expected.json"),
+  join(validationFixtureDirectory, "foodborne-tables-missing-v0.6.json"),
+);
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));
 const commonOptions = {
+  absWorkingDir: resolve(wasmDirectory, ".."),
   outbase: sourceDirectory,
   outdir: outputDirectory,
   format: "esm",
@@ -119,7 +136,14 @@ const unbundledEntries = entryPoints.filter((source) => !bundledModules.has(base
 const bundledEntries = entryPoints.filter((source) => !unbundledEntries.includes(source));
 const results = await Promise.all([
   build({ ...commonOptions, entryPoints: unbundledEntries, bundle: false }),
-  build({ ...commonOptions, entryPoints: bundledEntries, bundle: true, alias: { stream: "stream-browserify", events: "events" } }),
+  build({
+    ...commonOptions,
+    entryPoints: bundledEntries,
+    bundle: true,
+    splitting: true,
+    chunkNames: "chunks/[name]-[hash]",
+    alias: { stream: "stream-browserify", events: "events" },
+  }),
 ]);
 
 for (const source of entryPoints) {
@@ -129,12 +153,13 @@ for (const source of entryPoints) {
 }
 
 const packageManifest = JSON.parse(await readFile(resolve(wasmDirectory, "../package.json"), "utf8"));
+const repositoryRoot = resolve(wasmDirectory, "..");
 const manifest = {
   schemaVersion: 1,
   applicationVersion: packageManifest.version,
   sourceModules: entryPoints.map((source) => relative(resolve(wasmDirectory, ".."), source).replaceAll("\\", "/")),
   outputs: results.flatMap((result) => Object.keys(result.metafile.outputs))
-    .map((output) => relative(resolve(wasmDirectory, ".."), resolve(output)).replaceAll("\\", "/"))
+    .map((output) => relative(repositoryRoot, resolve(repositoryRoot, output)).replaceAll("\\", "/"))
     .sort(),
 };
 await writeFile(join(outputDirectory, "build-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");

@@ -4,10 +4,11 @@
 
 Epi Info AI is a browser-first application that preserves the familiar Epi Info
 face and workflow while replacing the desktop implementation with modern web
-components. Deterministic epidemiologic calculations belong in a WebAssembly
-(WASM) engine. TypeScript is the default language for application features, while
-a deliberately small JavaScript layer loads the application and connects the WASM
-artifact to the browser. AI is an optional orchestration layer and must not
+components. The canonical Epi Info programming-language engine and deterministic
+epidemiologic calculations belong in Rust compiled to WebAssembly (WASM).
+TypeScript owns browser-facing product features and permissioned host adapters,
+while generated bindings and a deliberately small JavaScript bootstrap connect
+the WASM artifacts to the browser. AI is an optional orchestration layer and must not
 calculate epidemiologic results itself. Python supports scientific validation,
 test-data generation, agent research, and optional exploratory analysis; it is not
 the primary browser application language or a second trusted statistics engine.
@@ -19,8 +20,9 @@ the intended product architecture.
 
 | Layer | Standard language | Responsibilities |
 |---|---|---|
+| Epi language engine (`epi-lang`) | Rust compiled to WASM | Lexer, parser, typed AST, semantic analysis, capability-labelled execution planning, program sequencing, interpreter state, diagnostics, and auditable execution events |
 | Epi kernel | Rust compiled to WASM | Deterministic epidemiologic calculations, numerical algorithms, and parity-tested result primitives |
-| Product application | TypeScript | UI components, forms, validation, data entry, project state, tabular import/export, maps, persistence adapters, synchronization, and tests |
+| Product application and host | TypeScript | UI components, editor integration, forms, validation, data entry, project state, browser permissions, tabular import/export, maps, persistence adapters, synchronization, and tests; fulfills typed host requests but does not redefine command semantics |
 | Scientific development tooling | Python | Independent statistical comparison, synthetic fixture generation, agent evaluation, and research notebooks outside the production browser path |
 | Optional exploratory workspace | Python on Pyodide | User-visible, sandboxed advanced analysis loaded on demand in a Web Worker; never presented as a validated Epi Info result |
 | Optional service integration | Python or Rust | Future report, interoperability, aggregation, or AI-gateway services selected per service requirements |
@@ -29,21 +31,25 @@ the intended product architecture.
 | Third-party browser libraries | Pinned vendor JavaScript | Leaflet, h3-js, and other reviewed dependencies that are not maintained as project source |
 | Optional local AI | TypeScript Worker + IBM Granite ONNX/WebGPU | Natural-language proposals over minimized context; typed host actions only, never statistical authority |
 
-New product feature modules must be written in TypeScript. Handwritten JavaScript
+New browser product feature modules must be written in TypeScript. New Epi Info
+language syntax or execution semantics must be implemented in `epi-lang`, and new
+validated epidemiologic algorithms must be implemented in `epi-core`. Handwritten JavaScript
 must remain small, dependency-free where practical, and contain no epidemiologic
 business logic. TypeScript is compiled to JavaScript for GitLab Pages; browsers do
 not execute TypeScript directly.
 
-Shared operation and result contracts must be versioned. TypeScript types describe
-the browser-facing contract, while Rust serialization and parity fixtures enforce
-the same contract at the WASM boundary.
+Shared operation, host-capability, execution-event, and result contracts must be
+versioned. Rust is authoritative for language semantics. TypeScript consumes
+generated or mechanically checked bindings for the browser-facing contract, while
+cross-boundary fixtures prevent either side from inventing a second interpretation.
 
 The runtime choice is therefore based on the role, not on a claim that only one
 language can run in a browser:
 
 | Need | Selected runtime | Reason |
 |---|---|---|
-| Familiar Epi Info product workflows | TypeScript | Direct browser platform access, accessible components, and the smallest ordinary application path |
+| Epi Info program interpretation | Rust/WASM `epi-lang` | One parser and interpreter shared by browser, future native CLI, and future Python bindings |
+| Familiar Epi Info product workflows | TypeScript | Direct browser platform access, accessible components, and permissioned fulfillment of typed interpreter requests |
 | Official, versioned Epi calculations | Rust/WASM | A purpose-built, strongly typed kernel with explicit errors and one implementation shared by browser and future native bindings |
 | Transparent cross-implementation validation | CPython on Pyodide | Runs scientific Python in the browser and can call the deployed Rust/WASM artifact from the same notebook |
 | Custom or experimental analysis | Optional CPython on Pyodide | Broad scientific ecosystem and rapid iteration, with an explicitly lower exploratory trust level |
@@ -154,8 +160,9 @@ and a Python service does not silently replace local validated computation.
 
 The future programming workspace has three synchronized views: **Flow** (Visual
 Epi Info), **Program** (the traditional source editor), and **Output**. Both Flow
-and Program edit the same versioned typed intermediate representation, which
-dispatches validated epidemiologic operations to Rust/WASM.
+and Program are clients of the same versioned Rust `epi-lang` intermediate
+representation. `epi-lang` invokes validated calculations in Rust `epi-core` and
+emits typed requests for browser capabilities it cannot and must not own.
 
 The complete effective code is always visible in Program. Visual Epi Info cannot
 hide, replace, or become the sole representation of a program. Visual changes are
@@ -165,26 +172,82 @@ preserved source and mark the flow as partial or source-only. Neither view can
 translate a program into arbitrary JavaScript or grant it ambient DOM, network,
 credential, filesystem, database, or process access.
 
+### Canonical Rust language engine
+
+`epi-lang` is the sole long-term authority for:
+
+- lexical and grammatical interpretation of `.pgm` and `.pgm7` source;
+- typed AST nodes, source spans, canonical printing, and recoverable diagnostics;
+- variable scopes, expressions, missing-value behavior, control flow, selection,
+  sorting, command sequencing, and cancellation checkpoints;
+- semantic resolution against a versioned dataset/schema description;
+- capability-labelled execution plans and fail-closed unsupported syntax; and
+- deterministic execution events used by Output and command history.
+
+Pure language operations and epidemiologic calculations remain inside Rust.
+Browser effects cross a narrow request/response protocol. For example, `WRITE`
+semantics are resolved by `epi-lang`, which may emit an `export-table` request
+containing the validated format, fields, and rows. TypeScript asks for any needed
+user permission and performs the browser download; it does not reinterpret the
+`WRITE` statement. The same pattern applies to project data, dialogs, maps,
+printing, and other host-owned facilities.
+
+The host protocol is explicit and capability based. Every request carries a
+schema version, program/source span, command identity, dataset revision, requested
+capability, and bounded payload. The TypeScript host may fulfill, deny, cancel, or
+return a typed error. It cannot grant ambient DOM, storage, network, credential,
+filesystem, database, or process access to the interpreter. Execution resumes
+only with the typed response, and both request and outcome become audit events.
+
+`epi-lang` and `epi-core` are separate Rust crates even when shipped in one WASM
+artifact. This keeps language compatibility independent from statistical method
+versions while allowing statistical commands to call the canonical kernel without
+duplicating formulas across a TypeScript interpreter boundary.
+
+The language crate preserves explicit dialect boundaries. Classic Analysis PGM is
+the first migration target under `epi-lang::classic`; Form Designer/Enter Data
+Check Code later uses `epi-lang::check_code` and its own event and field-mutation
+rules. They may share tokens, expressions, source infrastructure, diagnostics, and
+host capabilities, but one dialect must not silently inherit semantics from the
+other merely because command names overlap.
+
+### Transitional TypeScript implementation
+
 The first maintained language boundary is `app/programming/classic-ast.ts`. It
 defines AST version `1.0.0`, source spans, typed expressions, and statement nodes
 for `READ`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `SUMMARIZE`, `RECODE`, `DEFINE`, `DEFINE GROUPVAR`, `UNDEFINE`, `ASSIGN`, `DISPLAY`, `IF`, `SELECT`, and `SORT`.
-CodeMirror may parse this broader subset for diagnostics, but parsing does not
-grant execution authority. `classic-program.ts` remains the narrower reviewed
-lowerer/executor for the existing `DEFINE -> RECODE -> FREQ` demonstration until
-semantic validation and capability-labelled planning are implemented.
+CodeMirror may currently use this broader subset for diagnostics, but parsing does
+not grant execution authority. `classic-program.ts` remains the narrower reviewed
+lowerer/executor for the existing prototype. These TypeScript modules are an
+executable specification and migration scaffold, not the permanent interpreter.
+They must not grow into a second complete implementation while `epi-lang` is built.
+
+Commands migrate in vertical slices. Each slice must preserve the existing parser,
+browser, `.pgm`, expected-output, and legacy differential fixtures; reproduce its
+syntax, semantic plan, execution events, state effects, diagnostics, and output
+through Rust/WASM; switch the editor and runner to the Rust result; and then remove
+the replaced TypeScript semantic/execution path. Temporary differential execution
+is test-only. Production must never choose between two interpreters.
 
 ```text
 source / dialog / visual flow / reviewed AI proposal
                          |
                          v
-              versioned TypeScript AST
+                 Rust/WASM epi-lang
+           lexer -> typed AST -> semantics
                          |
-            semantic and capability checks
+            capability-labelled execution
                          |
-                         v
-              auditable execution plan
-                   /             \
-          TypeScript services   Rust/WASM epi kernel
+             +-----------+-----------+
+             |                       |
+             v                       v
+      Rust epi-core             typed host request
+      calculations                    |
+                                      v
+                          TypeScript browser host
+                    UI / storage / files / maps / network
+                                      |
+                              typed response + audit
 ```
 
 ## Mobile-first, familiarity-preserving UI
@@ -381,10 +444,10 @@ and has no runtime dependencies or operating-system access.
 | Isolate, cancel, and recover stratified computation | `demo/stratified-worker.ts` + `demo/stratified-worker-client.ts` | Lazy TypeScript Worker boundary with a readiness handshake and watchdog; cancellation terminates the Worker and its private WASM scratch state |
 | Derive named 2 x 2 strata from current-form records, explicit value mappings, and missing-value rules | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript data adapter; emits an audited request for the Rust operation |
 | Group typed current-form categories, sort them, apply missing rules, and assemble `epi.frequency` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; proportions and confidence limits are Rust/WASM |
-| Parse and apply the bounded `DEFINE TEXTINPUT -> numeric RECODE -> FREQ [STRATAVAR]` program plan | `app/programming/classic-program.ts` | TypeScript parser/orchestrator; source is never evaluated |
-| Parse the initial Classic language surface into versioned typed statements/expressions with source spans | `app/programming/classic-ast.ts` | TypeScript AST/parser V0.3; LIST joins the initial language families, and parsing alone does not authorize execution |
-| Validate and load dataset-bound example-program catalogs | `app/programming/classic-examples.ts` + `demo/examples/*.programs.json` | The foodborne dataset owns three `DEFINE -> RECODE -> FREQ` examples; the app treats the JSON as validated external data and uses the same AST-to-plan boundary as user source |
-| Edit and highlight bounded Epi Info source; show line/column and configurable indentation; offer schema-aware completion; run live syntax diagnostics | `app/programming/classic-editor.ts` | TypeScript + CodeMirror 6 presentation assistance over the same typed parser; suggestions and diagnostics have no execution authority |
+| Parse and apply the bounded `DEFINE TEXTINPUT -> numeric RECODE -> FREQ [STRATAVAR]` program plan | `app/programming/classic-program.ts` | Transitional TypeScript executable specification; source is never evaluated; migrate command slices to Rust `epi-lang` and delete replaced execution paths |
+| Parse the initial Classic language surface into versioned typed statements/expressions with source spans | `app/programming/classic-ast.ts` | Transitional TypeScript AST/parser fixture source; Rust `epi-lang` is the target authority, and parsing alone does not authorize execution |
+| Validate and load dataset-bound example-program catalogs | `app/programming/classic-examples.ts` + `demo/examples/*.programs.json` | The foodborne dataset owns three `DEFINE -> RECODE -> FREQ` examples and two TABLES examples; the app treats the JSON as validated external data and uses the same AST-to-plan boundary as user source |
+| Edit and highlight bounded Epi Info source; show line/column and configurable indentation; offer schema-aware completion; run live syntax diagnostics | `app/programming/classic-editor.ts` | TypeScript + CodeMirror 6 presentation client; during migration it uses the TypeScript scaffold, then consumes Rust `epi-lang` diagnostics/completions through generated bindings; suggestions and diagnostics have no execution authority |
 | Store the browser-local V0.1 command history contract | `app/programming/run-history.ts` | TypeScript; unified origins and immutable hosted provenance remain open |
 | Select finite numeric observations, report exclusions, and assemble `epi.means` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; descriptive formulas, sorting, quartiles, and mode are Rust/WASM |
 | Read inputs, handle events, format, render, and copy results | `demo/app.ts` | TypeScript |
@@ -397,6 +460,8 @@ and has no runtime dependencies or operating-system access.
 | Delimited parsing, CSV export, and schema inference | `app/forms/csv.ts` | TypeScript |
 | CSV, TSV, JSON-record, and Excel `.xlsx` input adapters | `app/forms/importers.ts` | TypeScript with a pinned, browser-only `read-excel-file` boundary |
 | Project snapshot load/recovery boundary | `app/forms/project-state.ts` | TypeScript |
+| Dataset-independent study-area capture, WGS 84 bounding polygon, size/zoom guidance, provider policy, Web Mercator tile/byte estimate, browser quota preflight, and offline-map plan | `app/forms/study-area-picker.ts` + `app/maps/offline-map-estimator.ts` + `app/contracts/core.ts` | TypeScript new branch over the confined Leaflet global; stores versioned planning metadata. Browser cache is opportunistic; an imported PMTiles archive can be stored in OPFS without a runtime server. The portable snapshot remains `stored-unverified` because it may move independently of the local archive; Maps performs runtime verification |
+| PMTiles v3 validation, browser-local archive storage, bounded raster/vector rendering, portable backup, and recovery | `app/maps/pmtiles-import.ts` + `app/maps/pmtiles-reader.ts` + `app/maps/maplibre-pmtiles.ts` + `app/contracts/project-archive.ts` + `app/forms/study-area-picker.ts` + `demo/maps.ts` + `app/contracts/core.ts` | TypeScript new branch; explicit `File` grant, bounded header/metadata parser, coverage/license/SHA-256 checks, commit-on-Apply OPFS write, uncommitted cleanup, typed provenance, directory/Hilbert lookup, and gzip support. PNG/JPEG/WebP/AVIF use a Leaflet grid layer. MVT lazy-loads self-hosted MapLibre 6.6 with a local custom protocol and metadata-declared source layers beneath the existing Leaflet overlays. Build-time code splitting keeps MapLibre off the ordinary startup path. Runtime activation rechecks size, digest, and header and removes the online Street layer. Save Project As emits a bounded binary `.epia` envelope with the V2 manifest followed by raw deduplicated PMTiles payloads; Open Project validates every payload before restoring it to a new OPFS path. Missing/corrupt/unavailable OPFS states fail to blank and expose restore, exact-digest re-import, or detach actions without discarding the study-area plan. Field-offline acceptance remains a separate gate |
 | Typed Form Designer File/Edit/View/Insert/Format/Tools/Help tree, command state, disposition, and renderer | `app/forms/form-designer-menu.ts` | TypeScript; legacy gaps remain visible and browser additions are marked new branches |
 | Typed Enter Data File/Edit/View/Tools/Help tree, legacy Import Data branch, command state, disposition, and renderer | `app/forms/enter-data-menu.ts` | TypeScript; implemented actions reuse entry operations, legacy gaps remain visible, and browser-file/Data Quality additions are marked new branches |
 | Typed Visual Dashboard blue toolbar and canvas right-click command tree | `app/dashboard/dashboard-menu.ts` | TypeScript; Rates and Charts > Epi Curve select existing gadgets while unfinished canvas, export, filter, variable, and gadget commands remain visible gaps |
@@ -464,34 +529,44 @@ wasm/
     `-- tests/fixtures/              Future parity-test inputs and results
 ```
 
-## Boundary rules
+## Target boundary rules
 
-1. The UI calls a versioned operation such as `epi.table2x2`; it does not depend
+1. Rust `epi-lang` is the sole production authority for Epi Info source parsing,
+   semantic validation, program sequencing, and command execution. TypeScript may
+   present source and fulfill host effects but may not redefine command semantics.
+2. The UI calls a versioned operation such as `epi.table2x2`; it does not depend
    directly on Rust implementation details.
-2. Deterministic epidemiologic algorithms migrate to Rust/WASM after their
+3. Deterministic epidemiologic algorithms migrate to Rust/WASM after their
    expected behavior is captured in parity fixtures.
-3. TypeScript owns browser feature logic: DOM events, presentation behavior,
+4. TypeScript owns browser feature logic: DOM events, presentation behavior,
    accessibility, storage adapters, and communication with optional services.
    JavaScript is limited to bootstrapping, WASM loading, and pinned vendor code.
-4. The result contract records the operation, engine identity, inputs, outputs,
+5. Interpreter effects use versioned, capability-labelled request/response
+   contracts. Denial, cancellation, stale dataset revisions, and host failures are
+   ordinary typed outcomes, not reasons to bypass the boundary.
+6. No command may retain independent production semantics in both TypeScript and
+   Rust. Differential dual execution is permitted only in tests during migration;
+   the TypeScript semantic/execution path is removed when the Rust slice is enabled.
+7. The result contract records the operation, engine identity, inputs, outputs,
    tests, and diagnostics so calculations can be audited.
-5. AI may select tools and explain their results, but it may not replace the
+8. AI may select tools and explain their results, but it may not replace the
    deterministic engine or silently alter its output.
-6. Plugins use only the versioned capability API. They do not import application
+9. Plugins use only the versioned capability API. They do not import application
    internals, bypass validation/RLS, or become required for core workflows.
-7. Python reference tooling produces review candidates, not unquestioned expected
+10. Python reference tooling produces review candidates, not unquestioned expected
    results. Promoted fixtures record method, package version, tolerance, and review.
-8. Optional Python execution is sandboxed and visibly exploratory. It cannot claim
+11. Optional Python execution is sandboxed and visibly exploratory. It cannot claim
    the provenance of a validated Rust-backed `epi.*` operation.
-9. The [legacy capability register](docs/design/legacy-capability-register.md) is
+12. The [legacy capability register](docs/design/legacy-capability-register.md) is
    the backlog and compatibility floor. New branches, deprecations, and
    retirements are recorded there in the same change that implements them.
-10. Legacy imports produce a runnable projection plus preserved source metadata
-    and explicit findings. Unsupported behavior is not silently discarded or
-    treated as executable.
-11. Local-model output is untrusted input. It crosses a strict TypeScript parser
-    and action allowlist, never receives ambient DOM/storage/network authority,
-    and never runs without a separate user action.
+13. Legacy imports produce a runnable projection plus preserved source metadata
+   and explicit findings. Unsupported behavior is not silently discarded or
+   treated as executable.
+14. Local-model output is untrusted input. It crosses a strict typed action
+    allowlist and the same `epi-lang` semantic boundary as user source, never
+    receives ambient DOM/storage/network authority, and never runs without a
+    separate user action.
 
 ## Local AI boundary
 
@@ -542,6 +617,101 @@ versioned evaluation or fine-tuning corpus. Live synchronization storage is neve
 a direct training source, and the application remains fully usable when learning
 telemetry is disabled.
 
+### Addendum: Epi Assist in the Program Editor
+
+The preferred editor integration is a dockable, context-aware Epi Assist pane,
+not a replacement editor and not a chat surface with direct execution authority.
+It occupies the right side of the Program Editor on wide screens, can collapse
+without changing editor state, and becomes a dismissible bottom sheet on narrow
+screens. The existing global Tools > Epi Assist entry remains available for
+cross-workflow questions and opens the same underlying service.
+
+The editor pane initially exposes bounded tasks:
+
+- **Plan analysis** translates a question into a versioned typed analysis plan.
+- **Explain selection** explains selected source using the command registry and
+  retrieved, provenance-bearing manual material.
+- **Fix diagnostics** proposes edits for parser, field, and type diagnostics.
+- **Add next step** proposes a compatible continuation of the visible program.
+- **Validate program** reports supported, unsupported, destructive, and
+  source-only statements without running them.
+- **Find command** locates the applicable legacy command, dialog, and manual
+  evidence.
+
+Deterministic editor services retain responsibility for CodeMirror completion,
+navigation, parsing, semantic and field/type diagnostics, canonical formatting,
+and source round-trip. Granite performs intent recognition, bounded planning,
+command and field selection, and documentation retrieval. This separation avoids
+using a small generative model for work that the parser and language service can
+perform exactly.
+
+The editor constructs a deliberately scoped context package containing only the
+selected source and nearby statements, parsed AST and diagnostics, registered
+command capabilities, current field names/prompts/types, aggregate data-quality
+counts, and relevant approved documentation excerpts. Record values remain
+excluded by default. Any future action requiring sampled or row-level values must
+have a distinct reviewed capability, minimization policy, visible context preview,
+and governance approval.
+
+An editor request follows this boundary:
+
+```text
+question or selected source
+    -> local Granite native tool calls
+    -> typed-plan and capability validation
+    -> trusted canonical-source renderer
+    -> parser and semantic validation
+    -> visible proposal and source diff
+    -> explicit Insert or Replace action
+    -> separate explicit Run action
+    -> unified command history and provenance
+```
+
+Granite never returns an executable source string. It returns only registered,
+schema-valid plan nodes. Trusted application code renders those nodes as familiar
+Epi Info source, reparses the rendered source, and presents the plan, verified
+fields and types, compatibility status, expected output kind, and source diff.
+The user may insert at the cursor, replace the selection, open the corresponding
+legacy command dialog, run an already reviewed selection, or reject the proposal.
+Insertion and execution are separate actions; neither occurs automatically.
+
+For example, the question `show the age distribution by sex` can produce the
+typed equivalent of `FREQ Age STRATAVAR=Sex` only after `Age` and `Sex` resolve to
+compatible current-project fields. A request for `age groups by sex` is not
+silently treated as the same question: Epi Assist asks the user to choose raw ages
+or reviewed age bands, then proposes a typed `DEFINE`/`RECODE`/`FREQ` sequence.
+Ambiguity, invented fields, unavailable commands, incomplete calls, or invalid
+types leave every mutation and execution action disabled.
+
+The inference Worker remains off the UI thread and receives no ambient DOM,
+storage, credential, database, network, plugin, kernel, or operating-system
+authority. Model availability and locality are always visible. The interface
+distinguishes local inference from offline-ready distribution, shows first-load
+and cached-model storage requirements, supports cancellation, and preserves a
+deterministic non-AI workflow when WebGPU or the model is unavailable.
+
+Every editor proposal records the user prompt locally, context categories used,
+model ID and immutable revision, artifact hashes when available, device/dtype,
+runtime and prompt/tool/context schema versions, raw complete tool calls,
+normalized typed plan, validator diagnostics, generated source/diff, user
+accept/edit/reject decision, and any later execution result. Prompt contents and
+editor history are not synchronized or used for training by default.
+
+Implementation should proceed incrementally:
+
+1. Add the collapsible responsive editor pane with Plan, Explain, Fix, and
+   Validate actions; support only currently registered read-only analysis tools,
+   canonical source preview, explicit insertion, and complete local provenance.
+2. Add reviewed multi-statement plans such as `DEFINE`/`RECODE`/`FREQ`, contextual
+   documentation retrieval, and command-registry citations.
+3. Add syntactically valid inline suggestions and plugin-contributed plan tools
+   only after capability, compatibility, integrity, cancellation, and audit gates
+   are enforced through the same typed boundary.
+
+This is a **new branch** attached to the familiar Program Editor. Disabling Epi
+Assist must leave the editor, command dialogs, programs, results, and deterministic
+execution behavior unchanged.
+
 ## Migration plan
 
 The detailed, execution-ready plan is maintained in
@@ -562,6 +732,35 @@ After validation fixtures are agreed, migrate statistical work in this order:
 The WASM adapter should become thinner as algorithms move into Rust, while the
 operation and result contracts remain stable for the TypeScript UI and future AI
 tools.
+
+### Interpreter consolidation
+
+The current TypeScript AST and bounded executor are transitional. Consolidate the
+language before expanding the command set deeply:
+
+1. Create a workspace with an `epi-lang` crate beside `epi-core`, initially
+   compiling into the same browser WASM artifact to avoid extra startup cost.
+2. Define versioned, data-only schemas for source diagnostics, resolved plans,
+   host capability requests/responses, execution events, cancellation, and
+   interpreter state checkpoints; generate or mechanically verify TypeScript
+   bindings from those schemas.
+3. Port the lexer, source spans, typed AST, and semantic resolver using the current
+   TypeScript tests, foodborne `.pgm` programs, legacy grammar, and desktop output
+   as acceptance evidence.
+4. Port commands in vertical workflow slices rather than grammar-only batches.
+   Start with the command-tour path, then data/session mutations, output commands,
+   user interaction, and advanced statistics.
+5. Run TypeScript-versus-Rust differential fixtures only in CI during each slice.
+   Switch the editor, Flow view, manual dialogs, and AI plans to the same Rust
+   parser/planner result before enabling execution.
+6. Delete each replaced TypeScript semantic/execution implementation. Retain only
+   CodeMirror presentation, schema-aware UI adapters, and generated boundary types.
+7. Expose the same `epi-lang`/`epi-core` crates to future native CLI and Python
+   bindings so browser, automation, and research tools cannot fork the language.
+
+The exit condition is one canonical Rust interpreter, one canonical Rust
+epidemiology kernel, and one TypeScript browser host. A successful prototype that
+still depends on two production interpreters does not satisfy this architecture.
 
 ### TypeScript migration
 
@@ -621,9 +820,9 @@ whole-project snapshot rather than normalized form and record tables. The Maps s
 launch contexts separate: Main Menu -> Create Maps opens a standalone map with a
 project/form data-source selector, while Enter Data -> Maps links the map to the
 current form and allows a mapped record to be reopened in Enter Data. Both paths
-support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers with zoom-dependent polygon labels, configurable H3 aggregation layers, cumulative date/time animation, compact layer controls, fullscreen mapping, and browser geolocation. Form Designer and Enter Data also include a bounded legacy Geo-location/`GEOCODE` path with explicit candidate selection and Case Cluster handoff. Its direct public Nominatim adapter is suitable only for light demonstration use: a production deployment needs an approved configurable provider or server-side boundary with privacy, capacity, policy, and audit controls. The slice does not
+support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers with zoom-dependent polygon labels, configurable H3 aggregation layers, cumulative date/time animation, compact layer controls, fullscreen mapping, and browser geolocation. New Project can optionally capture a dataset-independent WGS 84 study-area bounding polygon, plan an offline zoom/package budget, and attach a validated PMTiles v3 archive. Raster packages render through Leaflet and vector MVT packages through a non-interactive MapLibre canvas beneath the familiar overlays, both from OPFS after runtime integrity verification and without online tile requests. Form Designer and Enter Data also include a bounded legacy Geo-location/`GEOCODE` path with explicit candidate selection and Case Cluster handoff. Its direct public Nominatim adapter is suitable only for light demonstration use: a production deployment needs an approved configurable provider or server-side boundary with privacy, capacity, policy, and audit controls. The slice does not
 yet provide external databases, shapefiles, satellite imagery, choropleths, spatial
-analysis, full legacy geocoding parity, or offline basemap packages. The slice also does
+analysis, full legacy geocoding parity, reviewed cartographic style parity, offline-package backup/recovery, or field-offline acceptance. The slice also does
 not yet include the final ZIP/SQLite `.epia` container, direct browser `.mdb`
 import, SQLite/OPFS persistence, dashboards, service-worker
 offline installation, a plugin runtime/catalog, production-governed AI orchestration, a Pyodide

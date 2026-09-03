@@ -2,6 +2,7 @@ import type { EpiRecord, FieldDefinition, FormSchema } from "../contracts/core.j
 import type { SafeCheckCodeStatement, SafeGeocodeStatement, SafeGotoStatement } from "../contracts/check-code.js";
 import type { FieldValidationIssue, FieldValidationRule, LegalValuesRule, PatternRule, RangeRule } from "../contracts/validation.js";
 import { geocodeAddress, type GeocodeCandidate } from "./geocoding.ts";
+import { initializeLocationPreview, openLocationPreview } from "./location-preview.ts";
 import { materializeCalculatedFields } from "./validation.ts";
 
 export type EntryView = "entry" | "records";
@@ -127,7 +128,19 @@ function entryControl(field: FieldDefinition): HTMLElement {
     button.name = field.name;
     button.textContent = field.prompt;
     const geocode = field.checkCode?.click?.find((statement) => statement.kind === "geocode");
-    if (geocode) button.addEventListener("click", () => void runGeocode(geocode, button));
+    if (geocode) {
+      const actions = document.createElement("div");
+      actions.className = "record-command-actions";
+      button.addEventListener("click", () => void runGeocode(geocode, button));
+      const preview = document.createElement("button");
+      preview.type = "button";
+      preview.className = "location-preview-button";
+      preview.textContent = "Preview Map";
+      preview.addEventListener("click", () => openLocationPreview(geocode));
+      actions.append(button, preview);
+      wrapper.append(actions);
+      return wrapper;
+    }
     else button.disabled = true;
     wrapper.append(button);
     return wrapper;
@@ -267,6 +280,7 @@ export function setEntryView(view: EntryView): void {
 }
 
 export function initializeEntryView(): void {
+  initializeLocationPreview();
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-entry-view]")) {
     button.addEventListener("click", () => setEntryView(button.dataset.entryView === "records" ? "records" : "entry"));
   }

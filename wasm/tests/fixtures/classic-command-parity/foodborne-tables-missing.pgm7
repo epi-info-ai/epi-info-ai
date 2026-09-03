@@ -1,0 +1,5 @@
+SET (.)="Not recorded"
+SET MISSING=ON
+TABLES vomiting Sex
+SET MISSING=OFF
+SET (.)="Missing"

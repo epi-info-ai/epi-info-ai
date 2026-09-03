@@ -462,6 +462,29 @@ discrepancy to its detailed evidence record.
 - Broader legacy output, zero/fractional-cell decisions, property/boundary,
   implementation, and statistical review remain open. G5 stays consolidated.
 
+### Classic TABLES V0.6 validation
+
+- `validate-tables.ipynb` derives both the unstratified foodborne potato-salad by
+  case-status matrix and the two matrices within Sex directly from the checksummed CSV.
+- Independent NumPy/SciPy calculations verify row and column percentages,
+  expected cells, Pearson chi-square, degrees of freedom, probability, and
+  sparse-cell diagnostics against the TypeScript candidate contract.
+- The binary `TABLES potato_salad hamburger` fixture separately proves the
+  category-to-cell mapping and passes those cells to the same deployed
+  Rust/WebAssembly operation validated by `validate-2x2.ipynb`.
+- The `STATISTICS=FISHER` fixture fixes the 2 × 4 margins, enumerates 2,737
+  feasible tables, and anchors the Fisher–Freeman–Halton probability at
+  `5.552362909835065e-14`; Phase 0 also checks the fail-visible table limit.
+- The foodborne `vomiting × Sex` fixture verifies the legacy missing-value
+  default (OFF), two excluded records, `SET MISSING=ON`, the visible two-record
+  custom `Not recorded` row, and restoration to OFF plus the default `Missing`
+  label in source order.
+- The notebook explicitly states that the general TABLES host is not yet a
+  Rust/WASM interpreter and does not treat contract validation as desktop Epi
+  Info parity.
+- General R × C Fisher, stratified 2×2 measures, weights, output tables, syntax breadth,
+  desktop differential evidence, and G5 approval remain open.
+
 ### Later releases
 
 - Extend the corpus to additional rate and sample-size branches, regression, dates/times,

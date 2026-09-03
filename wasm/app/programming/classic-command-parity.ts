@@ -35,7 +35,11 @@ const entry = (group: ClassicCommandGroupKey, key: string, legacyName: string, s
 });
 
 export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
-  entry("data", "read", "Read", "READ", { parser: "syntax-v0.9", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", browserPolicy: "adapt-required" }),
+  entry("data", "read", "Read", "READ", {
+    parser: "syntax-v0.9", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.expected.json",
+  }),
   entry("data", "relate", "Relate", "RELATE", {
     parser: "syntax-v0.9", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", browserPolicy: "adapt-required", parityStatus: "browser-verified",
     validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-relate-by-id.pgm",
@@ -99,11 +103,27 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
   entry("select-if", "sort", "Sort", "SORT", { parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
   entry("select-if", "cancel-sort", "CancelSort", "CANCEL SORT", { parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
 
-  entry("statistics", "list", "List", "LIST", { parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
-  entry("statistics", "frequencies", "Frequencies", "FREQ", { parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1" }),
-  entry("statistics", "tables", "Tables", "TABLES", { parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "review-required-v0.1" }),
+  entry("statistics", "list", "List", "LIST", {
+    parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-list-core-fields.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-list-core-fields.expected.json",
+  }),
+  entry("statistics", "frequencies", "Frequencies", "FREQ", {
+    parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-frequency-case-status.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-frequency-case-status.expected.json",
+  }),
+  entry("statistics", "tables", "Tables", "TABLES", {
+    parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher.expected.json",
+  }),
   entry("statistics", "match", "Match", "MATCH", { explorer: "legacy-enum-only" }),
-  entry("statistics", "means", "Means", "MEANS", { parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1" }),
+  entry("statistics", "means", "Means", "MEANS", {
+    parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-means-age.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-means-age.expected.json",
+  }),
   entry("statistics", "summarize", "Summarize", "SUMMARIZE", {
     parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", browserPolicy: "adapt-required", parityStatus: "browser-verified",
     validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-summarize-age-by-sex.pgm",
@@ -142,7 +162,11 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
   entry("user-interaction", "help", "Help", "HELP", { explorer: "legacy-enum-only", browserPolicy: "adapt-required" }),
   entry("user-interaction", "quit-program", "Quit", "QUIT", { browserPolicy: "adapt-required" }),
 
-  entry("options", "set", "Set", "SET", { browserPolicy: "adapt-required" }),
+  entry("options", "set", "Set", "SET", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    parityStatus: "browser-verified", validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-missing.pgm7",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-missing.expected.json",
+  }),
 ] as const;
 
 export function classicCommandParityEntry(group: ClassicCommandGroupKey, key: string): ClassicCommandParityEntry | undefined {

@@ -65,6 +65,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-undelete-records.ts",
     "wasm/app/programming/classic-summarize.ts",
     "wasm/app/programming/classic-graph.ts",
+    "wasm/app/programming/classic-tables.ts",
     "wasm/app/programming/epi-ai-quality.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
@@ -74,9 +75,12 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-program.ts",
     "wasm/app/programming/run-history.ts",
     "wasm/app/contracts/project-package.ts",
+    "wasm/app/contracts/project-archive.ts",
     "wasm/app/forms/geocoding.ts",
     "wasm/app/forms/form-designer-menu.ts",
     "wasm/app/forms/enter-data-menu.ts",
+    "wasm/app/maps/pmtiles-reader.ts",
+    "wasm/app/maps/maplibre-pmtiles.ts",
     "wasm/app/dashboard/dashboard-menu.ts",
     "wasm/app/analysis/classic-analysis-menu.ts",
     "wasm/demo/epi2x2.wasm",
@@ -109,6 +113,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/cohort-cross-sectional-method-contract.md",
     "wasm/docs/validation/unmatched-case-control-method-contract.md",
     "wasm/docs/validation/chi-square-trend-method-contract.md",
+    "wasm/docs/validation/tables-mxn-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
     "wasm/docs/design/programming-curriculum-corpus.md",
     "wasm/docs/design/means-compatibility-inventory.md",
@@ -123,6 +128,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/content/validate-cohort-cross-sectional.ipynb",
     "wasm/validation-lab/content/validate-unmatched-case-control.ipynb",
     "wasm/validation-lab/content/validate-chi-square-trend.ipynb",
+    "wasm/validation-lab/content/validate-tables.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -385,6 +391,7 @@ async function checkRequiredAssetsAndUi() {
   assert.equal(commandParity.classicCommandParityEntry("data", "undelete-records").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "summarize").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "graph").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "tables").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "list").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "define").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "recode").dialog, "typed-source-v0.1");
@@ -744,7 +751,7 @@ async function checkFrequencyContract() {
   );
   const parsedRows = parseCsv(datasetBytes.toString("utf8").replace(/^\uFEFF/, ""));
   const imported = inferSchemaFromRows("foodborne.csv", parsedRows);
-  const { deriveFrequency, deriveStratifiedFrequency } = await importEngineWithFileFetch();
+  const { deriveFrequency, deriveMeans, deriveStratifiedFrequency } = await importEngineWithFileFetch();
   const result = deriveFrequency(imported.records, {
     field: fixture.request.field,
     prompt: fixture.request.prompt,
@@ -786,7 +793,7 @@ async function checkFrequencyContract() {
   assert.equal(stratified.strata.reduce((total, stratum) => total + stratum.result.totals.includedRecords, 0), 96);
 
   const programming = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program.ts")).href}?program=${Date.now()}`);
-  const source = `DEFINE AgeGroup TEXTINPUT
+  const source = `DEFINE AgeGroup TEXTINPUT "Age group"
 RECODE Age TO AgeGroup
 LOVALUE - 4 = "0-4"
 4 - 17 = "5-17"
@@ -799,12 +806,17 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(plan.version, "0.1.0");
   assert.equal(plan.astVersion, "1.0.0");
   assert.equal(plan.recode.sourceField, "age");
+  assert.equal(plan.recode.targetPrompt, "Age group");
+  assert.equal(plan.frequency.prompt, "Age group");
   assert.equal(plan.frequency.stratifyBy, "sex");
+  assert.equal(plan.frequency.stratifyPrompt, "Sex");
+  assert.match(plan.canonicalSource, /^DEFINE AgeGroup TEXTINPUT "Age group"/);
   assert.match(plan.canonicalSource, /FREQ AgeGroup STRATAVAR=sex$/);
   const applied = programming.applyBoundedClassicProgram(imported.records, plan);
+  assert.deepEqual(applied.derivedField, { name: "AgeGroup", prompt: "Age group", type: "text", required: false });
   const grouped = deriveStratifiedFrequency(applied.records, {
-    field: plan.frequency.field, prompt: plan.frequency.field, includeMissing: false,
-    stratifyBy: plan.frequency.stratifyBy, stratifyPrompt: plan.frequency.stratifyBy,
+    field: plan.frequency.field, prompt: plan.frequency.prompt, includeMissing: false,
+    stratifyBy: plan.frequency.stratifyBy, stratifyPrompt: plan.frequency.stratifyPrompt,
   });
   assert.deepEqual(grouped.strata.flatMap((stratum) => stratum.result.categories.map((category) =>
     [stratum.value, category.value, category.frequency])), [
@@ -813,9 +825,217 @@ FREQ AgeGroup STRATAVAR=Sex`;
   ]);
   assert.throws(() => programming.parseBoundedClassicProgram(`${source}\nEXECUTE "malware.exe"`, imported.schema.fields), /Unsupported command/);
   assert.throws(() => programming.parseBoundedClassicProgram(source.replace("Age TO", "Sex TO"), imported.schema.fields), /must be a Number field/);
+  const identifierFallback = programming.parseBoundedClassicProgram(source.replace(' TEXTINPUT "Age group"', " TEXTINPUT"), imported.schema.fields);
+  assert.equal(identifierFallback.frequency.prompt, "AgeGroup", "a missing DEFINE prompt must use the exact variable identifier, not an invented label");
 
   const commandBuilder = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-command-builder.ts")).href}?commands=${Date.now()}`);
   const projectSource = { formId: "foodborne", projectName: "Outbreak Project", formName: "Foodborne Form", fields: imported.schema.fields, records: imported.records };
+
+  const readExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.expected.json",
+  ), "utf8"));
+  const readProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.pgm",
+  ), "utf8");
+  const readSource = { ...projectSource, formName: readExpected.expected.activeForm };
+  const readPlan = commandBuilder.resolveSelectedClassicAnalysisCommand(readProgram, projectSource.fields, [readSource]);
+  assert.deepEqual(readPlan, { kind: "read", table: readExpected.expected.activeForm, source: readProgram });
+  assert.equal(readSource.records.length, readExpected.expected.activeRecords);
+  assert.equal(readSource.fields.length, readExpected.expected.activeFields);
+  assert.equal(readExpected.dataset.sha256, fixture.dataset.sha256);
+
+  const listExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-list-core-fields.expected.json",
+  ), "utf8"));
+  const listProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-list-core-fields.pgm",
+  ), "utf8");
+  const listPlan = commandBuilder.resolveSelectedClassicAnalysisCommand(listProgram, projectSource.fields);
+  assert.equal(listPlan.kind, "list");
+  assert.equal(listExpected.dataset.sha256, fixture.dataset.sha256);
+  assert.deepEqual(listPlan.fields, listExpected.expected.fields);
+  const listRows = projectSource.records.map((record) => Object.fromEntries(
+    listPlan.fields.map((field) => [field, record[field]]),
+  ));
+  assert.equal(listRows.length, listExpected.expected.recordCount);
+  assert.equal(createHash("sha256").update(JSON.stringify(listRows)).digest("hex"), listExpected.expected.rowsSha256);
+  assert.deepEqual(listRows.slice(0, 3), listExpected.expected.firstRows);
+  assert.deepEqual(listRows.slice(-3), listExpected.expected.lastRows);
+
+  const frequencyExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-frequency-case-status.expected.json",
+  ), "utf8"));
+  const frequencyProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-frequency-case-status.pgm",
+  ), "utf8");
+  const frequencyPlan = commandBuilder.resolveSelectedClassicAnalysisCommand(frequencyProgram, projectSource.fields);
+  assert.equal(frequencyPlan.kind, "frequency");
+  const frequencyField = projectSource.fields.find(({ name }) => name === frequencyPlan.field);
+  assert.ok(frequencyField);
+  const frequencyResult = deriveFrequency(projectSource.records, {
+    field: frequencyPlan.field, prompt: frequencyField.prompt, includeMissing: false,
+  });
+  assert.equal(frequencyResult.command, frequencyExpected.command);
+  assert.deepEqual(frequencyResult.totals, {
+    sourceRecords: frequencyExpected.expected.sourceRecords,
+    includedRecords: frequencyExpected.expected.includedRecords,
+    excludedMissing: frequencyExpected.expected.excludedMissing,
+    categoryCount: frequencyExpected.expected.categoryCount,
+  });
+  assert.deepEqual(frequencyResult.categories.map(({ value, frequency }) => ({ value, frequency })), frequencyExpected.expected.categories);
+
+  const meansExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-means-age.expected.json",
+  ), "utf8"));
+  const meansProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-means-age.pgm",
+  ), "utf8");
+  const meansPlan = commandBuilder.resolveSelectedClassicAnalysisCommand(meansProgram, projectSource.fields);
+  assert.equal(meansPlan.kind, "means");
+  const meansField = projectSource.fields.find(({ name }) => name === meansPlan.field);
+  assert.ok(meansField);
+  const meansResult = deriveMeans(projectSource.records, { field: meansPlan.field, prompt: meansField.prompt });
+  assert.equal(meansResult.command, meansExpected.command);
+  assert.deepEqual(meansResult.totals, {
+    sourceRecords: meansExpected.expected.sourceRecords,
+    includedRecords: meansExpected.expected.includedRecords,
+    excludedMissingOrNonNumeric: meansExpected.expected.excludedMissingOrNonNumeric,
+  });
+  for (const [name, expected] of Object.entries(meansExpected.expected.statistics)) {
+    near(meansResult.statistics[name], expected, 1e-12, `PGM MEANS Age ${name}`);
+  }
+
+  const tablesExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.expected.json",
+  ), "utf8"));
+  const tablesProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.pgm",
+  ), "utf8");
+  const tablesCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(tablesProgram, projectSource.fields);
+  assert.equal(tablesCommand.kind, "tables");
+  const tables = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-tables.ts")).href}?tables=${Date.now()}`);
+  const tablesPlan = tables.resolveClassicTablesPlan(tablesProgram, projectSource.fields, tablesCommand.exposure, tablesCommand.outcome, tablesCommand.stratifyBy);
+  const tablesResult = tables.applyClassicTables(projectSource.records, tablesPlan);
+  assert.equal(tablesPlan.version, "classic-tables-v0.7.0");
+  assert.equal(tablesResult.operation, tablesExpected.operation);
+  for (const property of ["sourceRecords", "includedRecords", "excludedMissing", "exposureValues", "outcomeValues", "strata"]) {
+    assert.deepEqual(tablesResult[property], tablesExpected[property]);
+  }
+
+  const unstratifiedTablesExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status-unstratified.expected.json",
+  ), "utf8"));
+  const unstratifiedTablesProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status-unstratified.pgm",
+  ), "utf8");
+  const unstratifiedTablesCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(unstratifiedTablesProgram, projectSource.fields);
+  assert.deepEqual(unstratifiedTablesCommand, {
+    kind: "tables", exposure: "potato_salad", outcome: "case_status", source: unstratifiedTablesProgram,
+  });
+  const unstratifiedTablesPlan = tables.resolveClassicTablesPlan(
+    unstratifiedTablesProgram, projectSource.fields, unstratifiedTablesCommand.exposure, unstratifiedTablesCommand.outcome,
+  );
+  assert.equal(unstratifiedTablesPlan.canonicalSource, "TABLES potato_salad case_status");
+  const unstratifiedTablesResult = tables.applyClassicTables(projectSource.records, unstratifiedTablesPlan);
+  for (const property of ["sourceRecords", "includedRecords", "excludedMissing", "exposureValues", "outcomeValues", "strata"]) {
+    assert.deepEqual(unstratifiedTablesResult[property], unstratifiedTablesExpected[property]);
+  }
+  assert.throws(
+    () => tables.resolveClassicTablesPlan("TABLES Sex Sex", projectSource.fields, "Sex", "Sex"),
+    /exposure and outcome must use different fields/,
+  );
+
+  const twoByTwoExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-two-by-two.expected.json",
+  ), "utf8"));
+  const twoByTwoProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-two-by-two.pgm",
+  ), "utf8");
+  const twoByTwoCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(twoByTwoProgram, projectSource.fields);
+  assert.equal(twoByTwoCommand.kind, "tables");
+  const twoByTwoPlan = tables.resolveClassicTablesPlan(twoByTwoProgram, projectSource.fields, twoByTwoCommand.exposure, twoByTwoCommand.outcome);
+  const twoByTwoResult = tables.applyClassicTables(projectSource.records, twoByTwoPlan);
+  for (const property of ["sourceRecords", "includedRecords", "excludedMissing", "exposureValues", "outcomeValues", "strata"]) {
+    assert.deepEqual(twoByTwoResult[property], twoByTwoExpected[property]);
+  }
+  const { calculateTable2x2 } = await importEngineWithFileFetch();
+  const twoByTwoKernelResult = calculateTable2x2(twoByTwoResult.strata[0].twoByTwo.input);
+  near(twoByTwoKernelResult.estimates.oddsRatio.estimate, twoByTwoExpected.kernelAnchors.oddsRatio, 1e-12, "TABLES 2x2 OR");
+  near(twoByTwoKernelResult.estimates.riskRatio.estimate, twoByTwoExpected.kernelAnchors.riskRatio, 1e-12, "TABLES 2x2 RR");
+  near(twoByTwoKernelResult.estimates.riskDifference.estimate, twoByTwoExpected.kernelAnchors.riskDifference, 1e-12, "TABLES 2x2 RD");
+  near(twoByTwoKernelResult.tests.pearson.value, twoByTwoExpected.kernelAnchors.pearsonChiSquare, 1e-12, "TABLES 2x2 Pearson");
+
+  const fisherProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher.pgm",
+  ), "utf8");
+  const fisherCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(fisherProgram, projectSource.fields);
+  assert.deepEqual(fisherCommand, {
+    kind: "tables", exposure: "potato_salad", outcome: "case_status", statistics: "FISHER", source: fisherProgram,
+  });
+  const fisherPlan = tables.resolveClassicTablesPlan(
+    fisherProgram, projectSource.fields, fisherCommand.exposure, fisherCommand.outcome, fisherCommand.stratifyBy, fisherCommand.statistics,
+  );
+  const fisherResult = tables.applyClassicTables(projectSource.records, fisherPlan).strata[0].fisherExact;
+  assert.equal(fisherPlan.canonicalSource, "TABLES potato_salad case_status STATISTICS=FISHER");
+  assert.equal(fisherResult.state, "computed");
+  assert.equal(fisherResult.tablesEnumerated, 2737);
+  near(fisherResult.pValue, 5.552362909835065e-14, 1e-25, "TABLES Fisher-Freeman-Halton p-value");
+  const boundedFisher = tables.calculateBoundedFisherExact([[0, 40, 2, 6], [22, 12, 14, 0]], 10);
+  assert.equal(boundedFisher.state, "unavailable");
+  assert.match(boundedFisher.reason, /10-table browser limit/);
+
+  const multipleStrataProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-multiple-strata.pgm",
+  ), "utf8");
+  const multipleStrataExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-multiple-strata.expected.json",
+  ), "utf8"));
+  const multipleStrataCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(multipleStrataProgram, projectSource.fields);
+  assert.deepEqual(multipleStrataCommand, {
+    kind: "tables", exposure: "potato_salad", outcome: "hamburger", stratifyBy: ["sex", "case_status"], source: multipleStrataProgram,
+  });
+  const multipleStrataPlan = tables.resolveClassicTablesPlan(
+    multipleStrataProgram, projectSource.fields, multipleStrataCommand.exposure, multipleStrataCommand.outcome, multipleStrataCommand.stratifyBy,
+  );
+  const multipleStrataResult = tables.applyClassicTables(projectSource.records, multipleStrataPlan);
+  assert.equal(multipleStrataResult.planVersion, multipleStrataExpected.planVersion);
+  assert.equal(multipleStrataResult.canonicalSource, multipleStrataExpected.canonicalSource);
+  assert.equal(multipleStrataResult.sourceRecords, multipleStrataExpected.sourceRecords);
+  assert.equal(multipleStrataResult.includedRecords, multipleStrataExpected.includedRecords);
+  assert.equal(multipleStrataResult.excludedMissing, multipleStrataExpected.excludedMissing);
+  assert.deepEqual(multipleStrataResult.strata.map(({ value, total, rows }) => ({
+    value, total, cells: rows.map(({ counts }) => counts),
+  })), multipleStrataExpected.strata);
+
+  const classicAst = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-ast.ts")).href}?missing=${Date.now()}`);
+  const missingSettings = classicAst.parseClassicProgram("SET (.)=\"Not recorded\"\nSET MISSING=ON\nTABLES vomiting Sex\nSET MISSING=OFF\nSET (.)=\"Missing\"");
+  assert.deepEqual(missingSettings.body.map(({ type }) => type), ["SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement"]);
+  assert.deepEqual(missingSettings.body.filter(({ type, option }) => type === "SetStatement" && option === "MISSING").map(({ enabled }) => enabled), [true, false]);
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("SET MISSING=(+)", projectSource.fields), {
+    kind: "set-missing", enabled: true, source: "SET MISSING=(+)",
+  });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('SET (.)="Not recorded"', projectSource.fields), {
+    kind: "set-missing-label", value: "Not recorded", source: 'SET (.)="Not recorded"',
+  });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("SET IGNORE=OFF", projectSource.fields), {
+    kind: "set-missing", enabled: true, source: "SET IGNORE=OFF",
+  });
+  const missingPlan = tables.resolveClassicTablesPlan("TABLES vomiting Sex", projectSource.fields, "vomiting", "sex", undefined, undefined, true, "Not recorded");
+  const missingResult = tables.applyClassicTables(projectSource.records, missingPlan);
+  const missingExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-missing.expected.json",
+  ), "utf8"));
+  assert.equal(missingResult.includedRecords, missingExpected.expected.includedRecords);
+  assert.equal(missingResult.excludedMissing, missingExpected.expected.excludedMissing);
+  assert.equal(missingResult.includedMissing, missingExpected.expected.includedMissing);
+  assert.deepEqual(missingResult.strata[0].rows.find(({ exposureValue }) => exposureValue === "Not recorded").counts, missingExpected.expected.missingExposureCounts);
+  assert.equal(missingResult.strata[0].rows.find(({ exposureValue }) => exposureValue === "Not recorded").total, missingExpected.expected.missingExposureTotal);
+  const excludedMissingPlan = tables.resolveClassicTablesPlan("TABLES vomiting Sex", projectSource.fields, "vomiting", "sex");
+  const excludedMissingResult = tables.applyClassicTables(projectSource.records, excludedMissingPlan);
+  assert.equal(excludedMissingResult.includedRecords, 94);
+  assert.equal(excludedMissingResult.excludedMissing, 2);
+  assert.equal(excludedMissingResult.includedMissing, 0);
+
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "quality" }), "EPIAI QUALITY *");
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("EPIAI QUALITY *", imported.schema.fields), { kind: "quality", source: "EPIAI QUALITY *" });
   const quality = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-quality.ts")).href}?quality=${Date.now()}`);
@@ -914,7 +1134,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("UNDEFINE ReviewLabel", imported.schema.fields, [], [reviewVariable]), { kind: "undefine", variable: "ReviewLabel", source: "UNDEFINE ReviewLabel" });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("MEANS Age", imported.schema.fields), { kind: "means", field: "age", source: "MEANS Age" });
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("TABLES potato_salad case_status STRATAVAR=Sex", imported.schema.fields), {
-    kind: "tables", exposure: "potato_salad", outcome: "case_status", stratifyBy: "sex",
+    kind: "tables", exposure: "potato_salad", outcome: "case_status", stratifyBy: ["sex"],
     source: "TABLES potato_salad case_status STRATAVAR=Sex",
   });
   assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("FREQ age\nMEANS age", imported.schema.fields), /exactly one/);
@@ -978,6 +1198,19 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(session.cancelSort(), true);
   assert.equal(session.current(projectSource).records[0].id, imported.records[0].id);
   assert.equal(session.cancelSort(), false);
+
+  session.defineVariable({ name: "TemporaryReadVariable", scope: "STANDARD", variableType: "TEXTINPUT" });
+  session.defineGroup({ name: "TemporaryReadGroup", members: ["id", "age"] });
+  session.storeOutTable({ ...projectSource, formName: "TemporaryReadOutput" });
+  const activatedReadSource = session.read(readPlan.table, [readSource]);
+  assert.equal(activatedReadSource.formName, readExpected.expected.activeForm);
+  assert.equal(session.current(projectSource).records.length, readExpected.expected.activeRecords);
+  assert.equal(session.selectionStatus(projectSource).canonicalSource, undefined);
+  assert.equal(session.sortStatus().fields, 0);
+  assert.equal(session.variables().length, 0);
+  assert.equal(session.groups().length, 0);
+  assert.equal(session.outTables().length, 0);
+  session.reset(projectSource);
 
   const relate = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-relate.ts")).href}?relate=${Date.now()}`);
   const relateExpected = JSON.parse(await readFile(repositoryPath(
@@ -1231,13 +1464,25 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(catalog.dataset.file, "foodborne-outbreak-investigation.csv");
   assert.equal(catalog.dataset.sha256, fixture.dataset.sha256);
   assert.equal(catalog.dataset.recordCount, imported.records.length);
-  assert.deepEqual(catalog.dataset.fieldTypes, { Age: "number", Sex: "text", case_status: "text" });
+  assert.deepEqual(catalog.dataset.fieldTypes, { Age: "number", Sex: "text", case_status: "text", potato_salad: "yes-no" });
   assert.deepEqual(catalog.programs.map(({ id }) => id), [
-    "life-stage-by-sex", "age-band-by-case-status", "age-decades", "quality-profile",
+    "life-stage-by-sex", "age-band-by-case-status", "age-decades", "potato-salad-by-case-status", "food-exposure-two-by-two", "quality-profile",
   ]);
   for (const example of catalog.programs) {
     if (example.id === "quality-profile") {
       assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand(example.source, imported.schema.fields), { kind: "quality", source: "EPIAI QUALITY *" });
+      continue;
+    }
+    if (example.id === "potato-salad-by-case-status") {
+      assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand(example.source, imported.schema.fields), {
+        kind: "tables", exposure: "potato_salad", outcome: "case_status", statistics: "FISHER", source: example.source,
+      });
+      continue;
+    }
+    if (example.id === "food-exposure-two-by-two") {
+      assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand(example.source, imported.schema.fields), {
+        kind: "tables", exposure: "potato_salad", outcome: "hamburger", source: example.source,
+      });
       continue;
     }
     const examplePlan = programming.parseBoundedClassicProgram(example.source, imported.schema.fields);
@@ -1585,6 +1830,62 @@ async function checkCsvAndProjectFixtures() {
   assert.deepEqual(validated, snapshot);
   assert.equal(contracts.isProjectSnapshot(snapshot), true);
   assert.equal(contracts.isProjectSnapshot({ ...snapshot, version: 2 }), false);
+  const withStudyArea = structuredClone(snapshot);
+  withStudyArea.studyAreas = [{
+    id: "toledo-field-investigation",
+    name: "Toledo field investigation",
+    source: "drawn-bounds",
+    bounds: [-83.75, 41.5, -83.45, 41.75],
+    geometry: {
+      type: "Polygon",
+      coordinates: [[[-83.75, 41.5], [-83.45, 41.5], [-83.45, 41.75], [-83.75, 41.75], [-83.75, 41.5]]],
+    },
+    bufferKm: 0,
+    offlineMap: {
+      minZoom: 0,
+      maxZoom: 14,
+      packageLimitMiB: 100,
+      status: "not-downloaded",
+      providerId: "browser-pmtiles",
+      estimate: {
+        estimatorVersion: "web-mercator-v1",
+        tileCount: 358,
+        averageTileBytes: 25600,
+        estimatedBytes: 9164800,
+      },
+    },
+  }];
+  assert.deepEqual(contracts.validateProjectSnapshot(withStudyArea).studyAreas, withStudyArea.studyAreas);
+  const withOfflineAsset = structuredClone(withStudyArea);
+  withOfflineAsset.studyAreas[0].offlineMap.status = "stored-unverified";
+  withOfflineAsset.studyAreas[0].offlineMap.asset = {
+    id: "a".repeat(64),
+    fileName: "toledo.pmtiles",
+    storage: "opfs",
+    storagePath: `epi-info-ai/offline-maps/${"a".repeat(64)}.pmtiles`,
+    byteLength: 129,
+    sha256: "a".repeat(64),
+    format: "pmtiles-v3",
+    tileType: "mvt",
+    tileCompression: "none",
+    bounds: [-84, 41, -83, 42],
+    minZoom: 0,
+    maxZoom: 14,
+    attribution: "OpenStreetMap contributors",
+    license: "ODbL-1.0",
+    importedAt: "2026-09-02T12:00:00.000Z",
+    persistence: "best-effort",
+  };
+  assert.equal(contracts.validateProjectSnapshot(withOfflineAsset).studyAreas[0].offlineMap.status, "stored-unverified");
+  const assetWithoutReadyStatus = structuredClone(withOfflineAsset);
+  assetWithoutReadyStatus.studyAreas[0].offlineMap.status = "not-downloaded";
+  assert.throws(() => contracts.validateProjectSnapshot(assetWithoutReadyStatus), /must be stored-unverified/i);
+  const invalidStudyArea = structuredClone(withStudyArea);
+  invalidStudyArea.studyAreas[0].bounds = [-83.45, 41.5, -83.75, 41.75];
+  assert.throws(() => contracts.validateProjectSnapshot(invalidStudyArea), /west must be less than east/i);
+  const duplicateStudyArea = structuredClone(withStudyArea);
+  duplicateStudyArea.studyAreas.push(structuredClone(duplicateStudyArea.studyAreas[0]));
+  assert.throws(() => contracts.validateProjectSnapshot(duplicateStudyArea), /duplicate study-area id/i);
   const withDataset = structuredClone(snapshot);
   withDataset.forms[0].dataset = {
     id: "foodborne-outbreak-investigation",
@@ -1613,6 +1914,97 @@ async function checkCsvAndProjectFixtures() {
 }
 
 async function checkMapFixture() {
+  const offlineEstimator = await import(`${pathToFileURL(repositoryPath("wasm/app/maps/offline-map-estimator.ts")).href}?phase0=${Date.now()}`);
+  assert.equal(offlineEstimator.tileCountForBounds([-180, -85, 180, 85], 0), 1);
+  assert.equal(offlineEstimator.tileCountForBounds([-180, -85, 180, 85], 1), 4);
+  const pmtilesEstimate = offlineEstimator.estimateOfflineMapPackage(
+    [-83.75, 41.5, -83.45, 41.75],
+    0,
+    14,
+    offlineEstimator.offlineMapProvider("browser-pmtiles"),
+  );
+  assert.deepEqual(pmtilesEstimate, {
+    estimatorVersion: "web-mercator-v1",
+    tileCount: 358,
+    averageTileBytes: 25600,
+    estimatedBytes: 9164800,
+  });
+  assert.throws(() => offlineEstimator.tileCountForBounds([-83.45, 41.5, -83.75, 41.75], 14), /ordered finite/i);
+  const pmtilesImporter = await import(`${pathToFileURL(repositoryPath("wasm/app/maps/pmtiles-import.ts")).href}?phase0=${Date.now()}`);
+  const pmtilesHeaderBytes = new ArrayBuffer(127);
+  const pmtilesHeader = new Uint8Array(pmtilesHeaderBytes);
+  pmtilesHeader.set(new TextEncoder().encode("PMTiles"), 0);
+  const pmtilesView = new DataView(pmtilesHeaderBytes);
+  pmtilesView.setUint8(7, 3);
+  pmtilesView.setBigUint64(8, 127n, true);
+  pmtilesView.setBigUint64(16, 1n, true);
+  pmtilesView.setBigUint64(24, 128n, true);
+  pmtilesView.setBigUint64(32, 0n, true);
+  pmtilesView.setBigUint64(56, 128n, true);
+  pmtilesView.setBigUint64(64, 1n, true);
+  pmtilesView.setUint8(97, 1);
+  pmtilesView.setUint8(98, 1);
+  pmtilesView.setUint8(99, 1);
+  pmtilesView.setUint8(100, 0);
+  pmtilesView.setUint8(101, 14);
+  pmtilesView.setInt32(102, -840000000, true);
+  pmtilesView.setInt32(106, 410000000, true);
+  pmtilesView.setInt32(110, -830000000, true);
+  pmtilesView.setInt32(114, 420000000, true);
+  assert.deepEqual(pmtilesImporter.parsePmtilesHeader(pmtilesHeaderBytes, 129), {
+    version: 3,
+    rootOffset: 127,
+    rootLength: 1,
+    metadataOffset: 128,
+    metadataLength: 0,
+    leafDirectoryOffset: 0,
+    leafDirectoryLength: 0,
+    tileDataOffset: 128,
+    tileDataLength: 1,
+    internalCompression: "none",
+    tileCompression: "none",
+    tileType: "mvt",
+    minZoom: 0,
+    maxZoom: 14,
+    bounds: [-84, 41, -83, 42],
+  });
+  pmtilesView.setUint8(7, 2);
+  assert.throws(() => pmtilesImporter.parsePmtilesHeader(pmtilesHeaderBytes, 129), /version 2 is not supported/i);
+  const pmtilesReader = await import(`${pathToFileURL(repositoryPath("wasm/app/maps/pmtiles-reader.ts")).href}?phase0=${Date.now()}`);
+  assert.deepEqual(pmtilesReader.deserializePmtilesDirectory(Uint8Array.from([1, 0, 1, 68, 1])), [{
+    tileId: 0,
+    runLength: 1,
+    length: 68,
+    offset: 0,
+  }]);
+  assert.deepEqual([
+    pmtilesReader.zxyToPmtilesId(0, 0, 0),
+    pmtilesReader.zxyToPmtilesId(1, 0, 0),
+    pmtilesReader.zxyToPmtilesId(1, 0, 1),
+    pmtilesReader.zxyToPmtilesId(1, 1, 1),
+    pmtilesReader.zxyToPmtilesId(1, 1, 0),
+  ], [0, 1, 2, 3, 4]);
+  assert.equal(pmtilesReader.pmtilesRasterMimeType("png"), "image/png");
+  assert.equal(pmtilesReader.pmtilesRasterMimeType("mvt"), null);
+  assert.throws(() => pmtilesReader.deserializePmtilesDirectory(Uint8Array.from([1, 0, 1, 68, 0])), /offset or length/i);
+  const maplibrePmtiles = await import(`${pathToFileURL(repositoryPath("wasm/app/maps/maplibre-pmtiles.ts")).href}?phase0=${Date.now()}`);
+  assert.deepEqual(maplibrePmtiles.vectorLayerIds({
+    vector_layers: [{ id: "boundaries" }, { id: "places" }, { id: "boundaries" }, { id: "" }, null],
+  }), ["boundaries", "places"]);
+  const vectorStyle = maplibrePmtiles.vectorPmtilesStyle({
+    asset: { id: "a".repeat(64), attribution: "Fixture contributors", license: "Fixture license" },
+    header: { minZoom: 0, maxZoom: 14 },
+    metadata: { vector_layers: [{ id: "boundaries" }] },
+  });
+  assert.equal(vectorStyle.sources.offline.type, "vector");
+  assert.deepEqual(vectorStyle.sources.offline.tiles, [`epi-pmtiles://${"a".repeat(64)}/{z}/{x}/{y}.mvt`]);
+  assert.equal(vectorStyle.layers.length, 3);
+  assert.ok(vectorStyle.layers.every((layer) => layer.source === "offline" && layer["source-layer"] === "boundaries"));
+  assert.throws(() => maplibrePmtiles.vectorPmtilesStyle({
+    asset: { id: "a".repeat(64), attribution: "Fixture contributors", license: "Fixture license" },
+    header: { minZoom: 0, maxZoom: 14 },
+    metadata: {},
+  }), /does not declare vector_layers metadata/i);
   const fixture = await jsonFixture("map-points.json");
   const { aggregateH3Cells, buildTimeLapseStops, extractMapPoints, inferMapFields, listGeoJsonPolygonProperties, MAP_PANE_Z_INDEX, mapPaneForGeometryType, parseGeoJson, polygonLabelAnchor } = await import(`${pathToFileURL(join(demoDirectory, "maps.ts")).href}?phase0=${Date.now()}`);
   const points = extractMapPoints(fixture.records, fixture.latitudeField, fixture.longitudeField);
@@ -1913,6 +2305,78 @@ async function checkSampleProjectPackage() {
   assert.throws(() => contracts.validateProjectPackage(invalidPackage), /package.version/);
 }
 
+async function checkPortableProjectArchive() {
+  const packages = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?archive=${Date.now()}`);
+  const archives = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-archive.ts")).href}?archive=${Date.now()}`);
+  const snapshot = await jsonFixture("project-snapshot-v1.json");
+  const bytes = new Uint8Array(129);
+  bytes.set(new TextEncoder().encode("PMTiles"));
+  const view = new DataView(bytes.buffer);
+  view.setUint8(7, 3);
+  view.setBigUint64(8, 127n, true);
+  view.setBigUint64(16, 1n, true);
+  view.setBigUint64(24, 128n, true);
+  view.setBigUint64(32, 0n, true);
+  view.setBigUint64(56, 128n, true);
+  view.setBigUint64(64, 1n, true);
+  view.setUint8(97, 1);
+  view.setUint8(98, 1);
+  view.setUint8(99, 1);
+  view.setUint8(100, 0);
+  view.setUint8(101, 14);
+  view.setInt32(102, -840000000, true);
+  view.setInt32(106, 410000000, true);
+  view.setInt32(110, -830000000, true);
+  view.setInt32(114, 420000000, true);
+  const digest = createHash("sha256").update(bytes).digest("hex");
+  const asset = {
+    id: digest,
+    fileName: "toledo.pmtiles",
+    storage: "opfs",
+    storagePath: `epi-info-ai/offline-maps/fixture-${digest}.pmtiles`,
+    byteLength: bytes.byteLength,
+    sha256: digest,
+    format: "pmtiles-v3",
+    tileType: "mvt",
+    tileCompression: "none",
+    bounds: [-84, 41, -83, 42],
+    minZoom: 0,
+    maxZoom: 14,
+    attribution: "Fixture contributors",
+    license: "Fixture license",
+    importedAt: "2026-09-02T12:00:00.000Z",
+    persistence: "best-effort",
+  };
+  snapshot.studyAreas = [{
+    id: "toledo", name: "Toledo", source: "drawn-bounds",
+    bounds: [-83.75, 41.5, -83.45, 41.75],
+    geometry: { type: "Polygon", coordinates: [[[-83.75, 41.5], [-83.45, 41.5], [-83.45, 41.75], [-83.75, 41.75], [-83.75, 41.5]]] },
+    bufferKm: 0,
+    offlineMap: { minZoom: 0, maxZoom: 14, packageLimitMiB: 100, status: "stored-unverified", providerId: "browser-pmtiles", asset },
+  }];
+  const packageValue = packages.createProjectPackage(snapshot);
+  const payload = new File([bytes], asset.fileName, { type: "application/vnd.pmtiles" });
+  const archiveBlob = await archives.createProjectArchive(packageValue, [{ asset, file: payload }]);
+  const archiveFile = new File([archiveBlob], "toledo.epia", { type: archiveBlob.type });
+  assert.equal(await archives.isBinaryProjectArchive(archiveFile), true);
+  const restored = await archives.parseProjectArchive(archiveFile);
+  assert.equal(restored.projectPackage.project.name, snapshot.name);
+  assert.equal(restored.assets.length, 1);
+  assert.equal(restored.assets[0].asset.sha256, digest);
+  assert.deepEqual(new Uint8Array(await restored.assets[0].file.arrayBuffer()), bytes);
+  assert.equal(await archives.isBinaryProjectArchive(new Blob([JSON.stringify(packageValue)])), false);
+  const tampered = new Uint8Array(await archiveBlob.arrayBuffer());
+  tampered[tampered.length - 1] ^= 0xff;
+  await assert.rejects(
+    () => archives.parseProjectArchive(new File([tampered], "tampered.epia")),
+    /SHA-256 check/i,
+  );
+  await assert.rejects(
+    () => archives.parseProjectArchive(new File([archiveBlob, new Uint8Array([1])], "trailing.epia")),
+    /trailing bytes/i,
+  );
+}
+
 async function checkAlgorithmValidationRegistry() {
   const registry = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/registry.json"), "utf8"));
   const allowedStates = new Set(["experimental", "candidate", "validated", "restricted", "retired"]);
@@ -1980,10 +2444,30 @@ async function checkValidationLabSource() {
   ]) {
     assert.ok(source.includes(requiredText), `validation notebook must retain ${requiredText}`);
   }
+
+  const tablesNotebook = JSON.parse(await readFile(repositoryPath("wasm/validation-lab/content/validate-tables.ipynb"), "utf8"));
+  assert.equal(tablesNotebook.nbformat, 4);
+  assert.equal(tablesNotebook.metadata?.kernelspec?.name, "python");
+  const tablesSource = tablesNotebook.cells.flatMap((cell) => cell.source || []).join("");
+  for (const requiredText of [
+    "foodborne-tables-stratified-v0.3.json",
+    "foodborne-tables-unstratified-v0.3.json",
+    "foodborne-tables-fisher-v0.5.json",
+    "Fisher-Freeman-Halton",
+    "foodborne-tables-missing-v0.6.json",
+    "SET MISSING=ON",
+    "chi2_contingency",
+    "TypeScript result contract",
+    "not yet a Rust/WASM kernel",
+  ]) {
+    assert.ok(tablesSource.includes(requiredText), `TABLES validation notebook must retain ${requiredText}`);
+  }
 }
 
 async function checkEpiAssistProposalBoundary() {
   const proposals = await import(`${pathToFileURL(repositoryPath("wasm/app/assistant/proposals.ts")).href}?assistant=${Date.now()}`);
+  const intents = await import(`${pathToFileURL(repositoryPath("wasm/app/assistant/intent.ts")).href}?assistant=${Date.now()}`);
+  const models = await import(`${pathToFileURL(repositoryPath("wasm/app/assistant/models.ts")).href}?assistant=${Date.now()}`);
   const context = {
     version: 1,
     projectName: "Outbreak Project",
@@ -2017,6 +2501,18 @@ async function checkEpiAssistProposalBoundary() {
 <tool_call>{"name":"run_epi_curve","arguments":{"date_field":"onset_date","group_field":"case_status"}}</tool_call>`, context);
   assert.deepEqual(toolCalls.actions.map((action) => action.kind), ["open-data-quality", "run-frequency", "run-epi-curve"]);
   assert.deepEqual(toolCalls.actions[1], { kind: "run-frequency", fieldName: "age", stratifyBy: "sex" });
+  assert.deepEqual(intents.resolveEpiAssistFrequencyIntent("Show age distribution by sex", context), {
+    kind: "run-frequency",
+    fieldName: "age",
+    stratifyBy: "sex",
+  });
+  assert.equal(intents.resolveEpiAssistFrequencyIntent("Show an invented distribution by sex", context), null);
+  assert.equal(intents.resolveEpiAssistFrequencyIntent("Show gender distribution by status", context), null);
+  assert.deepEqual(models.EPI_ASSIST_MODELS.map(({ key, device, dtype, approximateSize }) => ({ key, device, dtype, approximateSize })), [
+    { key: "granite-4.0-350m-wasm", device: "wasm", dtype: "q4", approximateSize: "576 MB" },
+    { key: "granite-4.0-350m-webgpu", device: "webgpu", dtype: "fp16", approximateSize: "709 MB" },
+    { key: "granite-4.0-1b", device: "webgpu", dtype: "q4", approximateSize: "1.78 GB" },
+  ]);
   const partial = proposals.parseEpiAssistToolCalls(`
 <tool_call>{"name":"run_frequency","arguments":{"field_name":"case_status"}}</tool_call>
 <tool_call>{"name":"execute_code","arguments":{"code":"delete records"}}</tool_call>
@@ -2029,8 +2525,10 @@ async function checkEpiAssistProposalBoundary() {
   for (const provenanceMarker of [
     'MODEL_REVISION = "main"',
     'RUNTIME_VERSION = "3.7.5"',
-    'SYSTEM_PROMPT_VERSION = "epi-assist-system-v1"',
-    'TOOL_SCHEMA_VERSION = "epi-assist-tools-v2"',
+    'SYSTEM_PROMPT_VERSION = "epi-assist-system-v2"',
+    'TOOL_SCHEMA_VERSION = "epi-assist-tools-v3"',
+    'required: frequencyIntent ? ["field_name", "stratify_by"] : ["field_name"]',
+    "model: { id: selected.modelId, revision: MODEL_REVISION, device: selected.device, dtype: selected.dtype }",
     "prompt: { systemVersion: SYSTEM_PROMPT_VERSION, system: SYSTEM_PROMPT, user: event.data.prompt }",
   ]) assert.ok(workerSource.includes(provenanceMarker), `Epi Assist must retain ${provenanceMarker}`);
 }
@@ -2089,8 +2587,8 @@ CANCEL SORT`;
   const commandTourSource = await readFile(repositoryPath("wasm/demo/examples/foodborne-classic-command-tour.pgm7"), "utf8");
   const commandTour = parser.parseClassicProgram(commandTourSource);
   assert.deepEqual(commandTour.body.map(({ type }) => type), [
-    "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement",
-    "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
+    "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement", "SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement", "TablesStatement", "TablesStatement",
+    "TablesStatement", "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
     "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement",
     "EpiAiQualityStatement",
   ]);
@@ -2123,6 +2621,7 @@ async function run() {
     ["form validation contracts", checkFormValidationContracts],
     ["legacy GEOCODE provider boundary", checkGeocodingProviderBoundary],
     ["portable Sample project package", checkSampleProjectPackage],
+    ["portable binary project archive with PMTiles", checkPortableProjectArchive],
     ["algorithm validation registry", checkAlgorithmValidationRegistry],
     ["programming curriculum registry", checkProgrammingCurriculumRegistry],
     ["JupyterLite validation lab source", checkValidationLabSource],

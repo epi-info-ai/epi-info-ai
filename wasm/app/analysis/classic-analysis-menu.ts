@@ -89,7 +89,7 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
   { key: "user-interaction", label: "User Interaction", commands: [
     gap("dialog", "Dialog"), gap("beep", "Beep"), gap("quit-program", "Quit Program"),
   ] },
-  { key: "options", label: "Options", commands: [gap("set", "Set")] },
+  { key: "options", label: "Options", commands: [command("set", "Set", "classic-command-set")] },
   { key: "new-branches", label: "New Branches — Epi Info AI", commands: [
     newBranchCommand("quality", "Quality Profile", "classic-command-quality"),
     newBranchCommand("file-convert", "Convert Access Database", "classic-command-file-convert"),

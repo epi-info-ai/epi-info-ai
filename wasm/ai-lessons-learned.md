@@ -184,3 +184,41 @@ privacy, security, or production readiness.
    corpus and device budgets.
 5. Define governance requirements and a threat model before designing any central
    learning-event endpoint.
+
+### 2026-09-03 — Ground small-model distribution requests before generation
+
+- **Evaluation prompt:** `Show age distribution by sex` with IBM Granite 4.0
+  350M Instruct (`onnx-community/granite-4.0-350m-ONNX-web`, revision `main`).
+- **Expected reviewed action:** `run_frequency(field_name="age",
+  stratify_by="sex")`, rendered by the host as `FREQ age STRATAVAR=sex`.
+- **Observed prior failure mode:** the small model could retain `age` while
+  dropping the `by sex` stratification argument.
+- **Decision:** version the prompt and tool schema, resolve only the narrow
+  `X distribution by Y` request shape against actual field names/prompts, and
+  constrain the Granite tool schema to those grounded enum values. Both arguments
+  become required for this request. This grounding creates no executable code and
+  grants no authority; the returned call must still pass the host allowlist and
+  wait for explicit user approval.
+- **Ambiguity case:** `Show gender distribution by status` must not silently map
+  `gender` to `sex` or `status` to `case_status`. V0.1 resolves it to no trusted
+  deterministic intent. The general Granite path can still suggest real fields,
+  so a clarification gate remains open work: it may present `sex` and
+  `case_status` as candidates, but must not enable execution until the user
+  confirms both mappings.
+- **1B comparison:** the UI can rerun the same frozen questions with Granite 4.0
+  1B Instruct (`onnx-community/granite-4.0-1b-ONNX-web`, `q4`, approximately
+  1.78 GB). Selecting it terminates any loaded 350M Worker first. Compare tool,
+  field and abstention accuracy as well as download size, load/generation latency,
+  GPU memory and failure behavior; do not treat model size alone as improvement.
+
+### 2026-09-03 — Managed-browser execution fallback
+
+- **Observed environment:** a managed Edge browser exposed the WebGPU API but
+  could not obtain a GPU adapter. Enabling an unsafe browser flag is not an
+  acceptable deployment requirement.
+- **Decision:** retain explicit WebGPU options, but make Granite 4.0 350M q4 on
+  CPU/WebAssembly (approximately 576 MB) the compatibility default. Record the
+  actual execution device and dtype with every model result.
+- **Implementation lesson:** resolve the Worker URL from `document.baseURI`.
+  Resolving from `import.meta.url` broke after bundling the caller into `/chunks`,
+  leaving the UI at “Starting” before any download callback could run.

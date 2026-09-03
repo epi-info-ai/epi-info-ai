@@ -5,6 +5,81 @@ import { expect, test } from "@playwright/test";
 
 const legacySampleMdb = "wasm/source/Epi-Info-Community-Edition/Epi.Core/Projects/Sample/Sample.mdb";
 
+function pmtilesV3HeaderFixture() {
+  const varint = (value) => {
+    const bytes = [];
+    let remaining = value;
+    do {
+      const byte = remaining % 128;
+      remaining = Math.floor(remaining / 128);
+      bytes.push(byte | (remaining > 0 ? 0x80 : 0));
+    } while (remaining > 0);
+    return bytes;
+  };
+  const metadata = new TextEncoder().encode(JSON.stringify({
+    vector_layers: [{ id: "test", fields: {}, minzoom: 0, maxzoom: 14 }],
+  }));
+  const vectorTile = Uint8Array.from([
+    0x1a, 0x0b,
+    0x0a, 0x04, 0x74, 0x65, 0x73, 0x74,
+    0x78, 0x02,
+    0x28, 0x80, 0x20,
+  ]);
+  const root = Uint8Array.from([1, 0, ...varint(357_913_941), vectorTile.length, 1]);
+  const metadataOffset = 127 + root.length;
+  const tileDataOffset = metadataOffset + metadata.length;
+  const bytes = new Uint8Array(tileDataOffset + vectorTile.length);
+  bytes.set(new TextEncoder().encode("PMTiles"), 0);
+  const view = new DataView(bytes.buffer);
+  view.setUint8(7, 3);
+  view.setBigUint64(8, 127n, true);
+  view.setBigUint64(16, BigInt(root.length), true);
+  view.setBigUint64(24, BigInt(metadataOffset), true);
+  view.setBigUint64(32, BigInt(metadata.length), true);
+  view.setBigUint64(56, BigInt(tileDataOffset), true);
+  view.setBigUint64(64, BigInt(vectorTile.length), true);
+  view.setUint8(97, 1);
+  view.setUint8(98, 1);
+  view.setUint8(99, 1);
+  view.setUint8(100, 0);
+  view.setUint8(101, 14);
+  view.setInt32(102, -840000000, true);
+  view.setInt32(106, 410000000, true);
+  view.setInt32(110, -830000000, true);
+  view.setInt32(114, 420000000, true);
+  bytes.set(root, 127);
+  bytes.set(metadata, metadataOffset);
+  bytes.set(vectorTile, tileDataOffset);
+  return Buffer.from(bytes);
+}
+
+function pmtilesV3RasterFixture() {
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEAQH/2p6rWQAAAABJRU5ErkJggg==", "base64");
+  const root = Buffer.from([1, 0, 1, png.length, 1]);
+  const bytes = new Uint8Array(127 + root.length + png.length);
+  bytes.set(new TextEncoder().encode("PMTiles"), 0);
+  const view = new DataView(bytes.buffer);
+  view.setUint8(7, 3);
+  view.setBigUint64(8, 127n, true);
+  view.setBigUint64(16, BigInt(root.length), true);
+  view.setBigUint64(24, BigInt(127 + root.length), true);
+  view.setBigUint64(32, 0n, true);
+  view.setBigUint64(56, BigInt(127 + root.length), true);
+  view.setBigUint64(64, BigInt(png.length), true);
+  view.setUint8(97, 1);
+  view.setUint8(98, 1);
+  view.setUint8(99, 2);
+  view.setUint8(100, 0);
+  view.setUint8(101, 14);
+  view.setInt32(102, -840000000, true);
+  view.setInt32(106, 410000000, true);
+  view.setInt32(110, -830000000, true);
+  view.setInt32(114, 420000000, true);
+  bytes.set(root, 127);
+  bytes.set(png, 127 + root.length);
+  return Buffer.from(bytes);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#main-menu-title")).toBeAttached();
@@ -13,6 +88,31 @@ test.beforeEach(async ({ page }) => {
 async function openClassicDeveloperControls(page) {
   const controls = page.locator("#classic-direct-controls");
   if (!(await controls.evaluate((element) => element.open))) await controls.locator("summary").click();
+}
+
+async function createOfflineRasterProject(page, projectName) {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.getByRole("button", { name: "New Project", exact: true }).click();
+  const projectDialog = page.getByRole("dialog", { name: "Create a Project Data Store" });
+  await projectDialog.getByLabel("Database name").fill(projectName);
+  await projectDialog.getByRole("button", { name: "Define Study Area...", exact: true }).click();
+  const studyAreaDialog = page.getByRole("dialog", { name: "Preview Study Area" });
+  await studyAreaDialog.getByLabel("Study area name").fill("Toledo recovery area");
+  for (const [label, value] of [["West", "-83.75000"], ["South", "41.50000"], ["East", "-83.45000"], ["North", "41.75000"]]) {
+    await studyAreaDialog.getByLabel(label, { exact: true }).fill(value);
+  }
+  await studyAreaDialog.getByLabel("Offline map source").selectOption("browser-pmtiles");
+  await studyAreaDialog.getByLabel("PMTiles v3 file").setInputFiles({
+    name: "toledo-recovery.pmtiles",
+    mimeType: "application/octet-stream",
+    buffer: pmtilesV3RasterFixture(),
+  });
+  await studyAreaDialog.getByLabel("Map attribution").fill("Recovery test contributors");
+  await studyAreaDialog.getByLabel("Data license or terms reference").fill("Test-only fixture");
+  await studyAreaDialog.getByRole("button", { name: "Validate Archive" }).click();
+  await studyAreaDialog.getByRole("button", { name: "Apply Study Area" }).click();
+  await projectDialog.getByRole("button", { name: "Create", exact: true }).click();
+  return page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.project-state.v1")));
 }
 
 test("legacy application menus expose familiar workflows", async ({ page }) => {
@@ -55,7 +155,7 @@ test("File menu opens and saves the migrated official Sample project", async ({ 
   await page.getByRole("navigation", { name: "Application menu" }).getByText("File", { exact: true }).click();
   await page.getByRole("menuitem", { name: "Save Project As" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("Sample.epia.json");
+  expect(download.suggestedFilename()).toBe("Sample.epia");
 });
 
 for (const viewport of [
@@ -563,6 +663,17 @@ test("Classic Analysis preserves its four-menu shell and Command Explorer", asyn
   await tree.getByRole("treeitem", { name: "Tables", exact: true }).click();
   await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("tables");
   await expect(page.locator("#classic-command-dialog-preview")).toContainText("TABLES");
+  await expect(page.locator("#classic-command-dialog-fisher-label")).toBeVisible();
+  await page.locator("#classic-command-dialog-fisher").check();
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText("STATISTICS=FISHER");
+  await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
+
+  await tree.locator("summary").filter({ hasText: /^Options$/ }).click();
+  await tree.getByRole("treeitem", { name: "Set", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-kind")).toHaveValue("set-missing");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("SET MISSING=OFF");
+  await page.locator("#classic-command-dialog-include-missing").check();
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("SET MISSING=ON");
   await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
 });
 
@@ -704,6 +815,317 @@ test("phone project dialogs keep state and action feedback in context", async ({
   expect(createBox?.height).toBeLessThanOrEqual(844);
 });
 
+test("New Project captures a portable study area without requiring a dataset", async ({ page }) => {
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.getByRole("button", { name: "New Project", exact: true }).click();
+
+  const projectDialog = page.getByRole("dialog", { name: "Create a Project Data Store" });
+  await projectDialog.getByLabel("Database name").fill("Toledo Offline Field Project");
+  await projectDialog.getByRole("button", { name: "Define Study Area...", exact: true }).click();
+
+  const studyAreaDialog = page.getByRole("dialog", { name: "Preview Study Area" });
+  await expect(studyAreaDialog).toBeVisible();
+  await expect(projectDialog).toBeHidden();
+  const studyAreaDialogBox = await studyAreaDialog.boundingBox();
+  expect(studyAreaDialogBox?.width).toBeLessThanOrEqual(390);
+  expect(studyAreaDialogBox?.height).toBeLessThanOrEqual(844);
+  const studyAreaMap = studyAreaDialog.locator("#project-study-area-map");
+  await expect(studyAreaMap).toHaveClass(/leaflet-container/);
+  await studyAreaDialog.getByRole("button", { name: "Draw Bounding Box" }).click();
+  await studyAreaMap.click({ position: { x: 90, y: 90 } });
+  await expect(studyAreaDialog.locator("#study-area-draw-status")).toContainText("opposite corner");
+  await studyAreaMap.click({ position: { x: 280, y: 210 } });
+  await expect(studyAreaDialog.getByLabel("West", { exact: true })).not.toHaveValue("");
+  await studyAreaDialog.getByLabel("Study area name").fill("Toledo field investigation");
+  await studyAreaDialog.getByLabel("West", { exact: true }).fill("-83.75000");
+  await studyAreaDialog.getByLabel("South", { exact: true }).fill("41.50000");
+  await studyAreaDialog.getByLabel("East", { exact: true }).fill("-83.45000");
+  await studyAreaDialog.getByLabel("North", { exact: true }).fill("41.75000");
+  await studyAreaDialog.getByLabel("Offline map source").selectOption("browser-pmtiles");
+  await expect(studyAreaDialog.locator("#study-area-summary")).toContainText("recommended offline range 0\u201314");
+  await expect(studyAreaDialog.locator("#study-area-provider-policy")).toContainText("browser OPFS");
+  await expect(studyAreaDialog.locator("#study-area-package-estimate")).toContainText("358 tiles");
+  await expect(studyAreaDialog.locator("#study-area-package-estimate")).toContainText("Within the 100 MiB project limit");
+  await expect(studyAreaDialog.getByText("Browser cache is opportunistic, not offline coverage.")).toBeVisible();
+  await studyAreaDialog.getByLabel("PMTiles v3 file").setInputFiles({
+    name: "toledo-field.pmtiles",
+    mimeType: "application/octet-stream",
+    buffer: pmtilesV3HeaderFixture(),
+  });
+  await studyAreaDialog.getByLabel("Map attribution").fill("OpenStreetMap contributors");
+  await studyAreaDialog.getByLabel("Data license or terms reference").fill("ODbL-1.0");
+  await studyAreaDialog.getByRole("button", { name: "Validate Archive" }).click();
+  await expect(studyAreaDialog.locator("#study-area-pmtiles-status")).toContainText("Validated PMTiles v3 mvt archive");
+  await expect(studyAreaDialog.locator("#study-area-pmtiles-status")).toContainText("Storage waits for Apply Study Area");
+  await expect(studyAreaDialog.getByRole("button", { name: "Apply Study Area" })).toBeEnabled();
+  await studyAreaDialog.getByRole("button", { name: "Apply Study Area" }).click();
+
+  await expect(projectDialog).toBeVisible();
+  await expect(projectDialog.locator("#project-study-area-summary")).toContainText("Toledo field investigation");
+  await expect(projectDialog.locator("#project-study-area-summary")).toContainText("358 tiles (approximately 8.7 MiB) via Browser-local PMTiles package");
+  await expect(projectDialog.locator("#project-study-area-summary")).toContainText("toledo-field.pmtiles validated and stored");
+  await projectDialog.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.locator("#project-tree-name")).toContainText("Toledo Offline Field Project");
+  await expect(page.locator("#form-status")).toContainText("Study area Toledo field investigation was saved");
+
+  const snapshot = await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.project-state.v1")));
+  expect(snapshot.studyAreas).toHaveLength(1);
+  expect(snapshot.studyAreas[0]).toMatchObject({
+    name: "Toledo field investigation",
+    source: "manual-bounds",
+    bounds: [-83.75, 41.5, -83.45, 41.75],
+    bufferKm: 0,
+    offlineMap: {
+      minZoom: 0,
+      maxZoom: 14,
+      packageLimitMiB: 100,
+      status: "stored-unverified",
+      providerId: "browser-pmtiles",
+      estimate: {
+        estimatorVersion: "web-mercator-v1",
+        tileCount: 358,
+        averageTileBytes: 25600,
+        estimatedBytes: 9164800,
+      },
+      asset: {
+        fileName: "toledo-field.pmtiles",
+        storage: "opfs",
+        byteLength: pmtilesV3HeaderFixture().length,
+        format: "pmtiles-v3",
+        tileType: "mvt",
+        tileCompression: "none",
+        bounds: [-84, 41, -83, 42],
+        minZoom: 0,
+        maxZoom: 14,
+        attribution: "OpenStreetMap contributors",
+        license: "ODbL-1.0",
+      },
+    },
+  });
+  expect(snapshot.studyAreas[0].offlineMap.asset.sha256).toMatch(/^[0-9a-f]{64}$/);
+  expect(snapshot.studyAreas[0].offlineMap.asset.id).toBe(snapshot.studyAreas[0].offlineMap.asset.sha256);
+  expect(snapshot.studyAreas[0].offlineMap.asset.storagePath).toContain(snapshot.studyAreas[0].offlineMap.asset.sha256);
+  expect(["persistent", "best-effort"]).toContain(snapshot.studyAreas[0].offlineMap.asset.persistence);
+  const storedArchiveSize = await page.evaluate(async (sha256) => {
+    const root = await navigator.storage.getDirectory();
+    const appDirectory = await root.getDirectoryHandle("epi-info-ai");
+    const mapDirectory = await appDirectory.getDirectoryHandle("offline-maps");
+    const entries = [];
+    for await (const [name] of mapDirectory.entries()) if (name.includes(sha256)) entries.push(name);
+    return (await (await mapDirectory.getFileHandle(entries.at(-1))).getFile()).size;
+  }, snapshot.studyAreas[0].offlineMap.asset.sha256);
+  expect(storedArchiveSize).toBe(pmtilesV3HeaderFixture().length);
+  expect(snapshot.studyAreas[0].geometry.coordinates[0]).toEqual([
+    [-83.75, 41.5], [-83.45, 41.5], [-83.45, 41.75], [-83.75, 41.75], [-83.75, 41.5],
+  ]);
+  await page.locator('.module-rail [data-module="maps"]').click();
+  await expect(page.locator("#map-basemap-status")).toContainText("Offline package active", { timeout: 15_000 });
+  await expect(page.locator("#map-basemap-status")).toContainText("MapLibre MVT · 1 source layer");
+  await expect(page.locator("#map-basemap-offline")).toBeEnabled();
+  await expect(page.locator("#map-basemap-offline")).toBeChecked();
+  await expect(page.locator(".epi-maplibre-offline-layer canvas")).toBeVisible();
+});
+
+test("raster PMTiles render from OPFS without online tile requests", async ({ page }) => {
+  let onlineTileRequests = 0;
+  await page.route("https://tile.openstreetmap.org/**", (route) => {
+    onlineTileRequests += 1;
+    return route.abort();
+  });
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.getByRole("button", { name: "New Project", exact: true }).click();
+  const projectDialog = page.getByRole("dialog", { name: "Create a Project Data Store" });
+  await projectDialog.getByLabel("Database name").fill("Toledo Raster Offline Project");
+  await projectDialog.getByRole("button", { name: "Define Study Area...", exact: true }).click();
+  const studyAreaDialog = page.getByRole("dialog", { name: "Preview Study Area" });
+  await studyAreaDialog.getByLabel("Study area name").fill("Toledo raster study area");
+  for (const [label, value] of [["West", "-83.75000"], ["South", "41.50000"], ["East", "-83.45000"], ["North", "41.75000"]]) {
+    await studyAreaDialog.getByLabel(label, { exact: true }).fill(value);
+  }
+  await studyAreaDialog.getByLabel("Offline map source").selectOption("browser-pmtiles");
+  await studyAreaDialog.getByLabel("PMTiles v3 file").setInputFiles({
+    name: "toledo-raster.pmtiles",
+    mimeType: "application/octet-stream",
+    buffer: pmtilesV3RasterFixture(),
+  });
+  await studyAreaDialog.getByLabel("Map attribution").fill("Test raster contributors");
+  await studyAreaDialog.getByLabel("Data license or terms reference").fill("Test-only fixture");
+  await studyAreaDialog.getByRole("button", { name: "Validate Archive" }).click();
+  await expect(studyAreaDialog.locator("#study-area-pmtiles-status")).toContainText("Validated PMTiles v3 png archive");
+  await studyAreaDialog.getByRole("button", { name: "Apply Study Area" }).click();
+  await projectDialog.getByRole("button", { name: "Create", exact: true }).click();
+  onlineTileRequests = 0;
+  await page.getByRole("button", { name: "Maps", exact: true }).click();
+  await expect(page.locator("#map-basemap-offline")).toBeEnabled();
+  await expect(page.locator("#map-basemap-offline")).toBeChecked();
+  await expect(page.locator("#map-basemap-status")).toContainText("Offline package active");
+  await expect(page.locator("#map-basemap-status")).toContainText("SHA-256 verified");
+  await expect(page.locator("#map-status")).toContainText("no tile-network requests are used");
+  await page.waitForTimeout(300);
+  expect(onlineTileRequests).toBe(0);
+});
+
+test("portable project archive restores its embedded PMTiles after local loss", async ({ page }) => {
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.getByRole("button", { name: "New Project", exact: true }).click();
+  const projectDialog = page.getByRole("dialog", { name: "Create a Project Data Store" });
+  await projectDialog.getByLabel("Database name").fill("Portable Toledo Project");
+  await projectDialog.getByRole("button", { name: "Define Study Area...", exact: true }).click();
+  const studyAreaDialog = page.getByRole("dialog", { name: "Preview Study Area" });
+  await studyAreaDialog.getByLabel("Study area name").fill("Portable Toledo area");
+  for (const [label, value] of [["West", "-83.75000"], ["South", "41.50000"], ["East", "-83.45000"], ["North", "41.75000"]]) {
+    await studyAreaDialog.getByLabel(label, { exact: true }).fill(value);
+  }
+  await studyAreaDialog.getByLabel("Offline map source").selectOption("browser-pmtiles");
+  await studyAreaDialog.getByLabel("PMTiles v3 file").setInputFiles({
+    name: "portable-toledo.pmtiles",
+    mimeType: "application/octet-stream",
+    buffer: pmtilesV3RasterFixture(),
+  });
+  await studyAreaDialog.getByLabel("Map attribution").fill("Portable test contributors");
+  await studyAreaDialog.getByLabel("Data license or terms reference").fill("Test-only fixture");
+  await studyAreaDialog.getByRole("button", { name: "Validate Archive" }).click();
+  await studyAreaDialog.getByRole("button", { name: "Apply Study Area" }).click();
+  await projectDialog.getByRole("button", { name: "Create", exact: true }).click();
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.project-state.v1")));
+  const originalPath = before.studyAreas[0].offlineMap.asset.storagePath;
+
+  const downloadPromise = page.waitForEvent("download");
+  const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
+  await applicationMenu.getByText("File", { exact: true }).click();
+  await applicationMenu.getByRole("menuitem", { name: "Save Project As" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("Portable-Toledo-Project.epia");
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+
+  await page.evaluate(async (storagePath) => {
+    const root = await navigator.storage.getDirectory();
+    const appDirectory = await root.getDirectoryHandle("epi-info-ai");
+    const mapDirectory = await appDirectory.getDirectoryHandle("offline-maps");
+    await mapDirectory.removeEntry(storagePath.split("/").at(-1));
+  }, originalPath);
+  await page.locator("#project-package-open").setInputFiles(downloadPath);
+  await expect(page.locator("#main-menu-status")).toContainText("Restored 1 offline map archive into this browser");
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.project-state.v1")));
+  const restoredPath = after.studyAreas[0].offlineMap.asset.storagePath;
+  expect(restoredPath).not.toBe(originalPath);
+  const restoredSize = await page.evaluate(async (storagePath) => {
+    const root = await navigator.storage.getDirectory();
+    const appDirectory = await root.getDirectoryHandle("epi-info-ai");
+    const mapDirectory = await appDirectory.getDirectoryHandle("offline-maps");
+    return (await (await mapDirectory.getFileHandle(storagePath.split("/").at(-1))).getFile()).size;
+  }, restoredPath);
+  expect(restoredSize).toBe(pmtilesV3RasterFixture().length);
+});
+
+test("Maps detects an evicted PMTiles package and accepts only the recorded archive", async ({ page }) => {
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
+  const snapshot = await createOfflineRasterProject(page, "Eviction Recovery Project");
+  const asset = snapshot.studyAreas[0].offlineMap.asset;
+  await page.evaluate(async (storagePath) => {
+    const root = await navigator.storage.getDirectory();
+    const appDirectory = await root.getDirectoryHandle("epi-info-ai");
+    const mapDirectory = await appDirectory.getDirectoryHandle("offline-maps");
+    await mapDirectory.removeEntry(storagePath.split("/").at(-1));
+  }, asset.storagePath);
+
+  await page.getByRole("button", { name: "Maps", exact: true }).click();
+  const recovery = page.locator("#map-offline-recovery");
+  await expect(recovery).toBeVisible();
+  await expect(recovery).toHaveAttribute("data-state", "missing");
+  await expect(recovery).toContainText("missing from browser storage");
+  await expect(page.locator("#map-basemap-offline")).toBeDisabled();
+  await expect(page.locator('[name="map-basemap"][value="blank"]')).toBeChecked();
+
+  await page.locator("#map-offline-reimport-file").setInputFiles({
+    name: "wrong.pmtiles",
+    mimeType: "application/octet-stream",
+    buffer: pmtilesV3HeaderFixture(),
+  });
+  await expect(recovery.locator("#map-offline-recovery-detail")).toContainText("Recovery rejected");
+  await expect(recovery).toBeVisible();
+
+  await page.locator("#map-offline-reimport-file").setInputFiles({
+    name: "toledo-recovery.pmtiles",
+    mimeType: "application/octet-stream",
+    buffer: pmtilesV3RasterFixture(),
+  });
+  await expect(recovery).toBeHidden();
+  await expect(page.locator("#map-basemap-status")).toContainText("Offline package active");
+  await expect(page.locator("#map-basemap-status")).toContainText("SHA-256 verified");
+});
+
+test("Maps detects corrupt PMTiles and can detach the unusable package", async ({ page }) => {
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
+  const snapshot = await createOfflineRasterProject(page, "Corrupt Package Project");
+  const asset = snapshot.studyAreas[0].offlineMap.asset;
+  await page.evaluate(async (storagePath) => {
+    const root = await navigator.storage.getDirectory();
+    const appDirectory = await root.getDirectoryHandle("epi-info-ai");
+    const mapDirectory = await appDirectory.getDirectoryHandle("offline-maps");
+    const handle = await mapDirectory.getFileHandle(storagePath.split("/").at(-1));
+    const bytes = new Uint8Array(await (await handle.getFile()).arrayBuffer());
+    bytes[bytes.length - 1] ^= 0xff;
+    const writable = await handle.createWritable();
+    await writable.write(bytes);
+    await writable.close();
+  }, asset.storagePath);
+
+  await page.getByRole("button", { name: "Maps", exact: true }).click();
+  const recovery = page.locator("#map-offline-recovery");
+  await expect(recovery).toBeVisible();
+  await expect(recovery).toHaveAttribute("data-state", "corrupt");
+  await expect(recovery).toContainText("failed integrity verification");
+  await recovery.getByRole("button", { name: "Detach offline package" }).click();
+  await expect(recovery).toBeHidden();
+  const detached = await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.project-state.v1")));
+  expect(detached.studyAreas[0].offlineMap.status).toBe("not-downloaded");
+  expect(detached.studyAreas[0].offlineMap.asset).toBeUndefined();
+});
+
+test("cancelling New Project removes its uncommitted PMTiles archive", async ({ page }) => {
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.getByRole("button", { name: "New Project", exact: true }).click();
+  const projectDialog = page.getByRole("dialog", { name: "Create a Project Data Store" });
+  await projectDialog.getByRole("button", { name: "Define Study Area...", exact: true }).click();
+  const studyAreaDialog = page.getByRole("dialog", { name: "Preview Study Area" });
+  for (const [label, value] of [["West", "-83.75000"], ["South", "41.50000"], ["East", "-83.45000"], ["North", "41.75000"]]) {
+    await studyAreaDialog.getByLabel(label, { exact: true }).fill(value);
+  }
+  await studyAreaDialog.getByLabel("Offline map source").selectOption("browser-pmtiles");
+  await studyAreaDialog.getByLabel("PMTiles v3 file").setInputFiles({
+    name: "uncommitted.pmtiles",
+    mimeType: "application/octet-stream",
+    buffer: pmtilesV3HeaderFixture(),
+  });
+  await studyAreaDialog.getByLabel("Map attribution").fill("OpenStreetMap contributors");
+  await studyAreaDialog.getByLabel("Data license or terms reference").fill("ODbL-1.0");
+  await studyAreaDialog.getByRole("button", { name: "Validate Archive" }).click();
+  await expect(studyAreaDialog.locator("#study-area-pmtiles-status")).toHaveAttribute("data-state", "valid");
+  await studyAreaDialog.getByRole("button", { name: "Apply Study Area" }).click();
+  await expect(projectDialog.locator("#project-study-area-summary")).toContainText("uncommitted.pmtiles validated and stored");
+  await projectDialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(projectDialog).toBeHidden();
+  await expect.poll(async () => page.evaluate(async () => {
+    try {
+      const root = await navigator.storage.getDirectory();
+      const appDirectory = await root.getDirectoryHandle("epi-info-ai");
+      const mapDirectory = await appDirectory.getDirectoryHandle("offline-maps");
+      let count = 0;
+      for await (const _entry of mapDirectory.entries()) count += 1;
+      return count;
+    } catch {
+      return 0;
+    }
+  })).toBe(0);
+});
+
 test("production artifact opens Maps and initializes Leaflet", async ({ page }) => {
   await page.getByRole("button", { name: "Create Maps" }).click();
   await expect(page.getByRole("heading", { name: "Map", exact: true })).toBeVisible();
@@ -713,6 +1135,7 @@ test("production artifact opens Maps and initializes Leaflet", async ({ page }) 
 });
 
 test("legacy Geo-location template geocodes only after explicit result selection", async ({ page }) => {
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
   await page.route("https://nominatim.openstreetmap.org/search**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -749,6 +1172,30 @@ test("legacy Geo-location template geocodes only after explicit result selection
   await results.getByRole("button", { name: "Select", exact: true }).click();
   await expect(recordForm.getByLabel("Latitude", { exact: true })).toHaveValue("41.6528000");
   await expect(recordForm.getByLabel("Longitude", { exact: true })).toHaveValue("-83.5379000");
+
+  await page.getByRole("button", { name: "Preview Map", exact: true }).click();
+  const preview = page.getByRole("dialog", { name: "Preview Location on OpenStreetMap" });
+  await expect(preview).toBeVisible();
+  await expect(preview.getByText("123 Main Street, Toledo, Ohio", { exact: true })).toBeVisible();
+  await expect(preview.locator("#location-preview-latitude")).toHaveText("41.6528000");
+  await expect(preview.locator("#location-preview-longitude")).toHaveText("-83.5379000");
+  await expect(preview.locator("#location-preview-map")).toHaveClass(/leaflet-container/);
+  const marker = preview.locator(".leaflet-marker-icon");
+  await expect(marker).toBeVisible();
+  await expect(marker).toHaveAttribute("title", "Current record location. Drag to adjust.");
+  const originalLatitude = await recordForm.getByLabel("Latitude", { exact: true }).inputValue();
+  const markerBox = await marker.boundingBox();
+  if (!markerBox) throw new Error("Location preview marker has no draggable bounds.");
+  const start = { x: markerBox.x + markerBox.width / 2, y: markerBox.y + markerBox.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 55, start.y + 35, { steps: 6 });
+  await expect.poll(() => recordForm.getByLabel("Latitude", { exact: true }).inputValue()).not.toBe(originalLatitude);
+  await page.mouse.up();
+  await expect(recordForm.getByLabel("Latitude", { exact: true })).toHaveValue(/^-?\d+\.\d{7}$/);
+  await expect(recordForm.getByLabel("Longitude", { exact: true })).toHaveValue(/^-?\d+\.\d{7}$/);
+  await expect(preview.locator("#location-preview-status")).toContainText("Form coordinates updated");
+  await preview.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: "Save record" }).click();
   await expect(page.locator("#record-status")).toContainText("Record saved locally");
 
@@ -1062,7 +1509,8 @@ test("Program Editor opens and runs the demo foodborne PGM through visible Outpu
   await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
   await page.locator("#classic-program-run").click();
 
-  await expect(page.locator("#classic-program-output-title")).toHaveText("AgeGroup by sex");
+  await expect(page.locator("#classic-program-output-title")).toHaveText("Age group by Sex");
+  await expect(page.locator("#classic-program-output-variable-heading")).toHaveText("Age group");
   await expect(page.locator("#classic-program-output-rows tr")).toHaveCount(8);
   await expect(page.locator("#classic-program-output-rows")).toContainText("Female");
   await expect(page.locator("#classic-program-output-rows")).toContainText("Male");
@@ -1099,13 +1547,21 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   page.once("dialog", (dialog) => dialog.accept());
   await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne-classic-command-tour.pgm7");
   await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await page.setViewportSize({ width: 900, height: 700 });
+  await expect(page.locator("#classic-program-assist")).toBeVisible();
+  await expect(page.locator("#classic-program-workbench")).toHaveAttribute("data-assist-open", "true");
+  expect(await page.locator("#classic-program-assist").evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return bounds.top < window.innerHeight && bounds.bottom > 0;
+  })).toBe(true);
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   const sourceEditor = page.locator("#classic-program-source .cm-content");
   const sourceScroller = page.locator("#classic-program-source .cm-scroller");
   await sourceEditor.focus();
   await sourceEditor.press("Control+End");
   await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  for (let line = 0; line < 40; line++) await sourceEditor.press("ArrowUp");
+  for (let line = 0; line < 60; line++) await sourceEditor.press("ArrowUp");
   await expect(page.locator("#classic-program-cursor-position")).toContainText("Ln 1, Col ");
   await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeLessThanOrEqual(6);
   expect(await sourceEditor.locator(".cm-line").first().evaluate((line, scroller) => {
@@ -1115,17 +1571,34 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   }, await sourceScroller.elementHandle())).toBe(true);
 
   await page.locator("#classic-program-toolbar-run").click();
-  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 13 of 13 commands succeeded.");
-  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 13 commands in source order");
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 21 of 21 commands succeeded.");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 21 commands in source order");
   await expect(page.locator("#classic-program-session-status")).toContainText("96 records; no selection");
   await expect(page.locator("#classic-program-session-status")).not.toContainText("SORT Age");
   await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
   await expect(page.locator("#classic-summarize-output-body tr")).toHaveCount(2);
   await expect(page.locator("#classic-graph-output-title")).toHaveText("Foodborne cases by status");
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("Potato Salad by Hamburger, stratified by Sex, Case Status");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(8);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-percent-row")).toHaveCount(32);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-pearson")).toHaveCount(3);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-fisher")).toHaveCount(0);
+  await expect(page.locator("#classic-tables-categorical-body details")).toHaveCount(3);
   await expect(page.locator("#classic-quality-output")).toBeVisible();
   await expect(page.locator("#classic-quality-output-count")).toHaveText("96 records · 27 fields");
   await expect(page.locator('#classic-quality-output-body tr[data-field-name="hospitalization_date"]')).toContainText("74");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("14");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("22");
+  await expect(page.locator("#classic-sequential-output")).toBeVisible();
+  await expect(page.locator("#classic-sequential-output-count")).toHaveText("21 of 21 commands retained");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(21);
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(4)).toHaveText('SET (.)="Not recorded"');
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(5)).toHaveText("SET MISSING=ON");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(6)).toHaveText("TABLES vomiting Sex");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(6)).toContainText("Not recorded");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(9)).toHaveText("TABLES potato_salad hamburger");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(10)).toHaveText("TABLES potato_salad case_status STRATAVAR=Sex STATISTICS=FISHER");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(11)).toHaveText("TABLES potato_salad hamburger STRATAVAR=Sex case_status");
+  await expect(page.locator("#classic-sequential-output-body .classic-tables-2x2")).toHaveCount(8);
 
   await expect(page.locator("#classic-program-title")).toBeVisible();
   await expect(page.locator("#classic-program-menu")).toBeVisible();
@@ -1133,13 +1606,86 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
 
   await page.locator("#classic-output-clear").click();
   await expect(page.locator("#classic-output-navigation-status")).toHaveText("Output cleared. Command history is retained.");
-  for (const selector of ["#classic-program-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-quality-output", "#classic-program-history-output"]) {
+  for (const selector of ["#classic-program-output", "#classic-sequential-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-program-history-output"]) {
     await expect(page.locator(selector)).toBeHidden();
   }
-  await expect(page.locator("#classic-program-history-count")).toHaveText("14");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("22");
   await page.locator("#classic-output-history").click();
   await expect(page.locator("#classic-program-history-output")).toBeVisible();
-  await expect(page.locator("#classic-program-history-count")).toHaveText("14");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("22");
+});
+
+test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open Pgm", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+
+  const openAndRun = async (file) => {
+    await page.locator("#classic-program-toolbar-open").click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator("#classic-program-file").setInputFiles(file);
+    await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+    await page.locator("#classic-program-toolbar-run").click();
+    await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 1 of 1 commands succeeded.");
+  };
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.pgm");
+  await expect(page.locator("#classic-program-source-name")).toContainText("Foodborne Outbreak Investigation Form · 96 of 96 records");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-list-core-fields.pgm");
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
+  await expect(page.locator("#classic-list-output-body tr").first()).toContainText("P001");
+  await expect(page.locator("#classic-list-output-body tr").last()).toContainText("P096");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-frequency-case-status.pgm");
+  await expect(page.locator("#frequency-output-title")).toHaveText("Case Status");
+  await expect(page.locator("#frequency-rows tr")).toHaveCount(4);
+  await expect(page.locator("#frequency-total")).toHaveText("96");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-means-age.pgm");
+  await expect(page.locator("#means-output-title")).toHaveText("Age");
+  await expect(page.locator("#means-observations")).toHaveText("96");
+  await expect(page.locator("#means-total")).toHaveText("3917.0000");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.pgm");
+  await expect(page.locator("#classic-tables-categorical-count")).toHaveText("96 records · 2 strata");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(2);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-percent-row")).toHaveCount(8);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-pearson")).toHaveCount(2);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-expected-warning")).toHaveCount(2);
+  await expect(page.locator("#classic-tables-categorical-note")).toContainText("No exposed/case classification was inferred");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status-unstratified.pgm");
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("Potato Salad by Case Status");
+  await expect(page.locator("#classic-tables-categorical-count")).toHaveText("96 records · unstratified");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(1);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum h3")).toHaveText("All records");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-percent-row")).toHaveCount(4);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-pearson")).toContainText("52.0769");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-pearson")).toContainText("df 3");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-two-by-two.pgm");
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("Potato Salad by Hamburger");
+  await expect(page.locator("#classic-tables-categorical-note")).toContainText("legacy Single Table Analysis");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-2x2-interpretation")).toContainText("exposed=Yes");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-2x2-interpretation")).toContainText("case=Yes");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-2x2")).toHaveCount(2);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-2x2").first()).toContainText("Odds Ratio (cross product)");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-2x2").first()).toContainText("1.0870");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-2x2").last()).toContainText("Fisher exact");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher.pgm");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-fisher")).toContainText("5.5523629098e-14");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-fisher")).toContainText("2,737 tables enumerated");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-multiple-strata.pgm");
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("Potato Salad by Hamburger, stratified by Sex, Case Status");
+  await expect(page.locator("#classic-tables-categorical-count")).toHaveText("96 records · 8 strata");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(8);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum h3").first()).toHaveText("Sex: Female · Case Status: Confirmed");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum h3").last()).toHaveText("Sex: Male · Case Status: Suspected");
 });
 
 test("Program Editor Cancel stops a sequential run and retains completed work", async ({ page }) => {
@@ -1263,8 +1809,9 @@ test("typed command dialogs insert visible source and selected commands fail clo
   await expect(page.locator("#classic-exposure-field")).toHaveValue("potato_salad");
   await expect(page.locator("#classic-outcome-field")).toHaveValue("case_status");
   await expect(page.locator("#classic-strata-field")).toHaveValue("sex");
-  await expect(page.locator("#classic-tables-feedback")).toContainText("Review the exposed and case value classifications");
-  await expect(page.locator("#classic-program-command-status")).toContainText("nothing was calculated yet");
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("Potato Salad by Case Status, stratified by Sex");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(2);
+  await expect(page.locator("#classic-program-command-status")).toContainText("completed as a categorical cross-tabulation");
 
   await editor.fill("FREQ age\nMEANS age");
   await editor.press("Control+A");
@@ -1314,7 +1861,8 @@ test("Define and Recode dialogs author a runnable foodborne program as visible s
 
   await page.locator("#classic-program-run").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Executed DEFINE → RECODE → FREQ for 96 records");
-  await expect(page.locator("#classic-program-output-title")).toHaveText("FoodAgeGroup");
+  await expect(page.locator("#classic-program-output-title")).toHaveText("Foodborne age group");
+  await expect(page.locator("#classic-program-output-variable-heading")).toHaveText("Foodborne age group");
   await expect(page.locator("#classic-program-output-rows tr")).toHaveCount(4);
   await expect(page.locator("#classic-program-history-count")).toHaveText("1");
 });
@@ -1975,6 +2523,19 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#classic-program-font-status")).toHaveText("Courier New · 18 px");
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.program-editor-preferences.v1")))).toMatchObject({ fontFamily: "Courier New", fontSize: 18 });
   const editor = page.locator("#classic-program-source .cm-content");
+  await editor.click();
+  const caretStyle = await page.evaluate(() => {
+    const caret = document.querySelector("#classic-program-source .cm-cursor");
+    if (!(caret instanceof HTMLElement)) throw new Error("Program Editor caret was not rendered.");
+    const style = getComputedStyle(caret);
+    const layerStyle = getComputedStyle(caret.parentElement);
+    return { backgroundColor: style.backgroundColor, width: style.width, borderLeftWidth: style.borderLeftWidth, animationName: layerStyle.animationName };
+  });
+  expect(caretStyle.backgroundColor).toBe("rgb(210, 24, 42)");
+  expect(parseFloat(caretStyle.width)).toBeGreaterThanOrEqual(4);
+  expect(parseFloat(caretStyle.width)).toBeLessThan(8);
+  expect(caretStyle.borderLeftWidth).toBe("0px");
+  expect(caretStyle.animationName).toBe("epi-program-caret-blink");
   await editor.fill("RECODE ");
   const completionList = page.locator("#classic-program-source .cm-tooltip-autocomplete");
   await expect(completionList).toBeVisible();
@@ -1985,7 +2546,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(editor).toContainText("RECODE age");
   await page.locator("#classic-program-toolbar-open").click();
   await expect(page.locator(".classic-program-examples")).toBeVisible();
-  await expect(page.locator("#classic-program-example option")).toHaveCount(4);
+  await expect(page.locator("#classic-program-example option")).toHaveCount(6);
   await page.locator("#classic-program-example").selectOption("age-band-by-case-status");
   await expect(page.locator("#classic-program-example-description")).toContainText("Case Status");
   await page.locator("#classic-program-load-example").click();
@@ -1993,7 +2554,8 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
   await page.locator("#classic-program-run").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Executed DEFINE → RECODE → FREQ for 96 records");
-  await expect(page.locator("#classic-program-output-title")).toHaveText("BroadAgeGroup by case_status");
+  await expect(page.locator("#classic-program-output-title")).toHaveText("Broad age group by Case Status");
+  await expect(page.locator("#classic-program-output-variable-heading")).toHaveText("Broad age group");
   await expect(page.locator("#classic-program-history-count")).toHaveText("1");
 
   await page.locator("#classic-program-toolbar-open").click();
@@ -2001,7 +2563,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await page.locator("#classic-program-load-example").click();
   await page.locator("#classic-program-verify").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Program verified");
-  await expect(page.locator("#classic-program-canonical-source")).toContainText("FREQ AgeGroup STRATAVAR=sex");
+  await expect(page.locator("#classic-program-canonical")).toHaveCount(0);
   await expect(page.locator("#classic-program-history-count")).toHaveText("2");
 
   await page.locator("#classic-program-run").click();
@@ -2019,13 +2581,24 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   ]);
   await expect(page.locator("#classic-program-history-count")).toHaveText("3");
 
+  await page.locator("#classic-program-toolbar-open").click();
+  await page.locator("#classic-program-example").selectOption("potato-salad-by-case-status");
+  await expect(page.locator("#classic-program-example-description")).toContainText("unstratified categorical TABLES");
+  await page.locator("#classic-program-load-example").click();
+  await expect(editor).toHaveText("TABLES potato_salad case_status STATISTICS=FISHER");
+  await page.locator("#classic-program-toolbar-run").click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 1 of 1 commands succeeded.");
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("Potato Salad by Case Status");
+  await expect(page.locator("#classic-tables-categorical-count")).toHaveText("96 records · unstratified");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("5");
+
   await editor.fill(`${await editor.innerText()}\nEXECUTE "malware.exe"`);
   await expect(page.locator("#classic-program-live-status")).toContainText("Unsupported command: EXECUTE");
   await page.locator("#classic-program-run").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Unsupported command: EXECUTE");
   await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
   await expect(page.locator("#classic-program-output")).toBeHidden();
-  await expect(page.locator("#classic-program-history-count")).toHaveText("4");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("6");
 });
 
 test("Classic Analysis MEANS derives foodborne Age descriptive statistics", async ({ page }) => {
@@ -2408,6 +2981,13 @@ test("Epi Assist previews reviewed actions without loading or contacting a model
   await page.getByRole("button", { name: /Epi Assist/ }).first().click();
   await expect(page.getByRole("dialog", { name: "Epi Assist" })).toBeVisible();
   await expect(page.locator("#epi-assist-status")).toContainText("not loaded");
+  await expect(page.locator("#epi-assist-model option")).toHaveCount(3);
+  await expect(page.locator("#epi-assist-model")).toHaveValue("granite-4.0-350m-wasm");
+  await expect(page.locator("#epi-assist-model-description")).toContainText("CPU via WebAssembly");
+  await page.locator("#epi-assist-model").selectOption("granite-4.0-1b");
+  await expect(page.locator("#epi-assist-model-description")).toContainText("1.78 GB");
+  await expect(page.locator("#epi-assist-load")).toHaveText("Load Granite 4.0 1B — WebGPU");
+  await expect(page.locator("#epi-assist-status")).toContainText("Granite 4.0 1B Instruct — WebGPU selected");
   await expect(page.getByText("Your prompt and project data stay in this browser.")).toBeVisible();
   await page.locator("#epi-assist-guided").click();
   await expect(page.locator("#epi-assist-result-source")).toContainText("Granite not used");
@@ -2416,4 +2996,20 @@ test("Epi Assist previews reviewed actions without loading or contacting a model
   await expect(page.getByRole("heading", { name: "Analysis" })).toBeVisible();
   await expect(page.locator("#frequency-feedback")).toContainText("Included");
   await expect(page.locator("#frequency-output")).toBeVisible();
+});
+
+test("Program Editor Epi Assist hands its prompt to the model-backed dialog", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-assist-prompt").fill("Show gender distribution by status");
+  await page.locator("#classic-program-assist-preview").click();
+
+  await expect(page.getByRole("dialog", { name: "Epi Assist" })).toBeVisible();
+  await expect(page.locator("#epi-assist-prompt")).toHaveValue("Show gender distribution by status");
+  await expect(page.locator("#epi-assist-status")).toContainText("not loaded");
+  await expect(page.locator("#epi-assist-ask")).toBeDisabled();
 });

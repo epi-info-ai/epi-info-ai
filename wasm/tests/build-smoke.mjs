@@ -62,6 +62,10 @@ const requiredFiles = [
   "validation-fixtures/cohort-cross-sectional-v0.13.json",
   "validation-fixtures/unmatched-case-control-v0.14.json",
   "validation-fixtures/chi-square-trend-v0.15.json",
+  "validation-fixtures/foodborne-tables-stratified-v0.3.json",
+  "validation-fixtures/foodborne-tables-unstratified-v0.3.json",
+  "validation-fixtures/foodborne-tables-fisher-v0.5.json",
+  "validation-fixtures/foodborne-tables-missing-v0.6.json",
   "build-manifest.json",
 ];
 requiredFiles.push("sqlite3.wasm");
@@ -70,8 +74,9 @@ requiredFiles.push("duckdb-eh.wasm", "duckdb-browser-eh.worker.js");
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=73["']/);
-assert.match(html, /href=["']styles\.css\?v=47["']/);
+assert.match(html, /src=["']app\.js\?v=89["']/);
+assert.match(html, /href=["']styles\.css\?v=59["']/);
+assert.match(html, /id=["']study-area-dialog["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);
 assert.match(html, /id=["']file-exit["']/);
@@ -92,6 +97,8 @@ for (const menu of ["file", "edit", "fonts"]) {
   assert.match(html, new RegExp(`data-classic-program-menu-host=["']${menu}["']`));
 }
 assert.match(html, /id=["']epi-map["']/);
+assert.match(html, /id=["']map-offline-recovery["']/);
+assert.match(html, /id=["']map-offline-reimport-file["']/);
 assert.match(html, /id=["']field-rule-coordinate-group["']/);
 assert.match(html, /id=["']dashboard-toolbar-commands["']/);
 assert.match(html, /id=["']dashboard-canvas-menu-items["']/);
@@ -113,6 +120,7 @@ assert.match(html, /id=["']classic-undelete-records-preview-dialog["']/);
 assert.match(html, /id=["']classic-command-dialog-summarize["']/);
 assert.match(html, /id=["']classic-summarize-output["']/);
 assert.match(html, /id=["']classic-command-dialog-graph["']/);
+assert.match(html, /id=["']classic-command-dialog-set-missing["']/);
 assert.match(html, /id=["']classic-graph-output["']/);
 assert.match(html, /id=["']classic-program-session-status["']/);
 assert.match(html, /id=["']classic-list-output["']/);
@@ -120,8 +128,13 @@ assert.match(html, /id=["']classic-program-run-selection["']/);
 assert.match(html, /id=["']classic-program-printout["']/);
 assert.match(html, /id=["']classic-program-search-dialog["']/);
 
-const app = await requireFile("app.js");
-const formData = await requireFile("form-data.js");
+const manifest = JSON.parse(await requireFile("build-manifest.json"));
+const bundledJavaScript = (await Promise.all(manifest.outputs
+  .filter((output) => output.startsWith("wasm/dist/") && output.endsWith(".js"))
+  .map((output) => requireFile(output.slice("wasm/dist/".length)))))
+  .join("\n");
+const app = bundledJavaScript;
+const formData = bundledJavaScript;
 assert.match(formData, /designer-project-storage/);
 assert.match(formData, /New Project from Template/);
 assert.match(formData, /Import Browser Data File/);
@@ -160,12 +173,11 @@ assert.match(app, /calculatePopulationSurvey/);
 assert.match(app, /calculateCohortSampleSize/);
 assert.match(app, /calculateUnmatchedCaseControl/);
 assert.match(app, /calculateChiSquareTrend/);
-const maps = await requireFile("maps.js");
+const maps = bundledJavaScript;
 assert.match(maps, /MAP_PANE_Z_INDEX/);
 assert.match(maps, /aggregateH3Cells/);
 assert.match(maps, /addRasterLayer/);
 
-const manifest = JSON.parse(await requireFile("build-manifest.json"));
 assert.equal(manifest.schemaVersion, 1);
 assert.ok(manifest.sourceModules.includes("wasm/demo/app.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/form-data.ts"));

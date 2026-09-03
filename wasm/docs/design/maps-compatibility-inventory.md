@@ -36,6 +36,13 @@ This inventory separates four decisions:
   GEOCODE workflow
 - `Epi.Windows.Enter/PresentationLogic/GuiMediator.IEnterCheckCode.cs`
 - `Epi.Core.EnterInterpreter/Rules/Rule_Geocode.cs`
+- PMTiles v3 specification: <https://github.com/protomaps/PMTiles/blob/main/spec/v3/spec.md>
+- MapLibre GL JS custom protocol API:
+  <https://maplibre.org/maplibre-gl-js/docs/API/functions/addProtocol/>
+- OpenStreetMap Foundation Tile Usage Policy:
+  <https://operations.osmfoundation.org/policies/tiles/>
+- Origin Private File System overview:
+  <https://developer.mozilla.org/docs/Web/API/File_System_API/Origin_private_file_system>
 
 ## Workflow baseline
 
@@ -82,6 +89,8 @@ A future browser point picker must therefore be registered as a new branch.
 | LEGACY-MAPS-014 | Browser geolocation | No desktop equivalent | One-shot browser geolocation | Keep as a new, permission-gated branch |
 | LEGACY-MAPS-015 | GeoTIFF raster | No inspected legacy equivalent | Bounded WGS 84 first-band renderer with WorldPop fixture, color ramp, opacity, visibility, removal, and raster pane | Keep as a new branch; add reprojection, styling/legend breadth, persistence, and richer nodata controls |
 | LEGACY-MAPS-016 | Click map to populate record coordinates | No inspected desktop manual/code equivalent; clicks support marker/text/zone placement | Not implemented | Optional future new branch only; do not substitute it for the legacy Geo-location/GEOCODE and Case Cluster field-selection workflows |
+| LEGACY-MAPS-017 | Browser-local offline map package | No inspected desktop equivalent; legacy Street/Satellite providers are online mechanisms | New Project PMTiles v3 import validates signature/version, section bounds, WGS 84 coverage, zoom range, size, attribution, license, and SHA-256, then writes only an applied archive to OPFS and stores typed provenance. Maps re-verifies and renders raster packages through Leaflet or MVT through a local-protocol MapLibre canvas while suppressing Street requests. Save Project As embeds the raw archive in a bounded `.epia` backup; Open Project verifies and restores it under a new OPFS path. Missing/corrupt storage fails to blank and offers backup restore, exact-digest re-import, or detach | New branch. Browser-verified bounded raster/vector, backup/restore, and reactive eviction-recovery candidate; cartographic style review, exhaustive archive validation, proactive quota-pressure warning, and network-disabled field acceptance remain open |
+| LEGACY-MAPS-018 | Classic Analysis `MAP` programming command revival | Grammar defines thematic `AVG`, `CASE_BASED`, `SUM`, `COUNT`, `MIN`, and `MAX` forms plus denominator, output-table, title, template, and silent options; the shipped Command Explorer calls “feature not implemented” and interpreter cases do not execute | Not implemented | Revival/new branch backlog. Preserve the dormant familiar `MAP` spelling and grammar where safe, establish legacy intent with programs/output evidence, and route results into typed map layers. Modern GeoJSON, H3, GeoTIFF, offline-package, and spatial-analysis syntax must be separately labeled new branches rather than silently attributed to the legacy command. |
 
 ## TypeScript layer model
 
@@ -118,6 +127,33 @@ cross-origin support, permission-gated geolocation, versioned JSON contracts,
 validated inputs, and provider adapters. A remote spatial service that requires
 secrets must be accessed through an approved server-side boundary rather than
 placing the secret in WASM or JavaScript.
+
+### Browser-local offline basemap boundary
+
+The public OpenStreetMap Standard endpoint remains an online preview provider;
+ordinary HTTP cache entries are evictable and do not prove complete coverage.
+The preferred offline branch is one explicit PMTiles v3 archive selected by the
+user or retrieved from an approved source, with no runtime server dependency.
+Before OPFS storage, the browser validates the header signature/version and
+section ranges, requested study-area and zoom coverage, the 100 MiB project
+limit, required attribution/license text, and a full-file SHA-256 digest.
+
+Applying the study area writes the validated `File` to
+`epi-info-ai/offline-maps/<import-id>-<sha256>.pmtiles`; cancelling/removing the pending
+study area removes that uncommitted asset. The project snapshot stores only the
+safe path, digest, byte length, coverage, formats, attribution/license,
+imported-at timestamp, and persistent-versus-best-effort storage status. It does
+not embed the archive. The portable plan remains `stored-unverified` because a
+snapshot can move independently of browser storage. At Maps activation the
+bounded reader reopens the local file, verifies its size, SHA-256, and recorded
+header, decodes its PMTiles directory, and renders raster tile types through a
+Leaflet grid layer or metadata-declared MVT source layers through a non-interactive
+MapLibre canvas, with Street removed. Runtime verification does not rewrite
+the portable snapshot. The binary project export includes the external archive
+and restore creates a new verified OPFS copy. Maps classifies missing, corrupt,
+and storage-unavailable states before claiming readiness and retains the expected
+digest/provenance for recovery. True offline readiness still requires proactive
+quota-pressure warning and network-disabled field acceptance.
 
 ## Phase 2 compatibility gate
 

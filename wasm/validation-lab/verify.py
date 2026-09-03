@@ -21,6 +21,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-cohort-cross-sectional.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-unmatched-case-control.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-chi-square-trend.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-tables.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -31,6 +32,12 @@ POPULATION_SURVEY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validati
 COHORT_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json"
 UNMATCHED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json"
 TREND_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"
+TABLES_FIXTURES = [
+    REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.expected.json",
+    REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status-unstratified.expected.json",
+    REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher.expected.json",
+    REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-missing.expected.json",
+]
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -67,6 +74,17 @@ def verify_notebook() -> None:
     assert "chi-square-trend-v0.15.json" in source
     assert "trend_chi_square" in source
     assert "math.erfc" in source
+
+    tables = nbformat.read(NOTEBOOKS[9], as_version=4)
+    source = "\n".join(cell.source for cell in tables.cells)
+    assert "foodborne-tables-stratified-v0.3.json" in source
+    assert "foodborne-tables-unstratified-v0.3.json" in source
+    assert "chi2_contingency" in source
+    assert "foodborne-tables-fisher-v0.5.json" in source
+    assert "Fisher-Freeman-Halton" in source
+    assert "foodborne-tables-missing-v0.6.json" in source
+    assert "SET MISSING=ON" in source
+    assert "TABLES is not yet a Rust/WASM kernel" in source
 
     unmatched = nbformat.read(NOTEBOOKS[7], as_version=4)
     source = "\n".join(cell.source for cell in unmatched.cells)
@@ -224,6 +242,26 @@ def verify_chi_square_trend() -> None:
     assert fixture["expected"]["chiSquare"] == 26.6
 
 
+def verify_foodborne_tables() -> None:
+    for fixture_path in TABLES_FIXTURES:
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        data = (REPOSITORY / fixture["dataset"]["file"]).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+        rows = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+        request = fixture["request"]
+        for stratum in fixture["strata"]:
+            members = [row for row in rows if "strataHeader" not in request or row[request["strataHeader"]] == stratum["value"]]
+            observed = {
+                (exposure, outcome): sum(
+                    row[request["exposureHeader"]] == exposure and row[request["outcomeHeader"]] == outcome
+                    for row in members
+                )
+                for exposure in fixture["exposureValues"] for outcome in fixture["outcomeValues"]
+            }
+            assert [[observed[(exposure, outcome)] for outcome in fixture["outcomeValues"]]
+                    for exposure in fixture["exposureValues"]] == [row["counts"] for row in stratum["rows"]]
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
@@ -234,5 +272,6 @@ if __name__ == "__main__":
     verify_cohort()
     verify_unmatched()
     verify_chi_square_trend()
+    verify_foodborne_tables()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

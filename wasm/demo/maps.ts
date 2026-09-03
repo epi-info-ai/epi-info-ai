@@ -17,7 +17,14 @@ import type {
   SupportedGeoJsonGeometry,
   TimeLapseStop,
 } from "../app/contracts/maps.js";
-import type { EpiRecord, FieldDefinition, MapPoint, RecordValue } from "../app/contracts/core.js";
+import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
+import {
+  openBrowserPmtiles,
+  pmtilesRasterMimeType,
+  type BrowserPmtilesSource,
+} from "../app/maps/pmtiles-reader.ts";
+import { createMapLibrePmtilesOverlay, type MapLibrePmtilesOverlay } from "../app/maps/maplibre-pmtiles.ts";
+import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
 // confined to this adapter module until the vendored distribution carries types.
@@ -114,6 +121,14 @@ type H3Indexer = (latitude: number, longitude: number, resolution: number) => st
 
 let map: LeafletMap | null = null;
 let tileLayer: LeafletLayer | null = null;
+let offlineTileLayer: LeafletLayer | null = null;
+let offlinePmtilesSource: BrowserPmtilesSource | null = null;
+let offlineBasemapSequence = 0;
+let offlineRecoveryAsset: OfflineMapAsset | null = null;
+let offlineRecoveryStudyAreaLimitMiB = 100;
+let replaceOfflineMapAsset: ((previousSha256: string, replacement: OfflineMapAsset) => void) | null = null;
+let detachOfflineMapAsset: ((sha256: string) => void) | null = null;
+let currentProjectSnapshot: (() => ProjectSnapshotV1 | null) | null = null;
 let recordLayer: LeafletLayer | null = null;
 let locationLayer: LeafletLayer | null = null;
 let lastBounds: LeafletBounds | null = null;
@@ -439,12 +454,174 @@ function ensureMap() {
   tileLayer.on("tileerror", () => {
     requiredElement("#map-basemap-status").textContent = "Basemap unavailable; local layers still work.";
   });
-  tileLayer.addTo(map);
+  if (requiredElement<HTMLInputElement>('[name="map-basemap"][value="street"]').checked) tileLayer.addTo(map);
   recordLayer = L.layerGroup().addTo(map);
   locationLayer = L.layerGroup().addTo(map);
   L.control.scale({ imperial: true, metric: true }).addTo(map);
   map.on("zoomend", updateGeoJsonLabelVisibility);
   return map;
+}
+
+function createOfflineRasterLayer(source: BrowserPmtilesSource, mimeType: string): LeafletLayer {
+  const OfflineGridLayer = L.GridLayer.extend({
+    createTile(coordinates: { z: number; x: number; y: number }, done: (error: Error | null, tile: HTMLElement) => void) {
+      const tile = document.createElement("img");
+      tile.alt = "";
+      tile.setAttribute("role", "presentation");
+      void source.getTile(coordinates.z, coordinates.x, coordinates.y).then((bytes) => {
+        if (!bytes) {
+          tile.src = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+          done(null, tile);
+          return;
+        }
+        const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+        const objectUrl = URL.createObjectURL(new Blob([buffer], { type: mimeType }));
+        tile.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          done(null, tile);
+        };
+        tile.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          done(new Error(`Unable to decode an offline ${source.header.tileType.toUpperCase()} tile.`), tile);
+        };
+        tile.src = objectUrl;
+      }).catch((error) => done(error instanceof Error ? error : new Error("Unable to read an offline map tile."), tile));
+      return tile;
+    },
+  });
+  return new OfflineGridLayer({
+    minZoom: source.header.minZoom,
+    maxZoom: source.header.maxZoom,
+    pane: "epi-raster-pane",
+    attribution: source.asset.attribution,
+  });
+}
+
+function createOfflineVectorLayer(
+  source: BrowserPmtilesSource,
+  onError: (message: string) => void,
+): { layer: LeafletLayer; loaded: Promise<number> } {
+  let resolveLoaded: (layerCount: number) => void = () => undefined;
+  let rejectLoaded: (error: unknown) => void = () => undefined;
+  const loaded = new Promise<number>((resolve, reject) => {
+    resolveLoaded = resolve;
+    rejectLoaded = reject;
+  });
+  const VectorLayer = L.Layer.extend({
+    onAdd(leafletMap: LeafletMap) {
+      const container = document.createElement("div");
+      container.className = "epi-maplibre-offline-layer";
+      container.setAttribute("aria-hidden", "true");
+      leafletMap.getContainer().append(container);
+      let overlay: MapLibrePmtilesOverlay | null = null;
+      const sync = () => {
+        if (!overlay) return;
+        const center = leafletMap.getCenter();
+        overlay.resize();
+        overlay.setView(center.lng, center.lat, leafletMap.getZoom());
+      };
+      let removed = false;
+      leafletMap.on("move zoom resize", sync);
+      void createMapLibrePmtilesOverlay(container, source, onError).then((created) => {
+        if (removed) {
+          created.remove();
+          return;
+        }
+        overlay = created;
+        sync();
+        resolveLoaded(created.layerCount);
+        void created.loaded.catch((error) => onError(error instanceof Error ? error.message : "Unable to finish loading the offline vector map."));
+      }).catch((error) => {
+        container.remove();
+        rejectLoaded(error);
+      });
+      this._epiOfflineCleanup = () => {
+        removed = true;
+        leafletMap.off("move zoom resize", sync);
+        overlay?.remove();
+        overlay = null;
+        container.remove();
+      };
+    },
+    onRemove() {
+      this._epiOfflineCleanup?.();
+      this._epiOfflineCleanup = null;
+    },
+  });
+  return { layer: new VectorLayer(), loaded };
+}
+
+async function prepareOfflineBasemap(snapshot: ProjectSnapshotV1 | null): Promise<void> {
+  const sequence = ++offlineBasemapSequence;
+  if (map && offlineTileLayer && map.hasLayer(offlineTileLayer)) map.removeLayer(offlineTileLayer);
+  offlineTileLayer = null;
+  offlinePmtilesSource = null;
+  const radio = requiredElement<HTMLInputElement>("#map-basemap-offline");
+  const label = requiredElement("#map-basemap-offline-label");
+  const recovery = requiredElement("#map-offline-recovery");
+  recovery.hidden = true;
+  recovery.dataset.state = "available";
+  offlineRecoveryAsset = null;
+  radio.disabled = true;
+  const studyArea = snapshot?.studyAreas?.find((candidate) => candidate.offlineMap.asset);
+  const asset = studyArea?.offlineMap.asset;
+  if (!studyArea || !asset) {
+    label.title = "Import a raster PMTiles package in the current project's study area.";
+    requiredElement("#map-basemap-status").textContent = "";
+    if (radio.checked) {
+      requiredElement<HTMLInputElement>('[name="map-basemap"][value="street"]').checked = true;
+      if (map && tileLayer && !map.hasLayer(tileLayer)) tileLayer.addTo(map);
+    }
+    return;
+  }
+  requiredElement("#map-basemap-status").textContent = `Checking ${asset.fileName} in browser storage...`;
+  try {
+    const source = await openBrowserPmtiles(asset);
+    if (sequence !== offlineBasemapSequence) return;
+    offlinePmtilesSource = source;
+    const mimeType = pmtilesRasterMimeType(source.header.tileType);
+    const vector = source.header.tileType === "mvt"
+      ? createOfflineVectorLayer(source, (message) => {
+        requiredElement("#map-status").textContent = `Offline vector tile error: ${message}`;
+      })
+      : null;
+    if (!mimeType && !vector) throw new Error(`The ${source.header.tileType} tile type cannot be rendered.`);
+    offlineTileLayer = vector?.layer || createOfflineRasterLayer(source, mimeType!);
+    radio.disabled = false;
+    label.title = `${asset.fileName} · ${asset.attribution} · ${asset.license}`;
+    radio.checked = true;
+    if (map && tileLayer && map.hasLayer(tileLayer)) map.removeLayer(tileLayer);
+    offlineTileLayer.addTo(ensureMap());
+    const vectorLayerCount = vector ? await vector.loaded : null;
+    if (sequence !== offlineBasemapSequence) return;
+    ensureMap().fitBounds([[studyArea.bounds[1], studyArea.bounds[0]], [studyArea.bounds[3], studyArea.bounds[2]]], {
+      maxZoom: studyArea.offlineMap.maxZoom,
+    });
+    const renderer = vectorLayerCount === null ? source.header.tileType.toUpperCase() : `MapLibre MVT · ${vectorLayerCount} source layer${vectorLayerCount === 1 ? "" : "s"}`;
+    requiredElement("#map-basemap-status").textContent = `Offline package active · ${renderer} · SHA-256 verified · ${asset.attribution} · ${asset.license}`;
+    requiredElement("#map-status").textContent = `${asset.fileName} is rendering from browser storage; no tile-network requests are used.`;
+  } catch (error) {
+    if (sequence !== offlineBasemapSequence) return;
+    const detail = error instanceof Error ? error.message : "Unable to open the offline map package.";
+    const missing = error instanceof DOMException && error.name === "NotFoundError"
+      || /not found|could not be found|does not exist/i.test(detail);
+    const corrupt = /no longer matches|invalid|signature|SHA-256|header|truncated|overlap/i.test(detail);
+    const state = missing ? "missing" : corrupt ? "corrupt" : "unavailable";
+    label.title = `The stored offline package is ${state}.`;
+    requiredElement("#map-basemap-status").textContent = `Offline package ${state}: ${detail}`;
+    requiredElement("#map-offline-recovery-title").textContent = state === "missing"
+      ? "Offline package is missing from browser storage"
+      : state === "corrupt"
+        ? "Offline package failed integrity verification"
+        : "Offline storage is unavailable";
+    requiredElement("#map-offline-recovery-detail").textContent = `Expected ${asset.fileName} · SHA-256 ${asset.sha256.slice(0, 16)}… Restore a portable project backup or re-import the matching PMTiles archive.`;
+    recovery.dataset.state = state;
+    recovery.hidden = false;
+    offlineRecoveryAsset = asset;
+    offlineRecoveryStudyAreaLimitMiB = studyArea.offlineMap.packageLimitMiB;
+    requiredElement<HTMLInputElement>('[name="map-basemap"][value="blank"]').checked = true;
+    if (map && tileLayer && map.hasLayer(tileLayer)) map.removeLayer(tileLayer);
+  }
 }
 
 function mapWindowElement(): MapDomControl {
@@ -1172,7 +1349,13 @@ export function initializeMaps(
   getCurrentData: () => MapDataSource,
   getDataSources: () => MapDataSource[],
   openRecord: OpenRecordHandler,
+  getProjectSnapshot: () => ProjectSnapshotV1 | null,
+  replaceOfflineAsset: (previousSha256: string, replacement: OfflineMapAsset) => void,
+  detachOfflineAsset: (sha256: string) => void,
 ): void {
+  currentProjectSnapshot = getProjectSnapshot;
+  replaceOfflineMapAsset = replaceOfflineAsset;
+  detachOfflineMapAsset = detachOfflineAsset;
   const caseClusterDialog = requiredElement("#case-cluster-dialog");
   const h3Dialog = requiredElement("#h3-dialog");
   const h3Form = requiredElement("#h3-form");
@@ -1199,6 +1382,7 @@ export function initializeMaps(
   const geoJsonStatus = requiredElement("#geojson-dialog-status");
   const layerPanel = requiredElement("#map-layer-panel");
   const layerPanelToggle = requiredElement("#map-layer-panel-toggle");
+  const offlineReimportFile = requiredElement<HTMLInputElement>("#map-offline-reimport-file");
   let dialogSources: MapDataSource[] = [];
   let geoJsonInspectionVersion = 0;
   const updateH3ResolutionDescription = () => {
@@ -1223,14 +1407,71 @@ export function initializeMaps(
   };
   layerPanel.addEventListener("toggle", updateLayerPanelToggle);
   updateLayerPanelToggle();
+  requiredElement("#map-offline-restore-project").addEventListener("click", () => {
+    requiredElement<HTMLInputElement>("#project-package-open").click();
+  });
+  requiredElement("#map-offline-reimport").addEventListener("click", () => offlineReimportFile.click());
+  requiredElement("#map-offline-use-blank").addEventListener("click", () => {
+    requiredElement<HTMLInputElement>('[name="map-basemap"][value="blank"]').click();
+  });
+  requiredElement("#map-offline-detach").addEventListener("click", () => {
+    const asset = offlineRecoveryAsset;
+    if (!asset || !detachOfflineMapAsset) return;
+    try {
+      detachOfflineMapAsset(asset.sha256);
+      void removePmtilesAsset(asset).catch(() => undefined);
+      offlineRecoveryAsset = null;
+      requiredElement("#map-offline-recovery").hidden = true;
+      requiredElement("#map-basemap-status").textContent = "Offline package detached. The study-area boundary and map plan remain in the project.";
+      requiredElement("#map-status").textContent = "Blank background selected; attach a new package from the project study area when ready.";
+    } catch (error) {
+      requiredElement("#map-offline-recovery-detail").textContent = error instanceof Error ? error.message : "Unable to detach the offline package.";
+    }
+  });
+  offlineReimportFile.addEventListener("change", async () => {
+    const file = offlineReimportFile.files?.[0];
+    const recorded = offlineRecoveryAsset;
+    if (!file || !recorded || !replaceOfflineMapAsset) return;
+    const detail = requiredElement("#map-offline-recovery-detail");
+    detail.textContent = `Checking ${file.name} against the recorded package...`;
+    let restored: OfflineMapAsset | null = null;
+    try {
+      if (file.size > offlineRecoveryStudyAreaLimitMiB * 1024 * 1024) {
+        throw new Error(`The selected archive exceeds this project's ${offlineRecoveryStudyAreaLimitMiB} MiB package limit.`);
+      }
+      restored = await restorePmtilesAsset(recorded, file);
+      replaceOfflineMapAsset(recorded.sha256, restored);
+      await removePmtilesAsset(recorded).catch(() => undefined);
+      offlineRecoveryAsset = null;
+      requiredElement("#map-offline-recovery").hidden = true;
+      await prepareOfflineBasemap(currentProjectSnapshot?.() ?? null);
+    } catch (error) {
+      if (restored) await removePmtilesAsset(restored).catch(() => undefined);
+      detail.textContent = error instanceof Error ? `Recovery rejected: ${error.message}` : "Recovery rejected.";
+    } finally {
+      offlineReimportFile.value = "";
+    }
+  });
+  globalThis.addEventListener("epi-info-project-changed", () => {
+    const mapsView = requiredElement<HTMLElement>('[data-module-view="maps"]');
+    if (!mapsView.hidden) void prepareOfflineBasemap(getProjectSnapshot());
+  });
   for (const button of requiredElements('[data-module="maps"], [data-open-module="maps"]')) {
     button.addEventListener("click", () => {
       const context: MapLaunchContext = button.dataset.mapContext === "current-form" ? "current-form" : "standalone";
+      const snapshot = getProjectSnapshot();
+      const hasOfflinePackage = Boolean(snapshot?.studyAreas?.some((studyArea) => studyArea.offlineMap.asset));
+      if (hasOfflinePackage) {
+        requiredElement<HTMLInputElement>("#map-basemap-offline").checked = true;
+      } else {
+        requiredElement<HTMLInputElement>('[name="map-basemap"][value="street"]').checked = true;
+      }
       setTimeout(() => {
         try {
           ensureMap();
           configureLaunch(context, getCurrentData, openRecord);
           map.invalidateSize();
+          void prepareOfflineBasemap(snapshot);
         } catch (error) {
           requiredElement("#map-status").textContent = error instanceof Error ? error.message : "Unable to open Maps.";
         }
@@ -1560,12 +1801,20 @@ export function initializeMaps(
   for (const radio of requiredElements('[name="map-basemap"]')) {
     radio.addEventListener("change", (event) => {
       const currentMap = ensureMap();
-      if (eventControl(event).value === "street") {
+      const value = eventControl(event).value;
+      if (value === "street") {
+        if (offlineTileLayer && currentMap.hasLayer(offlineTileLayer)) currentMap.removeLayer(offlineTileLayer);
         if (!currentMap.hasLayer(tileLayer)) tileLayer.addTo(currentMap);
         requiredElement("#map-basemap-status").textContent = "";
         requiredElement("#map-status").textContent = "Street background selected.";
-      } else if (currentMap.hasLayer(tileLayer)) {
-        currentMap.removeLayer(tileLayer);
+      } else if (value === "offline" && offlineTileLayer) {
+        if (tileLayer && currentMap.hasLayer(tileLayer)) currentMap.removeLayer(tileLayer);
+        if (!currentMap.hasLayer(offlineTileLayer)) offlineTileLayer.addTo(currentMap);
+        requiredElement("#map-basemap-status").textContent = `Offline package active · SHA-256 verified · ${offlinePmtilesSource?.asset.attribution || "local attribution"}`;
+        requiredElement("#map-status").textContent = "Offline package selected; no tile-network requests are used.";
+      } else {
+        if (tileLayer && currentMap.hasLayer(tileLayer)) currentMap.removeLayer(tileLayer);
+        if (offlineTileLayer && currentMap.hasLayer(offlineTileLayer)) currentMap.removeLayer(offlineTileLayer);
         requiredElement("#map-basemap-status").textContent = "Blank background works without a tile service.";
         requiredElement("#map-status").textContent = "Blank background selected.";
       }

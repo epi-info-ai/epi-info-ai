@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "MEANS age",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96
+  },
+  "expected": {
+    "sourceRecords": 96,
+    "includedRecords": 96,
+    "excludedMissingOrNonNumeric": 0,
+    "statistics": {
+      "observations": 96,
+      "total": 3917,
+      "mean": 40.802083333333336,
+      "variance": 312.64462719298257,
+      "standardDeviation": 17.68175973123101,
+      "minimum": 5,
+      "quartile25": 27.5,
+      "median": 40.5,
+      "quartile75": 54.5,
+      "maximum": 75,
+      "mode": 31
+    }
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Independent descriptive-statistics validation exists; reviewed desktop Epi Info MEANS output remains required for legacy-parity-verified status."
+  }
+}

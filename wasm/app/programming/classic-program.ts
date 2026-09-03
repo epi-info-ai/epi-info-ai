@@ -14,6 +14,7 @@ export interface NumericRecodeStep {
   kind: "numeric-recode";
   sourceField: string;
   targetField: string;
+  targetPrompt: string;
   ranges: NumericRecodeRange[];
   elseLabel?: string;
 }
@@ -21,7 +22,9 @@ export interface NumericRecodeStep {
 export interface ProgramFrequencyStep {
   kind: "frequency";
   field: string;
+  prompt: string;
   stratifyBy?: string;
+  stratifyPrompt?: string;
 }
 
 export interface BoundedClassicProgramPlan {
@@ -85,6 +88,7 @@ export function parseBoundedClassicProgram(source: string, fields: readonly Fiel
     throw new ClassicProgramDiagnostic(define?.span.start.line ?? 1, "This slice must begin with DEFINE <variable> TEXTINPUT.");
   }
   const targetField = define.variable.name;
+  const targetPrompt = define.prompt ?? targetField;
   if (fields.some((field) => field.name.toLocaleLowerCase("en-US") === targetField.toLocaleLowerCase("en-US"))) {
     throw new ClassicProgramDiagnostic(define.span.start.line, `${targetField} already exists in the current form; V0.1 only creates a new derived variable.`);
   }
@@ -136,13 +140,14 @@ export function parseBoundedClassicProgram(source: string, fields: readonly Fiel
   }
   const stratifyBy = frequency.options.stratifyBy[0]
     ? resolveField(fields, frequency.options.stratifyBy[0].name, frequency.span.start.line) : undefined;
+  const stratifyPrompt = stratifyBy ? fields.find((field) => field.name === stratifyBy)!.prompt : undefined;
   if (ast.body.length > 3) {
     const unsupported = ast.body[3]!;
     throw new ClassicProgramDiagnostic(unsupported.span.start.line, `Unsupported command in the V0.1 executor: ${unsupported.type}`);
   }
 
   const canonicalLines = [
-    `DEFINE ${commandField(targetField)} TEXTINPUT`,
+    `DEFINE ${commandField(targetField)} TEXTINPUT${define.prompt === undefined ? "" : ` ${JSON.stringify(define.prompt)}`}`,
     `RECODE ${commandField(sourceField)} TO ${commandField(targetField)}`,
     ...ranges.map((range) => `  ${range.lower === null ? "LOVALUE" : range.lower} - ${range.upper === null ? "HIVALUE" : range.upper} = ${JSON.stringify(range.label)}`),
     ...(elseLabel === undefined ? [] : [`  ELSE = ${JSON.stringify(elseLabel)}`]),
@@ -154,13 +159,16 @@ export function parseBoundedClassicProgram(source: string, fields: readonly Fiel
     astVersion: CLASSIC_AST_VERSION,
     source,
     canonicalSource: canonicalLines.join("\n"),
-    recode: { kind: "numeric-recode", sourceField, targetField, ranges, ...(elseLabel === undefined ? {} : { elseLabel }) },
-    frequency: { kind: "frequency", field: targetField, ...(stratifyBy ? { stratifyBy } : {}) },
+    recode: { kind: "numeric-recode", sourceField, targetField, targetPrompt, ranges, ...(elseLabel === undefined ? {} : { elseLabel }) },
+    frequency: {
+      kind: "frequency", field: targetField, prompt: targetPrompt,
+      ...(stratifyBy ? { stratifyBy, stratifyPrompt: stratifyPrompt! } : {}),
+    },
   };
 }
 
 export function applyBoundedClassicProgram(records: readonly EpiRecord[], plan: BoundedClassicProgramPlan): AppliedProgramData {
-  const derivedField: FieldDefinition = { name: plan.recode.targetField, prompt: plan.recode.targetField, type: "text", required: false };
+  const derivedField: FieldDefinition = { name: plan.recode.targetField, prompt: plan.recode.targetPrompt, type: "text", required: false };
   const output = records.map((record) => {
     const raw = record[plan.recode.sourceField];
     const numeric = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : Number.NaN;

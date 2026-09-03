@@ -1,0 +1,18 @@
+{
+  "operation": "classic.tables.categorical",
+  "planVersion": "classic-tables-v0.7.0",
+  "canonicalSource": "TABLES potato_salad hamburger STRATAVAR=sex case_status",
+  "sourceRecords": 96,
+  "includedRecords": 96,
+  "excludedMissing": 0,
+  "strata": [
+    { "value": "Sex: Female · Case Status: Confirmed", "total": 10, "cells": [[4, 6], [0, 0]] },
+    { "value": "Sex: Female · Case Status: Not a case", "total": 26, "cells": [[2, 4], [1, 19]] },
+    { "value": "Sex: Female · Case Status: Probable", "total": 8, "cells": [[0, 8], [0, 0]] },
+    { "value": "Sex: Female · Case Status: Suspected", "total": 4, "cells": [[0, 0], [0, 4]] },
+    { "value": "Sex: Male · Case Status: Confirmed", "total": 12, "cells": [[10, 2], [0, 0]] },
+    { "value": "Sex: Male · Case Status: Not a case", "total": 26, "cells": [[5, 1], [19, 1]] },
+    { "value": "Sex: Male · Case Status: Probable", "total": 8, "cells": [[4, 2], [2, 0]] },
+    { "value": "Sex: Male · Case Status: Suspected", "total": 2, "cells": [[0, 0], [2, 0]] }
+  ]
+}

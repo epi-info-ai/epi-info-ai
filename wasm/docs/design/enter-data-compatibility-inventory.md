@@ -30,7 +30,7 @@ small vertical slice. It does not define the legacy capability floor by itself.
 | LEGACY-ENTER-007 | Linked Maps and other Enter Data tools | Current-form Maps link works | Preserve learned paths; inventory all linked commands before claiming parity. |
 | LEGACY-ENTER-008 | Record status, storage status, and error feedback | Local/hosted badge plus adjacent save/import status | Adapt to browser persistence and asynchronous synchronization states. |
 | LEGACY-ENTER-009 | Phone field-entry workflow | Phase 3B entry/records switcher on narrow screens | Responsive adaptation. Keep labels/order identical and retain both familiar panels on wider screens. |
-| LEGACY-ENTER-010 | Acquire and review record coordinates | Desktop-style Address -> Get Coordinates -> review/select -> signed coordinate fields works through a typed provider boundary; manual/imported coordinates remain valid | Bounded desktop parity candidate. Replace the demonstration provider before production, preserve failure-without-mutation, add acquisition provenance, and separately adapt the mobile Capture Coordinates workflow. A click-map picker remains an optional labeled new branch. |
+| LEGACY-ENTER-010 | Acquire and review record coordinates | Desktop-style Address -> Get Coordinates -> review/select -> signed coordinate fields works through a typed provider boundary; an explicitly labeled Preview Map refinement shows the accepted point and writes drag/click adjustments back at seven decimal places; manual/imported coordinates remain valid | Bounded desktop parity candidate plus reviewed new branch. Replace the demonstration provider before production, preserve failure-without-mutation, add acquisition provenance, and separately adapt the mobile Capture Coordinates workflow. |
 
 When the configured geocoding service is unavailable, the form remains usable.
 Manual/imported signed coordinates are retained; permission-gated browser GPS is
@@ -64,7 +64,9 @@ mini-bars in the Missing column to expose zero, partial, and at-least-50-percent
 missingness without replacing the exact count. The geolocation parity test mocks the external
 provider and verifies that coordinates remain blank before selection, retain
 seven decimal places after selection, save as record data, and preselect the
-Case Cluster latitude/longitude fields.
+Case Cluster latitude/longitude fields. It also opens the OpenStreetMap preview at
+the accepted point, drags its marker, verifies that both form controls update
+during the drag with seven decimal places, and then saves the adjusted record.
 
 ## Remaining audit work
 

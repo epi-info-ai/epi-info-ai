@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.categorical",
+  "planVersion": "classic-tables-v0.7.0",
+  "status": "browser-candidate",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "request": { "exposureHeader": "Potato Salad", "outcomeHeader": "Case Status", "includeMissing": false },
+  "sourceRecords": 96,
+  "includedRecords": 96,
+  "excludedMissing": 0,
+  "exposureValues": ["No", "Yes"],
+  "outcomeValues": ["Confirmed", "Not a case", "Probable", "Suspected"],
+  "strata": [
+    {
+      "value": "All records",
+      "rows": [
+        { "exposureValue": "No", "counts": [0, 40, 2, 6], "total": 48, "rowPercents": [0, 83.33333333333334, 4.166666666666666, 12.5], "columnPercents": [0, 76.92307692307693, 12.5, 100], "expectedCounts": [11, 26, 8, 3] },
+        { "exposureValue": "Yes", "counts": [22, 12, 14, 0], "total": 48, "rowPercents": [45.83333333333333, 25, 29.166666666666668, 0], "columnPercents": [100, 23.076923076923077, 87.5, 0], "expectedCounts": [11, 26, 8, 3] }
+      ],
+      "columnTotals": [22, 52, 16, 6],
+      "columnPercents": [22.916666666666664, 54.166666666666664, 16.666666666666664, 6.25],
+      "total": 96,
+      "pearson": { "chiSquare": 52.07692307692308, "degreesOfFreedom": 3, "pValue": 2.884125234922068e-11, "minimumExpected": 3, "cellsExpectedBelowFive": 2, "cellsExpectedBelowOne": 0, "warning": "An expected value is < 5. Chi-squared may not be a valid test." }
+    }
+  ]
+}

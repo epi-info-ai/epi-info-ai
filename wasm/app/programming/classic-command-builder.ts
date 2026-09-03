@@ -18,7 +18,7 @@ import { buildClassicGraphCommand, resolveClassicGraphCommand, type ClassicGraph
 import { buildEpiAiQualityCommand, resolveEpiAiQualityCommand } from "./epi-ai-quality.ts";
 import { buildFileConvertCommand, resolveFileConvertCommand } from "./file-convert.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "summarize" | "graph" | "quality" | "file-convert";
+export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "summarize" | "graph" | "set-missing" | "set-missing-label" | "quality" | "file-convert";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -36,6 +36,8 @@ export type ClassicAnalysisCommandInput =
   | ({ kind: "graph" } & ClassicGraphInput)
   | { kind: "quality" }
   | { kind: "file-convert"; inputFile: string; outputFile: string }
+  | { kind: "set-missing"; enabled: boolean }
+  | { kind: "set-missing-label"; value: string }
   | { kind: "define"; variable: string; scope: ClassicDefineVariableScope; variableType: ClassicDefineVariableType; prompt?: string }
   | { kind: "define-group"; group: string; members: string[] }
   | { kind: "undefine"; variable: string | "*" }
@@ -51,7 +53,7 @@ export type ClassicAnalysisCommandInput =
   | { kind: "list"; fields: string[] }
   | { kind: "frequency"; field: string; stratifyBy?: string }
   | { kind: "means"; field: string }
-  | { kind: "tables"; exposure: string; outcome: string; stratifyBy: string };
+  | { kind: "tables"; exposure: string; outcome: string; stratifyBy?: string[]; statistics?: "FISHER" };
 
 type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" }>;
 export type ResolvedClassicAnalysisCommand = SelectedExecutableClassicCommandInput & { source: string };
@@ -82,6 +84,11 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "graph") return buildClassicGraphCommand(input);
   if (input.kind === "quality") return buildEpiAiQualityCommand({ mode: "profile" });
   if (input.kind === "file-convert") return buildFileConvertCommand(input.inputFile, input.outputFile);
+  if (input.kind === "set-missing") return `SET MISSING=${input.enabled ? "ON" : "OFF"}`;
+  if (input.kind === "set-missing-label") {
+    if (!input.value.trim()) throw new RangeError("The missing-value display label cannot be blank.");
+    return `SET (.)=${JSON.stringify(input.value.trim())}`;
+  }
   if (input.kind === "define") {
     const scope = input.scope === "STANDARD" ? "" : ` ${input.scope}`;
     const prompt = input.prompt?.trim() ? ` ${JSON.stringify(input.prompt.trim())}` : "";
@@ -112,7 +119,7 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "list") return `LIST ${input.fields.length ? input.fields.map(fieldToken).join(" ") : "*"}`;
   if (input.kind === "frequency") return `FREQ ${fieldToken(input.field)}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}`;
   if (input.kind === "means") return `MEANS ${fieldToken(input.field)}`;
-  return `TABLES ${fieldToken(input.exposure)} ${fieldToken(input.outcome)}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}`;
+  return `TABLES ${fieldToken(input.exposure)} ${fieldToken(input.outcome)}${input.stratifyBy?.length ? ` STRATAVAR=${input.stratifyBy.map(fieldToken).join(" ")}` : ""}${input.statistics ? ` STATISTICS=${input.statistics}` : ""}`;
 }
 
 function resolvedField(fields: readonly FieldDefinition[], requested: string): string {
@@ -121,8 +128,8 @@ function resolvedField(fields: readonly FieldDefinition[], requested: string): s
   return field.name;
 }
 
-function assertBoundedOptions(options: ClassicAnalysisOptions, allowStrata: boolean): string | undefined {
-  if (options.weightBy || options.outputTable || options.psuVariable || options.statistics || options.columnSize || options.noWrap || options.oneIsYes) {
+function assertBoundedOptions(options: ClassicAnalysisOptions, allowStrata: boolean, allowFisher = false): string | undefined {
+  if (options.weightBy || options.outputTable || options.psuVariable || (options.statistics && !(allowFisher && options.statistics === "FISHER")) || options.columnSize || options.noWrap || options.oneIsYes) {
     throw new RangeError("The selected command uses options that are not enabled in this bounded executor.");
   }
   if (!allowStrata && options.stratifyBy.length) throw new RangeError("This selected command does not support STRATAVAR yet.");
@@ -131,10 +138,13 @@ function assertBoundedOptions(options: ClassicAnalysisOptions, allowStrata: bool
 }
 
 export function resolveSelectedClassicAnalysisCommand(source: string, fields: readonly FieldDefinition[], dataSources: readonly MapDataSource[] = [], variables: readonly ClassicSessionVariableDefinition[] = [], groups: readonly ClassicGroupDefinition[] = []): ResolvedClassicAnalysisCommand {
-  if (!source.trim()) throw new RangeError("Select one complete READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, or GRAPH command in the Program Editor.");
+  if (!source.trim()) throw new RangeError("Select one complete READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, GRAPH, or SET MISSING command in the Program Editor.");
   const ast = parseClassicProgram(source);
   if (ast.body.length !== 1) throw new RangeError("Select exactly one complete command. Multiple statements were not run.");
   const statement = ast.body[0]!;
+  if (statement.type === "SetStatement") return statement.option === "MISSING"
+    ? { kind: "set-missing", enabled: statement.enabled, source }
+    : { kind: "set-missing-label", value: statement.value, source };
   if (statement.type === "DefineStatement") {
     const definition = resolveClassicDefineCommand(source, fields, variables, groups);
     return { kind: "define", variable: definition.name, scope: definition.scope, variableType: definition.variableType, ...(definition.prompt ? { prompt: definition.prompt } : {}), source };
@@ -260,14 +270,19 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
   }
   if (statement.type === "TablesStatement") {
     if (statement.exposure === "*" || !statement.outcome) throw new RangeError("Selected TABLES execution requires exposure and outcome fields.");
-    const strata = assertBoundedOptions(statement.options, true);
-    if (!strata) throw new RangeError("Selected TABLES execution requires one STRATAVAR for the current stratified 2 x 2 slice.");
-    const names = [statement.exposure.name, statement.outcome.name, strata].map((name) => name.toLocaleLowerCase("en-US"));
-    if (new Set(names).size !== names.length) throw new RangeError("TABLES exposure, outcome, and STRATAVAR must use three different fields.");
+    if (statement.options.weightBy || statement.options.outputTable || statement.options.psuVariable || (statement.options.statistics && statement.options.statistics !== "FISHER") || statement.options.columnSize || statement.options.noWrap || statement.options.oneIsYes) {
+      throw new RangeError("The selected TABLES command uses options that are not enabled in this bounded executor.");
+    }
+    const strata = statement.options.stratifyBy.map(({ name }) => resolvedField(fields, name));
+    const names = [statement.exposure.name, statement.outcome.name, ...strata].map((name) => name.toLocaleLowerCase("en-US"));
+    if (new Set(names).size !== names.length) throw new RangeError(
+      strata.length ? "TABLES exposure, outcome, and STRATAVAR fields must all be different." : "TABLES exposure and outcome must use different fields.",
+    );
     return {
       kind: "tables", exposure: resolvedField(fields, statement.exposure.name), outcome: resolvedField(fields, statement.outcome.name),
-      stratifyBy: resolvedField(fields, strata), source,
+      ...(strata.length ? { stratifyBy: strata } : {}), source,
+      ...(statement.options.statistics === "FISHER" ? { statistics: "FISHER" as const } : {}),
     };
   }
-  throw new RangeError("Only selected READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, and GRAPH commands are enabled in this slice.");
+  throw new RangeError("Only selected READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, GRAPH, and SET MISSING commands are enabled in this slice.");
 }

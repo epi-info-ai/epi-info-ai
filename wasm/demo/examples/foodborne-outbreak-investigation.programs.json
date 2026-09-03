@@ -8,7 +8,8 @@
     "fieldTypes": {
       "Age": "number",
       "Sex": "text",
-      "case_status": "text"
+      "case_status": "text",
+      "potato_salad": "yes-no"
     }
   },
   "programs": [
@@ -17,21 +18,35 @@
       "title": "Life-stage age groups by sex",
       "description": "Groups Age into five public-health life stages and runs FREQ within Sex.",
       "requiredFields": ["Age", "Sex"],
-      "source": "DEFINE AgeGroup TEXTINPUT\nRECODE Age TO AgeGroup\n  LOVALUE - 4 = \"0-4\"\n  4 - 17 = \"5-17\"\n  17 - 44 = \"18-44\"\n  44 - 64 = \"45-64\"\n  64 - HIVALUE = \"65+\"\nEND\nFREQ AgeGroup STRATAVAR=Sex"
+      "source": "DEFINE AgeGroup TEXTINPUT \"Age group\"\nRECODE Age TO AgeGroup\n  LOVALUE - 4 = \"0-4\"\n  4 - 17 = \"5-17\"\n  17 - 44 = \"18-44\"\n  44 - 64 = \"45-64\"\n  64 - HIVALUE = \"65+\"\nEND\nFREQ AgeGroup STRATAVAR=Sex"
     },
     {
       "id": "age-band-by-case-status",
       "title": "Broad age bands by case status",
       "description": "Compares child, adult, and older-adult bands within the foodborne Case Status categories.",
       "requiredFields": ["Age", "case_status"],
-      "source": "DEFINE BroadAgeGroup TEXTINPUT\nRECODE Age TO BroadAgeGroup\n  LOVALUE - 17 = \"0-17\"\n  17 - 64 = \"18-64\"\n  64 - HIVALUE = \"65+\"\nEND\nFREQ BroadAgeGroup STRATAVAR=case_status"
+      "source": "DEFINE BroadAgeGroup TEXTINPUT \"Broad age group\"\nRECODE Age TO BroadAgeGroup\n  LOVALUE - 17 = \"0-17\"\n  17 - 64 = \"18-64\"\n  64 - HIVALUE = \"65+\"\nEND\nFREQ BroadAgeGroup STRATAVAR=case_status"
     },
     {
       "id": "age-decades",
       "title": "Age distribution by decade",
       "description": "Creates decade-width age categories and runs an overall frequency table without stratification.",
       "requiredFields": ["Age"],
-      "source": "DEFINE AgeDecade TEXTINPUT\nRECODE Age TO AgeDecade\n  LOVALUE - 9 = \"0-9\"\n  9 - 19 = \"10-19\"\n  19 - 29 = \"20-29\"\n  29 - 39 = \"30-39\"\n  39 - 49 = \"40-49\"\n  49 - 59 = \"50-59\"\n  59 - 69 = \"60-69\"\n  69 - HIVALUE = \"70+\"\nEND\nFREQ AgeDecade"
+      "source": "DEFINE AgeDecade TEXTINPUT \"Age decade\"\nRECODE Age TO AgeDecade\n  LOVALUE - 9 = \"0-9\"\n  9 - 19 = \"10-19\"\n  19 - 29 = \"20-29\"\n  29 - 39 = \"30-39\"\n  39 - 49 = \"40-49\"\n  49 - 59 = \"50-59\"\n  59 - 69 = \"60-69\"\n  69 - HIVALUE = \"70+\"\nEND\nFREQ AgeDecade"
+    },
+    {
+      "id": "potato-salad-by-case-status",
+      "title": "Potato salad by case status",
+      "description": "Runs an unstratified categorical TABLES analysis with counts, percentages, expected counts, Pearson, and bounded Fisher-Freeman-Halton exact testing.",
+      "requiredFields": ["potato_salad", "case_status"],
+      "source": "TABLES potato_salad case_status STATISTICS=FISHER"
+    },
+    {
+      "id": "food-exposure-two-by-two",
+      "title": "Binary TABLES Single Table Analysis",
+      "description": "Exercises the legacy automatic 2 x 2 branch, including OR, RR, RD, chi-square, mid-p, and Fisher results from the validated Rust/WebAssembly kernel.",
+      "requiredFields": ["potato_salad", "hamburger"],
+      "source": "TABLES potato_salad hamburger"
     },
     {
       "id": "quality-profile",

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.categorical",
+  "planVersion": "classic-tables-v0.7.0",
+  "status": "browser-candidate",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "request": { "exposureHeader": "Potato Salad", "outcomeHeader": "Hamburger", "includeMissing": false, "confidenceLevel": 0.95 },
+  "sourceRecords": 96,
+  "includedRecords": 96,
+  "excludedMissing": 0,
+  "exposureValues": ["Yes", "No"],
+  "outcomeValues": ["Yes", "No"],
+  "strata": [
+    {
+      "value": "All records",
+      "rows": [
+        { "exposureValue": "Yes", "counts": [25, 23], "total": 48, "rowPercents": [52.083333333333336, 47.91666666666667], "columnPercents": [51.02040816326531, 48.93617021276596], "expectedCounts": [24.5, 23.5] },
+        { "exposureValue": "No", "counts": [24, 24], "total": 48, "rowPercents": [50, 50], "columnPercents": [48.97959183673469, 51.06382978723404], "expectedCounts": [24.5, 23.5] }
+      ],
+      "columnTotals": [49, 47],
+      "columnPercents": [51.041666666666664, 48.95833333333333],
+      "total": 96,
+      "pearson": { "chiSquare": 0.04168475900998697, "degreesOfFreedom": 1, "pValue": 0.8382218594865023, "minimumExpected": 23.5, "cellsExpectedBelowFive": 0, "cellsExpectedBelowOne": 0, "warning": null },
+      "twoByTwo": {
+        "exposedValue": "Yes",
+        "unexposedValue": "No",
+        "caseValue": "Yes",
+        "nonCaseValue": "No",
+        "input": { "exposedCases": 25, "exposedNonCases": 23, "unexposedCases": 24, "unexposedNonCases": 24, "confidenceLevel": 0.95 }
+      }
+    }
+  ],
+  "kernelAnchors": {
+    "oddsRatio": 1.0869565217391304,
+    "riskRatio": 1.0416666666666667,
+    "riskDifference": 0.02083333333333337,
+    "pearsonChiSquare": 0.04168475900998697
+  }
+}

@@ -84,6 +84,59 @@ export interface HostedProjectReference {
   syncedAt?: string;
 }
 
+export type StudyAreaBounds = [west: number, south: number, east: number, north: number];
+
+export interface StudyAreaPolygon {
+  type: "Polygon";
+  coordinates: Array<Array<[longitude: number, latitude: number]>>;
+}
+
+export interface OfflineMapPlan {
+  minZoom: number;
+  maxZoom: number;
+  packageLimitMiB: number;
+  status: "not-downloaded" | "stored-unverified";
+  providerId?: string;
+  estimate?: OfflineMapEstimate;
+  asset?: OfflineMapAsset;
+}
+
+export interface OfflineMapEstimate {
+  estimatorVersion: "web-mercator-v1";
+  tileCount: number;
+  averageTileBytes: number;
+  estimatedBytes: number;
+}
+
+export interface OfflineMapAsset {
+  id: string;
+  fileName: string;
+  storage: "opfs";
+  storagePath: string;
+  byteLength: number;
+  sha256: string;
+  format: "pmtiles-v3";
+  tileType: "mvt" | "png" | "jpeg" | "webp" | "avif";
+  tileCompression: string;
+  bounds: StudyAreaBounds;
+  minZoom: number;
+  maxZoom: number;
+  attribution: string;
+  license: string;
+  importedAt: string;
+  persistence: "persistent" | "best-effort";
+}
+
+export interface ProjectStudyArea {
+  id: string;
+  name: string;
+  source: "drawn-bounds" | "manual-bounds";
+  geometry: StudyAreaPolygon;
+  bounds: StudyAreaBounds;
+  bufferKm: number;
+  offlineMap: OfflineMapPlan;
+}
+
 export interface ProjectSnapshotV1 {
   version?: typeof PROJECT_SNAPSHOT_VERSION;
   name: string;
@@ -92,6 +145,7 @@ export interface ProjectSnapshotV1 {
   remote?: HostedProjectReference;
   forms: ProjectForm[];
   auditLog?: ProjectAuditEvent[];
+  studyAreas?: ProjectStudyArea[];
 }
 
 export interface MapPoint {
@@ -355,6 +409,168 @@ function remoteAt(value: unknown, path: string): HostedProjectReference {
   return result;
 }
 
+function finiteCoordinate(value: unknown, path: string, minimum: number, maximum: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum) {
+    fail(path, `must be a finite number from ${minimum} through ${maximum}`);
+  }
+  return value;
+}
+
+function studyAreaAt(value: unknown, path: string): ProjectStudyArea {
+  const source = objectAt(value, path);
+  if (source.source !== "drawn-bounds" && source.source !== "manual-bounds") {
+    fail(`${path}.source`, "must be drawn-bounds or manual-bounds");
+  }
+  if (!Array.isArray(source.bounds) || source.bounds.length !== 4) fail(`${path}.bounds`, "must contain west, south, east, and north");
+  const west = finiteCoordinate(source.bounds[0], `${path}.bounds[0]`, -180, 180);
+  const south = finiteCoordinate(source.bounds[1], `${path}.bounds[1]`, -90, 90);
+  const east = finiteCoordinate(source.bounds[2], `${path}.bounds[2]`, -180, 180);
+  const north = finiteCoordinate(source.bounds[3], `${path}.bounds[3]`, -90, 90);
+  if (west >= east) fail(`${path}.bounds`, "west must be less than east; antimeridian-crossing areas are not supported yet");
+  if (south >= north) fail(`${path}.bounds`, "south must be less than north");
+
+  const geometry = objectAt(source.geometry, `${path}.geometry`);
+  if (geometry.type !== "Polygon" || !Array.isArray(geometry.coordinates) || geometry.coordinates.length !== 1) {
+    fail(`${path}.geometry`, "must be a single-ring Polygon");
+  }
+  const ringSource = geometry.coordinates[0];
+  if (!Array.isArray(ringSource) || ringSource.length !== 5) fail(`${path}.geometry.coordinates[0]`, "must be a closed five-position bounding-box ring");
+  const ring = ringSource.map((position, index): [number, number] => {
+    if (!Array.isArray(position) || position.length !== 2) fail(`${path}.geometry.coordinates[0][${index}]`, "must be a longitude/latitude position");
+    return [
+      finiteCoordinate(position[0], `${path}.geometry.coordinates[0][${index}][0]`, -180, 180),
+      finiteCoordinate(position[1], `${path}.geometry.coordinates[0][${index}][1]`, -90, 90),
+    ];
+  });
+  const expected: Array<[number, number]> = [[west, south], [east, south], [east, north], [west, north], [west, south]];
+  if (ring.some((position, index) => position[0] !== expected[index]![0] || position[1] !== expected[index]![1])) {
+    fail(`${path}.geometry`, "must match the declared bounding box");
+  }
+
+  const offline = objectAt(source.offlineMap, `${path}.offlineMap`);
+  for (const property of ["minZoom", "maxZoom", "packageLimitMiB"] as const) {
+    if (typeof offline[property] !== "number" || !Number.isSafeInteger(offline[property])) fail(`${path}.offlineMap.${property}`, "must be a safe integer");
+  }
+  const offlineMinZoom = Number(offline.minZoom);
+  const offlineMaxZoom = Number(offline.maxZoom);
+  const packageLimitMiB = Number(offline.packageLimitMiB);
+  if (offlineMinZoom < 0 || offlineMaxZoom > 22 || offlineMinZoom > offlineMaxZoom) {
+    fail(`${path}.offlineMap`, "zoom range must be ordered within 0 through 22");
+  }
+  if (packageLimitMiB < 1 || packageLimitMiB > 1024) fail(`${path}.offlineMap.packageLimitMiB`, "must be from 1 through 1024 MiB");
+  if (offline.status !== "not-downloaded" && offline.status !== "stored-unverified") fail(`${path}.offlineMap.status`, "must be not-downloaded or stored-unverified");
+  if (offline.providerId !== undefined) nonEmptyString(offline.providerId, `${path}.offlineMap.providerId`);
+  let estimate: OfflineMapEstimate | undefined;
+  if (offline.estimate !== undefined) {
+    const estimateSource = objectAt(offline.estimate, `${path}.offlineMap.estimate`);
+    if (estimateSource.estimatorVersion !== "web-mercator-v1") fail(`${path}.offlineMap.estimate.estimatorVersion`, "must be web-mercator-v1");
+    for (const property of ["tileCount", "averageTileBytes", "estimatedBytes"] as const) {
+      if (typeof estimateSource[property] !== "number" || !Number.isSafeInteger(estimateSource[property]) || estimateSource[property] < 0) {
+        fail(`${path}.offlineMap.estimate.${property}`, "must be a non-negative safe integer");
+      }
+    }
+    const tileCount = Number(estimateSource.tileCount);
+    const averageTileBytes = Number(estimateSource.averageTileBytes);
+    const estimatedBytes = Number(estimateSource.estimatedBytes);
+    if (averageTileBytes < 1) fail(`${path}.offlineMap.estimate.averageTileBytes`, "must be at least 1");
+    if (estimatedBytes !== tileCount * averageTileBytes) {
+      fail(`${path}.offlineMap.estimate.estimatedBytes`, "must equal tileCount multiplied by averageTileBytes");
+    }
+    estimate = {
+      estimatorVersion: "web-mercator-v1",
+      tileCount,
+      averageTileBytes,
+      estimatedBytes,
+    };
+  }
+  let asset: OfflineMapAsset | undefined;
+  if (offline.asset !== undefined) {
+    const assetSource = objectAt(offline.asset, `${path}.offlineMap.asset`);
+    if (assetSource.storage !== "opfs") fail(`${path}.offlineMap.asset.storage`, "must be opfs");
+    if (assetSource.format !== "pmtiles-v3") fail(`${path}.offlineMap.asset.format`, "must be pmtiles-v3");
+    if (!["mvt", "png", "jpeg", "webp", "avif"].includes(String(assetSource.tileType))) {
+      fail(`${path}.offlineMap.asset.tileType`, "is not supported");
+    }
+    if (assetSource.persistence !== "persistent" && assetSource.persistence !== "best-effort") {
+      fail(`${path}.offlineMap.asset.persistence`, "must be persistent or best-effort");
+    }
+    const assetId = nonEmptyString(assetSource.id, `${path}.offlineMap.asset.id`);
+    const sha256 = nonEmptyString(assetSource.sha256, `${path}.offlineMap.asset.sha256`).toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(sha256)) fail(`${path}.offlineMap.asset.sha256`, "must be a SHA-256 digest");
+    if (assetId !== sha256) fail(`${path}.offlineMap.asset.id`, "must equal the archive SHA-256 digest");
+    if (typeof assetSource.byteLength !== "number" || !Number.isSafeInteger(assetSource.byteLength) || assetSource.byteLength < 127) {
+      fail(`${path}.offlineMap.asset.byteLength`, "must be a safe integer of at least 127 bytes");
+    }
+    const assetByteLength = Number(assetSource.byteLength);
+    if (assetByteLength > packageLimitMiB * 1024 * 1024) fail(`${path}.offlineMap.asset.byteLength`, "exceeds the project package limit");
+    if (!Array.isArray(assetSource.bounds) || assetSource.bounds.length !== 4) fail(`${path}.offlineMap.asset.bounds`, "must contain west, south, east, and north");
+    const assetBounds: StudyAreaBounds = [
+      finiteCoordinate(assetSource.bounds[0], `${path}.offlineMap.asset.bounds[0]`, -180, 180),
+      finiteCoordinate(assetSource.bounds[1], `${path}.offlineMap.asset.bounds[1]`, -90, 90),
+      finiteCoordinate(assetSource.bounds[2], `${path}.offlineMap.asset.bounds[2]`, -180, 180),
+      finiteCoordinate(assetSource.bounds[3], `${path}.offlineMap.asset.bounds[3]`, -90, 90),
+    ];
+    if (assetBounds[0] > west || assetBounds[1] > south || assetBounds[2] < east || assetBounds[3] < north) {
+      fail(`${path}.offlineMap.asset.bounds`, "must cover the complete study area");
+    }
+    for (const property of ["minZoom", "maxZoom"] as const) {
+      if (typeof assetSource[property] !== "number" || !Number.isSafeInteger(assetSource[property])) fail(`${path}.offlineMap.asset.${property}`, "must be a safe integer");
+    }
+    const assetMinZoom = Number(assetSource.minZoom);
+    const assetMaxZoom = Number(assetSource.maxZoom);
+    if (assetMinZoom < 0 || assetMaxZoom > 22 || assetMinZoom > offlineMinZoom || assetMaxZoom < offlineMaxZoom) {
+      fail(`${path}.offlineMap.asset`, "zoom coverage must contain the complete planned range");
+    }
+    const importedAt = nonEmptyString(assetSource.importedAt, `${path}.offlineMap.asset.importedAt`);
+    if (Number.isNaN(Date.parse(importedAt))) fail(`${path}.offlineMap.asset.importedAt`, "must be an ISO date-time");
+    const storagePath = nonEmptyString(assetSource.storagePath, `${path}.offlineMap.asset.storagePath`);
+    if (!storagePath.startsWith("epi-info-ai/offline-maps/") || storagePath.includes("..") || !storagePath.endsWith(".pmtiles") || !storagePath.includes(sha256)) {
+      fail(`${path}.offlineMap.asset.storagePath`, "must remain in the offline-maps OPFS directory and identify the archive digest");
+    }
+    asset = {
+      id: assetId,
+      fileName: nonEmptyString(assetSource.fileName, `${path}.offlineMap.asset.fileName`),
+      storage: "opfs",
+      storagePath,
+      byteLength: assetByteLength,
+      sha256,
+      format: "pmtiles-v3",
+      tileType: assetSource.tileType as OfflineMapAsset["tileType"],
+      tileCompression: nonEmptyString(assetSource.tileCompression, `${path}.offlineMap.asset.tileCompression`),
+      bounds: assetBounds,
+      minZoom: assetMinZoom,
+      maxZoom: assetMaxZoom,
+      attribution: nonEmptyString(assetSource.attribution, `${path}.offlineMap.asset.attribution`),
+      license: nonEmptyString(assetSource.license, `${path}.offlineMap.asset.license`),
+      importedAt,
+      persistence: assetSource.persistence,
+    };
+  }
+  if (offline.status === "stored-unverified" && !asset) fail(`${path}.offlineMap.asset`, "is required when status is stored-unverified");
+  if (offline.status === "not-downloaded" && asset) fail(`${path}.offlineMap.status`, "must be stored-unverified when an asset is attached");
+  if (typeof source.bufferKm !== "number" || !Number.isFinite(source.bufferKm) || source.bufferKm < 0 || source.bufferKm > 500) {
+    fail(`${path}.bufferKm`, "must be a finite number from 0 through 500");
+  }
+  const bufferKm = Number(source.bufferKm);
+  return {
+    id: nonEmptyString(source.id, `${path}.id`),
+    name: nonEmptyString(source.name, `${path}.name`),
+    source: source.source,
+    geometry: { type: "Polygon", coordinates: [ring] },
+    bounds: [west, south, east, north],
+    bufferKm,
+    offlineMap: {
+      minZoom: offlineMinZoom,
+      maxZoom: offlineMaxZoom,
+      packageLimitMiB,
+      status: offline.status,
+      ...(offline.providerId !== undefined ? { providerId: nonEmptyString(offline.providerId, `${path}.offlineMap.providerId`) } : {}),
+      ...(estimate ? { estimate } : {}),
+      ...(asset ? { asset } : {}),
+    },
+  };
+}
+
 export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
   const snapshot = objectAt(value, "project");
   if (snapshot.version !== undefined && snapshot.version !== PROJECT_SNAPSHOT_VERSION) {
@@ -382,6 +598,15 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
   if (snapshot.version !== undefined) result.version = PROJECT_SNAPSHOT_VERSION;
   if (snapshot.storage !== undefined) result.storage = storageAt(snapshot.storage, "project.storage");
   if (snapshot.remote !== undefined) result.remote = remoteAt(snapshot.remote, "project.remote");
+  if (snapshot.studyAreas !== undefined) {
+    if (!Array.isArray(snapshot.studyAreas)) fail("project.studyAreas", "must be an array");
+    result.studyAreas = snapshot.studyAreas.map((area, index) => studyAreaAt(area, `project.studyAreas[${index}]`));
+    const studyAreaIds = new Set<string>();
+    for (const area of result.studyAreas) {
+      if (studyAreaIds.has(area.id)) fail("project.studyAreas", `contains duplicate study-area id ${JSON.stringify(area.id)}`);
+      studyAreaIds.add(area.id);
+    }
+  }
   if (snapshot.auditLog !== undefined) {
     if (!Array.isArray(snapshot.auditLog)) fail("project.auditLog", "must be an array");
     result.auditLog = snapshot.auditLog.map((item, index) => {

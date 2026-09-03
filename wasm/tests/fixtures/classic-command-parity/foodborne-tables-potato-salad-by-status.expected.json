@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.categorical",
+  "planVersion": "classic-tables-v0.7.0",
+  "status": "browser-candidate",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "request": { "exposureHeader": "Potato Salad", "outcomeHeader": "Case Status", "strataHeader": "Sex", "includeMissing": false },
+  "sourceRecords": 96,
+  "includedRecords": 96,
+  "excludedMissing": 0,
+  "exposureValues": ["No", "Yes"],
+  "outcomeValues": ["Confirmed", "Not a case", "Probable", "Suspected"],
+  "strata": [
+    {
+      "value": "Female",
+      "rows": [
+        { "exposureValue": "No", "counts": [0, 20, 0, 4], "total": 24, "rowPercents": [0, 83.33333333333334, 0, 16.666666666666664], "columnPercents": [0, 76.92307692307693, 0, 100], "expectedCounts": [5, 13, 4, 2] },
+        { "exposureValue": "Yes", "counts": [10, 6, 8, 0], "total": 24, "rowPercents": [41.66666666666667, 25, 33.33333333333333, 0], "columnPercents": [100, 23.076923076923077, 100, 0], "expectedCounts": [5, 13, 4, 2] }
+      ],
+      "columnTotals": [10, 26, 8, 4],
+      "columnPercents": [20.833333333333336, 54.166666666666664, 16.666666666666664, 8.333333333333332],
+      "total": 48,
+      "pearson": { "chiSquare": 29.53846153846154, "degreesOfFreedom": 3, "pValue": 0.0000017256722894236624, "minimumExpected": 2, "cellsExpectedBelowFive": 4, "cellsExpectedBelowOne": 0, "warning": "An expected value is < 5. Chi-squared may not be a valid test." }
+    },
+    {
+      "value": "Male",
+      "rows": [
+        { "exposureValue": "No", "counts": [0, 20, 2, 2], "total": 24, "rowPercents": [0, 83.33333333333334, 8.333333333333332, 8.333333333333332], "columnPercents": [0, 76.92307692307693, 25, 100], "expectedCounts": [6, 13, 4, 1] },
+        { "exposureValue": "Yes", "counts": [12, 6, 6, 0], "total": 24, "rowPercents": [50, 25, 25, 0], "columnPercents": [100, 23.076923076923077, 75, 0], "expectedCounts": [6, 13, 4, 1] }
+      ],
+      "columnTotals": [12, 26, 8, 2],
+      "columnPercents": [25, 54.166666666666664, 16.666666666666664, 4.166666666666666],
+      "total": 48,
+      "pearson": { "chiSquare": 23.53846153846154, "degreesOfFreedom": 3, "pValue": 0.00003118271175611744, "minimumExpected": 1, "cellsExpectedBelowFive": 4, "cellsExpectedBelowOne": 0, "warning": "An expected value is < 5. Chi-squared may not be a valid test." }
+    }
+  ]
+}

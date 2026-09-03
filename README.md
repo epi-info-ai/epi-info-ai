@@ -62,9 +62,9 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch the GitHub Pages mirror](https://epi-info-ai.github.io/epi-info-ai/)** — the same validated `main` build published by GitHub Actions for external replication testing.
 
-**[Open Validation Lab V0.15](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb)** — opens the current StatCalc Chi Square for Trend validation notebook directly. The [Unmatched Case-Control notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-unmatched-case-control.ipynb), [Cohort notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-cohort-cross-sectional.ipynb), [Population Survey notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-population-survey.ipynb), [Rates notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-rate.ipynb), [means notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb), [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
+**[Open TABLES Validation Lab V0.3](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-tables.ipynb)** — independently validates the unstratified and stratified foodborne M×N matrices, percentages, expected counts, Pearson chi-square, degrees of freedom, p-values, and sparse-cell warnings with Python/SciPy. The [Chi Square for Trend notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb), [Unmatched Case-Control notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-unmatched-case-control.ipynb), [Cohort notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-cohort-cross-sectional.ipynb), [Population Survey notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-population-survey.ipynb), [Rates notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-rate.ipynb), [means notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb), [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
 
-The validation lab is also replicated on [GitHub Pages](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb).
+The TABLES validation lab is also replicated on [GitHub Pages](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-tables.ipynb).
 
 Current capabilities include:
 
@@ -77,7 +77,30 @@ Current capabilities include:
   legacy C# order, expose unported commands as named gaps, and mark browser-only
   additions as new branches;
 - browser-local projects with optional authenticated Supabase snapshot synchronization;
-- validated File > Open Project and Save Project As using a portable V2 package,
+- optional New Project study-area capture without a dataset: draw or enter a
+  signed WGS 84 bounding box, review approximate dimensions and a size-based
+  zoom recommendation, and preserve the GeoJSON boundary plus an explicit
+  100 MiB offline-map plan in the portable project snapshot;
+- provider-aware offline-map planning that counts intersecting Web Mercator
+  tiles, estimates bytes, checks the project limit and browser-reported quota,
+  keeps OpenStreetMap Standard preview-only, and identifies browser-local
+  PMTiles in OPFS as the preferred guaranteed-offline path;
+- PMTiles v3 archive import with fail-closed header/section, study-area/zoom,
+  size, attribution/license, and SHA-256 validation; applying the study area
+  writes the archive to browser OPFS and records portable provenance while
+  cancellation removes an uncommitted asset. Maps reopens a raster PNG, JPEG,
+  WebP, or AVIF package from OPFS, verifies its size, SHA-256, and header before
+  activation, displays its attribution/license, and suppresses online street
+  tiles. Vector MVT packages lazy-load a self-hosted MapLibre canvas beneath
+  the existing Leaflet overlays and use a local custom protocol; only declared
+  `vector_layers` are styled, so ordinary startup does not load MapLibre.
+  Project-package backup embeds and restores these map archives. Maps detects
+  missing/corrupt OPFS copies before claiming readiness and offers backup
+  restore, exact-digest PMTiles re-import, blank continuation, or detach;
+  proactive quota-pressure warning and network-disabled field acceptance remain open;
+- validated File > Open Project and Save Project As using a portable binary
+  `.epia` package; attached PMTiles archives are embedded, integrity-checked,
+  and restored to browser-local OPFS, while older JSON-only V2 packages remain readable,
   plus a reproducible conversion of the official legacy Sample project;
 - standalone and current-form map workflows, browser geolocation, and an optional online OpenStreetMap basemap;
 - browser-local GeoJSON upload, polygon-label field selection, zoom-dependent interior labels, and label visibility controls;
@@ -104,11 +127,14 @@ Current capabilities include:
   library; unsupported legacy commands remain editable but
   non-executable;
 - typed Frequencies, Means, and Tables builders that insert visible Epi Info
-  source, plus fail-closed execution of one selected FREQ or MEANS statement;
-  selected TABLES fields require explicit exposed/case value review before any
-  calculation;
-- a Tools > Epi Assist **new branch** that can run IBM Granite 4.0 350M Instruct
-  locally in a WebGPU Worker and propose reviewed handoffs to Data Quality,
+  source, plus fail-closed execution of one selected FREQ, MEANS, or categorical
+  TABLES statement. TABLES preserves all observed categories and reports M×N
+  counts, row/column percentages, totals, expected counts, Pearson statistics,
+  and sparse-cell warnings without inventing an exposed/case classification; the separate stratified
+  2 x 2 workflow still requires explicit value review;
+- a Tools > Epi Assist **new branch** that can run IBM Granite 4.0 350M
+  through a CPU/WebAssembly compatibility path (q4) or compare the WebGPU 350M
+  (fp16) and 1B (q4) options, then propose reviewed handoffs to Data Quality,
   Classic `FREQ`, and Epi Curve; the non-AI preview demonstrates the same handoff
   without loading a model;
 - a StatCalc Population Survey candidate preserving the familiar five inputs and seven-level cluster/total sample table;
@@ -140,8 +166,9 @@ appear in the Epi Info workflow menus. Its current Pyodide runtime and scientifi
 packages are fetched on demand, so the first notebook run requires network access.
 
 The Epi Assist prototype likewise distinguishes local inference from offline
-distribution. Its first user-initiated load retrieves approximately 709 MB of
-Granite fp16 model files from the model host and enables browser caching. Prompts,
+distribution. Its first user-initiated load retrieves approximately 576 MB for
+the default CPU-compatible model, 709 MB for 350M WebGPU, or 1.78 GB for 1B
+WebGPU, and enables browser caching. Prompts,
 record values, and project content are not sent to an inference API; V0.1 sends
 only field metadata and aggregate quality counts into the local Worker. See the
 [Epi Assist new-branch inventory](wasm/docs/design/epi-assist-compatibility-inventory.md)
@@ -477,6 +504,27 @@ checksums, expected metadata, and combined testing workflow are documented in
 
 ## TODO
 
+- **Next Statistics slice — continue Classic Analysis `TABLES` parity.** The
+  current browser-verified V0.6 floor renders unstratified or one-stratum categorical counts, row/column
+  percentages, totals, expected counts, Pearson chi-square/df/probability, and
+  sparse-cell warnings for two fields and one `STRATAVAR`. A true observed 2 × 2
+  table also receives the familiar Single Table Analysis: odds ratios, risk
+  ratio, risk difference, chi-square variants, mid-p, Fisher, and confidence
+  limits from the validated Rust/WebAssembly kernel. It is not full legacy
+  TABLES parity. The JupyterLite TABLES and 2 × 2 labs independently check the
+  statistical contracts. `STATISTICS=FISHER` now supplies bounded 2 × N exact
+  testing with a visible 200,000-table limit. `SET MISSING=OFF/ON`, inverse
+  `SET IGNORE`, and `SET (.)="label"` preserve the legacy OFF/`Missing`
+  defaults in ordered programs. Next implement and test:
+  - multiple-variable and multiple-`STRATAVAR` forms;
+  - `WEIGHTVAR` and reviewed `OUTTABLE` behavior; and
+  - legacy-compatible stratified 2 × 2 Mantel–Haenszel and homogeneity output.
+  Preserve the legacy dialog and visible command source, add foodborne `.pgm`
+  fixtures and expected results for every increment, and do not mark TABLES
+  legacy-parity-verified until desktop differential output is reviewed.
+  Sequential Program Editor runs now retain a numbered, read-only Output
+  document for every statement, including snapshots from repeated FREQ, LIST,
+  and TABLES commands, so later output cannot make earlier commands appear skipped.
 - **Menu parity:** complete the legacy item-level context-state matrix,
   shortcuts, and behavior inventory across every module. Form Designer, Enter
   Data, Visual Dashboard, and Classic Analysis now have typed structural
@@ -514,11 +562,18 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Continue decomposing the typed Forms controller into designer, validation,
   Data Quality, and record-lifecycle modules before expanding legacy parity.
 - Add explicit coordinate reference system detection and reprojection for imported spatial data; current case coordinates and GeoJSON are expected in WGS 84 longitude/latitude.
+- Revive the dormant Classic Analysis `MAP` programming command as a documented revival/new branch: reconcile its legacy thematic grammar (`AVG`, `CASE_BASED`, `SUM`, `COUNT`, `MIN`, `MAX`) with typed map-layer plans and test programs. Keep modern GeoJSON, H3, GeoTIFF, offline-package, and future spatial-analysis commands explicitly labeled as new branches.
 - Expand GeoTIFF beyond the bounded WGS 84 first-band demo with deterministic reprojection, multiband styling, legends, persisted layer definitions, and richer nodata controls.
 - Replace the demonstration Nominatim geocoder with an approved, configurable
   provider/backend for production scale, privacy controls, rate limits, audit,
   and service-independent test fixtures; then extend legacy GEOCODE compatibility.
-- Add offline basemap packages, choropleths, spatial analysis, and additional legacy map workflows.
+- Complete the browser-local PMTiles branch: expand corrupt directory/tile
+  validation and vector-style review, warn proactively about quota pressure and
+  best-effort eviction risk, and pass
+  field-offline tests. Package backup/export and restore are now present. Raster
+  archives already render from OPFS after runtime integrity verification. Do
+  not treat evictable browser HTTP cache as complete coverage.
+  Then add choropleths, spatial analysis, and additional legacy map workflows.
 - Replace `localStorage` project persistence with SQLite WASM and OPFS.
 - Harden the browser-verified V0.1 `FILE CONVERT` facility for legacy Epi Info
   `.mdb` and `.accdb` projects. It reads an explicitly selected local file with

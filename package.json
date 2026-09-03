@@ -35,6 +35,7 @@
     "codemirror": "6.0.2",
     "events": "^3.3.0",
     "geotiff": "3.0.5",
+    "maplibre-gl": "6.6.0",
     "mdb-reader": "^3.2.0",
     "process": "^0.11.10",
     "read-excel-file": "9.3.10",

@@ -13,6 +13,22 @@ FREQ case_status STRATAVAR=Sex
 
 MEANS Age
 
+SET (.)="Not recorded"
+
+SET MISSING=ON
+
+TABLES vomiting Sex
+
+SET MISSING=OFF
+
+SET (.)="Missing"
+
+TABLES potato_salad hamburger
+
+TABLES potato_salad case_status STRATAVAR=Sex STATISTICS=FISHER
+
+TABLES potato_salad hamburger STRATAVAR=Sex case_status
+
 SELECT case_status = "Confirmed" AND Age >= 18
 
 FREQ Sex

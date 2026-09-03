@@ -176,6 +176,16 @@ export interface ClassicGraphStatement extends ClassicNode {
   yTitle?: string;
 }
 
+export type ClassicSetStatement = ClassicNode & ({
+  type: "SetStatement";
+  option: "MISSING";
+  enabled: boolean;
+} | {
+  type: "SetStatement";
+  option: "REPRESENTATION_OF_MISSING";
+  value: string;
+});
+
 export interface EpiAiQualityStatement extends ClassicNode {
   type: "EpiAiQualityStatement";
 }
@@ -276,6 +286,7 @@ export type ClassicStatement =
   | ClassicMeansStatement
   | ClassicSummarizeStatement
   | ClassicGraphStatement
+  | ClassicSetStatement
   | EpiAiQualityStatement
   | FileConvertStatement
   | ClassicDefineStatement
@@ -624,6 +635,7 @@ class ProgramParser {
     if (command === "MEANS") return this.means(line, rest);
     if (command === "SUMMARIZE") return this.summarize(line, rest);
     if (command === "GRAPH") return this.graph(line, rest);
+    if (command === "SET") return this.setOption(line, rest);
     if (command === "EPIAI") return this.epiAi(line, rest);
     if (command === "FILE") return this.file(line, rest);
     if (command === "DEFINE") return this.define(line, rest, restColumn);
@@ -644,6 +656,18 @@ class ProgramParser {
     if (tokens[0]?.toUpperCase() !== "QUALITY") throw new ClassicSyntaxError(line.line, 1, "This new-branch AST slice supports EPIAI QUALITY only.");
     if (tokens.length === 2 && tokens[1] === "*") return { type: "EpiAiQualityStatement", span: lineSpan(line) };
     throw new ClassicSyntaxError(line.line, 1, "This bounded new branch uses EPIAI QUALITY * only.");
+  }
+
+  private setOption(line: SourceLine, rest: string): ClassicSetStatement {
+    const setting = rest.trim();
+    const missing = setting.match(/^(MISSING|IGNORE)\s*=\s*(ON|OFF|TRUE|FALSE|\(\+\)|\(-\))$/i);
+    if (missing) {
+      const switchedOn = ["ON", "TRUE", "(+)"].includes(missing[2]!.toUpperCase());
+      return { type: "SetStatement", option: "MISSING", enabled: missing[1]!.toUpperCase() === "IGNORE" ? !switchedOn : switchedOn, span: lineSpan(line) };
+    }
+    const representation = setting.match(/^\(\.\)\s*=\s*"((?:[^"]|"")*)"$/);
+    if (representation?.[1]) return { type: "SetStatement", option: "REPRESENTATION_OF_MISSING", value: representation[1].replace(/""/g, '"'), span: lineSpan(line) };
+    throw new ClassicSyntaxError(line.line, 1, "This SET slice supports MISSING/IGNORE ON or OFF, and (.)=\"missing label\".");
   }
 
   private file(line: SourceLine, rest: string): FileConvertStatement {

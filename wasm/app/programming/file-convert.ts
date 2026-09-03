@@ -107,11 +107,16 @@ async function readAccessSource(file: File, plan: FileConvertPlan) {
   if (file.name.toLocaleLowerCase("en-US") !== plan.inputFile.toLocaleLowerCase("en-US")) throw new RangeError(`Choose ${plan.inputFile}; the selected file is ${file.name}.`);
   const sourceBytes = new Uint8Array(await file.arrayBuffer());
   const sourceSha256 = [...new Uint8Array(await crypto.subtle.digest("SHA-256", sourceBytes))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  const [{ Buffer }, { default: process }] = await Promise.all([import("buffer"), import("process")]);
-  (globalThis as unknown as { Buffer: typeof Buffer }).Buffer = Buffer;
+  const [bufferModule, { default: process }] = await Promise.all([import("buffer"), import("process")]);
+  // The browser bundle exposes the CommonJS buffer shim as its default export,
+  // while TypeScript/Node expose Buffer as a named export. Accept both shapes.
+  const BufferConstructor = (bufferModule as unknown as { Buffer?: typeof import("buffer").Buffer; default?: { Buffer?: typeof import("buffer").Buffer } }).Buffer
+    ?? (bufferModule as unknown as { default?: { Buffer?: typeof import("buffer").Buffer } }).default?.Buffer;
+  if (!BufferConstructor) throw new Error("The browser Buffer compatibility module did not initialize.");
+  (globalThis as unknown as { Buffer: typeof BufferConstructor }).Buffer = BufferConstructor;
   (globalThis as unknown as { process: typeof process }).process = process;
   const { default: MDBReader } = await import("mdb-reader");
-  const reader = new MDBReader(Buffer.from(sourceBytes));
+  const reader = new MDBReader(BufferConstructor.from(sourceBytes));
   return { reader, sourceSha256 };
 }
 
@@ -119,7 +124,8 @@ export async function convertAccessFileToSqlite(file: File, plan: FileConvertPla
   if (plan.target !== "sqlite") throw new RangeError("The selected FILE CONVERT plan is not a SQLite target.");
   const { reader, sourceSha256 } = await readAccessSource(file, plan);
   const { default: sqlite3InitModule } = await import("@sqlite.org/sqlite-wasm");
-  const sqlite3 = await sqlite3InitModule();
+  const initializeSqlite = sqlite3InitModule as unknown as (options: { locateFile(path: string): string }) => ReturnType<typeof sqlite3InitModule>;
+  const sqlite3 = await initializeSqlite({ locateFile: () => new URL("./sqlite3.wasm", document.baseURI).href });
   const db = new sqlite3.oo1.DB(":memory:", "c");
   const tables: FileConvertTableResult[] = [];
   const warnings = ["Forms, reports, macros, VBA, relationships, indexes, and saved Access query semantics are not migrated in V0.1."];
@@ -158,8 +164,8 @@ export async function convertAccessFileToDuckdb(file: File, plan: FileConvertPla
   const { reader, sourceSha256 } = await readAccessSource(file, plan);
   const duckdb = await import("@duckdb/duckdb-wasm");
   const bundle = await duckdb.selectBundle({
-    mvp: { mainModule: new URL("duckdb-mvp.wasm", import.meta.url).href, mainWorker: new URL("duckdb-browser-mvp.worker.js", import.meta.url).href },
-    eh: { mainModule: new URL("duckdb-eh.wasm", import.meta.url).href, mainWorker: new URL("duckdb-browser-eh.worker.js", import.meta.url).href },
+    mvp: { mainModule: new URL("./duckdb-mvp.wasm", document.baseURI).href, mainWorker: new URL("./duckdb-browser-mvp.worker.js", document.baseURI).href },
+    eh: { mainModule: new URL("./duckdb-eh.wasm", document.baseURI).href, mainWorker: new URL("./duckdb-browser-eh.worker.js", document.baseURI).href },
   });
   const worker = new Worker(bundle.mainWorker!);
   const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING), worker);

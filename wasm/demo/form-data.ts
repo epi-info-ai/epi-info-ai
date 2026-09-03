@@ -8,6 +8,7 @@
   type HostedProjectReference,
   type ProjectForm,
   type ProjectSnapshotV1,
+  type ProjectStudyArea,
 } from "../app/contracts/core.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
 import type { ClassicDeleteRecordsResult } from "../app/programming/classic-delete-records.ts";
@@ -23,6 +24,13 @@ import {
   type ProjectCodeTable,
   type ProjectProgram,
 } from "../app/contracts/project-package.ts";
+import {
+  createProjectArchive,
+  isBinaryProjectArchive,
+  MAX_PROJECT_ARCHIVE_BYTES,
+  parseProjectArchive,
+  type ProjectArchiveAsset,
+} from "../app/contracts/project-archive.ts";
 import {
   inferSchemaFromCsv,
   inferSchemaFromRows,
@@ -41,6 +49,10 @@ import {
   setEntryView,
 } from "../app/forms/entry-view.ts";
 import { loadProjectSnapshot } from "../app/forms/project-state.ts";
+import { initializeStudyAreaPicker, openStudyAreaPicker } from "../app/forms/study-area-picker.ts";
+import { offlineMapProvider } from "../app/maps/offline-map-estimator.ts";
+import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
+import { readStoredPmtilesFile } from "../app/maps/pmtiles-reader.ts";
 import { renderFormDesignerMenuContract } from "../app/forms/form-designer-menu.ts";
 import { renderEnterDataMenuContract } from "../app/forms/enter-data-menu.ts";
 import { buildDataQualityReport, type DuplicateGroup } from "../app/forms/data-quality.ts";
@@ -520,6 +532,25 @@ export function applyClassicUndeleteRecords(result: ClassicUndeleteRecordsResult
 export function getCurrentProjectSnapshot(): ProjectSnapshotV1 {
   syncCurrentForm();
   return structuredClone(projectState);
+}
+
+export function replaceCurrentOfflineMapAsset(previousSha256: string, replacement: ProjectStudyArea["offlineMap"]["asset"]): void {
+  if (!replacement) throw new Error("A replacement offline-map asset is required.");
+  const studyArea = projectState.studyAreas?.find((area) => area.offlineMap.asset?.sha256 === previousSha256);
+  if (!studyArea) throw new Error("The offline-map reference changed before recovery completed.");
+  studyArea.offlineMap.asset = structuredClone(replacement);
+  studyArea.offlineMap.status = "stored-unverified";
+  if (!syncCurrentForm()) throw new Error("The recovered offline-map reference could not be saved.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+}
+
+export function detachCurrentOfflineMapAsset(sha256: string): void {
+  const studyArea = projectState.studyAreas?.find((area) => area.offlineMap.asset?.sha256 === sha256);
+  if (!studyArea) throw new Error("The offline-map reference is no longer attached to this project.");
+  delete studyArea.offlineMap.asset;
+  studyArea.offlineMap.status = "not-downloaded";
+  if (!syncCurrentForm()) throw new Error("The offline-map reference could not be detached.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
 }
 
 export function getCurrentProjectPrograms(): ProjectProgram[] {
@@ -1368,28 +1399,69 @@ async function datasetProvenanceForFile(file: File): Promise<DatasetProvenance> 
   return { id: datasetIdForFile(file.name), file: file.name, sha256 };
 }
 
-function saveProjectPackage(): void {
+function projectOfflineAssets(snapshot: ProjectSnapshotV1) {
+  const assets = (snapshot.studyAreas ?? []).flatMap((area) => area.offlineMap.asset ? [area.offlineMap.asset] : []);
+  return assets.filter((asset, index) => assets.findIndex((candidate) => candidate.sha256 === asset.sha256) === index);
+}
+
+async function saveProjectPackage(): Promise<void> {
   if (!hasActiveProject) {
     requiredElement("#main-menu-status").textContent = "Open or create a project before exporting a project package.";
     return;
   }
-  syncCurrentForm();
-  const packageValue = createProjectPackage(projectState, projectPackageExtras);
-  const blob = new Blob([`${JSON.stringify(packageValue, null, 2)}\n`], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `${safeFileStem(projectName)}.epia.json`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-  requiredElement("#main-menu-status").textContent = `Saved ${projectName} as a portable Epi Info AI project package.`;
+  requiredElement("#main-menu-status").textContent = `Preparing ${projectName} for portable export...`;
+  try {
+    syncCurrentForm();
+    const packageValue = createProjectPackage(projectState, projectPackageExtras);
+    const archiveAssets: ProjectArchiveAsset[] = [];
+    for (const asset of projectOfflineAssets(packageValue.project)) {
+      archiveAssets.push({ asset, file: await readStoredPmtilesFile(asset) });
+    }
+    const blob = await createProjectArchive(packageValue, archiveAssets);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${safeFileStem(projectName)}.epia`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    const mapSummary = archiveAssets.length === 0 ? "" : ` with ${archiveAssets.length} embedded offline map archive${archiveAssets.length === 1 ? "" : "s"}`;
+    requiredElement("#main-menu-status").textContent = `Saved ${projectName}${mapSummary} as a portable Epi Info AI project package.`;
+  } catch (error) {
+    requiredElement("#main-menu-status").textContent = error instanceof Error
+      ? `Project export failed: ${error.message} Re-import any missing offline map package and try again.`
+      : "Project export failed.";
+  }
 }
 
 async function openProjectPackage(file: File): Promise<void> {
-  if (file.size > MAX_PROJECT_PACKAGE_BYTES) {
-    throw new Error(`Project packages are limited to ${Math.round(MAX_PROJECT_PACKAGE_BYTES / 1024 / 1024)} MB in this prototype.`);
+  if (file.size > MAX_PROJECT_ARCHIVE_BYTES) throw new Error("Project packages are limited to 150 MiB in this prototype.");
+  const binary = await isBinaryProjectArchive(file);
+  let packageValue;
+  let embeddedAssets: ProjectArchiveAsset[] = [];
+  if (binary) {
+    const archive = await parseProjectArchive(file);
+    packageValue = archive.projectPackage;
+    embeddedAssets = archive.assets;
+  } else {
+    if (file.size > MAX_PROJECT_PACKAGE_BYTES) {
+      throw new Error(`Legacy JSON project packages are limited to ${Math.round(MAX_PROJECT_PACKAGE_BYTES / 1024 / 1024)} MB in this prototype.`);
+    }
+    packageValue = parseProjectPackage(await file.text());
   }
-  const packageValue = parseProjectPackage(await file.text());
+  const restoredAssets = [];
+  try {
+    for (const embedded of embeddedAssets) restoredAssets.push(await restorePmtilesAsset(embedded.asset, embedded.file));
+  } catch (error) {
+    await Promise.all(restoredAssets.map((asset) => removePmtilesAsset(asset).catch(() => undefined)));
+    throw error;
+  }
+  for (const area of packageValue.project.studyAreas ?? []) {
+    const asset = area.offlineMap.asset;
+    if (!asset) continue;
+    const restored = restoredAssets.find((candidate) => candidate.sha256 === asset.sha256);
+    if (restored) area.offlineMap.asset = restored;
+  }
   if (!closeCurrentProject("Current project saved to Recent Projects before opening a project package.")) {
+    await Promise.all(restoredAssets.map((asset) => removePmtilesAsset(asset).catch(() => undefined)));
     throw new Error("The selected package was not opened because the current project could not be closed safely.");
   }
   projectPackageExtras = {
@@ -1402,8 +1474,14 @@ async function openProjectPackage(file: File): Promise<void> {
   const legacySummary = packageValue.migration
     ? ` Migrated inventory: ${packageValue.migration.inventory.forms} forms, ${packageValue.migration.inventory.pages} pages, ${packageValue.migration.inventory.fields} fields.`
     : "";
-  requiredElement("#main-menu-status").textContent = `Opened ${packageValue.project.name}.${legacySummary}`;
-  requiredElement("#form-status").textContent = `Opened ${packageValue.project.name} with ${packageValue.programs.length} program${packageValue.programs.length === 1 ? "" : "s"} and ${packageValue.codeTables.length} code table${packageValue.codeTables.length === 1 ? "" : "s"}.${legacySummary}`;
+  const referencedMapCount = projectOfflineAssets(packageValue.project).length;
+  const mapSummary = restoredAssets.length > 0
+    ? ` Restored ${restoredAssets.length} offline map archive${restoredAssets.length === 1 ? "" : "s"} into this browser.`
+    : referencedMapCount > 0
+      ? " This older JSON package records an offline map but does not contain its bytes; re-import the PMTiles archive before offline use."
+      : "";
+  requiredElement("#main-menu-status").textContent = `Opened ${packageValue.project.name}.${legacySummary}${mapSummary}`;
+  requiredElement("#form-status").textContent = `Opened ${packageValue.project.name} with ${packageValue.programs.length} program${packageValue.programs.length === 1 ? "" : "s"} and ${packageValue.codeTables.length} code table${packageValue.codeTables.length === 1 ? "" : "s"}.${legacySummary}${mapSummary}`;
 }
 
 async function importDataFile(file: File): Promise<void> {
@@ -1477,9 +1555,10 @@ export function initializeFormDataDemo() {
   }
 
   initializeEntryView();
+  initializeStudyAreaPicker();
 
   requiredElement("#file-open-project").addEventListener("click", () => requiredElement<HTMLInputElement>("#project-package-open").click());
-  requiredElement("#file-save-project").addEventListener("click", saveProjectPackage);
+  requiredElement("#file-save-project").addEventListener("click", () => void saveProjectPackage());
   requiredElement("#designer-open-project").addEventListener("click", () => {
     requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
     requiredElement<HTMLInputElement>("#project-package-open").click();
@@ -1752,6 +1831,29 @@ export function initializeFormDataDemo() {
   const supabaseUrl = requiredElement("#supabase-url");
   const supabasePublishableKey = requiredElement("#supabase-publishable-key");
   const projectDialogNote = requiredElement("#project-dialog-note");
+  const projectStudyAreaSummary = requiredElement("#project-study-area-summary");
+  const projectStudyAreaRemove = requiredElement<HTMLButtonElement>("#project-study-area-remove");
+  let pendingStudyArea: ProjectStudyArea | null = null;
+
+  function discardPendingStudyAreaAsset() {
+    const asset = pendingStudyArea?.offlineMap.asset;
+    if (asset) void removePmtilesAsset(asset).catch(() => undefined);
+  }
+
+  function renderPendingStudyArea() {
+    const estimate = pendingStudyArea?.offlineMap.estimate;
+    const estimateSummary = estimate
+      ? `; ${estimate.tileCount.toLocaleString()} tiles (approximately ${(estimate.estimatedBytes / 1024 / 1024).toFixed(1)} MiB) via ${offlineMapProvider(pendingStudyArea!.offlineMap.providerId ?? "").label}`
+      : "";
+    const asset = pendingStudyArea?.offlineMap.asset;
+    const assetSummary = asset
+      ? `; ${asset.fileName} validated and stored in ${asset.persistence === "persistent" ? "persistent" : "best-effort"} browser storage`
+      : "";
+    projectStudyAreaSummary.textContent = pendingStudyArea
+      ? `${pendingStudyArea.name}: ${pendingStudyArea.bounds.map((coordinate) => coordinate.toFixed(5)).join(", ")}; zoom 0-${pendingStudyArea.offlineMap.maxZoom}${estimateSummary}${assetSummary}.`
+      : "No study area selected. You can add one later.";
+    projectStudyAreaRemove.hidden = !pendingStudyArea;
+  }
 
   function updateStorageDialog() {
     const usesSupabase = storageEngine.value === "supabase";
@@ -1771,13 +1873,40 @@ export function initializeFormDataDemo() {
     supabaseUrl.value = savedSupabase.url || "";
     supabasePublishableKey.value = savedSupabase.publishableKey || "";
     storageEngine.value = hasActiveProject && projectState.storage?.type === "supabase" ? "supabase" : "browser";
+    discardPendingStudyAreaAsset();
+    pendingStudyArea = null;
+    renderPendingStudyArea();
     updateStorageDialog();
     projectDialog.showModal();
   });
+  requiredElement("#project-study-area-open").addEventListener("click", () => {
+    const proposedName = requiredElement<HTMLInputElement>("#database-name").value.trim() || "Project";
+    projectDialog.close("study-area");
+    openStudyAreaPicker(proposedName, (studyArea) => {
+      if (studyArea) pendingStudyArea = studyArea;
+      renderPendingStudyArea();
+      projectDialog.showModal();
+    });
+  });
+  projectStudyAreaRemove.addEventListener("click", () => {
+    discardPendingStudyAreaAsset();
+    pendingStudyArea = null;
+    renderPendingStudyArea();
+  });
   storageEngine.addEventListener("change", updateStorageDialog);
   for (const closeButton of requiredElements("[data-close-project-dialog]")) {
-    closeButton.addEventListener("click", () => projectDialog.close("cancel"));
+    closeButton.addEventListener("click", () => {
+      discardPendingStudyAreaAsset();
+      pendingStudyArea = null;
+      projectDialog.close("cancel");
+    });
   }
+  projectDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    discardPendingStudyAreaAsset();
+    pendingStudyArea = null;
+    projectDialog.close("cancel");
+  });
   const testStoreButton = requiredElement<HTMLButtonElement>("#test-store");
   testStoreButton.addEventListener("click", async () => {
     if (storageEngine.value === "browser") {
@@ -1823,6 +1952,7 @@ export function initializeFormDataDemo() {
       currentFormId,
       storage: { type: storageType },
       forms: [{ id: currentFormId, schema: structuredClone(schema), records: [] }],
+      ...(pendingStudyArea ? { studyAreas: [structuredClone(pendingStudyArea)] } : {}),
     };
     projectPackageExtras = { programs: [], codeTables: [] };
     activateProject(null);
@@ -1832,9 +1962,11 @@ export function initializeFormDataDemo() {
     renderRecords();
     renderStorageBadge();
     projectDialog.close("create");
+    const areaStatus = pendingStudyArea ? ` Study area ${pendingStudyArea.name} was saved with the project.` : "";
     requiredElement("#form-status").textContent = storageType === "supabase"
-      ? `${projectName} created with a verified Supabase connection and local working copy.`
-      : `${projectName} created.`;
+      ? `${projectName} created with a verified Supabase connection and local working copy.${areaStatus}`
+      : `${projectName} created.${areaStatus}`;
+    pendingStudyArea = null;
   });
 
   requiredElement("#new-form").addEventListener("click", () => {

@@ -1,4 +1,4 @@
-DEFINE AgeGroup TEXTINPUT
+DEFINE AgeGroup TEXTINPUT "Age group"
 RECODE Age TO AgeGroup
   LOVALUE - 4 = "0-4"
   4 - 17 = "5-17"

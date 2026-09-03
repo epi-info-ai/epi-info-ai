@@ -35,8 +35,8 @@ export interface EpiAssistRunMetadata {
   model: {
     id: string;
     revision: string;
-    device: "webgpu";
-    dtype: "fp16";
+    device: "webgpu" | "wasm";
+    dtype: "fp16" | "q4";
   };
   runtime: { name: "transformers.js"; version: string };
   prompt: { systemVersion: string; system: string; user: string };

@@ -8,6 +8,8 @@ import {
   applyHostedProjectSnapshot,
   deleteCurrentProjectProgram,
   getCurrentProjectSnapshot,
+  replaceCurrentOfflineMapAsset,
+  detachCurrentOfflineMapAsset,
   getCurrentProjectData,
   getCurrentProjectPrograms,
   getProjectDataSources,
@@ -41,6 +43,7 @@ import { resolveClassicDeleteRecordsCommand, stageClassicDeleteRecords, type Cla
 import { resolveClassicUndeleteRecordsCommand, stageClassicUndeleteRecords, type ClassicUndeleteRecordsResult } from "../app/programming/classic-undelete-records.js";
 import { applyClassicSummarize, resolveClassicSummarizeCommand, type ClassicSummarizeAggregate } from "../app/programming/classic-summarize.js";
 import { resolveClassicGraphCommand, type ClassicGraphType } from "../app/programming/classic-graph.js";
+import { applyClassicTables, resolveClassicTablesPlan, type ClassicTablesPlan, type ClassicTablesResult } from "../app/programming/classic-tables.js";
 import { applyEpiAiQualityProfile, resolveEpiAiQualityCommand } from "../app/programming/epi-ai-quality.js";
 import { convertAccessFile, resolveFileConvertCommand } from "../app/programming/file-convert.js";
 import type { DataQualityReport } from "../app/forms/data-quality.js";
@@ -639,6 +642,54 @@ const classicProgramFontDialog = requiredElement<HTMLDialogElement>("#classic-pr
 const classicProgramFontFamily = requiredElement<HTMLSelectElement>("#classic-program-font-family");
 const classicProgramFontSize = requiredElement<HTMLInputElement>("#classic-program-font-size");
 const classicProgramFontPreview = requiredElement<HTMLElement>("#classic-program-font-preview");
+const classicProgramAssistWorkbench = requiredElement<HTMLElement>("#classic-program-workbench");
+const classicProgramAssist = requiredElement<HTMLElement>("#classic-program-assist");
+const classicProgramAssistToggle = requiredElement<HTMLButtonElement>("#classic-program-assist-toggle");
+const classicProgramAssistClose = requiredElement<HTMLButtonElement>("#classic-program-assist-close");
+const classicProgramAssistReopen = requiredElement<HTMLButtonElement>("#classic-program-assist-reopen");
+const classicProgramAssistTaskLabel = requiredElement<HTMLElement>("#classic-program-assist-task-label");
+const classicProgramAssistPreview = requiredElement<HTMLButtonElement>("#classic-program-assist-preview");
+const classicProgramAssistStatus = requiredElement<HTMLElement>("#classic-program-assist-status");
+const classicProgramAssistPrompt = requiredElement<HTMLTextAreaElement>("#classic-program-assist-prompt");
+
+function setClassicProgramAssistOpen(open: boolean): void {
+  classicProgramAssistWorkbench.dataset.assistOpen = String(open);
+  classicProgramAssistToggle.setAttribute("aria-expanded", String(open));
+  classicProgramAssist.setAttribute("aria-hidden", String(!open));
+  classicProgramAssistToggle.title = open ? "Hide Epi Assist" : "Show Epi Assist";
+}
+
+classicProgramAssistToggle.addEventListener("click", () => {
+  setClassicProgramAssistOpen(classicProgramAssistWorkbench.dataset.assistOpen !== "true");
+});
+
+classicProgramAssistClose.addEventListener("click", () => {
+  setClassicProgramAssistOpen(false);
+  classicProgramAssistReopen.focus();
+});
+
+classicProgramAssistReopen.addEventListener("click", () => {
+  setClassicProgramAssistOpen(true);
+  classicProgramAssistClose.focus();
+});
+
+document.querySelectorAll<HTMLButtonElement>("[data-assist-task]").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll<HTMLButtonElement>("[data-assist-task]").forEach((candidate) => candidate.setAttribute("aria-pressed", String(candidate === button)));
+    const task = button.dataset.assistTask ?? "Plan analysis";
+    classicProgramAssistTaskLabel.textContent = task;
+    classicProgramAssistPreview.textContent = `Continue with ${task.toLocaleLowerCase()}`;
+    classicProgramAssistStatus.textContent = `${task} selected. Continue to choose and load the local Granite model.`;
+  });
+});
+
+classicProgramAssistPreview.addEventListener("click", () => {
+  const prompt = classicProgramAssistPrompt.value.trim();
+  const modelPrompt = requiredElement<HTMLTextAreaElement>("#epi-assist-prompt");
+  if (prompt) modelPrompt.value = prompt;
+  requiredElement<HTMLDialogElement>("#epi-assist-dialog").showModal();
+  classicProgramAssistStatus.textContent = "Opened the model-backed Epi Assist dialog. Choose a model, load it, and review the proposed action.";
+});
 
 function renderClassicProgramSession(): void {
   const source = classicProgramSession.current(getCurrentProjectData());
@@ -654,6 +705,7 @@ function renderClassicProgramSession(): void {
   if (sort.canonicalSource) detail += ` ${sort.canonicalSource}`;
   if (variables.length) detail += ` Variables: ${variables.map((variable) => `${variable.name}=${variable.value === null ? "Missing" : String(variable.value)}`).join(", ")}.`;
   if (groups.length) detail += ` Groups: ${groups.map((group) => `${group.name}=[${group.members.join(", ")}]`).join("; ")}.`;
+  detail += ` SET MISSING=${classicProgramSession.includeMissing() ? "ON" : "OFF"}; (.)=${JSON.stringify(classicProgramSession.missingLabel())}.`;
   requiredElement("#classic-program-session-status").replaceChildren(label, detail);
   requiredElement("#classic-program-source-name").textContent = `${source.formName} · ${status.selected} of ${status.total} records${sort.fields ? ` · sorted by ${sort.fields} field${sort.fields === 1 ? "" : "s"}` : ""}`;
 }
@@ -1007,6 +1059,8 @@ const classicCommandDialogField = requiredElement<HTMLSelectElement>("#classic-c
 const classicCommandDialogExposure = requiredElement<HTMLSelectElement>("#classic-command-dialog-exposure");
 const classicCommandDialogOutcome = requiredElement<HTMLSelectElement>("#classic-command-dialog-outcome");
 const classicCommandDialogStrata = requiredElement<HTMLSelectElement>("#classic-command-dialog-strata");
+const classicCommandDialogFisher = requiredElement<HTMLInputElement>("#classic-command-dialog-fisher");
+const classicCommandDialogIncludeMissing = requiredElement<HTMLInputElement>("#classic-command-dialog-include-missing");
 const classicCommandDialogVariable = requiredElement<HTMLInputElement>("#classic-command-dialog-variable");
 const classicCommandDialogScope = requiredElement<HTMLSelectElement>("#classic-command-dialog-scope");
 const classicCommandDialogVariableType = requiredElement<HTMLSelectElement>("#classic-command-dialog-variable-type");
@@ -1180,6 +1234,8 @@ function classicUndeleteRecordsValue(): string | number | boolean {
 
 function classicCommandDialogInput(): ClassicAnalysisCommandInput {
   const kind = classicCommandDialogKind.value as ClassicAnalysisCommandKind;
+  if (kind === "set-missing") return { kind, enabled: classicCommandDialogIncludeMissing.checked };
+  if (kind === "set-missing-label") return { kind, value: classicProgramSession.missingLabel() };
   if (kind === "quality") return { kind };
   if (kind === "file-convert") {
     const file = classicCommandDialogAccessFile.files?.[0];
@@ -1266,7 +1322,11 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
     ...(classicCommandDialogGraphXTitle.value.trim() ? { xTitle: classicCommandDialogGraphXTitle.value } : {}),
     ...(classicCommandDialogGraphYTitle.value.trim() ? { yTitle: classicCommandDialogGraphYTitle.value } : {}),
   };
-  return { kind, exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value, stratifyBy: classicCommandDialogStrata.value };
+  return {
+    kind, exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value,
+    ...(classicCommandDialogStrata.value ? { stratifyBy: [classicCommandDialogStrata.value] } : {}),
+    ...(classicCommandDialogFisher.checked ? { statistics: "FISHER" as const } : {}),
+  };
 }
 
 function updateClassicCommandDialog(): void {
@@ -1296,6 +1356,7 @@ function updateClassicCommandDialog(): void {
   const tables = kind === "tables";
   const summarize = kind === "summarize";
   const graph = kind === "graph";
+  const setMissing = kind === "set-missing";
   const quality = kind === "quality";
   const fileConvert = kind === "file-convert";
   const definedFields = classicDefinedFields(source.fields);
@@ -1366,7 +1427,7 @@ function updateClassicCommandDialog(): void {
   const allOptions = source.fields.map((field) => new Option(field.prompt, field.name));
   classicCommandDialogExposure.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
   classicCommandDialogOutcome.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
-  classicCommandDialogStrata.replaceChildren(new Option(tables ? "Choose a stratification field" : "Do not stratify", ""), ...allOptions.map((option) => option.cloneNode(true)));
+  classicCommandDialogStrata.replaceChildren(new Option("Do not stratify", ""), ...allOptions.map((option) => option.cloneNode(true)));
   const summaryAggregate = classicCommandDialogSummarizeAggregate.value;
   const summaryFields = ["AVG", "STDEV", "STDEVP", "SUM", "VAR", "VARP"].includes(summaryAggregate) ? source.fields.filter(({ type }) => type === "number") : source.fields;
   const previousSummaryField = classicCommandDialogSummarizeField.value;
@@ -1446,12 +1507,14 @@ function updateClassicCommandDialog(): void {
   requiredElement<HTMLElement>("#classic-command-dialog-sort").hidden = !sort;
   requiredElement<HTMLElement>("#classic-command-dialog-summarize").hidden = !summarize;
   requiredElement<HTMLElement>("#classic-command-dialog-graph").hidden = !graph;
+  requiredElement<HTMLElement>("#classic-command-dialog-set-missing").hidden = !setMissing;
   requiredElement<HTMLElement>("#classic-command-dialog-quality").hidden = !quality;
   requiredElement<HTMLElement>("#classic-command-dialog-file-convert").hidden = !fileConvert;
-  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize || quality || fileConvert;
+  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize || setMissing || quality || fileConvert;
   requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables;
   requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables;
-  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || means || summarize || graph || quality || fileConvert;
+  requiredElement<HTMLElement>("#classic-command-dialog-fisher-label").hidden = !tables;
+  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || means || summarize || graph || setMissing || quality || fileConvert;
   requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : graph ? "Graph variable" : "Frequency of";
   const byHint = (pattern: RegExp, excluded = new Set<string>()): string | undefined => source.fields.find((field) => !excluded.has(field.name) && pattern.test(`${field.name} ${field.prompt}`))?.name;
   if (kind === "frequency") classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
@@ -1590,6 +1653,8 @@ classicCommandDialogSummarizeResult.addEventListener("input", refreshClassicComm
 classicCommandDialogSummarizeTable.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogSummarizeStrata.addEventListener("change", refreshClassicCommandDialogPreview);
 for (const select of [classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget, classicCommandDialogSelectOperator, classicCommandDialogSelectBoolean, classicCommandDialogAssignBoolean, classicCommandDialogIfOperator]) select.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogFisher.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogIncludeMissing.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogGraphType.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogDisplayMode.addEventListener("change", updateClassicCommandDialog);
 classicCommandDialogDisplayVariables.addEventListener("change", refreshClassicCommandDialogPreview);
@@ -1633,7 +1698,7 @@ classicProgramToolbarCancel.addEventListener("click", () => {
   classicProgramCommandStatus.textContent = "Cancellation requested; the current statement will finish safely.";
 });
 
-const classicOutputTargets = ["#classic-program-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
+const classicOutputTargets = ["#classic-program-output", "#classic-sequential-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
 const classicOutputBrowser = requiredElement<HTMLElement>("#classic-output-browser");
 for (const selector of classicOutputTargets) {
   const output = document.querySelector<HTMLElement>(selector);
@@ -1821,7 +1886,6 @@ function loadSelectedClassicProgramExample(focusEditor = true): void {
   classicProgramEditor.setValue(example.source);
   classicExampleSourceLoaded = true;
   classicProgramFeedback.textContent = `Loaded “${example.title}”. Review the visible source and cut points before running.`;
-  requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
   classicProgramOutput.hidden = true;
   if (classicProgramDialog.open) classicProgramDialog.close();
   if (focusEditor) classicProgramEditor.focus();
@@ -2151,6 +2215,7 @@ requiredElement("#classic-command-list").addEventListener("click", () => showCla
 requiredElement("#classic-command-frequencies").addEventListener("click", () => showClassicCommandDialog("frequency"));
 requiredElement("#classic-command-means").addEventListener("click", () => showClassicCommandDialog("means"));
 requiredElement("#classic-command-tables").addEventListener("click", () => showClassicCommandDialog("tables"));
+requiredElement("#classic-command-set").addEventListener("click", () => showClassicCommandDialog("set-missing"));
 
 function collapseDashboardSubmenus(except: HTMLButtonElement | null = null): void {
   for (const trigger of document.querySelectorAll<HTMLButtonElement>("#dashboard-canvas-menu [data-dashboard-submenu]")) {
@@ -2322,18 +2387,16 @@ function recordProgramRun(entry: Omit<ProgramRunHistoryEntry, "version" | "id" |
 function validateProgram(): { plan: BoundedClassicProgramPlan; source: ReturnType<typeof getCurrentProjectData> } {
   const source = getCurrentProjectData();
   const plan = parseBoundedClassicProgram(classicProgramEditor.getValue(), source.fields);
-  requiredElement("#classic-program-canonical-source").textContent = plan.canonicalSource;
-  requiredElement<HTMLElement>("#classic-program-canonical").hidden = false;
   return { plan, source };
 }
 
 function renderProgramFrequency(plan: BoundedClassicProgramPlan, records: EpiRecord[]): { rows: number; included: number } {
-  const request = { field: plan.frequency.field, prompt: plan.frequency.field, includeMissing: false };
+  const request = { field: plan.frequency.field, prompt: plan.frequency.prompt, includeMissing: false };
   const result = plan.frequency.stratifyBy
     ? deriveStratifiedFrequency(records, {
       ...request,
       stratifyBy: plan.frequency.stratifyBy,
-      stratifyPrompt: plan.frequency.stratifyBy,
+      stratifyPrompt: plan.frequency.stratifyPrompt ?? plan.frequency.stratifyBy,
     })
     : deriveFrequency(records, request);
   const strata = result.operation === "epi.frequency.stratified"
@@ -2357,7 +2420,8 @@ function renderProgramFrequency(plan: BoundedClassicProgramPlan, records: EpiRec
     return row;
   }));
   requiredElement("#classic-program-output-rows").replaceChildren(...rows);
-  requiredElement("#classic-program-output-title").textContent = `${plan.frequency.field}${plan.frequency.stratifyBy ? ` by ${plan.frequency.stratifyBy}` : ""}`;
+  requiredElement("#classic-program-output-title").textContent = `${plan.frequency.prompt}${plan.frequency.stratifyBy ? ` by ${plan.frequency.stratifyPrompt ?? plan.frequency.stratifyBy}` : ""}`;
+  requiredElement("#classic-program-output-variable-heading").textContent = plan.frequency.prompt;
   classicProgramOutput.hidden = false;
   return {
     rows: rows.length,
@@ -2458,7 +2522,6 @@ async function runClassicProgram(verifyOnly: boolean, signal?: AbortSignal): Pro
     const message = error instanceof Error ? error.message : "Unable to verify the program.";
     classicProgramFeedback.textContent = `${message} Nothing was run.`;
     classicProgramOutput.hidden = true;
-    requiredElement<HTMLElement>("#classic-program-canonical").hidden = true;
     recordProgramRun({
       origin: "user-program", status: "failed", planVersion: CLASSIC_PROGRAM_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
@@ -2807,6 +2870,148 @@ function renderEpiAiQualityOutput(report: DataQualityReport): void {
   requiredElement<HTMLElement>("#classic-quality-output").hidden = false;
 }
 
+function renderClassicTablesOutput(plan: ClassicTablesPlan, result: ClassicTablesResult): void {
+  const output = requiredElement<HTMLElement>("#classic-tables-categorical-output");
+  requiredElement("#classic-tables-categorical-title").textContent = `${plan.exposurePrompt} by ${plan.outcomePrompt}${plan.strataPrompts.length ? `, stratified by ${plan.strataPrompts.join(", ")}` : ""}`;
+  requiredElement("#classic-tables-categorical-count").textContent = `${result.includedRecords} records · ${plan.strataFields.length ? `${result.strata.length} strata` : "unstratified"}`;
+  requiredElement("#classic-tables-categorical-note").textContent =
+    `Counts and percentages preserve every observed value; ${plan.includeMissing ? `${result.includedMissing} record${result.includedMissing === 1 ? "" : "s"} containing blanks included as “${plan.representationOfMissing}”` : `${result.excludedMissing} record${result.excludedMissing === 1 ? "" : "s"} with a blank selected value excluded`}.${result.strata.some(({ twoByTwo }) => twoByTwo) ? " Binary tables also receive the legacy Single Table Analysis." : " No exposed/case classification was inferred."}`;
+  const body = requiredElement("#classic-tables-categorical-body");
+  body.replaceChildren(...result.strata.map((stratum) => {
+    const section = document.createElement("section");
+    section.className = "classic-tables-stratum";
+    const heading = document.createElement("h3");
+    heading.textContent = plan.strataPrompts.length === 1 ? `${plan.strataPrompts[0]}: ${stratum.value}` : stratum.value;
+    const scroll = document.createElement("div");
+    scroll.className = "results-table-scroll";
+    const table = document.createElement("table");
+    table.className = "results-table";
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    const exposureHeading = document.createElement("th");
+    exposureHeading.scope = "col";
+    exposureHeading.textContent = plan.exposurePrompt;
+    headRow.append(exposureHeading, ...result.outcomeValues.map((value) => {
+      const th = document.createElement("th"); th.scope = "col"; th.textContent = value; return th;
+    }));
+    const totalHeading = document.createElement("th"); totalHeading.scope = "col"; totalHeading.textContent = "Total"; headRow.append(totalHeading);
+    head.append(headRow);
+    const tableBody = document.createElement("tbody");
+    tableBody.replaceChildren(...stratum.rows.flatMap((row) => {
+      const valueRow = document.createElement("tr");
+      const valueHeading = document.createElement("th"); valueHeading.scope = "row"; valueHeading.textContent = row.exposureValue;
+      valueRow.append(valueHeading, ...row.counts.map((count) => { const td = document.createElement("td"); td.textContent = String(count); return td; }));
+      const valueTotal = document.createElement("td"); valueTotal.textContent = String(row.total); valueRow.append(valueTotal);
+      const percentRow = (label: string, values: readonly number[], total: string): HTMLTableRowElement => {
+        const tr = document.createElement("tr"); tr.className = "classic-tables-percent-row";
+        const th = document.createElement("th"); th.scope = "row"; th.textContent = `${row.exposureValue} ${label}`;
+        tr.append(th, ...values.map((value) => { const td = document.createElement("td"); td.textContent = `${value.toFixed(1)}%`; return td; }));
+        const totalCell = document.createElement("td"); totalCell.textContent = total; tr.append(totalCell); return tr;
+      };
+      return [valueRow, percentRow("Row %", row.rowPercents, "100.0%"), percentRow("Col %", row.columnPercents, `${(row.total / stratum.total * 100).toFixed(1)}%`)];
+    }));
+    const foot = document.createElement("tfoot");
+    const footRow = document.createElement("tr");
+    const footHeading = document.createElement("th"); footHeading.scope = "row"; footHeading.textContent = "Total";
+    footRow.append(footHeading, ...stratum.columnTotals.map((count) => { const td = document.createElement("td"); td.textContent = String(count); return td; }));
+    const grandTotal = document.createElement("td"); grandTotal.textContent = String(stratum.total); footRow.append(grandTotal); foot.append(footRow);
+    const totalPercentRow = document.createElement("tr");
+    const totalPercentHeading = document.createElement("th"); totalPercentHeading.scope = "row"; totalPercentHeading.textContent = "Total %";
+    totalPercentRow.append(totalPercentHeading, ...stratum.columnPercents.map((value) => { const td = document.createElement("td"); td.textContent = `${value.toFixed(1)}%`; return td; }));
+    const hundred = document.createElement("td"); hundred.textContent = "100.0%"; totalPercentRow.append(hundred); foot.append(totalPercentRow);
+    table.append(head, tableBody, foot); scroll.append(table);
+    const statistics = document.createElement("div"); statistics.className = "classic-tables-statistics";
+    if (stratum.pearson) {
+      const title = document.createElement("h4"); title.textContent = "Single Table Analysis";
+      const summary = document.createElement("p"); summary.className = "classic-tables-pearson";
+      summary.textContent = `Pearson Chi-Squared ${stratum.pearson.chiSquare.toFixed(4)} · df ${stratum.pearson.degreesOfFreedom} · Probability ${stratum.pearson.pValue.toFixed(6)}`;
+      statistics.append(title, summary);
+      if (stratum.pearson.warning) {
+        const warning = document.createElement("p"); warning.className = "warnings classic-tables-expected-warning"; warning.textContent = stratum.pearson.warning; statistics.append(warning);
+      }
+      const expected = document.createElement("details");
+      const expectedSummary = document.createElement("summary"); expectedSummary.textContent = `Expected counts · minimum ${stratum.pearson.minimumExpected.toFixed(2)} · ${stratum.pearson.cellsExpectedBelowFive} below 5`;
+      const expectedScroll = document.createElement("div"); expectedScroll.className = "results-table-scroll";
+      const expectedTable = document.createElement("table"); expectedTable.className = "results-table classic-tables-expected";
+      const expectedHead = document.createElement("thead"); const expectedHeadRow = document.createElement("tr");
+      const expectedExposure = document.createElement("th"); expectedExposure.scope = "col"; expectedExposure.textContent = plan.exposurePrompt;
+      expectedHeadRow.append(expectedExposure, ...result.outcomeValues.map((value) => { const th = document.createElement("th"); th.scope = "col"; th.textContent = value; return th; })); expectedHead.append(expectedHeadRow);
+      const expectedBody = document.createElement("tbody"); expectedBody.replaceChildren(...stratum.rows.map((row) => {
+        const tr = document.createElement("tr"); const th = document.createElement("th"); th.scope = "row"; th.textContent = row.exposureValue;
+        tr.append(th, ...row.expectedCounts.map((value) => { const td = document.createElement("td"); td.textContent = value.toFixed(2); return td; })); return tr;
+      }));
+      expectedTable.append(expectedHead, expectedBody); expectedScroll.append(expectedTable); expected.append(expectedSummary, expectedScroll); statistics.append(expected);
+
+      if (stratum.twoByTwo) {
+        const analysis = calculateTable2x2(stratum.twoByTwo.input);
+        const formatValue = (value: number | null, digits = 4): string => value === null ? "Undefined" : number(value, digits);
+        const formatInterval = (interval: { lower: number; upper: number } | null): string => interval
+          ? `${number(interval.lower, 4)} to ${number(interval.upper, 4)}` : "Undefined";
+        const formatBoundary = (value: { value: number | null; state: string }): string => value.state === "positive-infinity"
+          ? "Infinity" : value.state === "zero" ? "0" : value.state === "finite" ? number(value.value!, 4) : "Undefined";
+        const formatBoundaryInterval = (interval: { lower: { value: number | null; state: string }; upper: { value: number | null; state: string } }): string =>
+          `${formatBoundary(interval.lower)} to ${formatBoundary(interval.upper)}`;
+
+        const interpretation = document.createElement("p");
+        interpretation.className = "classic-tables-2x2-interpretation";
+        interpretation.textContent = `2 × 2 orientation: exposed=${stratum.twoByTwo.exposedValue}, unexposed=${stratum.twoByTwo.unexposedValue}; case=${stratum.twoByTwo.caseValue}, non-case=${stratum.twoByTwo.nonCaseValue}.`;
+
+        const estimateTable = document.createElement("table"); estimateTable.className = "results-table classic-tables-2x2";
+        const estimateHead = document.createElement("thead");
+        estimateHead.innerHTML = "<tr><th scope=\"col\">Parameter</th><th scope=\"col\">Estimate</th><th scope=\"col\">95% confidence interval</th></tr>";
+        const estimateBody = document.createElement("tbody");
+        const estimates: Array<readonly [string, string, string]> = [
+          ["Odds Ratio (cross product)", formatValue(analysis.estimates.oddsRatio.estimate), formatInterval(analysis.estimates.oddsRatio.confidenceInterval)],
+          ["Odds Ratio (conditional MLE)", formatBoundary(analysis.estimates.conditionalOddsRatio.estimate), formatBoundaryInterval(analysis.estimates.conditionalOddsRatio.midPConfidenceInterval)],
+          ["Risk Ratio (RR)", formatValue(analysis.estimates.riskRatio.estimate), formatInterval(analysis.estimates.riskRatio.confidenceInterval)],
+          ["Risk Difference (RD%)", analysis.estimates.riskDifference.estimate === null ? "Undefined" : `${number(analysis.estimates.riskDifference.estimate * 100, 4)}%`, analysis.estimates.riskDifference.confidenceInterval ? `${number(analysis.estimates.riskDifference.confidenceInterval.lower * 100, 4)}% to ${number(analysis.estimates.riskDifference.confidenceInterval.upper * 100, 4)}%` : "Undefined"],
+        ];
+        estimateBody.replaceChildren(...estimates.map((values) => {
+          const row = document.createElement("tr");
+          values.forEach((value, index) => { const cell = document.createElement(index === 0 ? "th" : "td"); cell.textContent = value; if (index === 0) cell.setAttribute("scope", "row"); row.append(cell); });
+          return row;
+        }));
+        estimateTable.append(estimateHead, estimateBody);
+
+        const testsTable = document.createElement("table"); testsTable.className = "results-table classic-tables-2x2";
+        const testsHead = document.createElement("thead"); testsHead.innerHTML = "<tr><th scope=\"col\">Statistical test</th><th scope=\"col\">Statistic</th><th scope=\"col\">1-tailed p</th><th scope=\"col\">2-tailed p</th></tr>";
+        const testsBody = document.createElement("tbody");
+        const tests: Array<readonly [string, string, string, string]> = [
+          ["Chi-square - uncorrected", formatValue(analysis.tests.pearson?.value ?? null), "", formatValue(analysis.tests.pearson?.pValue ?? null, 10)],
+          ["Chi-square - Mantel-Haenszel", formatValue(analysis.tests.mantelHaenszel?.value ?? null), "", formatValue(analysis.tests.mantelHaenszel?.pValue ?? null, 10)],
+          ["Chi-square - corrected (Yates)", formatValue(analysis.tests.yates?.value ?? null), "", formatValue(analysis.tests.yates?.pValue ?? null, 10)],
+          ["Mid-p exact", "", formatValue(analysis.tests.midPExact?.oneTailed ?? null, 10), ""],
+          ["Fisher exact", "", formatValue(analysis.tests.fisherExact?.oneTailed ?? null, 10), formatValue(analysis.tests.fisherExact?.twoTailed ?? null, 10)],
+        ];
+        testsBody.replaceChildren(...tests.map(([label, statistic, oneTailed, twoTailed]) => {
+          const row = document.createElement("tr");
+          [label, statistic, oneTailed, twoTailed].forEach((value, index) => { const cell = document.createElement(index === 0 ? "th" : "td"); cell.textContent = value; if (index === 0) cell.setAttribute("scope", "row"); row.append(cell); });
+          return row;
+        }));
+        testsTable.append(testsHead, testsBody);
+        statistics.append(interpretation, estimateTable, testsTable);
+        if (analysis.diagnostics.warnings.length) {
+          const warnings = document.createElement("ul"); warnings.className = "warnings classic-tables-2x2-warnings";
+          warnings.replaceChildren(...analysis.diagnostics.warnings.map((message) => { const item = document.createElement("li"); item.textContent = message; return item; }));
+          statistics.append(warnings);
+        }
+      }
+      if (stratum.fisherExact) {
+        const fisher = document.createElement("p");
+        fisher.className = stratum.fisherExact.state === "computed" ? "classic-tables-fisher" : "warnings classic-tables-fisher";
+        fisher.textContent = stratum.fisherExact.state === "computed"
+          ? `Fisher's Exact (2 x N) Probability ${stratum.fisherExact.pValue < 1e-6 ? stratum.fisherExact.pValue.toExponential(10) : stratum.fisherExact.pValue.toFixed(10)} · ${stratum.fisherExact.tablesEnumerated.toLocaleString("en-US")} tables enumerated`
+          : `Fisher's Exact unavailable: ${stratum.fisherExact.reason}`;
+        statistics.append(fisher);
+      }
+    } else {
+      const unavailable = document.createElement("p"); unavailable.className = "warnings"; unavailable.textContent = "Pearson chi-square is undefined because this stratum has fewer than two non-empty rows or columns."; statistics.append(unavailable);
+    }
+    section.append(heading, scroll, statistics); return section;
+  }));
+  output.hidden = false;
+}
+
 const CLASSIC_SELECTED_COMMAND_PLAN_VERSION = "classic-selected-command-v1.0.0";
 let pendingClassicMerge: { plan: ClassicMergePlan; result: ClassicMergeResult } | null = null;
 let pendingClassicDelete: { plan: ClassicDeleteTablePlan; staged: ReturnType<typeof stageClassicDeleteTable> } | null = null;
@@ -2821,6 +3026,32 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
     const selectedAst = parseClassicProgram(selectedSource);
     const selectedSources = selectedAst.body[0]?.type === "ReadStatement" ? [...getProjectDataSources(), ...classicProgramSession.outTables()] : getProjectDataSources();
     const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, selectedSources, classicProgramSession.variables(), classicProgramSession.groups());
+    if (command.kind === "set-missing") {
+      classicProgramSession.setIncludeMissing(command.enabled);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `SET MISSING=${command.enabled ? "ON" : "OFF"}. Subsequent analyses will ${command.enabled ? "include missing values as a visible Missing category" : "exclude records missing any participating value"}.`;
+      classicProgramCommandStatus.textContent = "Classic Analysis missing-value setting updated for this session.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command),
+        summary: `SET MISSING=${command.enabled ? "ON" : "OFF"}; no records changed.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "set-missing-label") {
+      classicProgramSession.setMissingLabel(command.value);
+      renderClassicProgramSession();
+      classicProgramFeedback.textContent = `Missing values will display as “${classicProgramSession.missingLabel()}” in subsequent analyses. No records changed.`;
+      classicProgramCommandStatus.textContent = "Classic Analysis missing-value display label updated for this session.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command),
+        summary: `SET (.)=${JSON.stringify(classicProgramSession.missingLabel())}; no records changed.`, diagnostics: [],
+      });
+      return;
+    }
     if (command.kind === "file-convert") {
       const plan = resolveFileConvertCommand(selectedSource);
       const file = classicCommandDialogAccessFile.files?.[0];
@@ -3229,22 +3460,20 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       });
       return;
     }
-    if (project.formId !== fallbackProject.formId) throw new RangeError("TABLES value classification is currently bound to the current form. READ the current form or switch projects before running TABLES.");
-    classicExposureField.value = command.exposure;
-    setValueOptions(classicExposedValues, command.exposure, (value) => /^yes$|^true$|^1$/i.test(value));
-    classicOutcomeField.value = command.outcome;
-    setValueOptions(classicCaseValues, command.outcome, (value) => !/^not a case$|^no$|^false$|^0$/i.test(value));
-    classicStrataField.value = command.stratifyBy;
-    updateClassicCommandPreview();
-    classicFeedback.textContent = "Selected TABLES fields are ready. Review the exposed and case value classifications, then click Run Tables; no table was calculated yet.";
-    classicTablesForm.scrollIntoView({ behavior: "smooth", block: "start" });
-    classicExposedValues.focus({ preventScroll: true });
-    classicProgramFeedback.textContent = "Selected TABLES source passed syntax and field checks. Value classification requires explicit review before calculation.";
-    classicProgramCommandStatus.textContent = "Selected TABLES command opened its typed value-classification dialog; nothing was calculated yet.";
+    const tablesPlan = resolveClassicTablesPlan(selectedSource, project.fields, command.exposure, command.outcome, command.stratifyBy, command.statistics, classicProgramSession.includeMissing(), classicProgramSession.missingLabel());
+    const tablesResult = applyClassicTables(project.records, tablesPlan);
+    renderClassicTablesOutput(tablesPlan, tablesResult);
+    requiredElement("#classic-tables-categorical-output").scrollIntoView({ behavior: "smooth", block: "start" });
+    const binaryTables = tablesResult.strata.filter(({ twoByTwo }) => twoByTwo).length;
+    classicProgramFeedback.textContent = `TABLES counted ${tablesResult.includedRecords} records ${tablesPlan.strataFields.length ? `across ${tablesResult.strata.length} strata` : "in one unstratified table"}.${tablesResult.includedMissing ? ` ${tablesResult.includedMissing} records containing missing participating values were included.` : ""}${binaryTables ? ` ${binaryTables} binary table${binaryTables === 1 ? "" : "s"} also received Single Table Analysis.` : " No exposed/case classification was inferred."}`;
+    classicProgramCommandStatus.textContent = binaryTables
+      ? "Selected TABLES command completed with legacy-style 2 x 2 statistics."
+      : "Selected TABLES command completed as a categorical cross-tabulation.";
     recordProgramRun({
-      origin: "user-program", status: "verified", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+      origin: "user-program", status: "succeeded", planVersion: tablesPlan.version, astVersion: CLASSIC_AST_VERSION,
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
-      source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command), summary: "Verified selected TABLES fields; awaiting exposed/case value review.", diagnostics: [],
+      source: selectedSource, canonicalSource: tablesPlan.canonicalSource,
+      summary: `TABLES produced ${tablesPlan.strataFields.length ? `${tablesResult.strata.length} categorical strata` : "one unstratified categorical table"} from ${tablesResult.includedRecords} records; ${tablesPlan.includeMissing ? `${tablesResult.includedMissing} records containing missing values included` : `${tablesResult.excludedMissing} missing records excluded`}.`, diagnostics: [],
     });
   } catch (error) {
     if (isClassicProgramCancellation(error)) {
@@ -3271,10 +3500,66 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
 }
 
 const CLASSIC_SEQUENTIAL_PROGRAM_PLAN_VERSION = "classic-sequential-program-v0.1.0";
+
+function sequentialOutputSource(statement: ReturnType<typeof parseClassicProgram>["body"][number]): HTMLElement | null {
+  if (statement.type === "ListStatement") return requiredElement<HTMLElement>("#classic-list-output");
+  if (statement.type === "FrequencyStatement") {
+    const stratified = requiredElement<HTMLElement>("#frequency-stratified-output");
+    return stratified.hidden ? requiredElement<HTMLElement>("#frequency-output") : stratified;
+  }
+  if (statement.type === "MeansStatement") return requiredElement<HTMLElement>("#means-output");
+  if (statement.type === "TablesStatement") return requiredElement<HTMLElement>("#classic-tables-categorical-output");
+  if (statement.type === "SummarizeStatement") return requiredElement<HTMLElement>("#classic-summarize-output");
+  if (statement.type === "GraphStatement") return requiredElement<HTMLElement>("#classic-graph-output");
+  if (statement.type === "DisplayStatement") return requiredElement<HTMLElement>("#classic-display-output");
+  if (statement.type === "EpiAiQualityStatement") return requiredElement<HTMLElement>("#classic-quality-output");
+  if (statement.type === "FileConvertStatement") return requiredElement<HTMLElement>("#classic-file-convert-output");
+  return null;
+}
+
+function retainedSequentialOutput(source: HTMLElement): HTMLElement {
+  const clone = source.cloneNode(true) as HTMLElement;
+  clone.hidden = false;
+  clone.removeAttribute("id");
+  clone.removeAttribute("aria-labelledby");
+  clone.removeAttribute("data-module-view");
+  for (const element of clone.querySelectorAll<HTMLElement>("[id]")) element.removeAttribute("id");
+  for (const control of clone.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement>("input, button, select, textarea")) control.disabled = true;
+  return clone;
+}
+
+function appendSequentialCommandOutput(
+  index: number,
+  total: number,
+  statement: ReturnType<typeof parseClassicProgram>["body"][number],
+  statementSource: string,
+  history: ProgramRunHistoryEntry | undefined,
+): void {
+  const article = document.createElement("article"); article.className = "classic-sequential-command";
+  const header = document.createElement("header");
+  const title = document.createElement("h3"); title.textContent = `Command ${index} of ${total} · ${history?.status ?? "completed"}`;
+  const code = document.createElement("code"); code.textContent = statementSource;
+  header.append(title, code);
+  const summary = document.createElement("p"); summary.className = "classic-sequential-command-summary";
+  summary.textContent = history?.summary ?? "Command completed; no separate Output document was produced.";
+  article.append(header, summary);
+  const output = sequentialOutputSource(statement);
+  if (output && !output.hidden) {
+    const result = document.createElement("div"); result.className = "classic-sequential-command-result";
+    result.append(retainedSequentialOutput(output)); article.append(result);
+  }
+  requiredElement("#classic-sequential-output-body").append(article);
+  requiredElement("#classic-sequential-output-count").textContent = `${index} of ${total} commands retained`;
+  requiredElement<HTMLElement>("#classic-sequential-output").hidden = false;
+}
+
 async function runSequentialClassicProgram(source: string, ast: ReturnType<typeof parseClassicProgram>, signal?: AbortSignal): Promise<void> {
   const normalizedSource = source.replace(/\r\n?/g, "\n");
   const initial = getCurrentProjectData();
   let completed = 0;
+  requiredElement("#classic-sequential-output-body").replaceChildren();
+  requiredElement("#classic-sequential-output-count").textContent = `0 of ${ast.body.length} commands retained`;
+  requiredElement<HTMLElement>("#classic-sequential-output").hidden = false;
   classicProgramCommandStatus.textContent = `Running ${ast.body.length} commands in source orderâ€¦`;
   try {
     for (const [index, statement] of ast.body.entries()) {
@@ -3283,6 +3568,7 @@ async function runSequentialClassicProgram(source: string, ast: ReturnType<typeo
       const statementSource = normalizedSource.slice(statement.span.start.offset, statement.span.end.offset).trim();
       await runSelectedClassicCommand(statementSource, true, signal);
       completed++;
+      appendSequentialCommandOutput(completed, ast.body.length, statement, statementSource, readProgramRunHistory()[0]);
     }
     const active = classicProgramSession.current(initial);
     classicProgramFeedback.textContent = `Executed all ${completed} commands in source order for ${initial.records.length} source records. Review the generated Output documents and history.`;
@@ -3864,7 +4150,14 @@ try {
   classicProgramSession.reset(getCurrentProjectData());
   renderClassicProgramSession();
   initializeEpiAssist(getCurrentProjectData);
-  initializeMaps(getCurrentProjectData, getProjectDataSources, showRecordInEnter);
+  initializeMaps(
+    getCurrentProjectData,
+    getProjectDataSources,
+    showRecordInEnter,
+    getCurrentProjectSnapshot,
+    replaceCurrentOfflineMapAsset,
+    detachCurrentOfflineMapAsset,
+  );
   initializeSupabaseSync({
     getSnapshot: () => {
       const snapshot = getCurrentProjectSnapshot();

@@ -461,6 +461,12 @@ Maps/Case Cluster. The first browser candidate uses a typed Click statement and
 provider boundary; it never changes coordinate fields on service failure or
 before explicit selection. Manual/imported coordinates stay usable.
 
+After the familiar selection step, a labeled Preview Map new branch may show the
+current point over OpenStreetMap. Dragging that point or clicking the map updates
+the current unsaved latitude/longitude controls immediately at seven decimal
+places. This refinement must never silently select an ambiguous geocoder result,
+and manual point placement must remain usable when basemap tiles are unavailable.
+
 The direct public Nominatim adapter is limited to the light GitLab Pages demo and
 is not the target service for a large deployment. Before parity closure, provide
 approved configurable infrastructure, privacy and audit controls, provider
@@ -736,8 +742,10 @@ automatically executable.
 Full-program execution remains the reviewed `DEFINE TEXTINPUT -> numeric RECODE
 -> FREQ [STRATAVAR]` plan. A separate selected-statement allowlist permits
 current-project READ, bounded Standard DEFINE/ASSIGN, SELECT/CANCEL SELECT,
-SORT/CANCEL SORT, and LIST/FREQ/MEANS; external READ
-fails closed and selected TABLES stops for value review. SELECT V0.2 accepts
+SORT/CANCEL SORT, and LIST/FREQ/MEANS/TABLES; external READ fails closed.
+Selected TABLES produces a categorical count matrix and never infers exposed or
+case meanings; the separate stratified 2 x 2 workflow still stops for explicit
+value review. SELECT V0.2 accepts
 schema-typed compound expressions, applies cumulatively with legacy AND
 semantics, and affects only the Classic session; unreviewed functions still fail
 closed pending the complete legacy function/type matrix. ASSIGN accepts only a
@@ -873,6 +881,45 @@ tests. With the plugin subsystem disabled, all core workflows still pass.
 
 ## Phase 7 - Durable local projects and offline recovery
 
+- [x] Add an optional New Project study-area step that works without a dataset:
+  draw or enter a WGS84 bounding box, review approximate dimensions and a
+  size-based maximum-zoom recommendation, and preserve the boundary plus the
+  initial 100 MiB offline-package policy in the portable project snapshot.
+- [x] Add deterministic Web Mercator tile-count and byte estimates, explicit
+  provider assumptions, browser quota preflight, and project-limit feedback.
+  Treat the ordinary browser HTTP cache as opportunistic rather than evidence of
+  offline coverage; keep OpenStreetMap Standard preview-only under its current
+  public tile policy.
+- [x] Import a reviewed regional `.pmtiles` archive, validate its v3 header and
+  section ranges, WGS 84 bounds, planned zoom coverage, data license,
+  attribution, size, and SHA-256, then persist it on Apply as a typed
+  browser-local OPFS project asset. Remove uncommitted assets when the pending
+  study area is removed or New Project is cancelled.
+- [x] Decode and render validated raster PNG/JPEG/WebP/AVIF PMTiles assets from
+  OPFS, rechecking byte length, SHA-256, header provenance, directory lookup,
+  and removing Street before activation. Browser regression asserts that the
+  selected raster path makes no tile-server requests.
+- [x] Add a self-hosted MapLibre renderer for vector MVT PMTiles. A custom local
+  protocol returns only decompressed bytes from the integrity-checked OPFS
+  reader; metadata-declared source layers receive a conservative generic style
+  beneath existing Leaflet overlays. Missing `vector_layers` metadata fails
+  closed rather than guessing.
+- [x] Include attached PMTiles bytes in the explicit binary `.epia` backup and
+  restore them into a newly integrity-checked OPFS path. Legacy JSON-only V2
+  packages still open and explicitly require PMTiles re-import when they carry
+  offline-map provenance without bytes. A browser regression removes the
+  original archive before restore to prove the backup is self-contained.
+- [x] Detect a missing, corrupt, or unavailable OPFS package before Maps claims
+  readiness; fail to a blank background and offer explicit `.epia` restore,
+  digest-matched PMTiles re-import, blank-map continuation, or detachment while
+  retaining the study-area plan. Browser regressions delete and corrupt the
+  stored file and reject a nonmatching replacement.
+- [ ] Expand corrupt directory/tile fixtures and perform network-disabled field
+  acceptance, mobile performance, proactive quota-pressure/eviction warning,
+  and update/revocation tests.
+- [ ] Add the offline basemap package implementation only after provider terms,
+  tile-count/byte estimates, quota preflight, cancellation, integrity, expiry,
+  attribution, update/recovery behavior, and field-offline tests are reviewed.
 - Build a reviewed `.mdb`/`.accdb` to SQLite conversion facility outside the
   browser runtime. Begin from the existing read-only Access inventory converter,
   add an explicit Access-object-to-Epi-SQLite mapping, preserve the original
@@ -1029,8 +1076,9 @@ one typed program-document service. Deletion retains the editor source, and
 unsupported source remains visible without broader execution authority. A
 separate Page Setup command stays disclosed because its settings live inside
 the browser print dialog. Typed Read, List, Frequencies, Means, and Tables
-builders now insert visible source. Exactly one selected READ, LIST, FREQ, or
-MEANS command may execute; TABLES stops for explicit value-classification review,
+builders now insert visible source. Exactly one selected READ, LIST, FREQ, MEANS,
+or categorical TABLES command may execute; binary TABLES classification remains
+an explicit reviewed step in the separate stratified 2 x 2 workflow,
 and every unsupported or multi-statement selection fails closed. READ is
 restricted to named forms in the current project; LIST provides bounded browser
 line-list Output and subsequent FREQ/MEANS use the same explicit session. Typed
@@ -1096,7 +1144,15 @@ current-project READ/RELATE active data, explicit WRITE REPLACE Text downloads, 
 DEFINE GROUPVAR session groups with bounded LIST expansion, bounded DISPLAY
 DBVARIABLES Output, SELECT/SORT session
 effects, bounded Standard-variable IF/ELSE branching, and active-session
-LIST/FREQ/MEANS, while external READ targets fail closed. Record-context IF,
+LIST/FREQ/MEANS/TABLES and session `SET MISSING=OFF/ON`, while external READ targets fail closed. TABLES V0.7
+renders all observed exposure/outcome categories unstratified or by one or more strata fields; reports counts,
+row/column percentages, totals, expected counts, Pearson chi-square/df/probability,
+and sparse-cell warnings; and reports missing exclusions. When an observed table
+is exactly 2 × 2, it preserves the legacy automatic Single Table Analysis,
+visibly states the category orientation, and sends the four cells to the
+validated Rust/WebAssembly kernel for OR, RR, RD, chi-square, mid-p, Fisher, and
+confidence-limit results. Its JupyterLite notebooks independently reconstruct
+the checksummed foodborne results. Record-context IF,
 compound expressions, functions, nested/arbitrary blocks, and missing-value
 comparisons remain outside that allowlist. The next interpreter slice is the
 standalone schema-aware semantic resolver and diagnostic model, followed by
@@ -1114,8 +1170,37 @@ The registry's overall parity status is evidence-gated. `browser-verified`
 requires a real `.pgm` tied to the checksummed foodborne dataset plus a
 machine-asserted expected-output artifact. `legacy-parity-verified` additionally
 requires captured and reviewed output from desktop Epi Info for that same
-program. The bounded IF, UNDEFINE, DISPLAY, DEFINE GROUPVAR, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, and SUMMARIZE fixtures use this
+program. The bounded READ, IF, UNDEFINE, DISPLAY, DEFINE GROUPVAR, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, LIST, FREQ, MEANS, TABLES, and SUMMARIZE fixtures use this
 rule; none is yet a desktop parity claim.
+
+Sequential `.pgm7` execution now builds a current-run Output document in source
+order. Every statement receives a numbered status and audit summary; each
+output-producing statement also retains a read-only snapshot before a later
+command can reuse its live panel. This closes the misleading behavior where
+multiple successful FREQ, LIST, or TABLES statements looked skipped because
+only the last result remained visible. Persistent/exportable output documents
+and exact desktop navigation semantics remain open.
+
+The legacy grammar also contains thematic `MAP` forms (`AVG`, `CASE_BASED`,
+`SUM`, `COUNT`, `MIN`, and `MAX`), but the inspected desktop Command Explorer
+reports Map as unimplemented and its interpreter cases do not execute. Epi Info
+AI therefore records `MAP` as a revival/new-branch target: retain the familiar
+spelling and reconcile its intended semantics with typed, auditable map-layer
+plans. GeoJSON, H3, GeoTIFF, offline packages, and future spatial-analysis
+syntax remain separately labeled modern branches rather than retroactive legacy
+parity claims.
+
+**Next Statistics slice — complete TABLES incrementally:** retain the current
+V0.7 unstratified/multiple-strata categorical M×N counts, percentages, totals, expected counts, Pearson
+statistics, sparse-cell warnings, and JupyterLite comparison as the tested floor;
+bounded `STATISTICS=FISHER` now covers 2 × N tables with a 200,000-table limit;
+and session `SET MISSING`, inverse `SET IGNORE`, and `SET (.)="label"` now
+preserve the legacy default and configurable display label; multiple `STRATAVAR`
+fields now produce labeled Cartesian strata and are exercised in the command tour;
+next add multiple exposure/outcome forms, `WEIGHTVAR`, and reviewed `OUTTABLE`. After those general
+tables, close stratified 2 × 2 Mantel–Haenszel and homogeneity outputs. Each increment
+requires a foodborne `.pgm`, machine-asserted expected output, browser execution,
+and ultimately reviewed desktop differential evidence.
 
 Browser-constrained legacy commands use a common adaptation contract: retain
 their learned names, syntax, and menu placement; replace ambient desktop
@@ -1142,6 +1227,11 @@ The Program Editor also exposes three reviewed runnable examples over the
 foodborne form: life-stage age groups by Sex, broad age bands by Case Status, and
 an overall decade distribution. The versioned catalog resides beside, identifies,
 and checksums the foodborne dataset rather than acting as a global language catalog.
+Each derived variable declares its display prompt explicitly in source, for
+example `DEFINE AgeGroup TEXTINPUT "Age group"`. Program Output preserves that
+prompt through the typed plan, derived-field metadata, title, and column heading.
+When the prompt is omitted, Output uses the exact variable identifier and does
+not invent a human-readable label.
 Selection loads ordinary editable source; examples receive no execution privilege
 beyond the same AST, field checks, and bounded plan used for user-authored source.
 The form now persists dataset ID, source filename, and original-import SHA-256.
