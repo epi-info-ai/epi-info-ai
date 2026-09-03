@@ -249,6 +249,21 @@ def verify_foodborne_tables() -> None:
         assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
         rows = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
         request = fixture["request"]
+        if "strata" not in fixture:
+            expected = fixture["expected"]
+            if "counts" in expected:
+                exposures = ["No", "Yes"]
+                outcomes = ["Confirmed", "Not a case", "Probable", "Suspected"]
+                counts = [[sum(row["Potato Salad"] == exposure and row["Case Status"] == outcome for row in rows)
+                           for outcome in outcomes] for exposure in exposures]
+                assert counts == expected["counts"]
+            else:
+                missing_by_sex = [sum(not row["Vomiting"].strip() and row["Sex"] == sex for row in rows)
+                                  for sex in ["Female", "Male"]]
+                assert len(rows) == expected["includedRecords"]
+                assert sum(missing_by_sex) == expected["includedMissing"]
+                assert missing_by_sex == expected["missingExposureCounts"]
+            continue
         for stratum in fixture["strata"]:
             members = [row for row in rows if "strataHeader" not in request or row[request["strataHeader"]] == stratum["value"]]
             observed = {
