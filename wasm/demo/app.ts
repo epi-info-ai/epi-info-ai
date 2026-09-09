@@ -27,7 +27,7 @@ import { renderDashboardCommandContract } from "../app/dashboard/dashboard-menu.
 import { renderClassicAnalysisContract } from "../app/analysis/classic-analysis-menu.js";
 import { CLASSIC_AST_VERSION, parseClassicProgram } from "../app/programming/classic-ast.js";
 import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
-import { buildClassicAnalysisCommand, resolveSelectedClassicAnalysisCommand, type ClassicAnalysisCommandInput, type ClassicAnalysisCommandKind, type ClassicDefineVariableScope, type ClassicDefineVariableType } from "../app/programming/classic-command-builder.js";
+import { buildClassicAnalysisCommand, CLASSIC_TABLES_EXPANSION_PLAN_VERSION, resolveSelectedClassicAnalysisCommand, type ClassicAnalysisCommandInput, type ClassicAnalysisCommandKind, type ClassicDefineVariableScope, type ClassicDefineVariableType } from "../app/programming/classic-command-builder.js";
 import { applyClassicSelection, resolveClassicSelectionCommand, type ClassicSelectionOperator } from "../app/programming/classic-selection.js";
 import { resolveClassicSortCommand, type ClassicSortDirection } from "../app/programming/classic-sort.js";
 import { assignmentValueFromInput, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand } from "../app/programming/classic-assignment.js";
@@ -679,7 +679,7 @@ document.querySelectorAll<HTMLButtonElement>("[data-assist-task]").forEach((butt
     const task = button.dataset.assistTask ?? "Plan analysis";
     classicProgramAssistTaskLabel.textContent = task;
     classicProgramAssistPreview.textContent = `Continue with ${task.toLocaleLowerCase()}`;
-    classicProgramAssistStatus.textContent = `${task} selected. Continue to choose and load the local Granite model.`;
+    classicProgramAssistStatus.textContent = `${task} selected. Continue to choose local Granite or an approved managed foundation-model gateway.`;
   });
 });
 
@@ -688,7 +688,7 @@ classicProgramAssistPreview.addEventListener("click", () => {
   const modelPrompt = requiredElement<HTMLTextAreaElement>("#epi-assist-prompt");
   if (prompt) modelPrompt.value = prompt;
   requiredElement<HTMLDialogElement>("#epi-assist-dialog").showModal();
-  classicProgramAssistStatus.textContent = "Opened the model-backed Epi Assist dialog. Choose a model, load it, and review the proposed action.";
+  classicProgramAssistStatus.textContent = "Opened the model-backed Epi Assist dialog. Choose a provider, enable it, and review the proposed action.";
 });
 
 function renderClassicProgramSession(): void {
@@ -1427,7 +1427,13 @@ function updateClassicCommandDialog(): void {
   classicCommandDialogField.replaceChildren(...fields.map((field, index) => new Option(field.prompt, field.name, false, list ? previousFields.has(field.name) || (previousFields.size === 0 && index < 3) : field.name === previousField)));
   if (!list && fields.some((field) => field.name === previousField)) classicCommandDialogField.value = previousField;
   const allOptions = source.fields.map((field) => new Option(field.prompt, field.name));
-  classicCommandDialogExposure.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
+  const previousExposure = classicCommandDialogExposure.value;
+  classicCommandDialogExposure.replaceChildren(
+    new Option("All eligible variables (*)", "*"),
+    ...allOptions.map((option) => option.cloneNode(true)),
+    ...sessionGroups.map((group) => new Option(`${group.name} (GROUPVAR · ${group.members.length} fields)`, group.name)),
+  );
+  if ([...classicCommandDialogExposure.options].some(({ value }) => value === previousExposure)) classicCommandDialogExposure.value = previousExposure;
   classicCommandDialogOutcome.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
   classicCommandDialogStrata.replaceChildren(new Option("Do not stratify", ""), ...allOptions.map((option) => option.cloneNode(true)));
   const previousWeight = classicCommandDialogWeight.value;
@@ -1566,6 +1572,7 @@ function updateClassicCommandDialog(): void {
     if (input.kind === "select" || input.kind === "cancel-select") resolveClassicSelectionCommand(command, source.fields);
     if (input.kind === "if") resolveClassicIfCommand(command, source.fields, sessionVariables);
     if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, source.fields);
+    if (input.kind === "tables") resolveSelectedClassicAnalysisCommand(command, source.fields, projectSources, sessionVariables, sessionGroups);
     requiredElement("#classic-command-dialog-preview").textContent = command;
     requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
@@ -1635,6 +1642,7 @@ function refreshClassicCommandDialogPreview(): void {
     if (input.kind === "select" || input.kind === "cancel-select") resolveClassicSelectionCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
     if (input.kind === "if") resolveClassicIfCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
     if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
+    if (input.kind === "tables") resolveSelectedClassicAnalysisCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, getProjectDataSources(), classicProgramSession.variables(), classicProgramSession.groups());
     requiredElement("#classic-command-dialog-preview").textContent = command;
     requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = Object.values(input).some((value) => value === "");
@@ -3549,34 +3557,58 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       });
       return;
     }
-    const tablesPlan = resolveClassicTablesPlan(selectedSource, project.fields, command.exposure, command.outcome, command.stratifyBy, command.statistics, command.weightBy, classicProgramSession.includeMissing(), classicProgramSession.missingLabel());
-    const tablesResult = applyClassicTables(project.records, tablesPlan);
-    renderClassicTablesOutput(tablesPlan, tablesResult);
-    const adjustedInput = classicTablesStratified2x2Input(tablesResult);
-    let adjustedResult: StratifiedTable2x2Result | null = null;
-    if (adjustedInput) {
-      classicProgramCommandStatus.textContent = `Calculating adjusted results across ${adjustedInput.strata.length} strata in the Rust/WASM Worker...`;
-      const adjusted = await calculateStratifiedTable2x2InWorker(adjustedInput, signal ? { signal } : {});
+    const tableExposures = command.exposures ?? [command.exposure];
+    const tableRuns: Array<{ plan: ClassicTablesPlan; result: ClassicTablesResult; adjusted: StratifiedTable2x2Result | null; snapshot: HTMLElement }> = [];
+    for (const [tableIndex, exposure] of tableExposures.entries()) {
       assertClassicProgramNotCancelled(signal);
-      adjustedResult = adjusted.result;
-      renderClassicTablesAdjustedOutput(adjusted.result, adjusted.durationMs);
+      const tablesPlan = resolveClassicTablesPlan(selectedSource, project.fields, exposure, command.outcome, command.stratifyBy, command.statistics, command.weightBy, classicProgramSession.includeMissing(), classicProgramSession.missingLabel());
+      const tablesResult = applyClassicTables(project.records, tablesPlan);
+      renderClassicTablesOutput(tablesPlan, tablesResult);
+      const adjustedInput = classicTablesStratified2x2Input(tablesResult);
+      let adjustedResult: StratifiedTable2x2Result | null = null;
+      if (adjustedInput) {
+        classicProgramCommandStatus.textContent = `Calculating adjusted results for table ${tableIndex + 1} of ${tableExposures.length} across ${adjustedInput.strata.length} strata in the Rust/WASM Worker...`;
+        const adjusted = await calculateStratifiedTable2x2InWorker(adjustedInput, signal ? { signal } : {});
+        assertClassicProgramNotCancelled(signal);
+        adjustedResult = adjusted.result;
+        renderClassicTablesAdjustedOutput(adjusted.result, adjusted.durationMs);
+      }
+      const snapshot = retainedSequentialOutput(requiredElement<HTMLElement>("#classic-tables-categorical-output"));
+      snapshot.classList.add("classic-tables-expanded-result");
+      tableRuns.push({ plan: tablesPlan, result: tablesResult, adjusted: adjustedResult, snapshot });
+    }
+    const firstRun = tableRuns[0]!;
+    if (tableRuns.length > 1) {
+      requiredElement("#classic-tables-categorical-title").textContent = `${command.exposure} by ${firstRun.plan.outcomePrompt}`;
+      requiredElement("#classic-tables-categorical-count").textContent = `${tableRuns.length} expanded tables · ${project.records.length} source records`;
+      requiredElement("#classic-tables-categorical-note").textContent = `Legacy TABLES exposure expansion ran ${tableRuns.length} GROUPVAR or wildcard members in declared field order. Each result below retains its resolved exposure field and statistics.`;
+      requiredElement("#classic-tables-categorical-body").replaceChildren(...tableRuns.map(({ snapshot }) => snapshot));
+      requiredElement<HTMLElement>("#classic-tables-categorical-output").hidden = false;
     }
     requiredElement("#classic-tables-categorical-output").scrollIntoView({ behavior: "smooth", block: "start" });
-    const binaryTables = tablesResult.strata.filter(({ twoByTwo }) => twoByTwo).length;
-    classicProgramFeedback.textContent = `TABLES counted ${tablesResult.includedRecords} records${tablesPlan.weightField ? ` with weighted N ${tablesResult.weightedTotal}` : ""} ${tablesPlan.strataFields.length ? `across ${tablesResult.strata.length} strata` : "in one unstratified table"}.${tablesResult.includedMissing ? ` ${tablesResult.includedMissing} records containing missing participating values were included.` : ""}${tablesResult.excludedInvalidWeight ? ` ${tablesResult.excludedInvalidWeight} invalid weights were excluded.` : ""}${binaryTables ? ` ${binaryTables} binary table${binaryTables === 1 ? "" : "s"} also received Single Table Analysis.` : tablesPlan.weightField ? " Exact and binary risk/odds statistics were not applied to weighted observations." : " No exposed/case classification was inferred."}${adjustedResult ? " Mantel-Haenszel adjusted estimates and homogeneity tests were calculated across strata." : ""}`;
-    classicProgramCommandStatus.textContent = adjustedResult
-      ? "Selected TABLES command completed with stratified 2 x 2 adjusted results from the Rust/WASM kernel."
-      : tablesPlan.weightField
-        ? "Selected TABLES command completed as a weighted categorical cross-tabulation."
-      : binaryTables
-        ? "Selected TABLES command completed with legacy-style 2 x 2 statistics."
-      : "Selected TABLES command completed as a categorical cross-tabulation.";
+    const binaryTables = tableRuns.reduce((sum, { result }) => sum + result.strata.filter(({ twoByTwo }) => twoByTwo).length, 0);
+    const adjustedRuns = tableRuns.filter(({ adjusted }) => adjusted).length;
+    if (tableRuns.length > 1) {
+      classicProgramFeedback.textContent = `TABLES expanded ${command.exposure} into ${tableRuns.length} exposure fields and produced ${tableRuns.length} auditable cross-tabulations against ${firstRun.plan.outcomePrompt}.${binaryTables ? ` ${binaryTables} binary stratum table${binaryTables === 1 ? "" : "s"} received Single Table Analysis.` : ""}${adjustedRuns ? ` ${adjustedRuns} expanded result${adjustedRuns === 1 ? "" : "s"} received adjusted stratified analysis.` : ""}`;
+      classicProgramCommandStatus.textContent = "Selected TABLES command completed through legacy exposure GROUPVAR/wildcard expansion.";
+    } else {
+      classicProgramFeedback.textContent = `TABLES counted ${firstRun.result.includedRecords} records${firstRun.plan.weightField ? ` with weighted N ${firstRun.result.weightedTotal}` : ""} ${firstRun.plan.strataFields.length ? `across ${firstRun.result.strata.length} strata` : "in one unstratified table"}.${firstRun.result.includedMissing ? ` ${firstRun.result.includedMissing} records containing missing participating values were included.` : ""}${firstRun.result.excludedInvalidWeight ? ` ${firstRun.result.excludedInvalidWeight} invalid weights were excluded.` : ""}${binaryTables ? ` ${binaryTables} binary table${binaryTables === 1 ? "" : "s"} also received Single Table Analysis.` : firstRun.plan.weightField ? " Exact and binary risk/odds statistics were not applied to weighted observations." : " No exposed/case classification was inferred."}${firstRun.adjusted ? " Mantel-Haenszel adjusted estimates and homogeneity tests were calculated across strata." : ""}`;
+      classicProgramCommandStatus.textContent = firstRun.adjusted
+        ? "Selected TABLES command completed with stratified 2 x 2 adjusted results from the Rust/WASM kernel."
+        : firstRun.plan.weightField
+          ? "Selected TABLES command completed as a weighted categorical cross-tabulation."
+        : binaryTables
+          ? "Selected TABLES command completed with legacy-style 2 x 2 statistics."
+        : "Selected TABLES command completed as a categorical cross-tabulation.";
+    }
     recordProgramRun({
-      origin: "user-program", status: "succeeded", planVersion: tablesPlan.version, astVersion: CLASSIC_AST_VERSION,
+      origin: "user-program", status: "succeeded", planVersion: tableRuns.length > 1 ? CLASSIC_TABLES_EXPANSION_PLAN_VERSION : firstRun.plan.version, astVersion: CLASSIC_AST_VERSION,
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
-      source: selectedSource, canonicalSource: tablesPlan.canonicalSource,
-      summary: `TABLES produced ${tablesPlan.strataFields.length ? `${tablesResult.strata.length} categorical strata` : "one unstratified categorical table"} from ${tablesResult.includedRecords} records${tablesPlan.weightField ? ` with weighted N ${tablesResult.weightedTotal}; ${tablesResult.excludedInvalidWeight} invalid weights excluded` : ""}; ${tablesPlan.includeMissing ? `${tablesResult.includedMissing} records containing missing values included` : `${tablesResult.excludedMissing} missing records excluded`}.${adjustedResult ? ` Rust/WASM calculated adjusted results across ${adjustedResult.diagnostics.informativeStrata} informative strata.` : ""}`,
-      diagnostics: adjustedResult?.diagnostics.warnings ?? [],
+      source: selectedSource, canonicalSource: tableRuns.length > 1 ? selectedSource.trim() : firstRun.plan.canonicalSource,
+      summary: tableRuns.length > 1
+        ? `TABLES expanded ${command.exposure} into ${tableRuns.length} exposure fields and produced ${tableRuns.length} categorical outputs from ${project.records.length} source records.`
+        : `TABLES produced ${firstRun.plan.strataFields.length ? `${firstRun.result.strata.length} categorical strata` : "one unstratified categorical table"} from ${firstRun.result.includedRecords} records${firstRun.plan.weightField ? ` with weighted N ${firstRun.result.weightedTotal}; ${firstRun.result.excludedInvalidWeight} invalid weights excluded` : ""}; ${firstRun.plan.includeMissing ? `${firstRun.result.includedMissing} records containing missing values included` : `${firstRun.result.excludedMissing} missing records excluded`}.${firstRun.adjusted ? ` Rust/WASM calculated adjusted results across ${firstRun.adjusted.diagnostics.informativeStrata} informative strata.` : ""}`,
+      diagnostics: tableRuns.flatMap(({ adjusted }) => adjusted?.diagnostics.warnings ?? []),
     });
   } catch (error) {
     if (isClassicProgramCancellation(error)) {

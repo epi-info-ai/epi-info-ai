@@ -1,0 +1,43 @@
+{
+  "expansionPlanVersion": "classic-tables-expansion-v0.1.0",
+  "schemaVersion": "1.0.0",
+  "command": "TABLES FoodExposures case_status",
+  "parityStatus": "browser-verified",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "recordCount": 96
+  },
+  "group": {
+    "name": "FoodExposures",
+    "members": ["potato_salad", "hamburger", "grilled_chicken"]
+  },
+  "outcome": "case_status",
+  "expected": [
+    {
+      "exposure": "potato_salad",
+      "includedRecords": 96,
+      "excludedMissing": 0,
+      "cells": [[0, 40, 2, 6], [22, 12, 14, 0]],
+      "pearsonChiSquare": 52.07692307692308
+    },
+    {
+      "exposure": "hamburger",
+      "includedRecords": 96,
+      "excludedMissing": 0,
+      "cells": [[8, 25, 10, 4], [14, 27, 6, 2]],
+      "pearsonChiSquare": 3.3397362515903555
+    },
+    {
+      "exposure": "grilled_chicken",
+      "includedRecords": 95,
+      "excludedMissing": 1,
+      "cells": [[10, 18, 7, 1], [12, 34, 8, 5]],
+      "pearsonChiSquare": 2.4111360234241594
+    }
+  ],
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Exact desktop ordering, labels, and HTML remain subject to reviewed differential capture."
+  }
+}

@@ -53,6 +53,14 @@ function pmtilesV3HeaderFixture() {
   return Buffer.from(bytes);
 }
 
+async function applyDataImportPreview(page, mode = "update-and-append") {
+  const dialog = page.getByRole("dialog", { name: "Preview Data Import" });
+  await expect(dialog).toBeVisible();
+  await dialog.locator(`input[name="data-import-mode"][value="${mode}"]`).check();
+  await dialog.getByRole("button", { name: "Apply Import" }).click();
+  await expect(dialog).toBeHidden();
+}
+
 function pmtilesV3RasterFixture() {
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEAQH/2p6rWQAAAABJRU5ErkJggg==", "base64");
   const root = Buffer.from([1, 0, 1, png.length, 1]);
@@ -256,7 +264,8 @@ test("phone Enter Data keeps record entry primary and line list reachable", asyn
   await expect(recordsPanel.getByText("PHONE-001", { exact: true })).toBeVisible();
 
   await page.locator("#csv-import").setInputFiles("wasm/demo/sample-case-data.csv");
-  await expect(page.locator("#csv-status")).toContainText("Imported 3 records from sample-case-data.csv.");
+  await applyDataImportPreview(page);
+  await expect(page.locator("#csv-status")).toContainText("appended 3");
   await expect(page.locator("#mobile-record-count")).toHaveText("(4)");
 });
 
@@ -308,7 +317,8 @@ test("Enter Data imports JSON through the same validated record path", async ({ 
       age: 38,
     }])),
   });
-  await expect(page.locator("#csv-status")).toHaveText("Imported 1 record from one-case.json.");
+  await applyDataImportPreview(page);
+  await expect(page.locator("#csv-status")).toContainText("appended 1");
   await expect(page.locator("#record-count")).toHaveText("(1)");
 });
 
@@ -320,10 +330,112 @@ test("Enter Data imports the canonical foodborne coordinates into its inferred f
   await page.locator("#designer-enter-data").click();
   await expect(page.locator("#record-count")).toHaveText("(0)");
   await page.locator("#csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
-  await expect(page.locator("#csv-status")).toHaveText("Imported 96 records from foodborne-outbreak-investigation.csv.");
+  await applyDataImportPreview(page);
+  await expect(page.locator("#csv-status")).toContainText("appended 96");
   await expect(page.locator("#record-count")).toHaveText("(96)");
   await expect(page.locator("#records-body tr").first()).toContainText("41.67230");
   await expect(page.locator("#records-body tr").first()).toContainText("-83.61450");
+});
+
+test("Enter Data previews and safely rejects a blind repeat-file append", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields from foodborne-outbreak-investigation.csv");
+  await page.locator("#designer-enter-data").click();
+
+  const file = "wasm/demo/examples/foodborne-outbreak-investigation.csv";
+  await page.locator("#csv-import").setInputFiles(file);
+  const dialog = page.getByRole("dialog", { name: "Preview Data Import" });
+  await expect(dialog.locator("#data-import-preview-new")).toHaveText("96");
+  await expect(dialog.locator("#data-import-preview-key")).toHaveValue("id");
+  await applyDataImportPreview(page);
+  await expect(page.locator("#record-count")).toHaveText("(96)");
+
+  await page.locator("#csv-import").setInputFiles(file);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("#data-import-preview-warning")).toContainText("exact file was imported previously");
+  await expect(dialog.locator("#data-import-preview-matching")).toHaveText("96");
+  await expect(dialog.locator("#data-import-preview-unchanged")).toHaveText("96");
+  await expect(dialog.locator("#data-import-preview-new")).toHaveText("0");
+  await expect(dialog.getByRole("button", { name: "Apply Import" })).toBeDisabled();
+  await dialog.locator('input[name="data-import-mode"][value="append-new"]').check();
+  await dialog.getByRole("button", { name: "Apply Import" }).click();
+  await expect(page.locator("#record-count")).toHaveText("(96)");
+  await expect(page.locator("#csv-status")).toContainText("appended 0 new and ignored 96 matching");
+});
+
+test("Data Packager creates an authenticated package and reviews it before import", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("imported 96 records");
+  await page.locator("#designer-enter-data").click();
+
+  const enterMenu = page.getByRole("navigation", { name: "Enter Data menu" });
+  await enterMenu.getByText("File", { exact: true }).click();
+  await enterMenu.getByRole("menuitem", { name: "Package For Transport", exact: true }).click();
+  const packageDialog = page.getByRole("dialog", { name: "Package Data for Transport" });
+  await expect(packageDialog).toBeVisible();
+  await expect(packageDialog.locator("#package-record-count")).toHaveText("96");
+  await packageDialog.locator("#package-remove-fields").selectOption("nausea");
+  await packageDialog.locator("#package-passphrase").fill("field-demo-passphrase");
+  await packageDialog.locator("#package-passphrase-verify").fill("field-demo-passphrase");
+  const downloadPromise = page.waitForEvent("download");
+  await packageDialog.getByRole("button", { name: "Package", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.epiax$/);
+  await expect(packageDialog.locator("#package-transport-status")).toContainText("Package creation complete: 96 records, 1 field blanked");
+  const downloadedPath = await download.path();
+  expect(downloadedPath).toBeTruthy();
+  const encryptedPackage = {
+    name: download.suggestedFilename(),
+    mimeType: "application/vnd.epi-info-ai.encrypted-project",
+    buffer: await readFile(downloadedPath),
+  };
+  await packageDialog.locator(".legacy-dialog-actions button[value=cancel]").click();
+
+  await enterMenu.getByText("File", { exact: true }).click();
+  await enterMenu.getByRole("menuitem", { name: "Import Data", exact: true }).click();
+  await enterMenu.getByRole("menuitem", { name: "From Data Package", exact: true }).click();
+  const importDialog = page.getByRole("dialog", { name: "Import Encrypted Data Package" });
+  await importDialog.locator("#data-package-file").setInputFiles(encryptedPackage);
+  await importDialog.locator("#data-package-passphrase").fill("field-demo-passphrase");
+  await importDialog.getByRole("button", { name: "Review Import" }).click();
+
+  const preview = page.getByRole("dialog", { name: "Preview Data Import" });
+  await expect(preview).toBeVisible();
+  await expect(preview.locator("#data-import-preview-matching")).toHaveText("96");
+  await expect(preview.locator("#data-import-preview-unchanged")).toHaveText("96");
+  await applyDataImportPreview(page);
+  await expect(page.locator("#record-count")).toHaveText("(96)");
+  await expect(page.locator("#csv-status")).toContainText("left 96 unchanged");
+
+  await enterMenu.getByText("File", { exact: true }).click();
+  await enterMenu.getByRole("menuitem", { name: "Secure Epi Info Share...", exact: true }).click();
+  const shareDialog = page.getByRole("dialog", { name: /Secure Epi Info Share/ });
+  await expect(shareDialog.locator("#secure-share-send-selection")).toContainText(download.suggestedFilename());
+  await shareDialog.locator("#secure-share-create-offer").click();
+  await expect(shareDialog.locator("#secure-share-send-offer")).not.toHaveValue("");
+  const offer = await shareDialog.locator("#secure-share-send-offer").inputValue();
+  expect(offer).not.toBe("");
+  await expect(shareDialog.locator("#secure-share-send-fingerprint")).not.toHaveText("Not created");
+  await shareDialog.locator("#secure-share-receive-offer").fill(offer);
+  await shareDialog.locator("#secure-share-create-answer").click();
+  await expect(shareDialog.locator("#secure-share-receive-answer")).not.toHaveValue("");
+  const answer = await shareDialog.locator("#secure-share-receive-answer").inputValue();
+  expect(answer).not.toBe("");
+  await expect(shareDialog.locator("#secure-share-receive-fingerprint")).not.toHaveText("Not created");
+  await shareDialog.locator("#secure-share-send-answer").fill(answer);
+  await shareDialog.locator("#secure-share-accept-answer").click();
+  await expect(shareDialog.locator("#secure-share-review-received")).toBeEnabled({ timeout: 15_000 });
+  await expect(shareDialog.locator("#secure-share-receive-status")).toContainText("received and verified");
+  await shareDialog.locator("#secure-share-receive-passphrase").fill("field-demo-passphrase");
+  await shareDialog.locator("#secure-share-review-received").click();
+  await expect(preview).toBeVisible();
+  await expect(preview.locator("#data-import-preview-warning")).toContainText("exact file was imported previously");
+  await expect(preview.getByRole("button", { name: "Apply Import" })).toBeDisabled();
+  await preview.locator('.legacy-dialog-actions button[value="cancel"]').click();
 });
 
 test("Form Designer authors a safe conditional skip and Enter follows it", async ({ page }) => {
@@ -541,9 +653,11 @@ test("Enter Data preserves the legacy menu contract and discloses browser branch
   );
   expect(fileOrder).toEqual([
     "new-record", "open-form", "edit-form", "close-form", "save", "import-data", "package-transport",
-    "print", "recent-forms", "exit", "import-browser-file",
+    "secure-share", "print", "recent-forms", "exit", "import-browser-file",
   ]);
   await expect(enterMenu.getByRole("menuitem", { name: /^Open Form\.\.\. Ctrl\+O$/ })).toHaveAttribute("aria-disabled", "true");
+  await expect(enterMenu.getByRole("menuitem", { name: "Package For Transport", exact: true })).toBeEnabled();
+  await expect(page.locator("#enter-menu-secure-share")).toHaveAttribute("data-new-branch", "true");
   await expect(page.locator("#enter-menu-import-file")).toHaveAttribute("data-new-branch", "true");
   await enterMenu.getByRole("menuitem", { name: "Import Data", exact: true }).click();
   await expect(enterMenu.getByRole("menuitem", { name: "From Epi Info 7 Project", exact: true })).toBeVisible();
@@ -1541,6 +1655,7 @@ test("Program Editor opens and runs the demo foodborne PGM through visible Outpu
 });
 
 test("Program Editor runs the foodborne pgm7 command tour sequentially", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
   await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
@@ -1575,26 +1690,28 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   }, await sourceScroller.elementHandle())).toBe(true);
 
   await page.locator("#classic-program-toolbar-run").click();
-  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 23 of 23 commands succeeded.");
-  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 23 commands in source order");
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 25 of 25 commands succeeded.");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 25 commands in source order");
   await expect(page.locator("#classic-program-session-status")).toContainText("96 records; no selection");
   await expect(page.locator("#classic-program-session-status")).not.toContainText("SORT Age");
   await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
   await expect(page.locator("#classic-summarize-output-body tr")).toHaveCount(2);
   await expect(page.locator("#classic-graph-output-title")).toHaveText("Foodborne cases by status");
-  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("Potato Salad by Hamburger, stratified by Sex, Case Status");
-  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(8);
-  await expect(page.locator("#classic-tables-categorical-body .classic-tables-percent-row")).toHaveCount(32);
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("FoodExposures by Case Status");
+  await expect(page.locator("#classic-tables-categorical-count")).toHaveText("3 expanded tables · 96 source records");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-expanded-result")).toHaveCount(3);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(3);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-percent-row")).toHaveCount(12);
   await expect(page.locator("#classic-tables-categorical-body .classic-tables-pearson")).toHaveCount(3);
   await expect(page.locator("#classic-tables-categorical-body .classic-tables-fisher")).toHaveCount(0);
   await expect(page.locator("#classic-tables-categorical-body details")).toHaveCount(3);
   await expect(page.locator("#classic-quality-output")).toBeVisible();
   await expect(page.locator("#classic-quality-output-count")).toHaveText("96 records · 27 fields");
   await expect(page.locator('#classic-quality-output-body tr[data-field-name="hospitalization_date"]')).toContainText("74");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("24");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("26");
   await expect(page.locator("#classic-sequential-output")).toBeVisible();
-  await expect(page.locator("#classic-sequential-output-count")).toHaveText("23 of 23 commands retained");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(23);
+  await expect(page.locator("#classic-sequential-output-count")).toHaveText("25 of 25 commands retained");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(25);
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(4)).toHaveText('SET (.)="Not recorded"');
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(5)).toHaveText("SET MISSING=ON");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(6)).toHaveText("TABLES vomiting Sex");
@@ -1606,6 +1723,9 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(12)).toHaveText("TABLES potato_salad case_status WEIGHTVAR=Age");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(12)).toContainText("weighted N 3917");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(13)).toHaveText("TABLES potato_salad hamburger STRATAVAR=Sex case_status");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(22)).toContainText("DEFINE FoodExposures GROUPVAR");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(23)).toHaveText("TABLES FoodExposures case_status");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(23).locator(".classic-tables-expanded-result")).toHaveCount(3);
   await expect(page.locator("#classic-sequential-output-body .classic-tables-2x2")).toHaveCount(12);
 
   await expect(page.locator("#classic-program-title")).toBeVisible();
@@ -1617,26 +1737,27 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   for (const selector of ["#classic-program-output", "#classic-sequential-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-program-history-output"]) {
     await expect(page.locator(selector)).toBeHidden();
   }
-  await expect(page.locator("#classic-program-history-count")).toHaveText("24");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("26");
   await page.locator("#classic-output-history").click();
   await expect(page.locator("#classic-program-history-output")).toBeVisible();
-  await expect(page.locator("#classic-program-history-count")).toHaveText("24");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("26");
 });
 
 test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open Pgm", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
   await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
 
-  const openAndRun = async (file) => {
+  const openAndRun = async (file, commandCount = 1) => {
     await page.locator("#classic-program-toolbar-open").click();
     page.once("dialog", (dialog) => dialog.accept());
     await page.locator("#classic-program-file").setInputFiles(file);
     await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
     await page.locator("#classic-program-toolbar-run").click();
-    await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 1 of 1 commands succeeded.");
+    await expect(page.locator("#classic-program-command-status")).toHaveText(`Program completed: ${commandCount} of ${commandCount} commands succeeded.`);
   };
 
   await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.pgm");
@@ -1710,6 +1831,16 @@ test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open
   await expect(page.locator("#classic-tables-categorical-note")).toContainText("Counts are sums of finite, non-negative Age values");
   await expect(page.locator("#classic-tables-categorical-note")).toContainText("Exact and 2 × 2 risk/odds statistics remain disabled");
   await expect(page.locator("#classic-tables-categorical-body .classic-tables-2x2")).toHaveCount(0);
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.pgm", 2);
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("FoodExposures by Case Status");
+  await expect(page.locator("#classic-tables-categorical-count")).toHaveText("3 expanded tables · 96 source records");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-expanded-result")).toHaveCount(3);
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-expanded-result").nth(0)).toContainText("Potato Salad by Case Status");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-expanded-result").nth(1)).toContainText("Hamburger by Case Status");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-expanded-result").nth(2)).toContainText("Grilled Chicken by Case Status");
+  await page.locator("#classic-output-history").click();
+  await expect(page.locator("#classic-program-history-rows tr").filter({ hasText: "3 exposure fields" })).toHaveCount(1);
 });
 
 test("Program Editor Cancel stops a sequential run and retains completed work", async ({ page }) => {
@@ -3005,14 +3136,39 @@ test("Epi Assist previews reviewed actions without loading or contacting a model
   await page.getByRole("button", { name: /Epi Assist/ }).first().click();
   await expect(page.getByRole("dialog", { name: "Epi Assist" })).toBeVisible();
   await expect(page.locator("#epi-assist-status")).toContainText("not loaded");
-  await expect(page.locator("#epi-assist-model option")).toHaveCount(3);
+  await expect(page.locator("#epi-assist-model option")).toHaveCount(5);
   await expect(page.locator("#epi-assist-model")).toHaveValue("granite-4.0-350m-wasm");
   await expect(page.locator("#epi-assist-model-description")).toContainText("CPU via WebAssembly");
   await page.locator("#epi-assist-model").selectOption("granite-4.0-1b");
   await expect(page.locator("#epi-assist-model-description")).toContainText("1.78 GB");
   await expect(page.locator("#epi-assist-load")).toHaveText("Load Granite 4.0 1B — WebGPU");
   await expect(page.locator("#epi-assist-status")).toContainText("Granite 4.0 1B Instruct — WebGPU selected");
-  await expect(page.getByText("Your prompt and project data stay in this browser.")).toBeVisible();
+  await page.locator("#epi-assist-model").selectOption("openai-chatgpt");
+  await expect(page.locator("#epi-assist-provider-badge")).toHaveText("Managed gateway");
+  await expect(page.locator("#epi-assist-model-description")).toContainText("same-origin Epi Assist gateway");
+  await expect(page.locator("#epi-assist-privacy")).toContainText("provider API keys are never sent to or stored in this client");
+  await page.route("**/api/epi-assist/v1/propose", async (route) => {
+    const request = route.request().postDataJSON();
+    expect(request.provider).toBe("openai");
+    expect(request.modelAlias).toBe("chatgpt");
+    expect(request.context.records).toBeUndefined();
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({
+      schemaVersion: "1.0.0",
+      provider: "openai",
+      model: { id: "approved-chatgpt-model", revision: "2026-09-03" },
+      requestId: "browser-gateway-test-1",
+      toolCalls: [{ name: "run_frequency", arguments: { field_name: "age", stratify_by: "sex" } }],
+      audit: { systemVersion: "gateway-system-v1", toolSchemaVersion: "epi-assist-tools-v3" },
+    }) });
+  });
+  await page.locator("#epi-assist-load").click();
+  await expect(page.locator("#epi-assist-ask")).toBeEnabled();
+  await page.locator("#epi-assist-prompt").fill("Show age distribution by sex");
+  await page.locator("#epi-assist-ask").click();
+  await expect(page.locator("#epi-assist-result-source")).toContainText("approved-chatgpt-model");
+  await expect(page.locator("#epi-assist-actions button")).toHaveText("Run Frequency: Age by Sex");
+  await page.locator("#epi-assist-run-details").click();
+  await expect(page.locator("#epi-assist-run-request-id")).toHaveText("browser-gateway-test-1");
   await page.locator("#epi-assist-guided").click();
   await expect(page.locator("#epi-assist-result-source")).toContainText("Granite not used");
   await expect(page.locator("#epi-assist-actions button").first()).toBeVisible();

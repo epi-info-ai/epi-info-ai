@@ -1,0 +1,3 @@
+*** Legacy TABLES exposure GROUPVAR expansion against the foodborne corpus
+DEFINE FoodExposures GROUPVAR potato_salad hamburger grilled_chicken
+TABLES FoodExposures case_status

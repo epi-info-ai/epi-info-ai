@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=59" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=90"></script>
+    <script type="module" src="app.js?v=91"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -68,7 +68,7 @@
           <button type="button" role="menuitem" data-open-module="dashboard">Visual Dashboard</button>
           <button type="button" role="menuitem" data-open-module="maps" data-map-context="standalone">Create Maps</button>
           <div class="legacy-menu-separator" role="separator"></div>
-          <button type="button" role="menuitem" data-open-epi-assist>Epi Assist (local Granite)...</button>
+          <button type="button" role="menuitem" data-open-epi-assist>Epi Assist (foundation models)...</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Options...</button>
         </div>
       </details>
@@ -348,6 +348,126 @@
           </div>
           <div id="enter-statusbar" class="designer-statusbar enter-statusbar">Ready</div>
         </section>
+
+        <dialog id="data-import-preview-dialog" class="legacy-dialog data-import-preview-dialog" aria-labelledby="data-import-preview-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="data-import-preview-title">Preview Data Import</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p id="data-import-preview-file" class="data-import-preview-file"></p>
+              <p id="data-import-preview-warning" class="data-import-preview-warning" role="alert" hidden></p>
+              <label>Match records using
+                <select id="data-import-preview-key"></select>
+              </label>
+              <p class="dialog-note">Like legacy Epi Info's GlobalRecordId workflow, matching records can be updated or ignored; only nonmatching records are appended.</p>
+              <dl class="data-import-preview-counts">
+                <div><dt>Incoming</dt><dd id="data-import-preview-incoming">0</dd></div>
+                <div><dt>New</dt><dd id="data-import-preview-new">0</dd></div>
+                <div><dt>Matching</dt><dd id="data-import-preview-matching">0</dd></div>
+                <div><dt>Changed</dt><dd id="data-import-preview-changed">0</dd></div>
+                <div><dt>Unchanged</dt><dd id="data-import-preview-unchanged">0</dd></div>
+                <div><dt>Key problems</dt><dd id="data-import-preview-key-problems">0</dd></div>
+                <div><dt>Invalid records</dt><dd id="data-import-preview-invalid">0</dd></div>
+              </dl>
+              <fieldset>
+                <legend>Type of Import</legend>
+                <label><input type="radio" name="data-import-mode" value="update-and-append"> Update matching and append new records</label>
+                <label><input type="radio" name="data-import-mode" value="update-only"> Update matching records only</label>
+                <label><input type="radio" name="data-import-mode" value="append-new"> Append new records only</label>
+                <label><input type="radio" name="data-import-mode" value="replace"> Replace all current records</label>
+              </fieldset>
+              <p id="data-import-preview-feedback" class="inline-feedback" role="status"></p>
+            </div>
+            <div class="legacy-dialog-actions"><button id="data-import-preview-apply" class="dialog-primary" type="button" disabled>Apply Import</button><button value="cancel">Cancel</button></div>
+          </form>
+        </dialog>
+
+        <dialog id="package-transport-dialog" class="legacy-dialog package-transport-dialog" aria-labelledby="package-transport-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="package-transport-title">Package Data for Transport</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p class="dialog-note"><strong>Legacy-compatible workflow, modern package.</strong> This V0.1 creates an authenticated encrypted <code>.epiax</code> package. Desktop Epi Info 7 cannot open this new format.</p>
+              <dl class="package-context">
+                <div><dt>Project</dt><dd id="package-project-name"></dd></div>
+                <div><dt>Form</dt><dd id="package-form-name"></dd></div>
+                <div><dt>Records available</dt><dd id="package-record-count"></dd></div>
+              </dl>
+              <label for="package-name">Package name</label>
+              <input id="package-name" maxlength="100" autocomplete="off" />
+              <label><input id="package-append-timestamp" type="checkbox" /> Append timestamp to file name</label>
+              <fieldset>
+                <legend>Remove data in fields</legend>
+                <p class="dialog-note">Select optional fields whose values must be blanked in the transported copy. Required and identity fields remain protected.</p>
+                <select id="package-remove-fields" multiple size="6" aria-label="Fields to remove from package"></select>
+              </fieldset>
+              <fieldset>
+                <legend>Select records</legend>
+                <div class="package-filter-grid">
+                  <label>Field<select id="package-filter-field"></select></label>
+                  <label>Operator<select id="package-filter-operator"><option value="equals">Equals</option><option value="not-equals">Does not equal</option><option value="contains">Contains</option></select></label>
+                  <label>Value<input id="package-filter-value" autocomplete="off" /></label>
+                </div>
+                <p class="dialog-note">Leave the filter value blank to include every record.</p>
+              </fieldset>
+              <fieldset>
+                <legend>Security</legend>
+                <label>Passphrase <input id="package-passphrase" type="password" minlength="12" maxlength="1024" autocomplete="new-password" /></label>
+                <label>Verify passphrase <input id="package-passphrase-verify" type="password" minlength="12" maxlength="1024" autocomplete="new-password" /></label>
+                <p class="dialog-note">At least 12 characters. The passphrase is never saved and cannot be recovered.</p>
+              </fieldset>
+              <p id="package-transport-status" class="inline-feedback" role="status"></p>
+            </div>
+            <div class="legacy-dialog-actions"><button id="package-create" class="dialog-primary" type="button">Package</button><button value="cancel">Close</button></div>
+          </form>
+        </dialog>
+
+        <dialog id="data-package-import-dialog" class="legacy-dialog data-package-import-dialog" aria-labelledby="data-package-import-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="data-package-import-title">Import Encrypted Data Package</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p class="dialog-note">Select a modern Epi Info AI <code>.epiax</code> package. It is decrypted only for validation and then enters the normal non-mutating import preview.</p>
+              <label for="data-package-file">Encrypted data package</label>
+              <input id="data-package-file" type="file" accept=".epiax,.edp7,application/vnd.epi-info-ai.encrypted-project" />
+              <label for="data-package-passphrase">Passphrase</label>
+              <input id="data-package-passphrase" type="password" maxlength="1024" autocomplete="current-password" />
+              <p id="data-package-import-status" class="inline-feedback" role="status"></p>
+            </div>
+            <div class="legacy-dialog-actions"><button id="data-package-review" class="dialog-primary" type="button">Review Import</button><button value="cancel">Close</button></div>
+          </form>
+        </dialog>
+
+        <dialog id="secure-share-dialog" class="legacy-dialog secure-share-dialog" aria-labelledby="secure-share-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="secure-share-title"><span class="new-branch-badge">New branch</span> Secure Epi Info Share</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p class="data-import-preview-warning"><strong>Manual direct pairing V0.1.</strong> Exchange the offer, answer, and displayed DTLS fingerprints through a trusted channel. This prototype uses no signaling or TURN server and therefore may not connect across restrictive networks.</p>
+              <fieldset>
+                <legend>Send encrypted package</legend>
+                <label>Package <input id="secure-share-send-file" type="file" accept=".epiax,application/vnd.epi-info-ai.encrypted-project" /></label>
+                <p id="secure-share-send-selection" class="dialog-note">Create a transport package first or select an existing <code>.epiax</code> file.</p>
+                <button id="secure-share-create-offer" type="button">1. Create Offer</button>
+                <label>Offer code<textarea id="secure-share-send-offer" rows="4" readonly></textarea></label>
+                <p>Sender fingerprint: <code id="secure-share-send-fingerprint">Not created</code></p>
+                <label>Receiver answer<textarea id="secure-share-send-answer" rows="4" spellcheck="false"></textarea></label>
+                <button id="secure-share-accept-answer" type="button" disabled>2. Apply Answer and Send</button>
+                <progress id="secure-share-send-progress" max="1" value="0"></progress>
+                <p id="secure-share-send-status" class="inline-feedback" role="status"></p>
+              </fieldset>
+              <fieldset>
+                <legend>Receive encrypted package</legend>
+                <label>Sender offer<textarea id="secure-share-receive-offer" rows="4" spellcheck="false"></textarea></label>
+                <button id="secure-share-create-answer" type="button">1. Create Answer</button>
+                <label>Answer code<textarea id="secure-share-receive-answer" rows="4" readonly></textarea></label>
+                <p>Sender fingerprint: <code id="secure-share-receive-sender-fingerprint">Not received</code></p>
+                <p>Receiver fingerprint: <code id="secure-share-receive-fingerprint">Not created</code></p>
+                <progress id="secure-share-receive-progress" max="1" value="0"></progress>
+                <label>Package passphrase <input id="secure-share-receive-passphrase" type="password" maxlength="1024" autocomplete="current-password" /></label>
+                <button id="secure-share-review-received" type="button" disabled>2. Review Received Package</button>
+                <p id="secure-share-receive-status" class="inline-feedback" role="status"></p>
+              </fieldset>
+            </div>
+            <div class="legacy-dialog-actions"><button value="cancel">Close</button></div>
+          </form>
+        </dialog>
 
         <section class="module-view" data-module-view="maps" hidden aria-labelledby="maps-title">
           <div class="map-window">
@@ -776,7 +896,7 @@
                 <button id="classic-program-assist-close" type="button" aria-label="Close Epi Assist" title="Close Epi Assist">×</button>
               </div>
               <div class="classic-program-assist-body">
-                <div class="classic-program-assist-model"><span class="engine-dot" aria-hidden="true"></span><span><strong>Local IBM Granite</strong><small>Editor-aware planning prototype</small></span></div>
+                <div class="classic-program-assist-model"><span class="engine-dot" aria-hidden="true"></span><span><strong>Foundation model options</strong><small>Local Granite or managed ChatGPT/Claude gateway</small></span></div>
                 <p class="classic-program-assist-boundary"><strong>Nothing runs automatically.</strong> Epi Assist proposes a typed plan and visible Epi Info source for your review.</p>
                 <div class="classic-program-assist-tasks" role="group" aria-label="Epi Assist task">
                   <button type="button" data-assist-task="Plan analysis" aria-pressed="true">Plan</button>
@@ -785,7 +905,7 @@
                   <button type="button" data-assist-task="Validate program" aria-pressed="false">Validate</button>
                 </div>
                 <label for="classic-program-assist-prompt"><span id="classic-program-assist-task-label">Plan analysis</span><textarea id="classic-program-assist-prompt" rows="3">Show the age distribution by sex</textarea></label>
-                <button id="classic-program-assist-preview" class="primary-button" type="button">Continue to local Granite</button>
+                <button id="classic-program-assist-preview" class="primary-button" type="button">Continue to Epi Assist</button>
                 <p id="classic-program-assist-status" class="inline-feedback" role="status">Continue to choose a local model and review its proposed tool call.</p>
                 <article id="classic-program-assist-proposal" class="classic-program-assist-proposal" aria-labelledby="classic-program-assist-proposal-title">
                   <p class="step-label">REVIEWED PLAN PREVIEW</p>
@@ -1435,19 +1555,20 @@
         <div class="legacy-dialog-content epi-assist-content">
           <section class="epi-assist-model" aria-labelledby="epi-assist-model-title">
             <div>
-              <h2 id="epi-assist-model-title">Local IBM Granite</h2>
-              <label for="epi-assist-model"><strong>Test model</strong></label>
+              <h2 id="epi-assist-model-title">Foundation model</h2>
+              <label for="epi-assist-model"><strong>Provider and model</strong></label>
               <select id="epi-assist-model">
                 <option value="granite-4.0-350m-wasm">Granite 4.0 350M (CPU compatibility, q4)</option>
                 <option value="granite-4.0-350m-webgpu">Granite 4.0 350M (WebGPU, fp16)</option>
                 <option value="granite-4.0-1b">Granite 4.0 1B (WebGPU, q4)</option>
+                <option value="openai-chatgpt">OpenAI — ChatGPT models (gateway)</option>
+                <option value="anthropic-claude">Anthropic — Claude models (gateway)</option>
               </select>
               <p id="epi-assist-model-description">WebGPU; approximately 709 MB for the selected model files.</p>
-              <p>Granite 4.0 350M Instruct · WebGPU · approximately 709 MB for the selected fp16 model files.</p>
             </div>
-            <span class="local-only-badge">Local inference</span>
+            <span id="epi-assist-provider-badge" class="local-only-badge">Local inference</span>
           </section>
-          <p class="epi-assist-privacy"><strong>Your prompt and project data stay in this browser.</strong> First use retrieves model weights from the model host and stores them in browser cache when supported. Epi Assist supplies only field definitions and aggregate quality counts—not record values—to Granite.</p>
+          <p id="epi-assist-privacy" class="epi-assist-privacy"><strong>Your prompt and project data stay in this browser.</strong> First use retrieves model weights from the model host and stores them in browser cache when supported. Epi Assist supplies only field definitions and aggregate quality counts—not record values—to Granite.</p>
           <div class="form-actions epi-assist-model-actions">
             <button id="epi-assist-load" class="primary-button" type="button">Load Granite</button>
             <button id="epi-assist-guided" type="button">Preview without AI</button>
@@ -1469,6 +1590,7 @@
               <summary>AI run details</summary>
               <p><strong>Model</strong><br><span id="epi-assist-run-model"></span></p>
               <p><strong>Runtime and prompt schemas</strong><br><span id="epi-assist-run-runtime"></span></p>
+              <p id="epi-assist-run-request-row" hidden><strong>Gateway request ID</strong><br><span id="epi-assist-run-request-id"></span></p>
               <p><strong>User prompt (local history only)</strong></p>
               <pre id="epi-assist-run-user-prompt"></pre>
               <p><strong>System prompt</strong></p>

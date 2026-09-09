@@ -1,6 +1,7 @@
-import { buildGuidedProposal, parseEpiAssistToolCalls } from "../app/assistant/proposals.ts";
+import { buildGuidedProposal, parseEpiAssistNativeToolCalls, parseEpiAssistToolCalls } from "../app/assistant/proposals.ts";
 import { resolveEpiAssistFrequencyIntent } from "../app/assistant/intent.ts";
 import { EPI_ASSIST_MODELS, epiAssistModel } from "../app/assistant/models.ts";
+import { EPI_ASSIST_CLOUD_CHOICES, requestCloudProposal, type EpiAssistCloudChoice } from "../app/assistant/gateway.ts";
 import { EPI_ASSIST_CONTEXT_VERSION, type EpiAssistAction, type EpiAssistContext, type EpiAssistProposal, type EpiAssistRunMetadata } from "../app/contracts/assistant.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
 import { buildDataQualityReport } from "../app/forms/data-quality.ts";
@@ -99,13 +100,20 @@ function renderRunMetadata(metadata?: EpiAssistRunMetadata): void {
   requiredElement("#epi-assist-run-user-prompt").textContent = metadata.prompt.user;
   requiredElement("#epi-assist-run-system-prompt").textContent = metadata.prompt.system;
   requiredElement("#epi-assist-run-generation").textContent = JSON.stringify(metadata.generation, null, 2);
+  const requestRow = requiredElement<HTMLElement>("#epi-assist-run-request-row");
+  requestRow.hidden = !metadata.requestId;
+  requiredElement("#epi-assist-run-request-id").textContent = metadata.requestId ?? "";
 }
 
-function renderProposal(proposal: EpiAssistProposal, context: EpiAssistContext, source: "granite" | "guided" | "granite-fallback", metadata?: EpiAssistRunMetadata): void {
+function renderProposal(proposal: EpiAssistProposal, context: EpiAssistContext, source: "granite" | "guided" | "granite-fallback" | "cloud" | "cloud-fallback", metadata?: EpiAssistRunMetadata): void {
   const modelLabel = metadata ? EPI_ASSIST_MODELS.find((model) => model.modelId === metadata.model.id)?.label ?? metadata.model.id : "IBM Granite";
   requiredElement("#epi-assist-result").hidden = false;
   requiredElement("#epi-assist-result-source").textContent = source === "granite"
     ? `Local proposal from ${modelLabel}`
+    : source === "cloud"
+      ? `Gateway proposal from ${metadata?.provider?.id ?? "configured foundation model"} · ${metadata?.model.id ?? "model not reported"}`
+      : source === "cloud-fallback"
+        ? "Safe guided fallback after a foundation-model gateway error"
     : source === "granite-fallback"
       ? "Safe guided fallback after an incomplete Granite response"
       : "Deterministic guided suggestions (Granite not used)";
@@ -138,12 +146,15 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
   const prompt = requiredElement<HTMLTextAreaElement>("#epi-assist-prompt");
   const modelSelect = requiredElement<HTMLSelectElement>("#epi-assist-model");
   const modelDescription = requiredElement<HTMLElement>("#epi-assist-model-description");
+  const providerBadge = requiredElement<HTMLElement>("#epi-assist-provider-badge");
+  const privacy = requiredElement<HTMLElement>("#epi-assist-privacy");
   let worker: Worker | null = null;
   let ready = false;
   let pendingContext: EpiAssistContext | null = null;
   let startupTimer: number | null = null;
   let workerFailed = false;
   const selectedModel = () => epiAssistModel(modelSelect.value);
+  const selectedCloud = (): EpiAssistCloudChoice | undefined => EPI_ASSIST_CLOUD_CHOICES.find((choice) => choice.key === modelSelect.value);
 
   const clearStartupTimer = () => {
     if (startupTimer !== null) window.clearTimeout(startupTimer);
@@ -160,10 +171,22 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
   };
 
   const renderSelectedModel = () => {
+    const cloud = selectedCloud();
+    if (cloud) {
+      modelDescription.textContent = `${cloud.label} through a deployment-configured, same-origin Epi Assist gateway. The gateway resolves and audits the exact model version.`;
+      providerBadge.textContent = "Managed gateway";
+      privacy.innerHTML = "<strong>Only the prompt, field definitions, and aggregate quality counts leave the browser.</strong> Record values and provider API keys are never sent to or stored in this client. Review your organization's approved AI and data-use policy before enabling a gateway.";
+      loadButton.textContent = `Use ${cloud.modelAlias === "chatgpt" ? "ChatGPT" : "Claude"}`;
+      askButton.textContent = `Ask ${cloud.modelAlias === "chatgpt" ? "ChatGPT" : "Claude"}`;
+      return;
+    }
     const selected = selectedModel();
     const execution = selected.device === "wasm" ? "CPU via WebAssembly; broad browser compatibility but slower inference" : "WebGPU; requires a usable GPU adapter";
     modelDescription.textContent = `${execution}; approximately ${selected.approximateSize} for the selected ${selected.dtype} model files. Changing models unloads the current Worker.`;
     loadButton.textContent = `Load ${selected.label.replace(" Instruct", "")}`;
+    askButton.textContent = "Ask local Granite";
+    providerBadge.textContent = "Local inference";
+    privacy.innerHTML = "<strong>Your prompt and project data stay in this browser.</strong> First use retrieves model weights from the model host and stores them in browser cache when supported. Epi Assist supplies only field definitions and aggregate quality counts—not record values—to Granite.";
   };
   renderSelectedModel();
 
@@ -171,7 +194,7 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
     if (worker) return worker;
     // Resolve from the deployed page, not import.meta.url: esbuild may place this
     // module in /chunks while the worker entry point remains at the app root.
-    worker = new Worker(new URL("./epi-assist-worker.js?v=7", document.baseURI), { type: "module" });
+    worker = new Worker(new URL("./epi-assist-worker.js?v=8", document.baseURI), { type: "module" });
     worker.addEventListener("message", (event: MessageEvent<Record<string, unknown>>) => {
       if (workerFailed) return;
       clearStartupTimer();
@@ -239,9 +262,20 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
     askButton.disabled = true;
     requiredElement<HTMLElement>("#epi-assist-result").hidden = true;
     renderSelectedModel();
-    status.textContent = `${selectedModel().label} selected. Loading is user initiated.`;
+    const cloud = selectedCloud();
+    status.textContent = cloud
+      ? `${cloud.label} selected. Click Use to acknowledge the managed gateway boundary; no request is sent until Ask.`
+      : `${selectedModel().label} selected. Loading is user initiated.`;
   });
   loadButton.addEventListener("click", () => {
+    const cloud = selectedCloud();
+    if (cloud) {
+      ready = true;
+      loadButton.disabled = true;
+      askButton.disabled = false;
+      status.textContent = `${cloud.label} is enabled through the configured gateway. No provider request has been made yet.`;
+      return;
+    }
     workerFailed = false;
     loadButton.disabled = true;
     status.textContent = "Starting the local Granite model…";
@@ -260,12 +294,32 @@ export function initializeEpiAssist(getSource: () => MapDataSource): void {
   askButton.addEventListener("click", () => {
     const request = prompt.value.trim();
     if (!request) {
-      status.textContent = "Describe the review or analysis you want Granite to propose.";
+      status.textContent = "Describe the review or analysis you want Epi Assist to propose.";
       prompt.focus();
       return;
     }
     pendingContext = contextFrom(getSource());
     askButton.disabled = true;
+    const cloud = selectedCloud();
+    if (cloud) {
+      status.textContent = `Sending minimized context to the configured ${cloud.provider} gateway…`;
+      void requestCloudProposal(cloud, request, pendingContext).then(({ response, metadata }) => {
+        if (!pendingContext) throw new Error("The current form context is no longer available.");
+        const proposal = parseEpiAssistNativeToolCalls(response.toolCalls, pendingContext, cloud.modelAlias === "chatgpt" ? "ChatGPT" : "Claude");
+        const expectedFrequency = resolveEpiAssistFrequencyIntent(request, pendingContext);
+        if (expectedFrequency && !proposal.actions.some((action) => action.kind === "run-frequency"
+          && action.fieldName === expectedFrequency.fieldName
+          && action.stratifyBy === expectedFrequency.stratifyBy)) {
+          throw new Error(`The model did not preserve the requested ${expectedFrequency.fieldName} by ${expectedFrequency.stratifyBy} distribution.`);
+        }
+        renderProposal(proposal, pendingContext, "cloud", metadata);
+        status.textContent = "Proposal ready. Review an action before running it.";
+      }).catch((error: unknown) => {
+        if (pendingContext) renderProposal(buildGuidedProposal(pendingContext), pendingContext, "cloud-fallback");
+        status.textContent = `${error instanceof Error ? error.message : String(error)} No provider output was trusted; safe guided actions are shown instead.`;
+      }).finally(() => { askButton.disabled = !ready; });
+      return;
+    }
     status.textContent = "Sending schema and aggregate counts to Granite inside this browser…";
     ensureWorker().postMessage({ type: "generate", modelKey: selectedModel().key, prompt: request, context: pendingContext });
   });

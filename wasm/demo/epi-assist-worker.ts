@@ -132,6 +132,7 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
       if (!response) throw new Error("Granite returned an empty response.");
       const metadata: EpiAssistRunMetadata = {
         schemaVersion: "1.0.0",
+        provider: { id: "local-granite", mode: "local" },
         model: { id: selected.modelId, revision: MODEL_REVISION, device: selected.device, dtype: selected.dtype },
         runtime: { name: "transformers.js", version: RUNTIME_VERSION },
         prompt: { systemVersion: SYSTEM_PROMPT_VERSION, system: SYSTEM_PROMPT, user: event.data.prompt },

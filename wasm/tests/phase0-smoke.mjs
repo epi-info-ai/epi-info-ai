@@ -40,6 +40,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/form-data.ts",
     "wasm/demo/epi-assist.ts",
     "wasm/demo/epi-assist-worker.ts",
+    "wasm/app/assistant/gateway.ts",
     "wasm/demo/maps.ts",
     "wasm/demo/shell.ts",
     "wasm/demo/stratified-worker.ts",
@@ -76,7 +77,10 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/run-history.ts",
     "wasm/app/contracts/project-package.ts",
     "wasm/app/contracts/project-archive.ts",
+    "wasm/app/contracts/encrypted-project.ts",
     "wasm/app/forms/geocoding.ts",
+    "wasm/app/forms/import-preview.ts",
+    "wasm/app/share/webrtc-transfer.ts",
     "wasm/app/forms/form-designer-menu.ts",
     "wasm/app/forms/enter-data-menu.ts",
     "wasm/app/maps/pmtiles-reader.ts",
@@ -148,6 +152,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json",
     "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json",
     "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.expected.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -192,7 +198,20 @@ async function checkRequiredAssetsAndUi() {
     "epi-assist-run-model",
     "epi-assist-run-user-prompt",
     "epi-assist-run-system-prompt",
+    "epi-assist-provider-badge",
+    "epi-assist-run-request-id",
     "csv-import",
+    "data-import-preview-dialog",
+    "data-import-preview-key",
+    "data-import-preview-apply",
+    "package-transport-dialog",
+    "package-create",
+    "data-package-import-dialog",
+    "data-package-review",
+    "secure-share-dialog",
+    "secure-share-create-offer",
+    "secure-share-create-answer",
+    "secure-share-review-received",
     "csv-export",
     "enter-open-maps",
     "epi-map",
@@ -319,7 +338,7 @@ async function checkRequiredAssetsAndUi() {
     .filter((entry) => entry.kind !== "separator").map((entry) => entry.label);
   assert.deepEqual(enterFileCommands, [
     "New Record", "Open Form...", "Edit Form", "Close Form", "Save", "Import Data", "Package For Transport",
-    "Print...", "Recent Forms", "Exit", "Import Browser Data File...",
+    "Secure Epi Info Share...", "Print...", "Recent Forms", "Exit", "Import Browser Data File...",
   ]);
   const dashboardContract = await import(`${pathToFileURL(repositoryPath("wasm/app/dashboard/dashboard-menu.ts")).href}?menu=${Date.now()}`);
   assert.deepEqual(dashboardContract.DASHBOARD_TOOLBAR.map((entry) => entry.label), ["Refresh", "Set Data Source", "Open", "Save", "Save As"]);
@@ -943,6 +962,46 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.throws(
     () => tables.resolveClassicTablesPlan("TABLES Sex Sex", projectSource.fields, "Sex", "Sex"),
     /exposure and outcome must use different fields/,
+  );
+
+  const groupTablesExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.expected.json",
+  ), "utf8"));
+  const groupModule = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-group.ts")).href}?tablesGroup=${Date.now()}`);
+  const groupDefinition = groupModule.resolveClassicDefineGroupCommand(
+    `DEFINE ${groupTablesExpected.group.name} GROUPVAR ${groupTablesExpected.group.members.join(" ")}`,
+    projectSource.fields, [], [],
+  );
+  const groupTablesCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(
+    groupTablesExpected.command, projectSource.fields, [], [], [groupDefinition],
+  );
+  assert.equal(groupTablesCommand.kind, "tables");
+  assert.equal(groupTablesCommand.exposure, groupTablesExpected.group.name);
+  assert.deepEqual(groupTablesCommand.exposures, groupTablesExpected.group.members);
+  assert.equal(commandBuilder.CLASSIC_TABLES_EXPANSION_PLAN_VERSION, groupTablesExpected.expansionPlanVersion);
+  const groupTablesResults = groupTablesCommand.exposures.map((exposure) => {
+    const plan = tables.resolveClassicTablesPlan(groupTablesExpected.command, projectSource.fields, exposure, groupTablesCommand.outcome);
+    const result = tables.applyClassicTables(projectSource.records, plan);
+    return {
+      exposure,
+      includedRecords: result.includedRecords,
+      excludedMissing: result.excludedMissing,
+      cells: result.strata[0].rows.map(({ counts }) => counts),
+      pearsonChiSquare: result.strata[0].pearson.chiSquare,
+    };
+  });
+  for (const [index, expected] of groupTablesExpected.expected.entries()) {
+    assert.deepEqual({ ...groupTablesResults[index], pearsonChiSquare: undefined }, { ...expected, pearsonChiSquare: undefined });
+    near(groupTablesResults[index].pearsonChiSquare, expected.pearsonChiSquare, 1e-12, `TABLES GROUPVAR ${expected.exposure} Pearson`);
+  }
+  const wildcardTables = commandBuilder.resolveSelectedClassicAnalysisCommand("TABLES * case_status", projectSource.fields);
+  assert.equal(wildcardTables.kind, "tables");
+  assert.equal(wildcardTables.exposure, "*");
+  assert.ok(wildcardTables.exposures.length > 1);
+  assert.equal(wildcardTables.exposures.includes("case_status"), false);
+  assert.throws(
+    () => commandBuilder.resolveSelectedClassicAnalysisCommand("TABLES FoodExposures case_status", projectSource.fields, [], [], [{ name: "FoodExposures", members: ["potato_salad", "case_status"] }]),
+    /cannot be both a TABLES exposure and its outcome/,
   );
 
   const twoByTwoExpected = JSON.parse(await readFile(repositoryPath(
@@ -1903,6 +1962,40 @@ async function checkCsvAndProjectFixtures() {
   assert.ok(outbreak.records.every((record) => Number(record.latitude) >= 41.6 && Number(record.latitude) <= 41.8));
   assert.ok(outbreak.records.every((record) => Number(record.longitude) >= -83.7 && Number(record.longitude) <= -83.4));
   assert.ok(outbreak.records.every((record) => importedRecordValidation.validateRecord("foodborne", outbreak.schema, record, 0).length === 0));
+  const importPreview = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/import-preview.ts")).href}?importpreview=${Date.now()}`);
+  const importFields = [
+    { name: "id", prompt: "ID", type: "text", required: true, rules: [{ kind: "unique" }] },
+    { name: "status", prompt: "Status", type: "text", required: false },
+  ];
+  const currentRows = [{ id: "A", status: "Open" }, { id: "B", status: "Open" }];
+  const incomingRows = [{ id: "A", status: "Open" }, { id: "B", status: "Closed" }, { id: "C", status: "Open" }];
+  const provenance = { id: "preview", file: "preview.csv", sha256: "a".repeat(64) };
+  assert.equal(importPreview.suggestedImportKey(importFields, incomingRows), "id");
+  const preview = importPreview.buildDataImportPreview({ fields: importFields, current: currentRows, incoming: incomingRows, keyField: "id", provenance, priorImports: [provenance] });
+  assert.deepEqual({
+    incoming: preview.incoming, newRecords: preview.newRecords, matchingRecords: preview.matchingRecords,
+    changedRecords: preview.changedRecords, unchangedRecords: preview.unchangedRecords,
+    exactFilePreviouslyImported: preview.exactFilePreviouslyImported, canMerge: preview.canMerge,
+  }, { incoming: 3, newRecords: 1, matchingRecords: 2, changedRecords: 1, unchangedRecords: 1, exactFilePreviouslyImported: true, canMerge: true });
+  assert.deepEqual(importPreview.applyDataImport(currentRows, incomingRows, preview, "update-and-append"), incomingRows);
+  assert.deepEqual(importPreview.applyDataImport(currentRows, incomingRows, preview, "update-only"), [{ id: "A", status: "Open" }, { id: "B", status: "Closed" }]);
+  assert.deepEqual(importPreview.applyDataImport(currentRows, incomingRows, preview, "append-new"), [{ id: "A", status: "Open" }, { id: "B", status: "Open" }, { id: "C", status: "Open" }]);
+  assert.deepEqual(importPreview.applyDataImport(currentRows, incomingRows, preview, "replace"), incomingRows);
+  const nonDestructivePreview = importPreview.buildDataImportPreview({ fields: importFields, current: [{ id: "A", status: "Confirmed" }], incoming: [{ id: "A", status: "" }], keyField: "id", provenance, priorImports: [] });
+  assert.deepEqual(importPreview.applyDataImport([{ id: "A", status: "Confirmed" }], [{ id: "A", status: "" }], nonDestructivePreview, "update-only"), [{ id: "A", status: "Confirmed" }]);
+  const ambiguous = importPreview.buildDataImportPreview({ fields: importFields, current: currentRows, incoming: [...incomingRows, incomingRows[0]], keyField: "id", provenance, priorImports: [] });
+  assert.equal(ambiguous.canMerge, false);
+  assert.equal(ambiguous.duplicateIncomingKeys, 1);
+  assert.throws(() => importPreview.applyDataImport(currentRows, incomingRows, ambiguous, "append-new"), /unique, complete matching key/i);
+  const invalid = importPreview.buildDataImportPreview({ fields: importFields, current: currentRows, incoming: incomingRows, keyField: "id", provenance, priorImports: [], invalidRecords: 1 });
+  assert.equal(invalid.invalidRecords, 1);
+  assert.equal(invalid.canMerge, false);
+  const blankKey = importPreview.buildDataImportPreview({ fields: importFields, current: currentRows, incoming: [{ id: "", status: "Open" }], keyField: "id", provenance, priorImports: [] });
+  assert.equal(blankKey.blankIncomingKeys, 1);
+  assert.equal(blankKey.canMerge, false);
+  const caseEdit = importPreview.buildDataImportPreview({ fields: importFields, current: [{ id: "A", status: "Open" }], incoming: [{ id: "a", status: "open" }], keyField: "id", provenance, priorImports: [] });
+  assert.equal(caseEdit.matchingRecords, 1);
+  assert.equal(caseEdit.changedRecords, 1);
   assert.equal(module.alignToGrid(19, 12), 24);
   assert.equal(module.alignToGrid(5, 12), 0);
 
@@ -1912,6 +2005,9 @@ async function checkCsvAndProjectFixtures() {
   assert.deepEqual(validated, snapshot);
   assert.equal(contracts.isProjectSnapshot(snapshot), true);
   assert.equal(contracts.isProjectSnapshot({ ...snapshot, version: 2 }), false);
+  const withImportHistory = structuredClone(snapshot);
+  withImportHistory.forms[0].imports = [{ id: "preview", file: "preview.csv", sha256: "a".repeat(64) }];
+  assert.deepEqual(contracts.validateProjectSnapshot(withImportHistory).forms[0].imports, withImportHistory.forms[0].imports);
   const withStudyArea = structuredClone(snapshot);
   withStudyArea.studyAreas = [{
     id: "toledo-field-investigation",
@@ -2459,6 +2555,36 @@ async function checkPortableProjectArchive() {
   );
 }
 
+async function checkEncryptedProjectArchive() {
+  const encryptedProjects = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/encrypted-project.ts")).href}?encrypted=${Date.now()}`);
+  const plaintextBytes = new TextEncoder().encode("authenticated Epi Info project fixture");
+  const plaintext = new Blob([plaintextBytes], { type: "application/vnd.epi-info-ai.project" });
+  const encrypted = await encryptedProjects.encryptProjectArchive(plaintext, "correct horse battery staple", 100_000);
+  assert.equal(encrypted.type, encryptedProjects.ENCRYPTED_PROJECT_MEDIA_TYPE);
+  assert.equal(await encryptedProjects.isEncryptedProjectArchive(encrypted), true);
+  assert.equal(await encryptedProjects.isEncryptedProjectArchive(plaintext), false);
+  const decrypted = await encryptedProjects.decryptProjectArchive(encrypted, "correct horse battery staple");
+  assert.deepEqual(new Uint8Array(await decrypted.arrayBuffer()), plaintextBytes);
+  await assert.rejects(
+    () => encryptedProjects.decryptProjectArchive(encrypted, "wrong passphrase"),
+    /incorrect or the package was modified/i,
+  );
+  const tamperedBytes = new Uint8Array(await encrypted.arrayBuffer());
+  tamperedBytes[tamperedBytes.length - 1] ^= 1;
+  await assert.rejects(
+    () => encryptedProjects.decryptProjectArchive(new Blob([tamperedBytes]), "correct horse battery staple"),
+    /incorrect or the package was modified/i,
+  );
+  await assert.rejects(
+    () => encryptedProjects.encryptProjectArchive(plaintext, "too short", 100_000),
+    /at least 12 characters/i,
+  );
+  const transfers = await import(`${pathToFileURL(repositoryPath("wasm/app/share/webrtc-transfer.ts")).href}?share=${Date.now()}`);
+  const fakeOffer = JSON.stringify({ type: "offer", sdp: "v=0\r\na=fingerprint:sha-256 AA:BB:CC:DD\r\n" });
+  assert.equal(transfers.signalingFingerprint(fakeOffer), "AA:BB:CC:DD");
+  assert.equal(transfers.SECURE_SHARE_CHUNK_BYTES, 64 * 1024);
+}
+
 async function checkAlgorithmValidationRegistry() {
   const registry = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/registry.json"), "utf8"));
   const allowedStates = new Set(["experimental", "candidate", "validated", "restricted", "retired"]);
@@ -2553,6 +2679,7 @@ async function checkEpiAssistProposalBoundary() {
   const proposals = await import(`${pathToFileURL(repositoryPath("wasm/app/assistant/proposals.ts")).href}?assistant=${Date.now()}`);
   const intents = await import(`${pathToFileURL(repositoryPath("wasm/app/assistant/intent.ts")).href}?assistant=${Date.now()}`);
   const models = await import(`${pathToFileURL(repositoryPath("wasm/app/assistant/models.ts")).href}?assistant=${Date.now()}`);
+  const gateway = await import(`${pathToFileURL(repositoryPath("wasm/app/assistant/gateway.ts")).href}?assistant=${Date.now()}`);
   const context = {
     version: 1,
     projectName: "Outbreak Project",
@@ -2604,7 +2731,45 @@ async function checkEpiAssistProposalBoundary() {
 <tool_call>{"name":"run_epi_curve","arguments":`, context);
   assert.deepEqual(partial.actions.map((action) => action.kind), ["run-frequency"]);
   assert.match(partial.rationale, /1 other call was discarded/);
-  assert.throws(() => proposals.parseEpiAssistToolCalls('<tool_call>{"name":"run_frequency","arguments":{"field_name":"invented"}}</tool_call>', context), /No Granite tool call passed validation/);
+  assert.throws(() => proposals.parseEpiAssistToolCalls('<tool_call>{"name":"run_frequency","arguments":{"field_name":"invented"}}</tool_call>', context), /No model tool call passed validation/);
+
+  assert.deepEqual(gateway.EPI_ASSIST_CLOUD_CHOICES.map(({ key, provider, modelAlias }) => ({ key, provider, modelAlias })), [
+    { key: "openai-chatgpt", provider: "openai", modelAlias: "chatgpt" },
+    { key: "anthropic-claude", provider: "anthropic", modelAlias: "claude" },
+  ]);
+  let gatewayRequest;
+  const cloud = await gateway.requestCloudProposal(
+    gateway.EPI_ASSIST_CLOUD_CHOICES[0],
+    "Show age distribution by sex",
+    context,
+    async (_url, init) => {
+      gatewayRequest = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({
+        schemaVersion: "1.0.0",
+        provider: "openai",
+        model: { id: "approved-chatgpt-model", revision: "2026-09-03" },
+        requestId: "gateway-test-1",
+        toolCalls: [{ name: "run_frequency", arguments: { field_name: "age", stratify_by: "sex" } }],
+        audit: { systemVersion: "gateway-system-v1", toolSchemaVersion: "epi-assist-tools-v3" },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+    new URL("https://example.test/api/epi-assist/v1/propose"),
+    "https://example.test",
+  );
+  assert.equal(gatewayRequest.provider, "openai");
+  assert.equal(gatewayRequest.modelAlias, "chatgpt");
+  assert.equal("records" in gatewayRequest.context, false);
+  assert.equal(JSON.stringify(gatewayRequest).includes("apiKey"), false);
+  assert.equal(cloud.metadata.requestId, "gateway-test-1");
+  assert.deepEqual(proposals.parseEpiAssistNativeToolCalls(cloud.response.toolCalls, context, "ChatGPT").actions[0], { kind: "run-frequency", fieldName: "age", stratifyBy: "sex" });
+  await assert.rejects(() => gateway.requestCloudProposal(
+    gateway.EPI_ASSIST_CLOUD_CHOICES[1],
+    "Show age distribution",
+    context,
+    async () => new Response("{}", { status: 200 }),
+    new URL("https://outside.example/api"),
+    "https://example.test",
+  ), /same-origin/);
 
   const workerSource = await readFile(repositoryPath("wasm/demo/epi-assist-worker.ts"), "utf8");
   for (const provenanceMarker of [
@@ -2674,7 +2839,7 @@ CANCEL SORT`;
   assert.deepEqual(commandTour.body.map(({ type }) => type), [
     "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement", "SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement", "TablesStatement", "TablesStatement",
     "TablesStatement", "TablesStatement", "TablesStatement", "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
-    "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement",
+    "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement", "DefineGroupStatement", "TablesStatement",
     "EpiAiQualityStatement",
   ]);
   assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
@@ -2707,6 +2872,7 @@ async function run() {
     ["legacy GEOCODE provider boundary", checkGeocodingProviderBoundary],
     ["portable Sample project package", checkSampleProjectPackage],
     ["portable binary project archive with PMTiles", checkPortableProjectArchive],
+    ["authenticated encrypted project archive", checkEncryptedProjectArchive],
     ["algorithm validation registry", checkAlgorithmValidationRegistry],
     ["programming curriculum registry", checkProgrammingCurriculumRegistry],
     ["JupyterLite validation lab source", checkValidationLabSource],

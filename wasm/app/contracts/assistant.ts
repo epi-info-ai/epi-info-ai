@@ -30,17 +30,41 @@ export interface EpiAssistProposal {
   actions: EpiAssistAction[];
 }
 
+export type EpiAssistProviderId = "local-granite" | "openai" | "anthropic";
+
+export interface EpiAssistGatewayRequest {
+  schemaVersion: "1.0.0";
+  provider: Exclude<EpiAssistProviderId, "local-granite">;
+  modelAlias: "chatgpt" | "claude";
+  prompt: string;
+  context: EpiAssistContext;
+}
+
+export interface EpiAssistGatewayResponse {
+  schemaVersion: "1.0.0";
+  provider: Exclude<EpiAssistProviderId, "local-granite">;
+  model: { id: string; revision: string };
+  requestId: string;
+  toolCalls: Array<{ name: string; arguments: Record<string, unknown> | string }>;
+  audit: {
+    systemVersion: string;
+    toolSchemaVersion: string;
+  };
+}
+
 export interface EpiAssistRunMetadata {
   schemaVersion: "1.0.0";
+  provider?: { id: EpiAssistProviderId; mode: "local" | "gateway" };
   model: {
     id: string;
     revision: string;
-    device: "webgpu" | "wasm";
-    dtype: "fp16" | "q4";
+    device: "webgpu" | "wasm" | "managed";
+    dtype: "fp16" | "q4" | "provider-managed";
   };
-  runtime: { name: "transformers.js"; version: string };
+  runtime: { name: string; version: string };
   prompt: { systemVersion: string; system: string; user: string };
   toolSchemaVersion: string;
   contextVersion: typeof EPI_ASSIST_CONTEXT_VERSION;
-  generation: { maxNewTokens: number; doSample: false; returnFullText: false };
+  generation: Record<string, string | number | boolean>;
+  requestId?: string;
 }

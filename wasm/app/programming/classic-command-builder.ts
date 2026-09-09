@@ -53,12 +53,13 @@ export type ClassicAnalysisCommandInput =
   | { kind: "list"; fields: string[] }
   | { kind: "frequency"; field: string; stratifyBy?: string }
   | { kind: "means"; field: string }
-  | { kind: "tables"; exposure: string; outcome: string; stratifyBy?: string[]; weightBy?: string; statistics?: "FISHER" };
+  | { kind: "tables"; exposure: string; exposures?: string[]; outcome: string; stratifyBy?: string[]; weightBy?: string; statistics?: "FISHER" };
 
 type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" }>;
 export type ResolvedClassicAnalysisCommand = SelectedExecutableClassicCommandInput & { source: string };
+export const CLASSIC_TABLES_EXPANSION_PLAN_VERSION = "classic-tables-expansion-v0.1.0" as const;
 
-const fieldToken = (name: string): string => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
+const fieldToken = (name: string): string => name === "*" ? "*" : /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
 const variableToken = (name: string): string => {
   const trimmed = name.trim();
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(trimmed)) throw new RangeError("Variable names must begin with a letter or underscore and contain only letters, numbers, and underscores.");
@@ -269,21 +270,36 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
     return { kind: "means", field, source };
   }
   if (statement.type === "TablesStatement") {
-    if (statement.exposure === "*" || !statement.outcome) throw new RangeError("Selected TABLES execution requires exposure and outcome fields.");
+    if (!statement.outcome) throw new RangeError("Selected TABLES execution requires an outcome field.");
     if (statement.options.outputTable || statement.options.psuVariable || (statement.options.statistics && statement.options.statistics !== "FISHER") || statement.options.columnSize || statement.options.noWrap || statement.options.oneIsYes) {
       throw new RangeError("The selected TABLES command uses options that are not enabled in this bounded executor.");
     }
+    const outcome = resolvedField(fields, statement.outcome.name);
     const strata = statement.options.stratifyBy.map(({ name }) => resolvedField(fields, name));
     const weightBy = statement.options.weightBy ? resolvedField(fields, statement.options.weightBy.name) : undefined;
     if (weightBy && fields.find((candidate) => candidate.name === weightBy)?.type !== "number") throw new RangeError(`${weightBy} must be a Number field for TABLES WEIGHTVAR.`);
     if (weightBy && statement.options.statistics === "FISHER") throw new RangeError("TABLES STATISTICS=FISHER is not available with WEIGHTVAR because exact tests require unweighted integer observations.");
-    const names = [statement.exposure.name, statement.outcome.name, ...strata, ...(weightBy ? [weightBy] : [])].map((name) => name.toLocaleLowerCase("en-US"));
-    if (new Set(names).size !== names.length) throw new RangeError(
-      weightBy ? "TABLES exposure, outcome, STRATAVAR, and WEIGHTVAR fields must all be different."
-        : strata.length ? "TABLES exposure, outcome, and STRATAVAR fields must all be different." : "TABLES exposure and outcome must use different fields.",
-    );
+    const unavailable = new Set([outcome, ...strata, ...(weightBy ? [weightBy] : [])].map((name) => name.toLocaleLowerCase("en-US")));
+    let exposure = "*";
+    let exposures: string[];
+    if (statement.exposure === "*") {
+      exposures = fields
+        .filter(({ type }) => type !== "command-button")
+        .map(({ name }) => name)
+        .filter((name) => !unavailable.has(name.toLocaleLowerCase("en-US")));
+    } else {
+      const requestedExposure = statement.exposure.name;
+      const direct = fields.find((field) => field.name.toLocaleLowerCase("en-US") === requestedExposure.toLocaleLowerCase("en-US"));
+      const group = groups.find((candidate) => candidate.name.toLocaleLowerCase("en-US") === requestedExposure.toLocaleLowerCase("en-US"));
+      if (!direct && !group) throw new RangeError(`${requestedExposure} is not a field or GROUPVAR in the current Classic session.`);
+      exposure = direct?.name ?? group!.name;
+      exposures = expandClassicGroupNames([exposure], groups).map((name) => resolvedField(fields, name));
+    }
+    if (!exposures.length) throw new RangeError("TABLES exposure expansion did not contain any eligible current fields.");
+    const conflict = exposures.find((name) => unavailable.has(name.toLocaleLowerCase("en-US")));
+    if (conflict) throw new RangeError(`${conflict} cannot be both a TABLES exposure and its outcome, STRATAVAR, or WEIGHTVAR.`);
     return {
-      kind: "tables", exposure: resolvedField(fields, statement.exposure.name), outcome: resolvedField(fields, statement.outcome.name),
+      kind: "tables", exposure, ...(exposures.length > 1 || exposure === "*" ? { exposures } : {}), outcome,
       ...(strata.length ? { stratifyBy: strata } : {}), source,
       ...(weightBy ? { weightBy } : {}),
       ...(statement.options.statistics === "FISHER" ? { statistics: "FISHER" as const } : {}),

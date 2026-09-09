@@ -32,6 +32,12 @@ import {
   type ProjectArchiveAsset,
 } from "../app/contracts/project-archive.ts";
 import {
+  decryptProjectArchive,
+  encryptProjectArchive,
+  ENCRYPTED_PROJECT_EXTENSION,
+  isEncryptedProjectArchive,
+} from "../app/contracts/encrypted-project.ts";
+import {
   inferSchemaFromCsv,
   inferSchemaFromRows,
   normalizeImportedCoordinates,
@@ -40,6 +46,7 @@ import {
   serializeCsv,
 } from "../app/forms/csv.ts";
 import { readTabularFile } from "../app/forms/importers.ts";
+import { applyDataImport, buildDataImportPreview, suggestedImportKey, type DataImportMode, type DataImportPreview } from "../app/forms/import-preview.ts";
 import {
   collectEntryRecord,
   initializeEntryView,
@@ -53,6 +60,7 @@ import { initializeStudyAreaPicker, openStudyAreaPicker } from "../app/forms/stu
 import { offlineMapProvider } from "../app/maps/offline-map-estimator.ts";
 import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
 import { readStoredPmtilesFile } from "../app/maps/pmtiles-reader.ts";
+import { createSecureShareReceiver, createSecureShareSender } from "../app/share/webrtc-transfer.ts";
 import { renderFormDesignerMenuContract } from "../app/forms/form-designer-menu.ts";
 import { renderEnterDataMenuContract } from "../app/forms/enter-data-menu.ts";
 import { buildDataQualityReport, type DuplicateGroup } from "../app/forms/data-quality.ts";
@@ -193,6 +201,7 @@ const initialForm = projectState.forms.find((form) => form.id === currentFormId)
 schema = structuredClone(initialForm.schema);
 records = structuredClone(initialForm.records || []);
 let datasetProvenance: DatasetProvenance | undefined = initialForm.dataset ? structuredClone(initialForm.dataset) : undefined;
+let importHistory: DatasetProvenance[] = structuredClone(initialForm.imports ?? (initialForm.dataset ? [initialForm.dataset] : []));
 const restoredDataIssues = validateProjectRecords(projectState);
 if (restoredDataIssues.length > 0) {
   const detail = `${restoredDataIssues.length} saved-record validation issue${restoredDataIssues.length === 1 ? "" : "s"} found. Open Enter Data > Data Quality to review.`;
@@ -258,10 +267,12 @@ function syncCurrentForm(): boolean {
     schema: structuredClone(schema),
     records: structuredClone(records),
     ...(datasetProvenance ? { dataset: structuredClone(datasetProvenance) } : {}),
+    ...(importHistory.length ? { imports: structuredClone(importHistory) } : {}),
   };
   if (current) {
     Object.assign(current, snapshot);
     if (!datasetProvenance) delete current.dataset;
+    if (!importHistory.length) delete current.imports;
   } else projectState.forms.push(snapshot);
   projectState.name = projectName;
   projectState.currentFormId = currentFormId;
@@ -462,6 +473,7 @@ export function applyClassicDeleteTableRecords(target: MapDataSource): void {
   if (form.id === currentFormId) {
     records = [];
     datasetProvenance = undefined;
+    importHistory = [];
     renderEntryForm();
     renderRecords();
   }
@@ -609,6 +621,7 @@ export function applyHostedProjectSnapshot(snapshot: unknown, remote: HostedProj
   schema = structuredClone(selectedForm.schema);
   records = structuredClone(selectedForm.records || []);
   datasetProvenance = selectedForm.dataset ? structuredClone(selectedForm.dataset) : undefined;
+  importHistory = structuredClone(selectedForm.imports ?? (selectedForm.dataset ? [selectedForm.dataset] : []));
   activateProject(null);
   syncCurrentForm();
   renderDesigner();
@@ -632,6 +645,7 @@ function applyLocalProjectSnapshot(snapshot: unknown): void {
   schema = structuredClone(selectedForm.schema);
   records = structuredClone(selectedForm.records);
   datasetProvenance = selectedForm.dataset ? structuredClone(selectedForm.dataset) : undefined;
+  importHistory = structuredClone(selectedForm.imports ?? (selectedForm.dataset ? [selectedForm.dataset] : []));
   if (!hasActiveProject) activateProject(null);
   syncCurrentForm();
   renderDesigner();
@@ -654,6 +668,7 @@ export function showRecordInEnter(formId: string, recordIndex: number): boolean 
     schema = structuredClone(selectedForm.schema);
     records = structuredClone(selectedForm.records || []);
     datasetProvenance = selectedForm.dataset ? structuredClone(selectedForm.dataset) : undefined;
+    importHistory = structuredClone(selectedForm.imports ?? (selectedForm.dataset ? [selectedForm.dataset] : []));
     projectState.currentFormId = currentFormId;
     renderDesigner();
     renderEntryForm();
@@ -1017,6 +1032,7 @@ function renderProjectTree() {
       schema = structuredClone(form.schema);
       records = structuredClone(form.records || []);
       datasetProvenance = form.dataset ? structuredClone(form.dataset) : undefined;
+      importHistory = structuredClone(form.imports ?? (form.dataset ? [form.dataset] : []));
       projectState.currentFormId = currentFormId;
       renderDesigner();
       renderEntryForm();
@@ -1399,6 +1415,65 @@ async function datasetProvenanceForFile(file: File): Promise<DatasetProvenance> 
   return { id: datasetIdForFile(file.name), file: file.name, sha256 };
 }
 
+interface PendingDataImport {
+  fileName: string;
+  provenance: DatasetProvenance;
+  incoming: EpiRecord[];
+  preview: DataImportPreview;
+}
+
+let pendingDataImport: PendingDataImport | null = null;
+
+function selectedImportMode(): DataImportMode | undefined {
+  return document.querySelector<HTMLInputElement>('input[name="data-import-mode"]:checked')?.value as DataImportMode | undefined;
+}
+
+function renderDataImportPreview(): void {
+  if (!pendingDataImport) return;
+  const preview = pendingDataImport.preview;
+  requiredElement("#data-import-preview-file").textContent = `${pendingDataImport.fileName} · SHA-256 ${pendingDataImport.provenance.sha256}`;
+  requiredElement("#data-import-preview-incoming").textContent = String(preview.incoming);
+  requiredElement("#data-import-preview-new").textContent = String(preview.newRecords);
+  requiredElement("#data-import-preview-matching").textContent = String(preview.matchingRecords);
+  requiredElement("#data-import-preview-changed").textContent = String(preview.changedRecords);
+  requiredElement("#data-import-preview-unchanged").textContent = String(preview.unchangedRecords);
+  const keyProblems = preview.blankIncomingKeys + preview.duplicateIncomingKeys + preview.duplicateDestinationKeys;
+  requiredElement("#data-import-preview-key-problems").textContent = String(keyProblems);
+  requiredElement("#data-import-preview-invalid").textContent = String(preview.invalidRecords);
+  const warnings = [
+    ...(preview.exactFilePreviouslyImported ? ["This exact file was imported previously. Review the matching counts before proceeding."] : []),
+    ...(!preview.keyField ? ["No reliable matching key was selected. Choose a unique field or use Replace."] : []),
+    ...(preview.blankIncomingKeys ? [`${preview.blankIncomingKeys} incoming record${preview.blankIncomingKeys === 1 ? " has" : "s have"} a blank key.`] : []),
+    ...(preview.duplicateIncomingKeys ? [`${preview.duplicateIncomingKeys} duplicate incoming key value${preview.duplicateIncomingKeys === 1 ? " was" : "s were"} found.`] : []),
+    ...(preview.duplicateDestinationKeys ? [`${preview.duplicateDestinationKeys} duplicate destination key value${preview.duplicateDestinationKeys === 1 ? " prevents" : "s prevent"} an unambiguous merge.`] : []),
+    ...(preview.invalidRecords ? [`${preview.invalidRecords} incoming record${preview.invalidRecords === 1 ? " does" : "s do"} not satisfy the form's validation rules.`] : []),
+  ];
+  const warning = requiredElement<HTMLElement>("#data-import-preview-warning");
+  warning.textContent = warnings.join(" ");
+  warning.hidden = warnings.length === 0;
+  const mode = selectedImportMode();
+  const canApply = Boolean(mode && preview.invalidRecords === 0 && (mode === "replace" || preview.canMerge));
+  requiredElement<HTMLButtonElement>("#data-import-preview-apply").disabled = !canApply;
+  requiredElement("#data-import-preview-feedback").textContent = canApply
+    ? "No records have changed. Select Apply Import to continue."
+    : "No records have changed. Choose an allowed import type or Cancel.";
+}
+
+function updatePendingDataImportPreview(): void {
+  if (!pendingDataImport) return;
+  const selected = requiredElement<HTMLSelectElement>("#data-import-preview-key").value || undefined;
+  pendingDataImport.preview = buildDataImportPreview({
+    fields: schema.fields,
+    current: records,
+    incoming: pendingDataImport.incoming,
+    ...(selected ? { keyField: selected } : {}),
+    provenance: pendingDataImport.provenance,
+    priorImports: importHistory,
+    invalidRecords: pendingDataImport.preview.invalidRecords,
+  });
+  renderDataImportPreview();
+}
+
 function projectOfflineAssets(snapshot: ProjectSnapshotV1) {
   const assets = (snapshot.studyAreas ?? []).flatMap((area) => area.offlineMap.asset ? [area.offlineMap.asset] : []);
   return assets.filter((asset, index) => assets.findIndex((candidate) => candidate.sha256 === asset.sha256) === index);
@@ -1484,7 +1559,33 @@ async function openProjectPackage(file: File): Promise<void> {
   requiredElement("#form-status").textContent = `Opened ${packageValue.project.name} with ${packageValue.programs.length} program${packageValue.programs.length === 1 ? "" : "s"} and ${packageValue.codeTables.length} code table${packageValue.codeTables.length === 1 ? "" : "s"}.${legacySummary}${mapSummary}`;
 }
 
-async function importDataFile(file: File): Promise<void> {
+function openDataImportPreview(fileName: string, provenance: DatasetProvenance, imported: EpiRecord[]): void {
+  const validationIssues = validateRecords(currentFormId, schema, imported, []);
+  const errors = validationIssues.filter((issue) => issue.severity === "error");
+  const invalidRecords = new Set(errors.map(({ recordIndex }) => recordIndex)).size;
+  const key = suggestedImportKey(schema.fields, imported);
+  const keySelect = requiredElement<HTMLSelectElement>("#data-import-preview-key");
+  keySelect.replaceChildren(
+    new Option("No matching key (Replace only)", ""),
+    ...schema.fields.filter(({ type }) => type !== "command-button").map((field) => new Option(`${field.prompt} (${field.name})${field.name === key ? " — suggested" : ""}`, field.name)),
+  );
+  keySelect.value = key ?? "";
+  for (const control of requiredElements<HTMLInputElement>('input[name="data-import-mode"]')) control.checked = false;
+  pendingDataImport = {
+    fileName,
+    provenance,
+    incoming: imported,
+    preview: buildDataImportPreview({ fields: schema.fields, current: records, incoming: imported, ...(key ? { keyField: key } : {}), provenance, priorImports: importHistory, invalidRecords }),
+  };
+  if (!pendingDataImport.preview.exactFilePreviouslyImported) {
+    requiredElement<HTMLInputElement>('input[name="data-import-mode"][value="update-and-append"]').checked = true;
+  }
+  renderDataImportPreview();
+  requiredElement<HTMLDialogElement>("#data-import-preview-dialog").showModal();
+  requiredElement("#csv-status").textContent = `Previewing ${imported.length} record${imported.length === 1 ? "" : "s"} from ${fileName}; no records changed.`;
+}
+
+async function previewDataImportFile(file: File): Promise<void> {
   const importedDataset = await datasetProvenanceForFile(file);
   const importedFile = await readTabularFile(file);
   const rows = importedFile.rows;
@@ -1496,16 +1597,162 @@ async function importDataFile(file: File): Promise<void> {
   const imported = rows.slice(1).map((cells) => normalizeImportedCoordinates(schema, materializeCalculatedFields(schema, Object.fromEntries(
     expected.map((name) => [name, cells[headers.indexOf(name)] ?? ""]),
   ))));
-  const validationIssues = validateRecords(currentFormId, schema, imported, records);
-  const errors = validationIssues.filter((issue) => issue.severity === "error");
-  if (errors.length > 0) {
-    throw new Error(`Import validation found ${errors.length} error${errors.length === 1 ? "" : "s"}. ${errors[0]!.message}`);
-  }
-  records.push(...imported);
-  datasetProvenance ??= importedDataset;
+  openDataImportPreview(file.name, importedDataset, imported);
+}
+
+function transportIdentityField(): string | undefined {
+  return suggestedImportKey(schema.fields, records)
+    ?? schema.fields.find((field) => field.type === "unique-id" || field.rules?.some((rule) => rule.kind === "unique"))?.name;
+}
+
+function openPackageTransportDialog(): void {
   syncCurrentForm();
-  renderRecords();
-  requiredElement("#csv-status").textContent = `Imported ${imported.length} record${imported.length === 1 ? "" : "s"} from ${file.name}.`;
+  const identityField = transportIdentityField();
+  requiredElement("#package-project-name").textContent = projectName;
+  requiredElement("#package-form-name").textContent = schema.name;
+  requiredElement("#package-record-count").textContent = String(records.length);
+  requiredElement<HTMLInputElement>("#package-name").value = safeFileStem(`${projectName}-${schema.name}`);
+  requiredElement<HTMLInputElement>("#package-append-timestamp").checked = false;
+  requiredElement<HTMLInputElement>("#package-passphrase").value = "";
+  requiredElement<HTMLInputElement>("#package-passphrase-verify").value = "";
+  requiredElement<HTMLInputElement>("#package-filter-value").value = "";
+  requiredElement("#package-transport-status").textContent = identityField
+    ? `${schema.fields.find(({ name }) => name === identityField)?.prompt ?? identityField} will be used to match records when imported.`
+    : "No unique identity field was detected. The receiving import preview will allow Replace only.";
+  const removeFields = requiredElement<HTMLSelectElement>("#package-remove-fields");
+  removeFields.replaceChildren(...schema.fields.filter(({ type }) => type !== "command-button").map((field) => {
+    const protectedField = field.required || field.name === identityField || field.rules?.some((rule) => rule.kind === "unique");
+    const option = new Option(`${field.prompt} (${field.name})${protectedField ? " — protected" : ""}`, field.name);
+    option.disabled = Boolean(protectedField);
+    return option;
+  }));
+  requiredElement<HTMLSelectElement>("#package-filter-field").replaceChildren(
+    new Option("All records", ""),
+    ...schema.fields.filter(({ type }) => type !== "command-button").map((field) => new Option(`${field.prompt} (${field.name})`, field.name)),
+  );
+  requiredElement<HTMLSelectElement>("#package-filter-operator").value = "equals";
+  requiredElement<HTMLDialogElement>("#package-transport-dialog").showModal();
+}
+
+function selectedTransportRecords(): EpiRecord[] {
+  const filterField = requiredElement<HTMLSelectElement>("#package-filter-field").value;
+  const filterValue = requiredElement<HTMLInputElement>("#package-filter-value").value.trim().toLocaleLowerCase("en-US");
+  const operator = requiredElement<HTMLSelectElement>("#package-filter-operator").value;
+  const selected = !filterField || !filterValue ? records : records.filter((record) => {
+    const candidate = String(record[filterField] ?? "").trim().toLocaleLowerCase("en-US");
+    if (operator === "not-equals") return candidate !== filterValue;
+    if (operator === "contains") return candidate.includes(filterValue);
+    return candidate === filterValue;
+  });
+  const removed = new Set([...requiredElement<HTMLSelectElement>("#package-remove-fields").selectedOptions].map(({ value }) => value));
+  return selected.map((record) => Object.fromEntries(Object.entries(structuredClone(record)).map(([field, value]) => [field, removed.has(field) ? "" : value])));
+}
+
+let lastTransportPackage: File | null = null;
+let secureShareSender: Awaited<ReturnType<typeof createSecureShareSender>> | null = null;
+let secureShareReceiver: ReturnType<typeof createSecureShareReceiver> | null = null;
+let receivedSecureSharePackage: File | null = null;
+
+async function createTransportPackage(): Promise<void> {
+  const status = requiredElement("#package-transport-status");
+  const passphrase = requiredElement<HTMLInputElement>("#package-passphrase").value;
+  const verification = requiredElement<HTMLInputElement>("#package-passphrase-verify").value;
+  if (passphrase !== verification) throw new Error("The passphrases do not match.");
+  const packageName = safeFileStem(requiredElement<HTMLInputElement>("#package-name").value);
+  const selectedRecords = selectedTransportRecords();
+  if (selectedRecords.length === 0) throw new Error("The selected record filter produced no records.");
+  const current = projectState.forms.find(({ id }) => id === currentFormId);
+  if (!current) throw new Error("The current form is unavailable.");
+  const packagedForm: ProjectForm = {
+    id: current.id,
+    schema: structuredClone(current.schema),
+    records: selectedRecords,
+  };
+  const transportProject: ProjectSnapshotV1 = {
+    version: 1,
+    name: projectName,
+    currentFormId,
+    storage: { type: "browser" },
+    forms: [packagedForm],
+  };
+  status.textContent = `Validating and encrypting ${selectedRecords.length} record${selectedRecords.length === 1 ? "" : "s"}...`;
+  const portable = createProjectPackage(transportProject);
+  const archive = await createProjectArchive(portable, []);
+  const encrypted = await encryptProjectArchive(archive, passphrase);
+  const suffix = requiredElement<HTMLInputElement>("#package-append-timestamp").checked
+    ? `-${new Date().toISOString().replace(/[:.]/g, "-")}`
+    : "";
+  const fileName = `${packageName}${suffix}${ENCRYPTED_PROJECT_EXTENSION}`;
+  lastTransportPackage = new File([encrypted], fileName, { type: encrypted.type });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(lastTransportPackage);
+  link.download = fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  const removed = requiredElement<HTMLSelectElement>("#package-remove-fields").selectedOptions.length;
+  status.textContent = `Package creation complete: ${selectedRecords.length} record${selectedRecords.length === 1 ? "" : "s"}, ${removed} field${removed === 1 ? "" : "s"} blanked. Store the passphrase separately.`;
+}
+
+async function reviewEncryptedDataPackage(selectedFile?: File, selectedPassphrase?: string): Promise<void> {
+  const status = requiredElement("#data-package-import-status");
+  const file = selectedFile ?? requiredElement<HTMLInputElement>("#data-package-file").files?.[0];
+  if (!file) throw new Error("Select an encrypted data package.");
+  if (/\.edp7$/i.test(file.name)) {
+    throw new Error("Legacy .edp7 decryption is not enabled until representative compatibility fixtures pass review. Use a modern .epiax package in this V0.1 slice.");
+  }
+  if (!await isEncryptedProjectArchive(file)) throw new Error("The selected file is not a supported encrypted Epi Info AI package.");
+  status.textContent = `Decrypting and validating ${file.name}...`;
+  const decrypted = await decryptProjectArchive(file, selectedPassphrase ?? requiredElement<HTMLInputElement>("#data-package-passphrase").value);
+  const parsed = await parseProjectArchive(decrypted);
+  const source = parsed.projectPackage.project.forms.length === 1
+    ? parsed.projectPackage.project.forms[0]
+    : parsed.projectPackage.project.forms.find(({ id, schema: candidate }) => id === currentFormId || candidate.name === schema.name);
+  if (!source) throw new Error("The package does not contain a form compatible with the current form.");
+  const currentFields = schema.fields.filter(({ type }) => type !== "command-button");
+  const mismatched = currentFields.filter((field) => !source.schema.fields.some((candidate) => candidate.name === field.name && candidate.type === field.type));
+  if (mismatched.length) throw new Error(`The packaged form is incompatible. Missing or different field${mismatched.length === 1 ? "" : "s"}: ${mismatched.map(({ prompt }) => prompt).join(", ")}.`);
+  const imported = source.records.map((record) => normalizeImportedCoordinates(schema, materializeCalculatedFields(schema,
+    Object.fromEntries(currentFields.map(({ name }) => [name, record[name] ?? ""])),
+  )));
+  const provenance = await datasetProvenanceForFile(file);
+  const importDialog = requiredElement<HTMLDialogElement>("#data-package-import-dialog");
+  if (importDialog.open) importDialog.close("review");
+  const shareDialog = requiredElement<HTMLDialogElement>("#secure-share-dialog");
+  if (shareDialog.open) shareDialog.close("review");
+  openDataImportPreview(file.name, provenance, imported);
+}
+
+function resetSecureShare(): void {
+  secureShareSender?.close();
+  secureShareReceiver?.close();
+  secureShareSender = null;
+  secureShareReceiver = null;
+  receivedSecureSharePackage = null;
+  for (const selector of ["#secure-share-send-offer", "#secure-share-send-answer", "#secure-share-receive-offer", "#secure-share-receive-answer", "#secure-share-receive-passphrase"]) {
+    requiredElement<HTMLInputElement | HTMLTextAreaElement>(selector).value = "";
+  }
+  requiredElement("#secure-share-send-fingerprint").textContent = "Not created";
+  requiredElement("#secure-share-receive-sender-fingerprint").textContent = "Not received";
+  requiredElement("#secure-share-receive-fingerprint").textContent = "Not created";
+  requiredElement<HTMLProgressElement>("#secure-share-send-progress").value = 0;
+  requiredElement<HTMLProgressElement>("#secure-share-receive-progress").value = 0;
+  requiredElement<HTMLButtonElement>("#secure-share-accept-answer").disabled = true;
+  requiredElement<HTMLButtonElement>("#secure-share-review-received").disabled = true;
+  requiredElement("#secure-share-send-status").textContent = "";
+  requiredElement("#secure-share-receive-status").textContent = "";
+  requiredElement("#secure-share-send-selection").textContent = lastTransportPackage
+    ? `${lastTransportPackage.name} (${(lastTransportPackage.size / 1024).toFixed(1)} KiB) is ready from Package for Transport.`
+    : "Create a transport package first or select an existing .epiax file.";
+}
+
+function openSecureShareDialog(): void {
+  resetSecureShare();
+  requiredElement<HTMLInputElement>("#secure-share-send-file").value = "";
+  requiredElement<HTMLDialogElement>("#secure-share-dialog").showModal();
+}
+
+function secureShareSendFile(): File | undefined {
+  return requiredElement<HTMLInputElement>("#secure-share-send-file").files?.[0] ?? lastTransportPackage ?? undefined;
 }
 
 async function createFormFromDataFile(file: File, importRows: boolean): Promise<{ fields: number; rows: number; importedRows: boolean; persisted: boolean }> {
@@ -1517,6 +1764,7 @@ async function createFormFromDataFile(file: File, importRows: boolean): Promise<
     records = inferred.records;
   }
   datasetProvenance = importedDataset;
+  importHistory = importedDataset ? [structuredClone(importedDataset)] : [];
   renderDesigner();
   renderEntryForm();
   renderRecords();
@@ -1663,6 +1911,95 @@ export function initializeFormDataDemo() {
   });
   requiredElement("#enter-menu-data-quality").addEventListener("click", () => requiredElement<HTMLButtonElement>("#enter-data-quality").click());
   requiredElement("#enter-menu-import-file").addEventListener("click", () => requiredElement<HTMLInputElement>("#csv-import").click());
+  requiredElement("#enter-menu-package-transport").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#enter-file-menu").open = false;
+    openPackageTransportDialog();
+  });
+  requiredElement("#enter-menu-import-package").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#enter-file-menu").open = false;
+    requiredElement<HTMLInputElement>("#data-package-file").value = "";
+    requiredElement<HTMLInputElement>("#data-package-passphrase").value = "";
+    requiredElement("#data-package-import-status").textContent = "";
+    requiredElement<HTMLDialogElement>("#data-package-import-dialog").showModal();
+  });
+  requiredElement("#enter-menu-secure-share").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#enter-file-menu").open = false;
+    openSecureShareDialog();
+  });
+  requiredElement("#package-create").addEventListener("click", async () => {
+    try { await createTransportPackage(); }
+    catch (error) { requiredElement("#package-transport-status").textContent = error instanceof Error ? error.message : "Unable to create the encrypted data package."; }
+  });
+  requiredElement("#data-package-review").addEventListener("click", async () => {
+    try { await reviewEncryptedDataPackage(); }
+    catch (error) { requiredElement("#data-package-import-status").textContent = error instanceof Error ? error.message : "Unable to review the encrypted data package."; }
+  });
+  requiredElement("#secure-share-send-file").addEventListener("change", () => {
+    const file = requiredElement<HTMLInputElement>("#secure-share-send-file").files?.[0];
+    requiredElement("#secure-share-send-selection").textContent = file
+      ? `${file.name} (${(file.size / 1024).toFixed(1)} KiB) selected.`
+      : lastTransportPackage ? `${lastTransportPackage.name} remains ready from Package for Transport.` : "No encrypted package selected.";
+  });
+  requiredElement("#secure-share-create-offer").addEventListener("click", async () => {
+    const status = requiredElement("#secure-share-send-status");
+    try {
+      const file = secureShareSendFile();
+      if (!file) throw new Error("Create or select an encrypted .epiax package first.");
+      if (!await isEncryptedProjectArchive(file)) throw new Error("Secure Share sends authenticated .epiax packages only.");
+      secureShareSender?.close();
+      secureShareSender = await createSecureShareSender(file, {
+        onStatus(message) { status.textContent = message; },
+        onProgress({ transferred, total }) {
+          const progress = requiredElement<HTMLProgressElement>("#secure-share-send-progress");
+          progress.max = total; progress.value = transferred;
+        },
+        onError(error) { status.textContent = error.message; },
+      });
+      requiredElement<HTMLTextAreaElement>("#secure-share-send-offer").value = secureShareSender.offer;
+      requiredElement("#secure-share-send-fingerprint").textContent = secureShareSender.fingerprint;
+      requiredElement<HTMLButtonElement>("#secure-share-accept-answer").disabled = false;
+    } catch (error) { status.textContent = error instanceof Error ? error.message : "Unable to create a Secure Share offer."; }
+  });
+  requiredElement("#secure-share-accept-answer").addEventListener("click", async () => {
+    const status = requiredElement("#secure-share-send-status");
+    try {
+      if (!secureShareSender) throw new Error("Create an offer first.");
+      status.textContent = "Applying the receiver answer...";
+      await secureShareSender.acceptAnswer(requiredElement<HTMLTextAreaElement>("#secure-share-send-answer").value);
+    } catch (error) { status.textContent = error instanceof Error ? error.message : "Unable to apply the receiver answer."; }
+  });
+  requiredElement("#secure-share-create-answer").addEventListener("click", async () => {
+    const status = requiredElement("#secure-share-receive-status");
+    try {
+      secureShareReceiver?.close();
+      receivedSecureSharePackage = null;
+      requiredElement<HTMLButtonElement>("#secure-share-review-received").disabled = true;
+      secureShareReceiver = createSecureShareReceiver({
+        onStatus(message) { status.textContent = message; },
+        onProgress({ transferred, total }) {
+          const progress = requiredElement<HTMLProgressElement>("#secure-share-receive-progress");
+          progress.max = total; progress.value = transferred;
+        },
+        onFile(file) {
+          receivedSecureSharePackage = file;
+          requiredElement<HTMLButtonElement>("#secure-share-review-received").disabled = false;
+        },
+        onError(error) { status.textContent = error.message; },
+      });
+      const result = await secureShareReceiver.acceptOffer(requiredElement<HTMLTextAreaElement>("#secure-share-receive-offer").value);
+      requiredElement<HTMLTextAreaElement>("#secure-share-receive-answer").value = result.answer;
+      requiredElement("#secure-share-receive-sender-fingerprint").textContent = result.senderFingerprint;
+      requiredElement("#secure-share-receive-fingerprint").textContent = result.fingerprint;
+    } catch (error) { status.textContent = error instanceof Error ? error.message : "Unable to create a Secure Share answer."; }
+  });
+  requiredElement("#secure-share-review-received").addEventListener("click", async () => {
+    const status = requiredElement("#secure-share-receive-status");
+    try {
+      if (!receivedSecureSharePackage) throw new Error("No verified package has been received.");
+      await reviewEncryptedDataPackage(receivedSecureSharePackage, requiredElement<HTMLInputElement>("#secure-share-receive-passphrase").value);
+    } catch (error) { status.textContent = error instanceof Error ? error.message : "Unable to review the received package."; }
+  });
+  requiredElement("#secure-share-dialog").addEventListener("close", resetSecureShare);
   requiredElement("#enter-menu-new-record").addEventListener("click", () => {
     setEntryView("entry");
     requiredElement<HTMLFormElement>("#record-form").reset();
@@ -1947,6 +2284,7 @@ export function initializeFormDataDemo() {
     records = [];
     currentFormId = newFormId();
     datasetProvenance = undefined;
+    importHistory = [];
     projectState = {
       name: projectName,
       currentFormId,
@@ -1980,6 +2318,7 @@ export function initializeFormDataDemo() {
     schema = { name: "New Form", fields: [] };
     records = [];
     datasetProvenance = undefined;
+    importHistory = [];
     projectState.forms.push({ id: currentFormId, schema: structuredClone(schema), records: [] });
     projectState.currentFormId = currentFormId;
     syncCurrentForm();
@@ -1994,6 +2333,7 @@ export function initializeFormDataDemo() {
     schema = structuredClone(DEFAULT_SCHEMA);
     records = [];
     datasetProvenance = undefined;
+    importHistory = [];
     syncCurrentForm();
     renderDesigner();
     renderEntryForm();
@@ -2068,13 +2408,57 @@ export function initializeFormDataDemo() {
   });
 
   requiredElement("#csv-export").addEventListener("click", exportCsv);
+  requiredElement("#data-import-preview-key").addEventListener("change", updatePendingDataImportPreview);
+  for (const control of requiredElements<HTMLInputElement>('input[name="data-import-mode"]')) {
+    control.addEventListener("change", renderDataImportPreview);
+  }
+  requiredElement("#data-import-preview-apply").addEventListener("click", () => {
+    if (!pendingDataImport) return;
+    const mode = selectedImportMode();
+    if (!mode) return;
+    const preview = pendingDataImport.preview;
+    try {
+      const nextRecords = applyDataImport(records, pendingDataImport.incoming, preview, mode);
+      const validationIssues = validateRecords(currentFormId, schema, nextRecords, []);
+      const errors = validationIssues.filter((issue) => issue.severity === "error");
+      if (errors.length) throw new Error(`Result validation found ${errors.length} error${errors.length === 1 ? "" : "s"}. ${errors[0]!.message}`);
+      records = nextRecords;
+      datasetProvenance ??= structuredClone(pendingDataImport.provenance);
+      if (!importHistory.some(({ sha256 }) => sha256 === pendingDataImport!.provenance.sha256)) {
+        importHistory.push(structuredClone(pendingDataImport.provenance));
+      }
+      const effect = mode === "replace"
+        ? `replaced the current data with ${preview.incoming} record${preview.incoming === 1 ? "" : "s"}`
+        : mode === "update-and-append"
+          ? `updated ${preview.changedRecords}, appended ${preview.newRecords}, and left ${preview.unchangedRecords} unchanged`
+          : mode === "update-only"
+            ? `updated ${preview.changedRecords}, left ${preview.unchangedRecords} unchanged, and ignored ${preview.newRecords} new`
+            : `appended ${preview.newRecords} new and ignored ${preview.matchingRecords} matching`;
+      const fileName = pendingDataImport.fileName;
+      const persisted = syncCurrentForm();
+      renderRecords();
+      requiredElement("#csv-status").textContent = `Import from ${fileName}: ${effect}. ${records.length} total record${records.length === 1 ? "" : "s"}.${persisted ? "" : " Browser persistence was unavailable."}`;
+      pendingDataImport = null;
+      requiredElement<HTMLDialogElement>("#data-import-preview-dialog").close("apply");
+      globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+    } catch (error) {
+      requiredElement("#data-import-preview-feedback").textContent = error instanceof Error ? error.message : "Unable to apply this import.";
+    }
+  });
+  requiredElement("#data-import-preview-dialog").addEventListener("close", (event) => {
+    const dialog = event.currentTarget as HTMLDialogElement;
+    if (dialog.returnValue !== "apply" && pendingDataImport) {
+      requiredElement("#csv-status").textContent = `Import of ${pendingDataImport.fileName} canceled; no records changed.`;
+      pendingDataImport = null;
+    }
+  });
   requiredElement("#csv-import").addEventListener("change", async (event) => {
     const target = eventControl(event);
     const file = target.files?.[0];
     if (!file) return;
-    requiredElement("#csv-status").textContent = `Importing ${file.name}...`;
+    requiredElement("#csv-status").textContent = `Preparing preview for ${file.name}...`;
     try {
-      await importDataFile(file);
+      await previewDataImportFile(file);
     } catch (error) {
       requiredElement("#csv-status").textContent = error instanceof Error ? error.message : "Unable to import this data file.";
     } finally {

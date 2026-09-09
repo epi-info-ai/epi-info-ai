@@ -37,11 +37,11 @@ function parseAction(value: unknown, context: EpiAssistContext): EpiAssistAction
       : knownField(context, value.groupField, "Epi Curve group field");
     return { kind: value.kind, dateField, ...(groupField ? { groupField } : {}) };
   }
-  throw new RangeError("Granite proposed an action that Epi Info AI does not allow.");
+  throw new RangeError("The model proposed an action that Epi Info AI does not allow.");
 }
 
 export function parseEpiAssistProposal(value: unknown, context: EpiAssistContext): EpiAssistProposal {
-  if (!isObject(value)) throw new TypeError("Granite did not return a proposal object.");
+  if (!isObject(value)) throw new TypeError("The model did not return a proposal object.");
   if (!Array.isArray(value.actions)) throw new TypeError("The proposal must include an actions array.");
   return {
     summary: text(value.summary, "Proposal summary"),
@@ -53,12 +53,12 @@ export function parseEpiAssistProposal(value: unknown, context: EpiAssistContext
 export function parseEpiAssistJson(response: string, context: EpiAssistContext): EpiAssistProposal {
   const fenced = response.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
   const source = fenced ?? response.slice(response.indexOf("{"), response.lastIndexOf("}") + 1);
-  if (!source.trim()) throw new SyntaxError("Granite did not return JSON. No action can be run.");
+  if (!source.trim()) throw new SyntaxError("The model did not return JSON. No action can be run.");
   return parseEpiAssistProposal(JSON.parse(source) as unknown, context);
 }
 
 function toolAction(value: unknown, context: EpiAssistContext): EpiAssistAction {
-  if (!isObject(value)) throw new TypeError("A Granite tool call must be an object.");
+  if (!isObject(value)) throw new TypeError("A model tool call must be an object.");
   const name = text(value.name, "Tool name", 100);
   let argumentsValue = value.arguments;
   if (typeof argumentsValue === "string") argumentsValue = JSON.parse(argumentsValue) as unknown;
@@ -80,30 +80,37 @@ function toolAction(value: unknown, context: EpiAssistContext): EpiAssistAction 
       ...(argumentsValue.group_field === undefined ? {} : { groupField: argumentsValue.group_field }),
     }, context);
   }
-  throw new RangeError(`Granite called unknown tool ${name}.`);
+  throw new RangeError(`The model called unknown tool ${name}.`);
 }
 
-export function parseEpiAssistToolCalls(response: string, context: EpiAssistContext): EpiAssistProposal {
-  const matches = [...response.matchAll(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/gi)];
-  if (!matches.length) throw new SyntaxError("Granite did not return a complete native tool call.");
+export function parseEpiAssistNativeToolCalls(toolCalls: unknown[], context: EpiAssistContext, sourceLabel = "The model"): EpiAssistProposal {
   const actions: EpiAssistAction[] = [];
   const rejected: string[] = [];
-  for (const [index, match] of matches.entries()) {
+  for (const [index, call] of toolCalls.slice(0, 10).entries()) {
     try {
-      const source = match[1];
-      if (!source) throw new SyntaxError("The tool call was empty.");
-      actions.push(toolAction(JSON.parse(source) as unknown, context));
+      actions.push(toolAction(call, context));
     } catch (error) {
       rejected.push(`call ${index + 1}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   const unique = actions.filter((action, index) => actions.findIndex((candidate) => JSON.stringify(candidate) === JSON.stringify(action)) === index);
-  if (!unique.length) throw new TypeError(`No Granite tool call passed validation${rejected.length ? ` (${rejected.join("; ")})` : ""}.`);
+  if (!unique.length) throw new TypeError(`No model tool call passed validation${rejected.length ? ` (${rejected.join("; ")})` : ""}.`);
   return {
-    summary: `Granite proposed ${unique.length} reviewed action${unique.length === 1 ? "" : "s"} for ${context.formName}.`,
-    rationale: `Each action came from a complete native Granite tool call and passed the host field/type allowlist.${rejected.length ? ` ${rejected.length} other call${rejected.length === 1 ? " was" : "s were"} discarded.` : ""}`,
+    summary: `${sourceLabel} proposed ${unique.length} reviewed action${unique.length === 1 ? "" : "s"} for ${context.formName}.`,
+    rationale: `Each action came from a complete native tool call and passed the host field/type allowlist.${rejected.length ? ` ${rejected.length} other call${rejected.length === 1 ? " was" : "s were"} discarded.` : ""}`,
     actions: unique,
   };
+}
+
+export function parseEpiAssistToolCalls(response: string, context: EpiAssistContext): EpiAssistProposal {
+  const matches = [...response.matchAll(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/gi)];
+  if (!matches.length) throw new SyntaxError("Granite did not return a complete native tool call.");
+  const calls = matches.map((match) => {
+    const source = match[1];
+    if (!source) return null;
+    try { return JSON.parse(source) as unknown; } catch { return null; }
+  });
+  return parseEpiAssistNativeToolCalls(calls, context, "Granite");
 }
 
 export function buildGuidedProposal(context: EpiAssistContext): EpiAssistProposal {

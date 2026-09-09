@@ -50,5 +50,10 @@ SUMMARIZE AverageAge :: AVG(Age) TO FoodborneAgeBySex STRATAVAR=Sex
 
 GRAPH case_status GRAPHTYPE="Bar" TITLETEXT="Foodborne cases by status" XTITLE="Count" YTITLE="Case Status"
 
+*** Legacy GROUPVAR exposure expansion: one TABLES output per food field
+DEFINE FoodExposures GROUPVAR potato_salad hamburger grilled_chicken
+
+TABLES FoodExposures case_status
+
 *** NEW BRANCH - browser-native quality profile; not an Epi Info 7 command
 EPIAI QUALITY *

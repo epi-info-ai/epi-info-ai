@@ -2145,6 +2145,118 @@ select {
   max-width: 42rem;
 }
 
+.data-import-preview-dialog {
+  max-width: 46rem;
+}
+
+.package-transport-dialog,
+.data-package-import-dialog,
+.secure-share-dialog {
+  width: min(46rem, calc(100vw - 1rem));
+  max-width: 46rem;
+}
+
+.secure-share-dialog { max-width: 54rem; }
+
+.secure-share-dialog textarea {
+  width: 100%;
+  resize: vertical;
+  font: 0.72rem/1.25 ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.secure-share-dialog progress { width: 100%; }
+
+.secure-share-dialog code { overflow-wrap: anywhere; }
+
+.package-context {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.package-context div {
+  padding: 0.5rem;
+  background: #f7f9fa;
+  border: 1px solid #bdc9cf;
+}
+
+.package-context dt {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.package-context dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.package-filter-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) minmax(10rem, 2fr);
+}
+
+.package-filter-grid label,
+.package-transport-dialog fieldset > label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.package-filter-grid input,
+.package-filter-grid select,
+.package-transport-dialog input,
+.package-transport-dialog select,
+.data-package-import-dialog input {
+  min-height: var(--control-min-size);
+  padding: 0.3rem 0.45rem;
+  border: 1px solid #9caeb8;
+}
+
+@media (max-width: 42rem) {
+  .package-filter-grid { grid-template-columns: 1fr; }
+}
+
+.data-import-preview-file {
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.data-import-preview-warning {
+  margin: 0;
+  padding: 0.65rem;
+  color: #6f3e00;
+  background: #fff4cf;
+  border-left: 0.25rem solid #d99100;
+}
+
+.data-import-preview-counts {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.35rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+}
+
+.data-import-preview-counts div {
+  padding: 0.5rem;
+  background: #f8fafb;
+  border: 1px solid #c4d0d6;
+}
+
+.data-import-preview-counts dt {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.data-import-preview-counts dd {
+  margin: 0.1rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
 .data-quality-dialog {
   max-width: 70rem;
 }

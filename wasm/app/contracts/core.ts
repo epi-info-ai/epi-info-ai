@@ -48,6 +48,7 @@ export interface ProjectForm {
   schema: FormSchema;
   records: EpiRecord[];
   dataset?: DatasetProvenance;
+  imports?: DatasetProvenance[];
   deletedRecords?: DeletedRecord[];
 }
 
@@ -362,6 +363,10 @@ function projectFormAt(value: unknown, path: string): ProjectForm {
     records: form.records.map((record, index) => recordAt(record, `${path}.records[${index}]`)),
   };
   if (form.dataset !== undefined) result.dataset = datasetProvenanceAt(form.dataset, `${path}.dataset`);
+  if (form.imports !== undefined) {
+    if (!Array.isArray(form.imports)) fail(`${path}.imports`, "must be an array");
+    result.imports = form.imports.map((item, index) => datasetProvenanceAt(item, `${path}.imports[${index}]`));
+  }
   if (form.deletedRecords !== undefined) {
     if (!Array.isArray(form.deletedRecords)) fail(`${path}.deletedRecords`, "must be an array");
     result.deletedRecords = form.deletedRecords.map((item, index) => {
