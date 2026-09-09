@@ -801,8 +801,11 @@ new functionality follows the legacy capability register and later phases.
 
 ## TODO
 
-- [ ] After the core migration phases, add a host-owned declarative walkthrough
-  service for every user-facing page. Page and approved plugin contributions
+- [x] Establish a host-owned declarative walkthrough service and Help entry with
+  a foodborne Program Editor runbook. The V0.1 host owns spotlighting and
+  action-aware progression, navigates only between modules, and leaves loading
+  and execution to explicit user actions.
+- [ ] Expand the runbook service to every user-facing page. Page and approved plugin contributions
   provide versioned step metadata and stable semantic targets; the host owns
   highlighting, focus, accessibility, responsive presentation, persistence of
   completion state, and stale-target validation. Walkthroughs never receive

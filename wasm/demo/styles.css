@@ -4609,3 +4609,61 @@ body.map-fullscreen-fallback {
     transition-duration: 0.01ms !important;
   }
 }
+.runbook-library-dialog {
+  width: min(620px, calc(100vw - 2rem));
+}
+
+.runbook-library-dialog select {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.runbook-coach {
+  position: fixed;
+  z-index: 10020;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(390px, calc(100vw - 2rem));
+  padding: 1rem;
+  color: #173247;
+  background: #fff;
+  border: 2px solid #007da8;
+  border-radius: 0.5rem;
+  box-shadow: 0 12px 36px rgb(0 31 53 / 30%);
+}
+
+.runbook-coach-heading,
+.runbook-coach-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.runbook-coach-heading span {
+  color: #006b8f;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.runbook-coach h2 {
+  margin: 0.65rem 0 0.35rem;
+  font-size: 1.2rem;
+}
+
+.runbook-highlight {
+  position: relative;
+  z-index: 10010;
+  outline: 4px solid #e0a400 !important;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 8px rgb(255 215 64 / 35%) !important;
+}
+
+@media (max-width: 640px) {
+  .runbook-coach {
+    right: 0.5rem;
+    bottom: 0.5rem;
+    width: calc(100vw - 1rem);
+  }
+}

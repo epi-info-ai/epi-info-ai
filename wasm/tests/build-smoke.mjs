@@ -85,6 +85,9 @@ assert.match(html, /id=["']file-exit["']/);
 assert.match(html, /id=["']file-open-project["']/);
 assert.match(html, /id=["']file-save-project["']/);
 assert.match(html, /id=["']tools-menu["']/);
+assert.match(html, /id=["']help-runbooks["']/);
+assert.match(html, /id=["']runbook-library-dialog["']/);
+assert.match(html, /id=["']runbook-coach["']/);
 assert.match(html, /id=["']designer-file-menu["']/);
 for (const menu of ["file", "edit", "view", "insert", "format", "tools", "help"]) {
   assert.match(html, new RegExp(`data-designer-menu-host=["']${menu}["']`));

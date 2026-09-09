@@ -146,6 +146,41 @@ test("legacy application menus expose familiar workflows", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Form Designer" })).toBeVisible();
 });
 
+test("Help runbook guides a dataset-matched foodborne Program Editor workflow", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
+  await applicationMenu.getByText("Help", { exact: true }).click();
+  await applicationMenu.getByRole("menuitem", { name: /Automated Runbooks/ }).click();
+  const library = page.getByRole("dialog", { name: "Automated Runbooks" });
+  await expect(library).toBeVisible();
+  await expect(library.locator("#runbook-prerequisite")).toContainText("96 example records");
+  await library.getByRole("button", { name: "Start Runbook" }).click();
+
+  const coach = page.locator("#runbook-coach");
+  await expect(coach).toBeVisible();
+  await expect(page.locator('[data-module="classic"]')).toHaveAttribute("aria-current", "page");
+  await expect(coach.locator("#runbook-progress")).toHaveText("Step 1 of 8");
+  await expect(page.locator("#classic-program-title")).toHaveClass(/runbook-highlight/);
+
+  await coach.getByRole("button", { name: "Next" }).click();
+  await expect(page.locator("#classic-program-toolbar-open")).toHaveClass(/runbook-highlight/);
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Choose the foodborne example");
+  await expect(page.locator("#classic-program-dialog")).toBeVisible();
+  await page.locator("#classic-program-example").selectOption("life-stage-by-sex");
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Load visible source");
+  await page.locator("#classic-program-load-example").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Verify the typed program");
+  await expect(page.locator("#classic-program-source")).toContainText("FREQ AgeGroup STRATAVAR=Sex");
+  await coach.locator("#runbook-stop").click();
+  await expect(coach).toBeHidden();
+  await expect(page.locator(".runbook-highlight")).toHaveCount(0);
+});
+
 test("File menu opens and saves the migrated official Sample project", async ({ page }) => {
   await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/sample-project.epia.json");
   await expect(page.locator("#main-menu-status")).toContainText("Opened Sample");

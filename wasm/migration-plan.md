@@ -1059,20 +1059,23 @@ cancel without leaving accepted partial data, and review the package before any
 project state changes. A representative legacy `.edp7` fixture can be read in
 compatibility mode, but new exports never use the legacy cryptography.
 
-## Deferred cross-cutting TODO - page walkthroughs
+## Cross-cutting page walkthroughs
 
-After the core migration phases are complete, add a reusable optional walkthrough
-to every user-facing page. Each walkthrough must be launched and replayed from
-Help, point to actual page controls, use concise Back/Next/Finish/Exit steps, and
-leave project and partially entered form state unchanged.
+V0.1 now supplies a reusable Help > Automated Runbooks library and an initial
+foodborne Program Editor walkthrough. It points to actual controls, provides
+Back/Next/Finish/Stop, advances after expected user actions, and never silently
+loads source or executes analysis. Automated browser coverage fails when its
+semantic targets disappear.
+
+After the core migration phases are complete, extend this foundation to every
+user-facing page while leaving project and partially entered form state unchanged.
 
 The shared walkthrough contract must cover keyboard and touch operation, focus
 return, screen-reader announcements, reduced motion, phone/tablet/desktop
 placement, content versioning, and automated detection of missing or stale target
 controls. Approved plugin pages may contribute declarative walkthrough steps
 through the host API; plugins do not receive unrestricted DOM access. Implement
-this after the phases rather than duplicating page-specific tour code during
-migration.
+the shared host instead of duplicating page-specific tour code.
 
 ## Cross-cutting test matrix
 

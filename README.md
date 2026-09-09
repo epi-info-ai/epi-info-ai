@@ -55,6 +55,8 @@ git submodule update --init --recursive
   (ChatGPT-model) and Anthropic (Claude-model) adapters through a same-origin,
   administrator-configured gateway; all use aggregate-only context and typed,
   reviewed actions
+- Help > Automated Runbooks new branch with a reusable, action-aware walkthrough
+  engine and an initial foodborne Program Editor example
 
 ## Browser demo
 
@@ -581,8 +583,8 @@ checksums, expected metadata, and combined testing workflow are documented in
   consent, authenticated CDC intake, quarantine, retention controls, and human
   promotion to versioned evaluation/training corpora. Never train directly from
   raw project history or live synchronization storage.
-- Add a reusable, optional UI walkthrough to every user-facing page after the
-  core migration phases are complete:
+- Expand the implemented Help > Automated Runbooks V0.1 foundation to every
+  user-facing page after the core migration phases are complete:
   - launch from the page Help control and allow replay at any time;
   - highlight real controls with concise Back, Next, Finish, and Exit steps;
   - preserve keyboard focus, screen-reader announcements, reduced-motion support,

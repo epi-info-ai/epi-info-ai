@@ -28,6 +28,7 @@ import { renderClassicAnalysisContract } from "../app/analysis/classic-analysis-
 import { CLASSIC_AST_VERSION, parseClassicProgram } from "../app/programming/classic-ast.js";
 import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
 import { buildClassicAnalysisCommand, CLASSIC_TABLES_EXPANSION_PLAN_VERSION, resolveSelectedClassicAnalysisCommand, type ClassicAnalysisCommandInput, type ClassicAnalysisCommandKind, type ClassicDefineVariableScope, type ClassicDefineVariableType } from "../app/programming/classic-command-builder.js";
+import { initializeUiRunbooks } from "../app/help/runbooks.js";
 import { applyClassicSelection, resolveClassicSelectionCommand, type ClassicSelectionOperator } from "../app/programming/classic-selection.js";
 import { resolveClassicSortCommand, type ClassicSortDirection } from "../app/programming/classic-sort.js";
 import { assignmentValueFromInput, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand } from "../app/programming/classic-assignment.js";
@@ -633,6 +634,7 @@ const classicProgramOutput = requiredElement<HTMLElement>("#classic-program-outp
 const classicProgramLineNumbersButton = requiredElement<HTMLButtonElement>("#view-program-line-numbers");
 const classicProgramIndentTabsButton = requiredElement<HTMLButtonElement>("#view-program-indent-tabs");
 renderClassicProgramSurface(requiredElement("#classic-program-menu"), requiredElement("#classic-program-toolbar"), requiredElement("#classic-output-toolbar"));
+initializeUiRunbooks();
 const classicProgramCommandStatus = requiredElement<HTMLElement>("#classic-program-command-status");
 const classicProgramToolbarRun = requiredElement<HTMLButtonElement>("#classic-program-toolbar-run");
 const classicProgramToolbarCancel = requiredElement<HTMLButtonElement>("#classic-program-toolbar-cancel");

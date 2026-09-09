@@ -76,6 +76,8 @@
       <details id="help-menu" class="legacy-menu legacy-menu-right">
         <summary aria-haspopup="menu">Help</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="Help">
+          <button id="help-runbooks" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Automated Runbooks...</button>
+          <div class="legacy-menu-separator" role="separator"></div>
           <button type="button" role="menuitem" disabled title="Not yet included in the browser demo">User Guide</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Help Videos</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Discussion Forum</button>
@@ -83,6 +85,27 @@
         </div>
       </details>
     </nav>
+
+    <dialog id="runbook-library-dialog" class="legacy-dialog runbook-library-dialog" aria-labelledby="runbook-library-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar"><h2 id="runbook-library-title">Automated Runbooks</h2><button value="cancel" aria-label="Close">×</button></div>
+        <div class="legacy-dialog-body">
+          <p><span class="new-branch-tag">New branch</span> Guided examples preserve the familiar Epi Info workflow while spotlighting each control.</p>
+          <label for="runbook-select">Runbook<select id="runbook-select"></select></label>
+          <p id="runbook-description"></p>
+          <p id="runbook-prerequisite" class="dialog-note"></p>
+          <p class="dialog-note"><strong>You stay in control.</strong> A runbook may navigate between modules, but it never imports data or executes analysis without your action.</p>
+        </div>
+        <div class="legacy-dialog-actions"><button id="runbook-start" class="dialog-primary" type="button">Start Runbook</button><button value="cancel">Cancel</button></div>
+      </form>
+    </dialog>
+
+    <aside id="runbook-coach" class="runbook-coach" aria-labelledby="runbook-step-title" aria-live="polite" hidden>
+      <div class="runbook-coach-heading"><span id="runbook-progress">Step 1</span><button id="runbook-stop" type="button" aria-label="Stop runbook">×</button></div>
+      <h2 id="runbook-step-title">Runbook step</h2>
+      <p id="runbook-step-instruction"></p>
+      <div class="runbook-coach-actions"><button id="runbook-back" type="button">Back</button><button id="runbook-next" class="primary-button" type="button">Next</button></div>
+    </aside>
 
     <main id="main-menu" class="main-menu-screen">
       <section class="main-menu-actions" aria-labelledby="main-menu-title">
