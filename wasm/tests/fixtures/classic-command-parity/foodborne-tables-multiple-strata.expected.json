@@ -1,6 +1,6 @@
 {
   "operation": "classic.tables.categorical",
-  "planVersion": "classic-tables-v0.9.0",
+  "planVersion": "classic-tables-v0.11.0",
   "canonicalSource": "TABLES potato_salad hamburger STRATAVAR=sex case_status",
   "sourceRecords": 96,
   "includedRecords": 96,

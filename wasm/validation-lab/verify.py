@@ -41,6 +41,8 @@ TABLES_FIXTURES = [
 ]
 TABLES_ADJUSTED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.expected.json"
 TABLES_WEIGHTED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-weighted.expected.json"
+COMPLEX_MEANS_FIXTURE = REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar.expected.json"
+COMPLEX_MEANS_OUTTABLE_FIXTURE = REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar-outtable.expected.json"
 
 
 def normalized(values: list[str]) -> set[str]:
@@ -88,6 +90,9 @@ def verify_notebook() -> None:
     assert "foodborne-tables-missing-v0.6.json" in source
     assert "foodborne-tables-adjusted-v0.8.json" in source
     assert "SET MISSING=ON" in source
+    assert "foodborne-means-psuvar-v0.1.json" in source
+    assert "foodborne-means-psuvar-outtable-v0.1.json" in source
+    assert "CSM domain means, Taylor variance" in source
     assert "adjusted output produced by the Rust/WASM kernel" in source
 
     unmatched = nbformat.read(NOTEBOOKS[7], as_version=4)
@@ -329,6 +334,85 @@ def verify_foodborne_tables_weighted() -> None:
     assert sum(sum(row) for row in cells) == fixture["weightedTotal"]
 
 
+def verify_foodborne_complex_means() -> None:
+    """Independently reproduce the mechanical CSM fixture without candidate code."""
+    fixture = json.loads(COMPLEX_MEANS_FIXTURE.read_text(encoding="utf-8"))
+    data = (REPOSITORY / fixture["dataset"]["file"]).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+    source = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    records = [{"value": float(row["Age"]), "domain": row["Sex"],
+                "stratum": row["Case Status"], "psu": row["Household Neighborhood"]}
+               for row in source]
+    pairs = {(row["stratum"], row["psu"]) for row in records}
+    strata = {row["stratum"] for row in records}
+    expected = fixture["expected"]
+    assert len(records) == expected["includedRecords"] == 96
+    assert len(pairs) == expected["primarySamplingUnits"] == 63
+    assert len(strata) == expected["designStrata"] == 4
+    assert len(pairs) - len(strata) == expected["degreesOfFreedom"] == 59
+
+    def design_variance(influence) -> float:
+        total = 0.0
+        for stratum in strata:
+            members = [row for row in records if row["stratum"] == stratum]
+            psus = {row["psu"] for row in members}
+            if len(psus) <= 1:
+                continue
+            values = [sum(influence(row) for row in members if row["psu"] == psu)
+                      for psu in psus]
+            total += (len(psus) * sum(value * value for value in values)
+                      - sum(values) ** 2) / (len(psus) - 1)
+        return total
+
+    estimates = {}
+    for expected_row in expected["rows"][:2]:
+        label = expected_row["label"]
+        members = [row for row in records if row["domain"] == label]
+        mean = sum(row["value"] for row in members) / len(members)
+        variance = design_variance(
+            lambda row, label=label, mean=mean, count=len(members):
+            (row["value"] - mean) / count if row["domain"] == label else 0)
+        standard_error = math.sqrt(variance)
+        estimates[label] = (mean, len(members))
+        assert len(members) == expected_row["count"]
+        for actual, name in [(mean, "mean"), (standard_error, "standardError")]:
+            assert math.isclose(actual, expected_row[name], abs_tol=1e-10, rel_tol=0)
+        assert min(row["value"] for row in members) == expected_row["minimum"]
+        assert max(row["value"] for row in members) == expected_row["maximum"]
+
+    left, right, difference = expected["rows"]
+    left_mean, left_count = estimates[left["label"]]
+    right_mean, right_count = estimates[right["label"]]
+    difference_mean = left_mean - right_mean
+    difference_variance = design_variance(
+        lambda row: (row["value"] - left_mean) / left_count
+        if row["domain"] == left["label"] else
+        -(row["value"] - right_mean) / right_count
+        if row["domain"] == right["label"] else 0)
+    assert math.isclose(difference_mean, difference["mean"], abs_tol=1e-12, rel_tol=0)
+    assert math.isclose(math.sqrt(difference_variance), difference["standardError"],
+                        abs_tol=1e-10, rel_tol=0)
+
+    out_table = json.loads(COMPLEX_MEANS_OUTTABLE_FIXTURE.read_text(encoding="utf-8"))
+    assert out_table["status"] == "new-branch-browser-adaptation"
+    assert out_table["fields"] == ["sex", "VARNAME", "COUNT", "MEAN", "StdErr",
+                                   "LCL", "UCL", "MIN", "MAX"]
+    assert len(out_table["records"]) == len(expected["rows"]) == 3
+    for record, expected_row in zip(out_table["records"], expected["rows"]):
+        assert record["sex"] == expected_row["label"]
+        assert record["VARNAME"] == "age"
+        assert record["COUNT"] == expected_row["count"]
+        for output_name, result_name in [("MEAN", "mean"), ("StdErr", "standardError"),
+                                         ("LCL", "lowerConfidenceLimit"),
+                                         ("UCL", "upperConfidenceLimit"),
+                                         ("MIN", "minimum"), ("MAX", "maximum")]:
+            if expected_row[result_name] is None:
+                assert record[output_name] is None
+            else:
+                assert math.isclose(record[output_name], expected_row[result_name],
+                                    abs_tol=1e-10, rel_tol=0)
+
+
 if __name__ == "__main__":
     verify_notebook()
     verify_foodborne_derivation()
@@ -342,5 +426,6 @@ if __name__ == "__main__":
     verify_foodborne_tables()
     verify_foodborne_tables_adjusted()
     verify_foodborne_tables_weighted()
+    verify_foodborne_complex_means()
     verify_stratified_operational_fixture()
     print("Validation Lab source passed: notebooks, foodborne derivations, and operational fixtures.")

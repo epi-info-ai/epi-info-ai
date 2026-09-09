@@ -66,7 +66,7 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch the GitHub Pages mirror](https://epi-info-ai.github.io/epi-info-ai/)** — the same validated `main` build published by GitHub Actions for external replication testing.
 
-**[Open TABLES Validation Lab V0.9](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-tables.ipynb)** — independently validates the unstratified, stratified, adjusted 2 × 2, and frequency-weighted foodborne matrices, percentages, expected counts, Pearson chi-square, exact/adjusted anchors, and sparse-cell warnings with Python/SciPy.
+**[Open TABLES Validation Lab V0.11 + Complex Samples](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-tables.ipynb)** — independently validates unstratified, stratified, adjusted 2 × 2, frequency-weighted, bounded general R × C exact, Complex Sample Tables, Complex Sample Frequencies, Complex Sample Means, PSU-within-stratum Taylor variance, and complex `OUTTABLE` foodborne results with Python/SciPy.
 
 The [Chi Square for Trend notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb), [Unmatched Case-Control notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-unmatched-case-control.ipynb), [Cohort notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-cohort-cross-sectional.ipynb), [Population Survey notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-population-survey.ipynb), [Rates notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-rate.ipynb), [means notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-means.ipynb), [frequency notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb), [stratified notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb), and [standalone 2 × 2 notebook](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) remain available. The same CDC GitLab Pages access policy applies.
 
@@ -532,6 +532,15 @@ checksums, expected metadata, and combined testing workflow are documented in
 
 ## TODO
 
+- **Write and maintain the Epi Info AI Manual.** Use the Epi Info 7 manual as
+  the familiar workflow and terminology floor—the old tree—while documenting
+  restored behavior, intentional browser adaptations, deprecated branches, and
+  clearly labeled new branches. Cover every user-facing module, menu, dialog,
+  Program Editor command, example project/program, offline and collaboration
+  workflow, validation status, and Help walkthrough. Version the manual with
+  releases and check it against the capability, menu, command, chart, and
+  validation registries so published guidance never claims unverified parity.
+
 - **Secure Epi Info Share hardening:** V0.1 now provides authenticated `.epiax`
   packaging and manual direct WebRTC exchange. Add reviewed legacy `.edp7`
   reading, Argon2id, QR/short-code signaling, explicit STUN/TURN policy and route
@@ -539,15 +548,15 @@ checksums, expected metadata, and combined testing workflow are documented in
   receipts, cross-device testing, and independent security review. It must not
   claim automatic nearby-device discovery or silently import received data.
 
-- **Next Statistics slice — continue Classic Analysis `TABLES` parity.** The
-  current browser-verified V0.9 floor renders unstratified and multi-stratum categorical counts, row/column
+- **Ordinary Classic Analysis `TABLES` candidate complete at V0.11.** The
+  browser-verified floor renders unstratified and multi-stratum categorical counts, row/column
   percentages, totals, expected counts, Pearson chi-square/df/probability, and
   sparse-cell warnings for two fields and one `STRATAVAR`. A true observed 2 × 2
   table also receives the familiar Single Table Analysis: odds ratios, risk
   ratio, risk difference, chi-square variants, mid-p, Fisher, and confidence
-  limits from the validated Rust/WebAssembly kernel. It is not full legacy
-  TABLES parity. The JupyterLite TABLES and 2 × 2 labs independently check the
-  statistical contracts. `STATISTICS=FISHER` now supplies bounded 2 × N exact
+  limits from the validated Rust/WebAssembly kernel. The JupyterLite TABLES and
+  2 × 2 labs independently check the statistical contracts.
+  `STATISTICS=FISHER` supplies bounded general R × C exact
   testing with a visible 200,000-table limit. `SET MISSING=OFF/ON`, inverse
   `SET IGNORE`, and `SET (.)="label"` preserve the legacy OFF/`Missing`
   defaults in ordered programs. A stratified binary TABLES command now sends
@@ -558,9 +567,29 @@ checksums, expected metadata, and combined testing workflow are documented in
   an independent JupyterLite check. Legacy exposure-position `GROUPVAR` and `*`
   now expand into one separately labeled, auditable TABLES output per field in
   declared/project order; the foodborne command tour exercises a three-food
-  group. Next implement and test reviewed `OUTTABLE` behavior. Multiple outcome
-  fields are not claimed because the inspected legacy grammar accepts one
-  outcome per TABLES command.
+  group. `OUTTABLE` creates the inspected long-form table for session READ-back;
+  expanded exposures preserve the desktop final-exposure replacement behavior.
+  `STATISTICS=NONE`, numeric `ONEISYES`, and the inspected no-op handling of
+  `NOWRAP`/`COLUMNSIZE` are covered. Multiple outcome fields are not claimed
+  because the inspected legacy grammar accepts one outcome per TABLES command.
+  `PSUVAR` now switches to a bounded V0.2 Complex Sample Tables engine from the
+  familiar Advanced Statistics path. It ports the inspected PSU-within-stratum
+  Taylor variance, design df/t limits, design effects, and 2 × 2 survey OR/RR/RD;
+  a clearly labeled mechanical foodborne fixture uses Household Neighborhood as
+  a PSU proxy and Age as a test weight. Complex `OUTTABLE`, meaningful survey
+  corpora, desktop differential evidence, Rust migration, and review remain open.
+  See the [Complex Sample Tables method contract](wasm/docs/validation/complex-sample-tables-method-contract.md).
+
+- **Complex Sample Frequencies V0.1 candidate.** `FREQ ... PSUVAR=...` now restores the legacy Advanced Statistics path with optional design stratum, numeric weight, linear/logit limits, the inspected legacy design-effect behavior, and session `OUTTABLE` read-back. The foodborne design fields are explicitly mechanical test proxies. See the [CSF method contract](wasm/docs/validation/complex-sample-frequency-method-contract.md).
+
+- **Complex Sample Means V0.1 candidate.** `MEANS ... PSUVAR=...` now reports
+  survey-domain means, Taylor standard errors, legacy t limits, and a two-domain
+  mean difference. Its foodborne design fields are mechanical test proxies; the
+  JupyterLite lab independently reproduces the calculations in Python. A clearly
+  labeled browser adaptation can materialize the visible result rows with
+  `OUTTABLE` for session `READ`/`LIST`; desktop CSM displays that control disabled
+  and supplies no result-table schema. Desktop differential review remains open.
+  See the [CSM method contract](wasm/docs/validation/complex-sample-means-method-contract.md).
   Preserve the legacy dialog and visible command source, add foodborne `.pgm`
   fixtures and expected results for every increment, and do not mark TABLES
   legacy-parity-verified until desktop differential output is reviewed.

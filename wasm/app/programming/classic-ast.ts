@@ -155,6 +155,8 @@ export interface ClassicTablesStatement extends ClassicNode {
 export interface ClassicMeansStatement extends ClassicNode {
   type: "MeansStatement";
   field: ClassicIdentifier;
+  crossTab?: ClassicIdentifier;
+  options: ClassicAnalysisOptions;
 }
 
 export type ClassicAggregateFunction = "AVG" | "COUNT" | "FIRST" | "LAST" | "MAX" | "MIN" | "STDEV" | "STDEVP" | "SUM" | "VAR" | "VARP";
@@ -945,8 +947,10 @@ class ProgramParser {
 
   private means(line: SourceLine, rest: string): ClassicMeansStatement {
     const tokens = words(rest);
-    if (tokens.length !== 1) throw new ClassicSyntaxError(line.line, 1, "MEANS requires exactly one variable in this V0.1 AST.");
-    return { type: "MeansStatement", field: identifier(tokens[0]!, line), span: lineSpan(line) };
+    const optionIndex = tokens.findIndex(optionStart);
+    const variables = tokens.slice(0, optionIndex < 0 ? tokens.length : optionIndex);
+    if (variables.length < 1 || variables.length > 2) throw new ClassicSyntaxError(line.line, 1, "MEANS requires one numeric variable and an optional cross-tabulation variable.");
+    return { type: "MeansStatement", field: identifier(variables[0]!, line), ...(variables[1] ? { crossTab: identifier(variables[1], line) } : {}), options: analysisOptions(tokens, optionIndex < 0 ? tokens.length : optionIndex, line), span: lineSpan(line) };
   }
 
   private define(line: SourceLine, rest: string, restColumn: number): ClassicDefineStatement | ClassicDefineGroupStatement {

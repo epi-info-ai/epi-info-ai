@@ -1,0 +1,3 @@
+*** Mechanical survey-design validation only.
+*** Household Neighborhood is a PSU proxy and Age is not a defensible survey weight.
+TABLES potato_salad hamburger STRATAVAR=Sex WEIGHTVAR=Age PSUVAR=household_neighborhood

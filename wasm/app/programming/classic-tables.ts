@@ -1,7 +1,8 @@
 import type { EpiRecord, FieldDefinition, FieldType } from "../contracts/core.ts";
 import type { StratifiedTable2x2Input } from "../contracts/engine.ts";
+import type { MapDataSource } from "../contracts/maps.ts";
 
-export const CLASSIC_TABLES_PLAN_VERSION = "classic-tables-v0.9.0" as const;
+export const CLASSIC_TABLES_PLAN_VERSION = "classic-tables-v0.11.0" as const;
 export const CLASSIC_TABLES_FISHER_MAX_TABLES = 200_000;
 export const CLASSIC_TABLES_FISHER_TOLERANCE = 3.45254e-7;
 
@@ -19,7 +20,11 @@ export interface ClassicTablesPlan {
   strataPrompts: string[];
   weightField?: string;
   weightPrompt?: string;
-  statistics?: "FISHER";
+  statistics?: "NONE" | "FISHER";
+  outputTable?: string;
+  oneIsYes: boolean;
+  noWrap: boolean;
+  columnSize?: number;
   includeMissing: boolean;
   representationOfMissing: string;
 }
@@ -45,6 +50,7 @@ export interface ClassicTablesPearsonResult {
 
 export interface ClassicTablesStratum {
   value: string;
+  strataValues?: string[];
   rows: ClassicTablesRow[];
   columnTotals: number[];
   columnPercents: number[];
@@ -210,9 +216,9 @@ function binaryRank(value: string): number | null {
   return null;
 }
 
-function orderedCategories(values: readonly string[], fieldType: FieldType): string[] {
+function orderedCategories(values: readonly string[], fieldType: FieldType, oneIsYes = false): string[] {
   const ordered = [...values].sort(compare);
-  if (fieldType !== "yes-no" && fieldType !== "checkbox") return ordered;
+  if (fieldType !== "yes-no" && fieldType !== "checkbox" && !oneIsYes) return ordered;
   return ordered.sort((left, right) => {
     const leftRank = binaryRank(left);
     const rightRank = binaryRank(right);
@@ -225,40 +231,61 @@ export function calculateBoundedFisherExact(
   maximumTables = CLASSIC_TABLES_FISHER_MAX_TABLES,
 ): ClassicTablesFisherResult {
   const base = { method: "fisher-freeman-halton-probability-ordering" as const, maximumTables, tolerance: CLASSIC_TABLES_FISHER_TOLERANCE };
-  if (counts.length !== 2 || counts.some((row) => row.length !== counts[0]?.length) || (counts[0]?.length ?? 0) < 2) {
-    return { ...base, state: "unavailable", reason: "This bounded Fisher slice supports 2 x N tables only.", tablesEnumerated: 0 };
+  if (counts.length < 2 || counts.some((row) => row.length !== counts[0]?.length) || (counts[0]?.length ?? 0) < 2) {
+    return { ...base, state: "unavailable", reason: "Fisher exact requires a rectangular table with at least two rows and two columns.", tablesEnumerated: 0 };
   }
   if (counts.flat().some((value) => !Number.isSafeInteger(value) || value < 0)) {
     return { ...base, state: "unavailable", reason: "Fisher exact requires non-negative integer cell counts.", tablesEnumerated: 0 };
   }
-  const columns = counts[0]!.map((value, index) => value + counts[1]![index]!);
-  const rowTotal = counts[0]!.reduce((sum, value) => sum + value, 0);
-  const total = columns.reduce((sum, value) => sum + value, 0);
-  if (!total || !rowTotal || rowTotal === total) return { ...base, state: "unavailable", reason: "Fisher exact requires two non-empty rows.", tablesEnumerated: 0 };
+  const nonEmptyRows = counts.filter((row) => row.some((value) => value > 0));
+  const nonEmptyColumns = counts[0]!.map((_, column) => column).filter((column) => nonEmptyRows.some((row) => row[column]! > 0));
+  const table = nonEmptyRows.map((row) => nonEmptyColumns.map((column) => row[column]!));
+  if (table.length < 2 || nonEmptyColumns.length < 2) return { ...base, state: "unavailable", reason: "Fisher exact requires at least two non-empty rows and columns.", tablesEnumerated: 0 };
+  const rowTotals = table.map((row) => row.reduce((sum, value) => sum + value, 0));
+  const columnTotals = nonEmptyColumns.map((_, column) => table.reduce((sum, row) => sum + row[column]!, 0));
+  const total = rowTotals.reduce((sum, value) => sum + value, 0);
   const logFactorial = Array.from({ length: total + 1 }, () => 0);
   for (let index = 2; index <= total; index++) logFactorial[index] = logFactorial[index - 1]! + Math.log(index);
-  const logChoose = (n: number, k: number): number => logFactorial[n]! - logFactorial[k]! - logFactorial[n - k]!;
-  const denominator = logChoose(total, rowTotal);
-  const observedLogProbability = columns.reduce((sum, margin, index) => sum + logChoose(margin, counts[0]![index]!), -denominator);
+  const constant = rowTotals.reduce((sum, value) => sum + logFactorial[value]!, 0)
+    + columnTotals.reduce((sum, value) => sum + logFactorial[value]!, 0) - logFactorial[total]!;
+  const observedLogProbability = constant - table.flat().reduce((sum, value) => sum + logFactorial[value]!, 0);
   const selected: number[] = [];
   let tablesEnumerated = 0;
   let exceeded = false;
-  const enumerate = (column: number, remaining: number, logNumerator: number): void => {
+  const enumerateRows = (row: number, remainingColumns: number[], logCellFactorials: number): void => {
     if (exceeded) return;
-    if (column === columns.length - 1) {
-      if (remaining < 0 || remaining > columns[column]!) return;
+    if (row === rowTotals.length - 1) {
+      if (remainingColumns.reduce((sum, value) => sum + value, 0) !== rowTotals[row]) return;
       tablesEnumerated++;
       if (tablesEnumerated > maximumTables) { exceeded = true; return; }
-      const candidate = logNumerator + logChoose(columns[column]!, remaining) - denominator;
+      const candidate = constant - logCellFactorials - remainingColumns.reduce((sum, value) => sum + logFactorial[value]!, 0);
       if (candidate <= observedLogProbability + Math.log1p(CLASSIC_TABLES_FISHER_TOLERANCE)) selected.push(candidate);
       return;
     }
-    const remainingMargins = columns.slice(column + 1).reduce((sum, value) => sum + value, 0);
-    const minimum = Math.max(0, remaining - remainingMargins);
-    const maximum = Math.min(columns[column]!, remaining);
-    for (let value = minimum; value <= maximum; value++) enumerate(column + 1, remaining - value, logNumerator + logChoose(columns[column]!, value));
+    const allocation = Array.from({ length: remainingColumns.length }, () => 0);
+    const enumerateColumns = (column: number, remainingRow: number): void => {
+      if (exceeded) return;
+      if (column === remainingColumns.length - 1) {
+        if (remainingRow < 0 || remainingRow > remainingColumns[column]!) return;
+        allocation[column] = remainingRow;
+        enumerateRows(
+          row + 1,
+          remainingColumns.map((value, index) => value - allocation[index]!),
+          logCellFactorials + allocation.reduce((sum, value) => sum + logFactorial[value]!, 0),
+        );
+        return;
+      }
+      const remainingCapacity = remainingColumns.slice(column + 1).reduce((sum, value) => sum + value, 0);
+      const minimum = Math.max(0, remainingRow - remainingCapacity);
+      const maximum = Math.min(remainingColumns[column]!, remainingRow);
+      for (let value = minimum; value <= maximum; value++) {
+        allocation[column] = value;
+        enumerateColumns(column + 1, remainingRow - value);
+      }
+    };
+    enumerateColumns(0, rowTotals[row]!);
   };
-  enumerate(0, rowTotal, 0);
+  enumerateRows(0, [...columnTotals], 0);
   if (exceeded) return { ...base, state: "unavailable", reason: `The exact enumeration exceeded the ${maximumTables.toLocaleString("en-US")}-table browser limit.`, tablesEnumerated };
   const peak = Math.max(...selected);
   const pValue = selected.length ? Math.min(1, Math.exp(peak) * selected.reduce((sum, value) => sum + Math.exp(value - peak), 0)) : 0;
@@ -271,10 +298,14 @@ export function resolveClassicTablesPlan(
   exposure: string,
   outcome: string,
   stratifyBy?: string | readonly string[],
-  statistics?: "FISHER",
+  statistics?: "NONE" | "FISHER",
   weightBy?: string,
   includeMissing = false,
   representationOfMissing = "Missing",
+  outputTable?: string,
+  oneIsYes = false,
+  noWrap = false,
+  columnSize?: number,
 ): ClassicTablesPlan {
   const exposureField = resolveField(fields, exposure);
   const outcomeField = resolveField(fields, outcome);
@@ -291,7 +322,7 @@ export function resolveClassicTablesPlan(
   return {
     version: CLASSIC_TABLES_PLAN_VERSION,
     source,
-    canonicalSource: `TABLES ${token(exposureField.name)} ${token(outcomeField.name)}${strataFields.length ? ` STRATAVAR=${strataFields.map(({ name }) => token(name)).join(" ")}` : ""}${weightField ? ` WEIGHTVAR=${token(weightField.name)}` : ""}${statistics ? ` STATISTICS=${statistics}` : ""}`,
+    canonicalSource: `TABLES ${token(exposureField.name)} ${token(outcomeField.name)}${strataFields.length ? ` STRATAVAR=${strataFields.map(({ name }) => token(name)).join(" ")}` : ""}${weightField ? ` WEIGHTVAR=${token(weightField.name)}` : ""}${statistics ? ` STATISTICS=${statistics}` : ""}${outputTable ? ` OUTTABLE=${token(outputTable)}` : ""}${oneIsYes ? " ONEISYES" : ""}${noWrap ? " NOWRAP" : ""}${columnSize !== undefined ? ` COLUMNSIZE=${columnSize}` : ""}`,
     exposureField: exposureField.name,
     exposurePrompt: exposureField.prompt,
     exposureType: exposureField.type,
@@ -302,6 +333,10 @@ export function resolveClassicTablesPlan(
     strataPrompts: strataFields.map(({ prompt }) => prompt),
     ...(weightField ? { weightField: weightField.name, weightPrompt: weightField.prompt } : {}),
     ...(statistics ? { statistics } : {}),
+    ...(outputTable ? { outputTable } : {}),
+    oneIsYes,
+    noWrap,
+    ...(columnSize !== undefined ? { columnSize } : {}),
     includeMissing,
     representationOfMissing,
   };
@@ -332,6 +367,7 @@ export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicT
       exposure: exposure ?? plan.representationOfMissing,
       outcome: outcome ?? plan.representationOfMissing,
       weight,
+      strataValues: normalizedStrata,
       stratumKey: JSON.stringify(normalizedStrata),
       stratum: normalizedStrata.length === 0
         ? "All records"
@@ -345,8 +381,8 @@ export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicT
   const isTwoByTwo = rawExposureValues.length === 2 && rawOutcomeValues.length === 2;
   // Desktop Epi Info gives Boolean/Yes-No fields affirmative-first orientation
   // when it promotes a categorical result to Single Table Analysis.
-  const exposureValues = isTwoByTwo ? orderedCategories(rawExposureValues, plan.exposureType) : rawExposureValues;
-  const outcomeValues = isTwoByTwo ? orderedCategories(rawOutcomeValues, plan.outcomeType) : rawOutcomeValues;
+  const exposureValues = isTwoByTwo ? orderedCategories(rawExposureValues, plan.exposureType, plan.oneIsYes) : rawExposureValues;
+  const outcomeValues = isTwoByTwo ? orderedCategories(rawOutcomeValues, plan.outcomeType, plan.oneIsYes) : rawOutcomeValues;
   const strataValues = [...new Map(included.map(({ stratumKey, stratum }) => [stratumKey, { key: stratumKey, value: stratum }])).values()].sort((left, right) => compare(left.value, right.value));
   const strata = strataValues.map(({ key: stratumKey, value }) => {
     const members = included.filter((item) => item.stratumKey === stratumKey);
@@ -364,7 +400,7 @@ export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicT
       columnPercents: row.counts.map((count, index) => columnTotals[index] ? count / columnTotals[index]! * 100 : 0),
       expectedCounts: row.counts.map((_, index) => total ? row.total * columnTotals[index]! / total : 0),
     }));
-    const twoByTwo = isTwoByTwo && !plan.weightField ? {
+    const twoByTwo = isTwoByTwo && !plan.weightField && plan.statistics !== "NONE" ? {
       exposedValue: exposureValues[0]!, unexposedValue: exposureValues[1]!,
       caseValue: outcomeValues[0]!, nonCaseValue: outcomeValues[1]!,
       input: {
@@ -373,9 +409,9 @@ export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicT
       },
     } : null;
     return {
-      value, rows, columnTotals,
+      value, ...(plan.outputTable ? { strataValues: [...(members[0]?.strataValues ?? [])] } : {}), rows, columnTotals,
       columnPercents: columnTotals.map((count) => total ? count / total * 100 : 0),
-      total, pearson: pearson(rows, columnTotals, total), ...(twoByTwo ? { twoByTwo } : {}),
+      total, pearson: plan.statistics === "NONE" ? null : pearson(rows, columnTotals, total), ...(twoByTwo ? { twoByTwo } : {}),
       ...(plan.statistics === "FISHER" && !plan.weightField && !twoByTwo ? { fisherExact: calculateBoundedFisherExact(rows.map(({ counts }) => counts)) } : {}),
     };
   });
@@ -394,5 +430,37 @@ export function applyClassicTables(records: readonly EpiRecord[], plan: ClassicT
     exposureValues,
     outcomeValues,
     strata,
+  };
+}
+
+export function classicTablesOutTable(input: MapDataSource, plan: ClassicTablesPlan, result: ClassicTablesResult): MapDataSource {
+  if (!plan.outputTable) throw new RangeError("TABLES OUTTABLE requires a named output table.");
+  const sourceField = (name: string): FieldDefinition => {
+    const field = input.fields.find((candidate) => key(candidate.name) === key(name));
+    if (!field) throw new RangeError(`${name} is not a field in the active Classic table.`);
+    return structuredClone(field);
+  };
+  const fields: FieldDefinition[] = [
+    ...plan.strataFields.map(sourceField),
+    sourceField(plan.exposureField),
+    sourceField(plan.outcomeField),
+    { name: "VARNAME", prompt: "VARNAME", type: "text", required: false },
+    { name: "COUNT", prompt: "COUNT", type: "number", required: false },
+  ];
+  const records: EpiRecord[] = result.strata.flatMap((stratum) => stratum.rows.flatMap((row) =>
+    result.outcomeValues.map((outcomeValue, outcomeIndex) => ({
+      ...Object.fromEntries(plan.strataFields.map((field, index) => [field, stratum.strataValues?.[index] ?? null])),
+      [plan.exposureField]: row.exposureValue,
+      [plan.outcomeField]: outcomeValue,
+      VARNAME: `${plan.exposureField}:${plan.outcomeField}`,
+      COUNT: row.counts[outcomeIndex] ?? 0,
+    })),
+  ));
+  return {
+    projectName: input.projectName,
+    formId: `classic-outtable:${plan.outputTable}`,
+    formName: plan.outputTable,
+    fields,
+    records,
   };
 }

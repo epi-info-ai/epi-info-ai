@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.means.complex-sample.outtable",
+  "status": "new-branch-browser-adaptation",
+  "purpose": "Materialize visible CSM result rows for session READ/LIST; desktop Epi Info exposes a disabled Output to Table control and does not define this schema.",
+  "command": "MEANS age sex STRATAVAR=case_status OUTTABLE=AgeBySexSurvey PSUVAR=household_neighborhood",
+  "outputTable": "AgeBySexSurvey",
+  "fields": ["sex", "VARNAME", "COUNT", "MEAN", "StdErr", "LCL", "UCL", "MIN", "MAX"],
+  "records": [
+    { "sex": "Female", "VARNAME": "age", "COUNT": 48, "MEAN": 43.541666666666664, "StdErr": 2.5853270503507804, "LCL": 38.36843944590235, "UCL": 48.71489388743098, "MIN": 7, "MAX": 75 },
+    { "sex": "Male", "VARNAME": "age", "COUNT": 48, "MEAN": 38.0625, "StdErr": 2.292717994623338, "LCL": 33.474782118151225, "UCL": 42.650217881848775, "MIN": 5, "MAX": 67 },
+    { "sex": "Difference", "VARNAME": "age", "COUNT": null, "MEAN": 5.479166666666664, "StdErr": 3.5785007840404575, "LCL": -1.6813965058003362, "UCL": 12.639729839133665, "MIN": null, "MAX": null }
+  ]
+}

@@ -75,8 +75,8 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
   { key: "advanced-statistics", label: "Advanced Statistics", commands: [
     gap("linear-regression", "Linear Regression"), gap("logistic-regression", "Logistic Regression"),
     gap("kaplan-meier", "Kaplan-Meier Survival"), gap("cox", "Cox Proportional Hazards"),
-    gap("complex-frequencies", "Complex Sample Frequencies"), gap("complex-tables", "Complex Sample Tables"),
-    gap("complex-means", "Complex Sample Means"),
+    command("complex-frequencies", "Complex Sample Frequencies", "classic-command-complex-frequencies"), command("complex-tables", "Complex Sample Tables", "classic-command-complex-tables"),
+    command("complex-means", "Complex Sample Means", "classic-command-complex-means"),
   ] },
   { key: "output", label: "Output", commands: [
     gap("header", "Header"), gap("type", "Type"), gap("routeout", "RouteOut"), gap("closeout", "CloseOut"),

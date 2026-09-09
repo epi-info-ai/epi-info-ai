@@ -44,7 +44,10 @@ import { resolveClassicDeleteRecordsCommand, stageClassicDeleteRecords, type Cla
 import { resolveClassicUndeleteRecordsCommand, stageClassicUndeleteRecords, type ClassicUndeleteRecordsResult } from "../app/programming/classic-undelete-records.js";
 import { applyClassicSummarize, resolveClassicSummarizeCommand, type ClassicSummarizeAggregate } from "../app/programming/classic-summarize.js";
 import { resolveClassicGraphCommand, type ClassicGraphType } from "../app/programming/classic-graph.js";
-import { applyClassicTables, classicTablesStratified2x2Input, resolveClassicTablesPlan, type ClassicTablesPlan, type ClassicTablesResult } from "../app/programming/classic-tables.js";
+import { applyClassicTables, classicTablesOutTable, classicTablesStratified2x2Input, resolveClassicTablesPlan, type ClassicTablesPlan, type ClassicTablesResult } from "../app/programming/classic-tables.js";
+import { applyClassicComplexTables, classicComplexTablesOutTable, resolveClassicComplexTablesPlan, type ClassicComplexTablesPlan, type ClassicComplexTablesResult } from "../app/programming/classic-complex-tables.js";
+import { applyClassicComplexFrequency, classicComplexFrequencyOutTable, resolveClassicComplexFrequencyPlan, type ClassicComplexFrequencyPlan, type ClassicComplexFrequencyResult } from "../app/programming/classic-complex-frequency.js";
+import { applyClassicComplexMeans, classicComplexMeansOutTable, resolveClassicComplexMeansPlan, type ClassicComplexMeansPlan, type ClassicComplexMeansResult } from "../app/programming/classic-complex-means.js";
 import { applyEpiAiQualityProfile, resolveEpiAiQualityCommand } from "../app/programming/epi-ai-quality.js";
 import { convertAccessFile, resolveFileConvertCommand } from "../app/programming/file-convert.js";
 import type { DataQualityReport } from "../app/forms/data-quality.js";
@@ -1062,8 +1065,15 @@ const classicCommandDialogExposure = requiredElement<HTMLSelectElement>("#classi
 const classicCommandDialogOutcome = requiredElement<HTMLSelectElement>("#classic-command-dialog-outcome");
 const classicCommandDialogStrata = requiredElement<HTMLSelectElement>("#classic-command-dialog-strata");
 const classicCommandDialogWeight = requiredElement<HTMLSelectElement>("#classic-command-dialog-weight");
+const classicCommandDialogPsu = requiredElement<HTMLSelectElement>("#classic-command-dialog-psu");
+const classicCommandDialogStatistics = requiredElement<HTMLInputElement>("#classic-command-dialog-statistics");
 const classicCommandDialogFisher = requiredElement<HTMLInputElement>("#classic-command-dialog-fisher");
+const classicCommandDialogOneIsYes = requiredElement<HTMLInputElement>("#classic-command-dialog-one-is-yes");
+const classicCommandDialogOutTable = requiredElement<HTMLInputElement>("#classic-command-dialog-outtable");
 const classicCommandDialogIncludeMissing = requiredElement<HTMLInputElement>("#classic-command-dialog-include-missing");
+let classicComplexTablesDialog = false;
+let classicComplexFrequencyDialog = false;
+let classicComplexMeansDialog = false;
 const classicCommandDialogVariable = requiredElement<HTMLInputElement>("#classic-command-dialog-variable");
 const classicCommandDialogScope = requiredElement<HTMLSelectElement>("#classic-command-dialog-scope");
 const classicCommandDialogVariableType = requiredElement<HTMLSelectElement>("#classic-command-dialog-variable-type");
@@ -1311,8 +1321,14 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
   })) };
   if (kind === "cancel-sort") return { kind };
   if (kind === "list") return { kind, fields: [...classicCommandDialogField.selectedOptions].map((option) => option.value) };
-  if (kind === "frequency") return { kind, field: classicCommandDialogField.value, ...(classicCommandDialogStrata.value ? { stratifyBy: classicCommandDialogStrata.value } : {}) };
-  if (kind === "means") return { kind, field: classicCommandDialogField.value };
+  if (kind === "frequency") return {
+    kind, field: classicCommandDialogField.value,
+    ...(classicCommandDialogStrata.value ? { stratifyBy: classicCommandDialogStrata.value } : {}),
+    ...(classicComplexFrequencyDialog && classicCommandDialogWeight.value ? { weightBy: classicCommandDialogWeight.value } : {}),
+    ...(classicComplexFrequencyDialog && classicCommandDialogPsu.value ? { psuBy: classicCommandDialogPsu.value } : {}),
+    ...(classicComplexFrequencyDialog && classicCommandDialogOutTable.value.trim() ? { outputTable: classicCommandDialogOutTable.value.trim() } : {}),
+  };
+  if (kind === "means") return { kind, field: classicCommandDialogField.value, ...(classicComplexMeansDialog && classicCommandDialogStrata.value ? { stratifyBy: classicCommandDialogStrata.value } : {}), ...(classicComplexMeansDialog && classicCommandDialogWeight.value ? { weightBy: classicCommandDialogWeight.value } : {}), ...(classicComplexMeansDialog && classicCommandDialogOutTable.value.trim() ? { outputTable: classicCommandDialogOutTable.value.trim() } : {}), ...(classicComplexMeansDialog && classicCommandDialogPsu.value ? { psuBy: classicCommandDialogPsu.value } : {}) };
   if (kind === "summarize") return {
     kind, aggregate: classicCommandDialogSummarizeAggregate.value as ClassicSummarizeAggregate,
     field: classicCommandDialogSummarizeField.value, resultField: classicCommandDialogSummarizeResult.value,
@@ -1329,7 +1345,10 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
     kind, exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value,
     ...(classicCommandDialogStrata.value ? { stratifyBy: [classicCommandDialogStrata.value] } : {}),
     ...(classicCommandDialogWeight.value ? { weightBy: classicCommandDialogWeight.value } : {}),
-    ...(classicCommandDialogFisher.checked ? { statistics: "FISHER" as const } : {}),
+    ...(classicCommandDialogPsu.value ? { psuBy: classicCommandDialogPsu.value } : {}),
+    ...(!classicCommandDialogStatistics.checked ? { statistics: "NONE" as const } : classicCommandDialogFisher.checked ? { statistics: "FISHER" as const } : {}),
+    ...(classicCommandDialogOutTable.value.trim() ? { outputTable: classicCommandDialogOutTable.value.trim() } : {}),
+    ...(classicCommandDialogOneIsYes.checked ? { oneIsYes: true } : {}),
   };
 }
 
@@ -1442,6 +1461,9 @@ function updateClassicCommandDialog(): void {
   const weightOptions = source.fields.filter(({ type }) => type === "number");
   classicCommandDialogWeight.replaceChildren(new Option("Do not weight", ""), ...weightOptions.map((field) => new Option(`${field.prompt} (${field.name})`, field.name)));
   if (weightOptions.some(({ name }) => name === previousWeight)) classicCommandDialogWeight.value = previousWeight;
+  const previousPsu = classicCommandDialogPsu.value;
+  classicCommandDialogPsu.replaceChildren(new Option("Choose the primary sampling unit", ""), ...source.fields.filter(({ type }) => type !== "command-button").map((field) => new Option(`${field.prompt} (${field.name})`, field.name)));
+  if (source.fields.some(({ name }) => name === previousPsu)) classicCommandDialogPsu.value = previousPsu;
   const summaryAggregate = classicCommandDialogSummarizeAggregate.value;
   const summaryFields = ["AVG", "STDEV", "STDEVP", "SUM", "VAR", "VARP"].includes(summaryAggregate) ? source.fields.filter(({ type }) => type === "number") : source.fields;
   const previousSummaryField = classicCommandDialogSummarizeField.value;
@@ -1527,12 +1549,28 @@ function updateClassicCommandDialog(): void {
   requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize || setMissing || quality || fileConvert;
   requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables;
   requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables;
-  requiredElement<HTMLElement>("#classic-command-dialog-fisher-label").hidden = !tables;
-  requiredElement<HTMLElement>("#classic-command-dialog-weight-label").hidden = !tables;
-  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || means || summarize || graph || setMissing || quality || fileConvert;
+  requiredElement<HTMLElement>("#classic-command-dialog-fisher-label").hidden = !tables || classicComplexTablesDialog;
+  requiredElement<HTMLElement>("#classic-command-dialog-statistics-label").hidden = !tables || classicComplexTablesDialog;
+  requiredElement<HTMLElement>("#classic-command-dialog-one-is-yes-label").hidden = !tables || classicComplexTablesDialog;
+  requiredElement<HTMLElement>("#classic-command-dialog-weight-label").hidden = !tables && !classicComplexFrequencyDialog && !classicComplexMeansDialog;
+  requiredElement<HTMLElement>("#classic-command-dialog-psu-label").hidden = (!tables || !classicComplexTablesDialog) && !classicComplexFrequencyDialog && !classicComplexMeansDialog;
+  const outTableLabel = requiredElement<HTMLElement>("#classic-command-dialog-outtable-label");
+  outTableLabel.hidden = !tables && !classicComplexFrequencyDialog && !classicComplexMeansDialog;
+  outTableLabel.firstChild!.textContent = classicComplexMeansDialog ? "Output table (optional · browser adaptation)" : "Output table (optional)";
+  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || (means && !classicComplexMeansDialog) || summarize || graph || setMissing || quality || fileConvert;
   requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : graph ? "Graph variable" : "Frequency of";
   const byHint = (pattern: RegExp, excluded = new Set<string>()): string | undefined => source.fields.find((field) => !excluded.has(field.name) && pattern.test(`${field.name} ${field.prompt}`))?.name;
   if (kind === "frequency") classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
+  if (classicComplexFrequencyDialog) {
+    classicCommandDialogStrata.value = byHint(/^sex| sex|gender/, new Set([classicCommandDialogField.value])) ?? "";
+    classicCommandDialogWeight.value = byHint(/^age| age|weight/, new Set([classicCommandDialogField.value, classicCommandDialogStrata.value])) ?? "";
+    classicCommandDialogPsu.value = byHint(/household.?neighborhood|cluster|psu/, new Set([classicCommandDialogField.value, classicCommandDialogStrata.value, classicCommandDialogWeight.value])) ?? "";
+  }
+  if (classicComplexMeansDialog) {
+    classicCommandDialogStrata.value = byHint(/case.?status|status/, new Set([classicCommandDialogField.value])) ?? "";
+    classicCommandDialogPsu.value = byHint(/household.?neighborhood|cluster|psu/, new Set([classicCommandDialogField.value, classicCommandDialogStrata.value])) ?? "";
+    classicCommandDialogWeight.value = "";
+  }
   if (graph) classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
   if (kind === "means") classicCommandDialogField.value = byHint(/age|duration|amount|count|weight/) ?? classicCommandDialogField.value;
   if (recode) {
@@ -1545,11 +1583,17 @@ function updateClassicCommandDialog(): void {
     classicCommandDialogOutcome.value = byHint(/case.?status|outcome|ill/, new Set([classicCommandDialogExposure.value])) ?? classicCommandDialogOutcome.value;
     classicCommandDialogStrata.value = byHint(/^sex| sex|gender/, new Set([classicCommandDialogExposure.value, classicCommandDialogOutcome.value])) ?? "";
     if ([classicCommandDialogExposure.value, classicCommandDialogOutcome.value, classicCommandDialogStrata.value].includes(classicCommandDialogWeight.value)) classicCommandDialogWeight.value = "";
-    classicCommandDialogFisher.disabled = Boolean(classicCommandDialogWeight.value);
-    if (classicCommandDialogWeight.value) classicCommandDialogFisher.checked = false;
+    if (classicComplexTablesDialog && !classicCommandDialogPsu.value) classicCommandDialogPsu.value = byHint(/household.?neighborhood|cluster|psu/) ?? "";
+    if (!classicComplexTablesDialog) classicCommandDialogPsu.value = "";
+    if (classicComplexTablesDialog) { classicCommandDialogFisher.checked = false; classicCommandDialogOneIsYes.checked = false; }
+    classicCommandDialogFisher.disabled = Boolean(classicCommandDialogWeight.value || !classicCommandDialogStatistics.checked);
+    if (classicCommandDialogWeight.value || !classicCommandDialogStatistics.checked) classicCommandDialogFisher.checked = false;
   }
   try {
     const input = classicCommandDialogInput();
+    if (classicComplexTablesDialog && input.kind === "tables" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
+    if (classicComplexFrequencyDialog && input.kind === "frequency" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
+    if (classicComplexMeansDialog && input.kind === "means" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
     if (Object.values(input).some((value) => value === "")) throw new RangeError("Choose every required variable.");
     if (input.kind === "define" && availableFields.some((field) => field.name.toLocaleLowerCase("en-US") === input.variable.trim().toLocaleLowerCase("en-US"))) {
       throw new RangeError(`${input.variable.trim()} already exists in the active Classic Analysis data or program.`);
@@ -1574,7 +1618,7 @@ function updateClassicCommandDialog(): void {
     if (input.kind === "select" || input.kind === "cancel-select") resolveClassicSelectionCommand(command, source.fields);
     if (input.kind === "if") resolveClassicIfCommand(command, source.fields, sessionVariables);
     if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, source.fields);
-    if (input.kind === "tables") resolveSelectedClassicAnalysisCommand(command, source.fields, projectSources, sessionVariables, sessionGroups);
+    if (input.kind === "tables" || input.kind === "frequency" || input.kind === "means") resolveSelectedClassicAnalysisCommand(command, source.fields, projectSources, sessionVariables, sessionGroups);
     requiredElement("#classic-command-dialog-preview").textContent = command;
     requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
@@ -1585,13 +1629,16 @@ function updateClassicCommandDialog(): void {
   }
 }
 
-function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"): void {
+function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency", complexTables = false, complexFrequency = false, complexMeans = false): void {
   closeClassicProgramMenus();
+  classicComplexTablesDialog = kind === "tables" && complexTables;
+  classicComplexFrequencyDialog = kind === "frequency" && complexFrequency;
+  classicComplexMeansDialog = kind === "means" && complexMeans;
   classicCommandDialogKind.value = kind;
   if (kind === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
   if (kind === "sort") resetClassicSortRows();
-  const title = kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
-  requiredElement("#classic-command-dialog-title").textContent = `${title} Command`;
+  const title = complexTables ? "Complex Sample Tables" : kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
+  requiredElement("#classic-command-dialog-title").textContent = `${complexFrequency ? "Complex Sample Frequencies" : complexMeans ? "Complex Sample Means" : title} Command`;
   updateClassicCommandDialog();
   classicCommandDialog.showModal();
   classicProgramCommandStatus.textContent = "Typed command dialog opened. Nothing executes until visible source is selected and run.";
@@ -1599,6 +1646,9 @@ function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"
 }
 
 classicCommandDialogKind.addEventListener("change", () => {
+  if (classicCommandDialogKind.value !== "frequency") classicComplexFrequencyDialog = false;
+  if (classicCommandDialogKind.value !== "tables") classicComplexTablesDialog = false;
+  if (classicCommandDialogKind.value !== "means") classicComplexMeansDialog = false;
   if (classicCommandDialogKind.value === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
   if (classicCommandDialogKind.value === "sort" && classicCommandDialogSortRows.rows.length === 0) resetClassicSortRows();
   updateClassicCommandDialog();
@@ -1616,10 +1666,13 @@ classicCommandDialogFileConvertName.addEventListener("input", refreshClassicComm
 function refreshClassicCommandDialogPreview(): void {
   try {
     if (classicCommandDialogKind.value === "tables") {
-      classicCommandDialogFisher.disabled = Boolean(classicCommandDialogWeight.value);
-      if (classicCommandDialogWeight.value) classicCommandDialogFisher.checked = false;
+      classicCommandDialogFisher.disabled = Boolean(classicCommandDialogWeight.value || !classicCommandDialogStatistics.checked);
+      if (classicCommandDialogWeight.value || !classicCommandDialogStatistics.checked) classicCommandDialogFisher.checked = false;
     }
     const input = classicCommandDialogInput();
+    if (classicComplexTablesDialog && input.kind === "tables" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
+    if (classicComplexFrequencyDialog && input.kind === "frequency" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
+    if (classicComplexMeansDialog && input.kind === "means" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
     if (input.kind === "define") {
       const source = classicProgramSession.current(getCurrentProjectData());
       const fields = [...source.fields, ...classicDefinedFields(source.fields)];
@@ -1676,8 +1729,11 @@ classicCommandDialogSummarizeField.addEventListener("change", updateClassicComma
 classicCommandDialogSummarizeResult.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogSummarizeTable.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogSummarizeStrata.addEventListener("change", refreshClassicCommandDialogPreview);
-for (const select of [classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogWeight, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget, classicCommandDialogSelectOperator, classicCommandDialogSelectBoolean, classicCommandDialogAssignBoolean, classicCommandDialogIfOperator]) select.addEventListener("change", refreshClassicCommandDialogPreview);
+for (const select of [classicCommandDialogField, classicCommandDialogExposure, classicCommandDialogOutcome, classicCommandDialogStrata, classicCommandDialogWeight, classicCommandDialogPsu, classicCommandDialogScope, classicCommandDialogVariableType, classicCommandDialogRecodeSource, classicCommandDialogRecodeTarget, classicCommandDialogSelectOperator, classicCommandDialogSelectBoolean, classicCommandDialogAssignBoolean, classicCommandDialogIfOperator]) select.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogFisher.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogStatistics.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogOneIsYes.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogOutTable.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogIncludeMissing.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogGraphType.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogDisplayMode.addEventListener("change", updateClassicCommandDialog);
@@ -2237,8 +2293,11 @@ requiredElement("#classic-command-sort").addEventListener("click", () => showCla
 requiredElement("#classic-command-cancel-sort").addEventListener("click", () => showClassicCommandDialog("cancel-sort"));
 requiredElement("#classic-command-list").addEventListener("click", () => showClassicCommandDialog("list"));
 requiredElement("#classic-command-frequencies").addEventListener("click", () => showClassicCommandDialog("frequency"));
+requiredElement("#classic-command-complex-frequencies").addEventListener("click", () => showClassicCommandDialog("frequency", false, true));
+requiredElement("#classic-command-complex-means").addEventListener("click", () => showClassicCommandDialog("means", false, false, true));
 requiredElement("#classic-command-means").addEventListener("click", () => showClassicCommandDialog("means"));
 requiredElement("#classic-command-tables").addEventListener("click", () => showClassicCommandDialog("tables"));
+requiredElement("#classic-command-complex-tables").addEventListener("click", () => showClassicCommandDialog("tables", true));
 requiredElement("#classic-command-set").addEventListener("click", () => showClassicCommandDialog("set-missing"));
 
 function collapseDashboardSubmenus(except: HTMLButtonElement | null = null): void {
@@ -2900,7 +2959,7 @@ function renderClassicTablesOutput(plan: ClassicTablesPlan, result: ClassicTable
   requiredElement("#classic-tables-categorical-title").textContent = `${plan.exposurePrompt} by ${plan.outcomePrompt}${plan.strataPrompts.length ? `, stratified by ${plan.strataPrompts.join(", ")}` : ""}`;
   requiredElement("#classic-tables-categorical-count").textContent = `${result.includedRecords} records${plan.weightField ? ` · weighted N ${formatCount(result.weightedTotal)}` : ""} · ${plan.strataFields.length ? `${result.strata.length} strata` : "unstratified"}`;
   requiredElement("#classic-tables-categorical-note").textContent =
-    `${plan.weightField ? `Counts are sums of finite, non-negative ${plan.weightPrompt} values; ${result.excludedInvalidWeight} record${result.excludedInvalidWeight === 1 ? "" : "s"} with a missing or invalid weight excluded and ${result.zeroWeightRecords} zero-weight record${result.zeroWeightRecords === 1 ? "" : "s"} retained for audit. ` : "Counts and percentages preserve every observed value; "}${plan.includeMissing ? `${result.includedMissing} record${result.includedMissing === 1 ? "" : "s"} containing blanks included as “${plan.representationOfMissing}”` : `${result.excludedMissing} record${result.excludedMissing === 1 ? "" : "s"} with a blank selected value excluded`}.${plan.weightField ? " Exact and 2 × 2 risk/odds statistics remain disabled for weighted observations." : result.strata.some(({ twoByTwo }) => twoByTwo) ? " Binary tables also receive the legacy Single Table Analysis." : " No exposed/case classification was inferred."}`;
+    `${plan.weightField ? `Counts are sums of finite, non-negative ${plan.weightPrompt} values; ${result.excludedInvalidWeight} record${result.excludedInvalidWeight === 1 ? "" : "s"} with a missing or invalid weight excluded and ${result.zeroWeightRecords} zero-weight record${result.zeroWeightRecords === 1 ? "" : "s"} retained for audit. ` : "Counts and percentages preserve every observed value; "}${plan.includeMissing ? `${result.includedMissing} record${result.includedMissing === 1 ? "" : "s"} containing blanks included as “${plan.representationOfMissing}”` : `${result.excludedMissing} record${result.excludedMissing === 1 ? "" : "s"} with a blank selected value excluded`}.${plan.statistics === "NONE" ? " STATISTICS=NONE suppressed inferential output." : plan.weightField ? " Exact and 2 × 2 risk/odds statistics remain disabled for weighted observations." : result.strata.some(({ twoByTwo }) => twoByTwo) ? " Binary tables also receive the legacy Single Table Analysis." : " No exposed/case classification was inferred."}${plan.oneIsYes ? " ONEISYES applied affirmative-first ordering to numeric 0/1 categories." : ""}${plan.noWrap || plan.columnSize !== undefined ? " NOWRAP/COLUMNSIZE were accepted as legacy compatibility no-ops, matching the inspected Rule_Tables executor." : ""}`;
   const body = requiredElement("#classic-tables-categorical-body");
   body.replaceChildren(...result.strata.map((stratum) => {
     const section = document.createElement("section");
@@ -3025,8 +3084,8 @@ function renderClassicTablesOutput(plan: ClassicTablesPlan, result: ClassicTable
         const fisher = document.createElement("p");
         fisher.className = stratum.fisherExact.state === "computed" ? "classic-tables-fisher" : "warnings classic-tables-fisher";
         fisher.textContent = stratum.fisherExact.state === "computed"
-          ? `Fisher's Exact (2 x N) Probability ${stratum.fisherExact.pValue < 1e-6 ? stratum.fisherExact.pValue.toExponential(10) : stratum.fisherExact.pValue.toFixed(10)} · ${stratum.fisherExact.tablesEnumerated.toLocaleString("en-US")} tables enumerated`
-          : `Fisher's Exact unavailable: ${stratum.fisherExact.reason}`;
+          ? `Fisher–Freeman–Halton Exact (R x C) Probability ${stratum.fisherExact.pValue < 1e-6 ? stratum.fisherExact.pValue.toExponential(10) : stratum.fisherExact.pValue.toFixed(10)} · ${stratum.fisherExact.tablesEnumerated.toLocaleString("en-US")} tables enumerated`
+          : `Fisher–Freeman–Halton Exact unavailable: ${stratum.fisherExact.reason}`;
         statistics.append(fisher);
       }
     } else {
@@ -3034,6 +3093,82 @@ function renderClassicTablesOutput(plan: ClassicTablesPlan, result: ClassicTable
     }
     section.append(heading, scroll, statistics); return section;
   }));
+  output.hidden = false;
+}
+
+function renderClassicComplexFrequencyOutput(plan: ClassicComplexFrequencyPlan, result: ClassicComplexFrequencyResult): void {
+  const output = requiredElement<HTMLElement>("#classic-tables-categorical-output");
+  requiredElement("#classic-tables-categorical-title").textContent = `${plan.prompt} — Complex Sample Frequencies`;
+  requiredElement("#classic-tables-categorical-count").textContent = `${result.includedRecords} records · weighted N ${number(result.weightedTotal, 4)} · ${result.primarySamplingUnits} PSU/stratum units · df ${result.degreesOfFreedom}`;
+  requiredElement("#classic-tables-categorical-note").textContent = `Taylor-series variance using PSU ${plan.psuPrompt}${plan.strataPrompt ? ` within design strata ${plan.strataPrompt}` : " without a STRATAVAR"}${plan.weightPrompt ? ` and weights ${plan.weightPrompt}` : " with unit weights"}. ${result.excludedRecords} incomplete or invalid design records excluded. Linear and logit 95% limits use the inspected legacy t multiplier ${number(result.confidenceMultiplier, 6)}.`;
+  const section = document.createElement("section"); section.className = "classic-tables-stratum classic-complex-frequency-result";
+  const heading = document.createElement("h3"); heading.textContent = "Complex Sample Design Analysis";
+  const scroll = document.createElement("div"); scroll.className = "results-table-scroll";
+  const table = document.createElement("table"); table.className = "results-table classic-complex-frequency";
+  const head = document.createElement("thead"); head.innerHTML = `<tr><th scope="col">${plan.prompt}</th><th scope="col">Count</th><th scope="col">Weighted count</th><th scope="col">Percent</th><th scope="col">SE %</th><th scope="col">Linear lower</th><th scope="col">Linear upper</th><th scope="col">Logit lower</th><th scope="col">Logit upper</th><th scope="col">Design effect</th></tr>`;
+  const body = document.createElement("tbody");
+  body.replaceChildren(...result.rows.map((resultRow) => {
+    const row = document.createElement("tr");
+    const values = [resultRow.value, String(resultRow.count), number(resultRow.weightedCount, 4), resultRow.percent.toFixed(3), resultRow.standardError.toFixed(4), resultRow.lowerConfidenceLimit.toFixed(3), resultRow.upperConfidenceLimit.toFixed(3), resultRow.logitLowerConfidenceLimit === null ? "Undefined" : resultRow.logitLowerConfidenceLimit.toFixed(3), resultRow.logitUpperConfidenceLimit === null ? "Undefined" : resultRow.logitUpperConfidenceLimit.toFixed(3), resultRow.designEffect === null ? "Undefined" : resultRow.designEffect.toFixed(4)];
+    values.forEach((value, index) => { const cell = document.createElement(index === 0 ? "th" : "td"); cell.textContent = value; if (index === 0) cell.setAttribute("scope", "row"); row.append(cell); });
+    return row;
+  }));
+  table.append(head, body); scroll.append(table); section.append(heading, scroll);
+  requiredElement("#classic-tables-categorical-body").replaceChildren(section);
+  output.hidden = false;
+}
+
+function renderClassicComplexMeansOutput(plan: ClassicComplexMeansPlan, result: ClassicComplexMeansResult): void {
+  const output = requiredElement<HTMLElement>("#classic-tables-categorical-output");
+  requiredElement("#classic-tables-categorical-title").textContent = `${plan.prompt}${plan.crossTabPrompt ? ` by ${plan.crossTabPrompt}` : ""} — Complex Sample Means`;
+  requiredElement("#classic-tables-categorical-count").textContent = `${result.includedRecords} records · ${result.primarySamplingUnits} PSU/stratum units · df ${result.degreesOfFreedom}`;
+  requiredElement("#classic-tables-categorical-note").textContent = `Taylor-series variance using PSU ${plan.psuPrompt}${plan.strataPrompt ? ` within design strata ${plan.strataPrompt}` : " without a STRATAVAR"}${plan.weightPrompt ? ` and weights ${plan.weightPrompt}` : " with unit weights"}. ${result.excludedRecords} incomplete or invalid design records excluded.`;
+  const section = document.createElement("section"); section.className = "classic-tables-stratum classic-complex-means-result";
+  const table = document.createElement("table"); table.className = "results-table classic-complex-means";
+  table.innerHTML = `<thead><tr><th scope="col">${plan.crossTabPrompt ?? "Domain"}</th><th scope="col">Count</th><th scope="col">Mean</th><th scope="col">Standard error</th><th scope="col">Lower 95%</th><th scope="col">Upper 95%</th><th scope="col">Minimum</th><th scope="col">Maximum</th></tr></thead>`;
+  const body = document.createElement("tbody"); const show = (value: number | null): string => value === null ? "—" : number(value, 4);
+  body.replaceChildren(...result.rows.map((item) => { const row = document.createElement("tr"); [item.label, item.count === null ? "" : String(item.count), show(item.mean), show(item.standardError), show(item.lowerConfidenceLimit), show(item.upperConfidenceLimit), show(item.minimum), show(item.maximum)].forEach((value, index) => { const cell = document.createElement(index === 0 ? "th" : "td"); cell.textContent = value; if (index === 0) cell.setAttribute("scope", "row"); row.append(cell); }); return row; }));
+  table.append(body); const scroll = document.createElement("div"); scroll.className = "results-table-scroll"; scroll.append(table); section.append(scroll); requiredElement("#classic-tables-categorical-body").replaceChildren(section); output.hidden = false;
+}
+
+function renderClassicComplexTablesOutput(plan: ClassicComplexTablesPlan, result: ClassicComplexTablesResult): void {
+  const output = requiredElement<HTMLElement>("#classic-tables-categorical-output");
+  const body = requiredElement("#classic-tables-categorical-body");
+  const format = (value: number, digits = 4): string => Number.isInteger(value) ? String(value) : number(value, digits);
+  requiredElement("#classic-tables-categorical-title").textContent = `${plan.exposurePrompt} by ${plan.outcomePrompt} — Complex Sample Tables`;
+  requiredElement("#classic-tables-categorical-count").textContent = `${result.includedRecords} records · weighted N ${format(result.weightedTotal)} · ${result.primarySamplingUnits} PSU/stratum units · df ${result.degreesOfFreedom}`;
+  requiredElement("#classic-tables-categorical-note").textContent = `Taylor-series variance using PSU ${plan.psuPrompt}${plan.strataPrompt ? ` within design strata ${plan.strataPrompt}` : " without a STRATAVAR"}${plan.weightPrompt ? ` and weights ${plan.weightPrompt}` : " with unit weights"}. ${result.excludedRecords} incomplete or invalid design record${result.excludedRecords === 1 ? " was" : "s were"} excluded. 95% limits use the inspected legacy t multiplier ${number(result.confidenceMultiplier, 6)}.`;
+  const section = document.createElement("section");
+  section.className = "classic-tables-stratum classic-complex-tables-result";
+  const heading = document.createElement("h3");
+  heading.textContent = "CTABLES Complex Sample Design Analysis";
+  const scroll = document.createElement("div");
+  scroll.className = "results-table-scroll";
+  const table = document.createElement("table");
+  table.className = "results-table classic-complex-tables";
+  const head = document.createElement("thead");
+  head.innerHTML = `<tr><th scope="col">${plan.exposurePrompt}</th><th scope="col">${plan.outcomePrompt}</th><th scope="col">Count</th><th scope="col">Weighted count</th><th scope="col">Row %</th><th scope="col">Col %</th><th scope="col">SE %</th><th scope="col">Lower 95%</th><th scope="col">Upper 95%</th><th scope="col">Design effect</th></tr>`;
+  const tableBody = document.createElement("tbody");
+  tableBody.replaceChildren(...result.rows.flatMap((row) => row.cells.map((cell, index) => {
+    const tr = document.createElement("tr");
+    const values = [index === 0 ? row.exposureValue : "", cell.outcomeValue, String(cell.count), format(cell.weightedCount), cell.rowPercent.toFixed(2), cell.columnPercent.toFixed(2), cell.standardError.toFixed(4), cell.lowerConfidenceLimit.toFixed(2), cell.upperConfidenceLimit.toFixed(2), cell.designEffect === null ? "Undefined" : cell.designEffect.toFixed(4)];
+    values.forEach((value, column) => { const node = document.createElement(column < 2 ? "th" : "td"); node.textContent = value; if (column < 2) node.setAttribute("scope", column === 0 ? "rowgroup" : "row"); tr.append(node); });
+    return tr;
+  })));
+  table.append(head, tableBody); scroll.append(table); section.append(heading, scroll);
+  if (result.risk) {
+    const riskHeading = document.createElement("h4"); riskHeading.textContent = "CTABLES Complex Sample Design Analysis of 2 × 2 Table";
+    const orientation = document.createElement("p"); orientation.className = "classic-tables-2x2-interpretation";
+    orientation.textContent = `Orientation: exposed=${result.risk.exposedValue}, unexposed=${result.risk.unexposedValue}; case=${result.risk.caseValue}, non-case=${result.risk.nonCaseValue}.`;
+    const riskTable = document.createElement("table"); riskTable.className = "results-table classic-complex-tables-risk";
+    riskTable.innerHTML = `<thead><tr><th scope="col">Parameter</th><th scope="col">Estimate</th><th scope="col">Standard error</th><th scope="col">95% confidence limits</th></tr></thead><tbody>
+      <tr><th scope="row">Odds Ratio (OR)</th><td>${format(result.risk.oddsRatio)}</td><td>${format(result.risk.oddsRatioStandardError)}</td><td>${format(result.risk.oddsRatioLower)} to ${format(result.risk.oddsRatioUpper)}</td></tr>
+      <tr><th scope="row">Risk Ratio (RR)</th><td>${format(result.risk.riskRatio)}</td><td>${format(result.risk.riskRatioStandardError)}</td><td>${format(result.risk.riskRatioLower)} to ${format(result.risk.riskRatioUpper)}</td></tr>
+      <tr><th scope="row">Risk Difference (RD%)</th><td>${format(result.risk.riskDifferencePercent)}%</td><td>${format(result.risk.riskDifferenceStandardError)}%</td><td>${format(result.risk.riskDifferenceLower)}% to ${format(result.risk.riskDifferenceUpper)}%</td></tr>
+    </tbody>`;
+    section.append(riskHeading, orientation, riskTable);
+  }
+  body.replaceChildren(section);
   output.hidden = false;
 }
 
@@ -3483,6 +3618,23 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
     }
     if (command.kind === "frequency") {
       const field = project.fields.find((candidate) => candidate.name === command.field)!;
+      if (command.psuBy) {
+        const plan = resolveClassicComplexFrequencyPlan(selectedSource, project.fields, command.field, command.stratifyBy, command.weightBy, command.psuBy, command.outputTable);
+        const result = applyClassicComplexFrequency(project.records, plan);
+        renderClassicComplexFrequencyOutput(plan, result);
+        const outTable = plan.outputTable ? classicProgramSession.storeOutTable(classicComplexFrequencyOutTable(project, plan, result)) : null;
+        requiredElement("#classic-tables-categorical-output").scrollIntoView({ behavior: "smooth", block: "start" });
+        classicProgramFeedback.textContent = `Complex Sample Frequencies used ${result.primarySamplingUnits} PSU/stratum units and ${result.designStrata} design strata (df ${result.degreesOfFreedom}).${outTable ? ` OUTTABLE ${outTable.formName} retained ${outTable.records.length} result rows.` : ""}`;
+        classicProgramCommandStatus.textContent = "Selected PSUVAR FREQ command completed through the legacy Taylor-series complex-sample method.";
+        recordProgramRun({
+          origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION,
+          projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+          source: selectedSource, canonicalSource: plan.canonicalSource,
+          summary: `Complex Sample Frequencies analyzed ${result.includedRecords} complete records using ${result.primarySamplingUnits} PSU/stratum units, ${result.designStrata} strata, and df ${result.degreesOfFreedom}.${outTable ? ` OUTTABLE stored ${outTable.records.length} rows as ${outTable.formName}.` : ""}`,
+          diagnostics: result.excludedRecords ? [`${result.excludedRecords} incomplete or invalid survey-design records excluded.`] : [],
+        });
+        return;
+      }
       const strata = command.stratifyBy ? project.fields.find((candidate) => candidate.name === command.stratifyBy) : undefined;
       if (strata) renderStratifiedFrequency(deriveStratifiedFrequency(project.records, {
         field: field.name, prompt: field.prompt, includeMissing: false, stratifyBy: strata.name, stratifyPrompt: strata.prompt,
@@ -3500,6 +3652,16 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       return;
     }
     if (command.kind === "means") {
+      if (command.psuBy) {
+        const plan = resolveClassicComplexMeansPlan(selectedSource, project.fields, command.field, command.crossTabBy, command.stratifyBy, command.weightBy, command.psuBy, command.outputTable);
+        const result = applyClassicComplexMeans(project.records, plan); renderClassicComplexMeansOutput(plan, result);
+        const outTable = plan.outputTable ? classicProgramSession.storeOutTable(classicComplexMeansOutTable(project, plan, result)) : null;
+        requiredElement("#classic-tables-categorical-output").scrollIntoView({ behavior: "smooth", block: "start" });
+        classicProgramFeedback.textContent = `Complex Sample Means used ${result.primarySamplingUnits} PSU/stratum units and ${result.designStrata} design strata (df ${result.degreesOfFreedom}).${outTable ? ` Adapted OUTTABLE ${outTable.formName} retained ${outTable.records.length} visible result rows.` : ""}`;
+        classicProgramCommandStatus.textContent = `Selected PSUVAR MEANS command completed through the legacy Taylor-series complex-sample method${outTable ? "; its browser-adapted result table is available to READ in this session" : ""}.`;
+        recordProgramRun({ origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION, projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length, source: selectedSource, canonicalSource: plan.canonicalSource, summary: `Complex Sample Means analyzed ${result.includedRecords} complete records using ${result.primarySamplingUnits} PSU/stratum units, ${result.designStrata} strata, and df ${result.degreesOfFreedom}.${outTable ? ` Browser-adapted OUTTABLE stored ${outTable.records.length} rows as ${outTable.formName}.` : ""}`, diagnostics: [...(result.excludedRecords ? [`${result.excludedRecords} incomplete or invalid survey-design records excluded.`] : []), ...(outTable ? ["Desktop Complex Sample Means exposes a disabled Output to Table control; this result-table schema is an explicit browser adaptation."] : [])] });
+        return;
+      }
       const field = project.fields.find((candidate) => candidate.name === command.field)!;
       renderMeans(deriveMeans(project.records, { field: field.name, prompt: field.prompt }));
       meansOutput.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3560,10 +3722,43 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       return;
     }
     const tableExposures = command.exposures ?? [command.exposure];
+    if (command.psuBy) {
+      const complexRuns: Array<{ plan: ClassicComplexTablesPlan; result: ClassicComplexTablesResult; snapshot: HTMLElement }> = [];
+      for (const exposure of tableExposures) {
+        assertClassicProgramNotCancelled(signal);
+        const plan = resolveClassicComplexTablesPlan(selectedSource, project.fields, exposure, command.outcome, command.stratifyBy, command.weightBy, command.psuBy, command.outputTable);
+        const result = applyClassicComplexTables(project.records, plan);
+        renderClassicComplexTablesOutput(plan, result);
+        const snapshot = retainedSequentialOutput(requiredElement<HTMLElement>("#classic-tables-categorical-output"));
+        snapshot.classList.add("classic-tables-expanded-result");
+        complexRuns.push({ plan, result, snapshot });
+      }
+      const firstRun = complexRuns[0]!;
+      const finalRun = complexRuns.at(-1)!;
+      const outTable = finalRun.plan.outputTable ? classicProgramSession.storeOutTable(classicComplexTablesOutTable(project, finalRun.plan, finalRun.result)) : null;
+      if (complexRuns.length > 1) {
+        requiredElement("#classic-tables-categorical-title").textContent = `${command.exposure} by ${firstRun.plan.outcomePrompt} — Complex Sample Tables`;
+        requiredElement("#classic-tables-categorical-count").textContent = `${complexRuns.length} expanded survey tables · ${project.records.length} source records`;
+        requiredElement("#classic-tables-categorical-note").textContent = `Legacy exposure expansion ran ${complexRuns.length} survey-adjusted tables using PSU ${firstRun.plan.psuPrompt}.`;
+        requiredElement("#classic-tables-categorical-body").replaceChildren(...complexRuns.map(({ snapshot }) => snapshot));
+      }
+      requiredElement<HTMLElement>("#classic-tables-categorical-output").hidden = false;
+      requiredElement("#classic-tables-categorical-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `Complex Sample Tables used ${firstRun.result.primarySamplingUnits} PSU/stratum units and ${firstRun.result.designStrata} design strata (df ${firstRun.result.degreesOfFreedom})${complexRuns.length > 1 ? ` across ${complexRuns.length} expanded exposures` : ""}.${outTable ? ` OUTTABLE ${outTable.formName} retained ${outTable.records.length} result rows${complexRuns.length > 1 ? ` from the final exposure ${finalRun.plan.exposureField}` : ""}.` : ""}`;
+      classicProgramCommandStatus.textContent = "Selected PSUVAR TABLES command completed through the legacy Taylor-series complex-sample method.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: complexRuns.length > 1 ? CLASSIC_TABLES_EXPANSION_PLAN_VERSION : firstRun.plan.version, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: complexRuns.length > 1 ? selectedSource.trim() : firstRun.plan.canonicalSource,
+        summary: `Complex Sample Tables analyzed ${firstRun.result.includedRecords} complete records using ${firstRun.result.primarySamplingUnits} PSU/stratum units, ${firstRun.result.designStrata} strata, and df ${firstRun.result.degreesOfFreedom}.${firstRun.result.risk ? " Survey-adjusted OR, RR, and RD were produced." : ""}${outTable ? ` OUTTABLE stored ${outTable.records.length} rows as ${outTable.formName}.` : ""}`,
+        diagnostics: firstRun.result.excludedRecords ? [`${firstRun.result.excludedRecords} incomplete or invalid survey-design records excluded.`] : [],
+      });
+      return;
+    }
     const tableRuns: Array<{ plan: ClassicTablesPlan; result: ClassicTablesResult; adjusted: StratifiedTable2x2Result | null; snapshot: HTMLElement }> = [];
     for (const [tableIndex, exposure] of tableExposures.entries()) {
       assertClassicProgramNotCancelled(signal);
-      const tablesPlan = resolveClassicTablesPlan(selectedSource, project.fields, exposure, command.outcome, command.stratifyBy, command.statistics, command.weightBy, classicProgramSession.includeMissing(), classicProgramSession.missingLabel());
+      const tablesPlan = resolveClassicTablesPlan(selectedSource, project.fields, exposure, command.outcome, command.stratifyBy, command.statistics, command.weightBy, classicProgramSession.includeMissing(), classicProgramSession.missingLabel(), command.outputTable, command.oneIsYes, command.noWrap, command.columnSize);
       const tablesResult = applyClassicTables(project.records, tablesPlan);
       renderClassicTablesOutput(tablesPlan, tablesResult);
       const adjustedInput = classicTablesStratified2x2Input(tablesResult);
@@ -3580,6 +3775,8 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       tableRuns.push({ plan: tablesPlan, result: tablesResult, adjusted: adjustedResult, snapshot });
     }
     const firstRun = tableRuns[0]!;
+    const finalRun = tableRuns.at(-1)!;
+    const outTable = finalRun.plan.outputTable ? classicProgramSession.storeOutTable(classicTablesOutTable(project, finalRun.plan, finalRun.result)) : null;
     if (tableRuns.length > 1) {
       requiredElement("#classic-tables-categorical-title").textContent = `${command.exposure} by ${firstRun.plan.outcomePrompt}`;
       requiredElement("#classic-tables-categorical-count").textContent = `${tableRuns.length} expanded tables · ${project.records.length} source records`;
@@ -3591,10 +3788,10 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
     const binaryTables = tableRuns.reduce((sum, { result }) => sum + result.strata.filter(({ twoByTwo }) => twoByTwo).length, 0);
     const adjustedRuns = tableRuns.filter(({ adjusted }) => adjusted).length;
     if (tableRuns.length > 1) {
-      classicProgramFeedback.textContent = `TABLES expanded ${command.exposure} into ${tableRuns.length} exposure fields and produced ${tableRuns.length} auditable cross-tabulations against ${firstRun.plan.outcomePrompt}.${binaryTables ? ` ${binaryTables} binary stratum table${binaryTables === 1 ? "" : "s"} received Single Table Analysis.` : ""}${adjustedRuns ? ` ${adjustedRuns} expanded result${adjustedRuns === 1 ? "" : "s"} received adjusted stratified analysis.` : ""}`;
+      classicProgramFeedback.textContent = `TABLES expanded ${command.exposure} into ${tableRuns.length} exposure fields and produced ${tableRuns.length} auditable cross-tabulations against ${firstRun.plan.outcomePrompt}.${binaryTables ? ` ${binaryTables} binary stratum table${binaryTables === 1 ? "" : "s"} received Single Table Analysis.` : ""}${adjustedRuns ? ` ${adjustedRuns} expanded result${adjustedRuns === 1 ? "" : "s"} received adjusted stratified analysis.` : ""}${outTable ? ` As in desktop Epi Info, OUTTABLE was replaced for each expansion and retains the final exposure ${finalRun.plan.exposureField} as ${outTable.formName} (${outTable.records.length} rows).` : ""}`;
       classicProgramCommandStatus.textContent = "Selected TABLES command completed through legacy exposure GROUPVAR/wildcard expansion.";
     } else {
-      classicProgramFeedback.textContent = `TABLES counted ${firstRun.result.includedRecords} records${firstRun.plan.weightField ? ` with weighted N ${firstRun.result.weightedTotal}` : ""} ${firstRun.plan.strataFields.length ? `across ${firstRun.result.strata.length} strata` : "in one unstratified table"}.${firstRun.result.includedMissing ? ` ${firstRun.result.includedMissing} records containing missing participating values were included.` : ""}${firstRun.result.excludedInvalidWeight ? ` ${firstRun.result.excludedInvalidWeight} invalid weights were excluded.` : ""}${binaryTables ? ` ${binaryTables} binary table${binaryTables === 1 ? "" : "s"} also received Single Table Analysis.` : firstRun.plan.weightField ? " Exact and binary risk/odds statistics were not applied to weighted observations." : " No exposed/case classification was inferred."}${firstRun.adjusted ? " Mantel-Haenszel adjusted estimates and homogeneity tests were calculated across strata." : ""}`;
+      classicProgramFeedback.textContent = `TABLES counted ${firstRun.result.includedRecords} records${firstRun.plan.weightField ? ` with weighted N ${firstRun.result.weightedTotal}` : ""} ${firstRun.plan.strataFields.length ? `across ${firstRun.result.strata.length} strata` : "in one unstratified table"}.${firstRun.result.includedMissing ? ` ${firstRun.result.includedMissing} records containing missing participating values were included.` : ""}${firstRun.result.excludedInvalidWeight ? ` ${firstRun.result.excludedInvalidWeight} invalid weights were excluded.` : ""}${binaryTables ? ` ${binaryTables} binary table${binaryTables === 1 ? "" : "s"} also received Single Table Analysis.` : firstRun.plan.statistics === "NONE" ? " Inferential statistics were suppressed by STATISTICS=NONE." : firstRun.plan.weightField ? " Exact and binary risk/odds statistics were not applied to weighted observations." : " No exposed/case classification was inferred."}${firstRun.adjusted ? " Mantel-Haenszel adjusted estimates and homogeneity tests were calculated across strata." : ""}${outTable ? ` OUTTABLE created in-session table ${outTable.formName} with ${outTable.records.length} rows.` : ""}`;
       classicProgramCommandStatus.textContent = firstRun.adjusted
         ? "Selected TABLES command completed with stratified 2 x 2 adjusted results from the Rust/WASM kernel."
         : firstRun.plan.weightField
@@ -3608,8 +3805,8 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
       source: selectedSource, canonicalSource: tableRuns.length > 1 ? selectedSource.trim() : firstRun.plan.canonicalSource,
       summary: tableRuns.length > 1
-        ? `TABLES expanded ${command.exposure} into ${tableRuns.length} exposure fields and produced ${tableRuns.length} categorical outputs from ${project.records.length} source records.`
-        : `TABLES produced ${firstRun.plan.strataFields.length ? `${firstRun.result.strata.length} categorical strata` : "one unstratified categorical table"} from ${firstRun.result.includedRecords} records${firstRun.plan.weightField ? ` with weighted N ${firstRun.result.weightedTotal}; ${firstRun.result.excludedInvalidWeight} invalid weights excluded` : ""}; ${firstRun.plan.includeMissing ? `${firstRun.result.includedMissing} records containing missing values included` : `${firstRun.result.excludedMissing} missing records excluded`}.${firstRun.adjusted ? ` Rust/WASM calculated adjusted results across ${firstRun.adjusted.diagnostics.informativeStrata} informative strata.` : ""}`,
+        ? `TABLES expanded ${command.exposure} into ${tableRuns.length} exposure fields and produced ${tableRuns.length} categorical outputs from ${project.records.length} source records.${outTable ? ` OUTTABLE retains the final exposure ${finalRun.plan.exposureField} with ${outTable.records.length} rows as ${outTable.formName}.` : ""}`
+        : `TABLES produced ${firstRun.plan.strataFields.length ? `${firstRun.result.strata.length} categorical strata` : "one unstratified categorical table"} from ${firstRun.result.includedRecords} records${firstRun.plan.weightField ? ` with weighted N ${firstRun.result.weightedTotal}; ${firstRun.result.excludedInvalidWeight} invalid weights excluded` : ""}; ${firstRun.plan.includeMissing ? `${firstRun.result.includedMissing} records containing missing values included` : `${firstRun.result.excludedMissing} missing records excluded`}.${firstRun.adjusted ? ` Rust/WASM calculated adjusted results across ${firstRun.adjusted.diagnostics.informativeStrata} informative strata.` : ""}${outTable ? ` OUTTABLE stored ${outTable.records.length} long-form rows as ${outTable.formName}.` : ""}`,
       diagnostics: tableRuns.flatMap(({ adjusted }) => adjusted?.diagnostics.warnings ?? []),
     });
   } catch (error) {
@@ -3641,10 +3838,11 @@ const CLASSIC_SEQUENTIAL_PROGRAM_PLAN_VERSION = "classic-sequential-program-v0.1
 function sequentialOutputSource(statement: ReturnType<typeof parseClassicProgram>["body"][number]): HTMLElement | null {
   if (statement.type === "ListStatement") return requiredElement<HTMLElement>("#classic-list-output");
   if (statement.type === "FrequencyStatement") {
+    if (statement.options.psuVariable) return requiredElement<HTMLElement>("#classic-tables-categorical-output");
     const stratified = requiredElement<HTMLElement>("#frequency-stratified-output");
     return stratified.hidden ? requiredElement<HTMLElement>("#frequency-output") : stratified;
   }
-  if (statement.type === "MeansStatement") return requiredElement<HTMLElement>("#means-output");
+  if (statement.type === "MeansStatement") return statement.options.psuVariable ? requiredElement<HTMLElement>("#classic-tables-categorical-output") : requiredElement<HTMLElement>("#means-output");
   if (statement.type === "TablesStatement") return requiredElement<HTMLElement>("#classic-tables-categorical-output");
   if (statement.type === "SummarizeStatement") return requiredElement<HTMLElement>("#classic-summarize-output");
   if (statement.type === "GraphStatement") return requiredElement<HTMLElement>("#classic-graph-output");

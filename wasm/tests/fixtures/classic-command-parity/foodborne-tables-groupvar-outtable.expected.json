@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.outtable.expansion",
+  "status": "browser-candidate",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "outputTable": "FoodExposureStatusCounts",
+  "retainedExposure": "grilled_chicken",
+  "fields": ["grilled_chicken", "case_status", "VARNAME", "COUNT"],
+  "records": [
+    { "grilled_chicken": "No", "case_status": "Confirmed", "VARNAME": "grilled_chicken:case_status", "COUNT": 10 },
+    { "grilled_chicken": "No", "case_status": "Not a case", "VARNAME": "grilled_chicken:case_status", "COUNT": 18 },
+    { "grilled_chicken": "No", "case_status": "Probable", "VARNAME": "grilled_chicken:case_status", "COUNT": 7 },
+    { "grilled_chicken": "No", "case_status": "Suspected", "VARNAME": "grilled_chicken:case_status", "COUNT": 1 },
+    { "grilled_chicken": "Yes", "case_status": "Confirmed", "VARNAME": "grilled_chicken:case_status", "COUNT": 12 },
+    { "grilled_chicken": "Yes", "case_status": "Not a case", "VARNAME": "grilled_chicken:case_status", "COUNT": 34 },
+    { "grilled_chicken": "Yes", "case_status": "Probable", "VARNAME": "grilled_chicken:case_status", "COUNT": 8 },
+    { "grilled_chicken": "Yes", "case_status": "Suspected", "VARNAME": "grilled_chicken:case_status", "COUNT": 5 }
+  ]
+}

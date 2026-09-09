@@ -1,0 +1,5 @@
+*** Desktop-compatible repeated OUTTABLE replacement leaves the final GROUPVAR exposure
+DEFINE FoodExposuresForOutTable GROUPVAR potato_salad hamburger grilled_chicken
+TABLES FoodExposuresForOutTable case_status OUTTABLE=FoodExposureStatusCounts
+READ FoodExposureStatusCounts
+LIST grilled_chicken case_status VARNAME COUNT

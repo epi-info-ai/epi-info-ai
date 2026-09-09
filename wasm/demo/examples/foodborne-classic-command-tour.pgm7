@@ -32,6 +32,9 @@ TABLES potato_salad case_status STRATAVAR=Sex STATISTICS=FISHER
 *** Mechanical WEIGHTVAR demonstration only: Age is not a defensible survey weight
 TABLES potato_salad case_status WEIGHTVAR=Age
 
+*** Mechanical PSUVAR demonstration only: Household Neighborhood is a PSU proxy
+TABLES potato_salad hamburger STRATAVAR=Sex WEIGHTVAR=Age PSUVAR=household_neighborhood OUTTABLE=PotatoHamburgerSurvey
+
 TABLES potato_salad hamburger STRATAVAR=Sex case_status
 
 SELECT case_status = "Confirmed" AND Age >= 18
@@ -50,10 +53,20 @@ SUMMARIZE AverageAge :: AVG(Age) TO FoodborneAgeBySex STRATAVAR=Sex
 
 GRAPH case_status GRAPHTYPE="Bar" TITLETEXT="Foodborne cases by status" XTITLE="Count" YTITLE="Case Status"
 
+*** Legacy TABLES OUTTABLE: creates a session-local long-form table for later READ
+TABLES potato_salad case_status STRATAVAR=Sex OUTTABLE=PotatoStatusBySex
+
 *** Legacy GROUPVAR exposure expansion: one TABLES output per food field
 DEFINE FoodExposures GROUPVAR potato_salad hamburger grilled_chicken
 
-TABLES FoodExposures case_status
+TABLES FoodExposures case_status OUTTABLE=FoodExposureStatusCounts
+
+*** Mechanical CSF demonstration only: neighborhood is a PSU proxy and Age a test weight
+FREQ case_status STRATAVAR=Sex WEIGHTVAR=Age PSUVAR=household_neighborhood OUTTABLE=CaseStatusSurvey
+
+*** Mechanical Complex Sample Means demonstration only
+*** OUTTABLE is a browser-adapted result table; desktop CSM leaves this control disabled
+MEANS Age Sex STRATAVAR=case_status OUTTABLE=AgeBySexSurvey PSUVAR=household_neighborhood
 
 *** NEW BRANCH - browser-native quality profile; not an Epi Info 7 command
 EPIAI QUALITY *

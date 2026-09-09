@@ -140,9 +140,17 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
   entry("advanced-statistics", "logistic-regression", "LogisticRegression", "LOGISTIC"),
   entry("advanced-statistics", "kaplan-meier", "KaplanMeierSurvival", "KMSURVIVAL"),
   entry("advanced-statistics", "cox", "CoxProportionalHazards", "COXPH"),
-  entry("advanced-statistics", "complex-frequencies", "ComplexSampleFrequencies", "FREQ"),
-  entry("advanced-statistics", "complex-tables", "ComplexSampleTables", "TABLES/MATCH"),
-  entry("advanced-statistics", "complex-means", "ComplexSampleMeans", "MEANS"),
+  entry("advanced-statistics", "complex-frequencies", "ComplexSampleFrequencies", "FREQ", {
+    parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    parityStatus: "browser-verified", validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-frequency-psuvar.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-frequency-psuvar.expected.json",
+  }),
+  entry("advanced-statistics", "complex-tables", "ComplexSampleTables", "TABLES", {
+    parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    parityStatus: "browser-verified", validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar.expected.json",
+  }),
+  entry("advanced-statistics", "complex-means", "ComplexSampleMeans", "MEANS", { parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1", browserPolicy: "adapt-required", parityStatus: "browser-verified", validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar-outtable.pgm", expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar-outtable.expected.json" }),
 
   entry("output", "header", "Header", "HEADER", { browserPolicy: "adapt-required" }),
   entry("output", "type", "Type", "TYPEOUT", { browserPolicy: "adapt-required" }),

@@ -1,0 +1,4 @@
+*** Browser-adapted Complex Sample Means result table; not a desktop parity claim
+MEANS Age Sex STRATAVAR=case_status OUTTABLE=AgeBySexSurvey PSUVAR=household_neighborhood
+READ AgeBySexSurvey
+LIST *

@@ -850,11 +850,20 @@ test("Classic Analysis preserves its four-menu shell and Command Explorer", asyn
   await expect(page.locator("#classic-command-dialog-preview")).toContainText("TABLES");
   await expect(page.locator("#classic-command-dialog-fisher-label")).toBeVisible();
   await expect(page.locator("#classic-command-dialog-weight-label")).toBeVisible();
+  await expect(page.locator("#classic-command-dialog-outtable-label")).toBeVisible();
+  await expect(page.locator("#classic-command-dialog-statistics-label")).toBeVisible();
+  await expect(page.locator("#classic-command-dialog-one-is-yes-label")).toBeVisible();
+  await page.locator("#classic-command-dialog-outtable").fill("PotatoStatusBySex");
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText("OUTTABLE=PotatoStatusBySex");
   await page.locator("#classic-command-dialog-fisher").check();
   await expect(page.locator("#classic-command-dialog-preview")).toContainText("STATISTICS=FISHER");
   await page.locator("#classic-command-dialog-weight").selectOption("age");
   await expect(page.locator("#classic-command-dialog-preview")).toContainText("WEIGHTVAR=age");
   await expect(page.locator("#classic-command-dialog-fisher")).toBeDisabled();
+  await page.locator("#classic-command-dialog-statistics").uncheck();
+  await page.locator("#classic-command-dialog-one-is-yes").check();
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText("STATISTICS=NONE");
+  await expect(page.locator("#classic-command-dialog-preview")).toContainText("ONEISYES");
   await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
 
   await tree.locator("summary").filter({ hasText: /^Options$/ }).click();
@@ -1751,7 +1760,8 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await sourceEditor.focus();
   await sourceEditor.press("Control+End");
   await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  for (let line = 0; line < 60; line++) await sourceEditor.press("ArrowUp");
+  const commandTourLineCount = await sourceEditor.locator(".cm-line").count();
+  for (let line = 0; line < commandTourLineCount + 2; line++) await sourceEditor.press("ArrowUp");
   await expect(page.locator("#classic-program-cursor-position")).toContainText("Ln 1, Col ");
   await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeLessThanOrEqual(6);
   expect(await sourceEditor.locator(".cm-line").first().evaluate((line, scroller) => {
@@ -1761,28 +1771,23 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   }, await sourceScroller.elementHandle())).toBe(true);
 
   await page.locator("#classic-program-toolbar-run").click();
-  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 25 of 25 commands succeeded.");
-  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 25 commands in source order");
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 29 of 29 commands succeeded.");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 29 commands in source order");
   await expect(page.locator("#classic-program-session-status")).toContainText("96 records; no selection");
   await expect(page.locator("#classic-program-session-status")).not.toContainText("SORT Age");
   await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
   await expect(page.locator("#classic-summarize-output-body tr")).toHaveCount(2);
   await expect(page.locator("#classic-graph-output-title")).toHaveText("Foodborne cases by status");
-  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("FoodExposures by Case Status");
-  await expect(page.locator("#classic-tables-categorical-count")).toHaveText("3 expanded tables · 96 source records");
-  await expect(page.locator("#classic-tables-categorical-body .classic-tables-expanded-result")).toHaveCount(3);
-  await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(3);
-  await expect(page.locator("#classic-tables-categorical-body .classic-tables-percent-row")).toHaveCount(12);
-  await expect(page.locator("#classic-tables-categorical-body .classic-tables-pearson")).toHaveCount(3);
-  await expect(page.locator("#classic-tables-categorical-body .classic-tables-fisher")).toHaveCount(0);
-  await expect(page.locator("#classic-tables-categorical-body details")).toHaveCount(3);
+  await expect(page.locator("#classic-tables-categorical-title")).toContainText("Complex Sample Means");
+  await expect(page.locator("#classic-tables-categorical-count")).toContainText("63 PSU/stratum units");
+  await expect(page.locator("#classic-tables-categorical-body .classic-complex-means tbody tr")).toHaveCount(3);
   await expect(page.locator("#classic-quality-output")).toBeVisible();
   await expect(page.locator("#classic-quality-output-count")).toHaveText("96 records · 27 fields");
   await expect(page.locator('#classic-quality-output-body tr[data-field-name="hospitalization_date"]')).toContainText("74");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("26");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("30");
   await expect(page.locator("#classic-sequential-output")).toBeVisible();
-  await expect(page.locator("#classic-sequential-output-count")).toHaveText("25 of 25 commands retained");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(25);
+  await expect(page.locator("#classic-sequential-output-count")).toHaveText("29 of 29 commands retained");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(29);
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(4)).toHaveText('SET (.)="Not recorded"');
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(5)).toHaveText("SET MISSING=ON");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(6)).toHaveText("TABLES vomiting Sex");
@@ -1793,10 +1798,24 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(11)).toHaveText("TABLES potato_salad case_status STRATAVAR=Sex STATISTICS=FISHER");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(12)).toHaveText("TABLES potato_salad case_status WEIGHTVAR=Age");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(12)).toContainText("weighted N 3917");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(13)).toHaveText("TABLES potato_salad hamburger STRATAVAR=Sex case_status");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(22)).toContainText("DEFINE FoodExposures GROUPVAR");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(23)).toHaveText("TABLES FoodExposures case_status");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(23).locator(".classic-tables-expanded-result")).toHaveCount(3);
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(13)).toHaveText("TABLES potato_salad hamburger STRATAVAR=Sex WEIGHTVAR=Age PSUVAR=household_neighborhood OUTTABLE=PotatoHamburgerSurvey");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(13)).toContainText("57 PSU/stratum units");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(13)).toContainText("df 55");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(13)).toContainText("OUTTABLE stored 4 rows as PotatoHamburgerSurvey");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(13).locator(".classic-complex-tables-risk")).toContainText("1.2232");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(14)).toHaveText("TABLES potato_salad hamburger STRATAVAR=Sex case_status");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(23)).toHaveText("TABLES potato_salad case_status STRATAVAR=Sex OUTTABLE=PotatoStatusBySex");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(23)).toContainText("OUTTABLE stored 16 long-form rows as PotatoStatusBySex");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(24)).toContainText("DEFINE FoodExposures GROUPVAR");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(25)).toHaveText("TABLES FoodExposures case_status OUTTABLE=FoodExposureStatusCounts");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(25).locator(".classic-tables-expanded-result")).toHaveCount(3);
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(25)).toContainText("OUTTABLE retains the final exposure grilled_chicken with 8 rows");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(26)).toHaveText("FREQ case_status STRATAVAR=Sex WEIGHTVAR=Age PSUVAR=household_neighborhood OUTTABLE=CaseStatusSurvey");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(26)).toContainText("57 PSU/stratum units");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(26).locator(".classic-complex-frequency tbody tr")).toHaveCount(4);
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(27)).toHaveText("MEANS Age Sex STRATAVAR=case_status OUTTABLE=AgeBySexSurvey PSUVAR=household_neighborhood");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(27).locator(".classic-complex-means tbody tr")).toHaveCount(3);
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(27)).toContainText("Browser-adapted OUTTABLE stored 3 rows as AgeBySexSurvey");
   await expect(page.locator("#classic-sequential-output-body .classic-tables-2x2")).toHaveCount(12);
 
   await expect(page.locator("#classic-program-title")).toBeVisible();
@@ -1808,10 +1827,10 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   for (const selector of ["#classic-program-output", "#classic-sequential-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-program-history-output"]) {
     await expect(page.locator(selector)).toBeHidden();
   }
-  await expect(page.locator("#classic-program-history-count")).toHaveText("26");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("30");
   await page.locator("#classic-output-history").click();
   await expect(page.locator("#classic-program-history-output")).toBeVisible();
-  await expect(page.locator("#classic-program-history-count")).toHaveText("26");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("30");
 });
 
 test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open Pgm", async ({ page }) => {
@@ -1903,6 +1922,48 @@ test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open
   await expect(page.locator("#classic-tables-categorical-note")).toContainText("Exact and 2 × 2 risk/odds statistics remain disabled");
   await expect(page.locator("#classic-tables-categorical-body .classic-tables-2x2")).toHaveCount(0);
 
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar.pgm");
+  await expect(page.locator("#classic-tables-categorical-title")).toContainText("Complex Sample Tables");
+  await expect(page.locator("#classic-tables-categorical-count")).toContainText("weighted N 3917");
+  await expect(page.locator("#classic-tables-categorical-count")).toContainText("57 PSU/stratum units");
+  await expect(page.locator("#classic-tables-categorical-count")).toContainText("df 55");
+  await expect(page.locator("#classic-tables-categorical-note")).toContainText("Taylor-series variance using PSU Household Neighborhood within design strata Sex and weights Age");
+  await expect(page.locator("#classic-tables-categorical-body .classic-complex-tables tbody tr")).toHaveCount(4);
+  await expect(page.locator("#classic-tables-categorical-body .classic-complex-tables-risk")).toContainText("1.2232");
+  await expect(page.locator("#classic-tables-categorical-body .classic-complex-tables-risk")).toContainText("1.1059");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar.pgm");
+  await expect(page.locator("#classic-tables-categorical-title")).toContainText("Age by Sex — Complex Sample Means");
+  await expect(page.locator("#classic-tables-categorical-count")).toContainText("63 PSU/stratum units");
+  await expect(page.locator("#classic-tables-categorical-body .classic-complex-means tbody tr")).toHaveCount(3);
+  await expect(page.locator("#classic-tables-categorical-body .classic-complex-means tbody tr").last()).toContainText("5.4792");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar-outtable.pgm", 3);
+  await expect(page.locator("#classic-program-source-name")).toContainText("AgeBySexSurvey");
+  await expect(page.locator("#classic-program-source-name")).toContainText("3 of 3 records");
+  await expect(page.locator("#classic-list-output-head th")).toHaveText(["Sex", "Variable Name", "Count", "Mean", "Standard Error", "Lower Confidence Limit", "Upper Confidence Limit", "Minimum", "Maximum"]);
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(3);
+  await expect(page.locator("#classic-list-output-body tr").first()).toContainText("43.541666666666664");
+  await expect(page.locator("#classic-list-output-body tr").last()).toContainText("Difference");
+  await expect(page.locator("#classic-list-output-body tr").last()).toContainText("5.479166666666664");
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.pgm");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-frequency-psuvar-outtable.pgm", 3);
+  await expect(page.locator("#classic-program-source-name")).toContainText("CaseStatusSurvey · 4 of 4 records");
+  await expect(page.locator("#classic-list-output-head th")).toHaveText(["Case Status", "Variable Name", "Count", "Row Percent", "Column Percent", "Standard Error Percent", "Lower Confidence Limit", "Upper Confidence Limit", "Design Effect"]);
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(4);
+  await expect(page.locator("#classic-list-output-body tr").first()).toContainText("25.708450344651517");
+  await expect(page.locator("#classic-list-output-body tr").last()).toContainText("1.1227594285303308");
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.pgm");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar-outtable.pgm", 3);
+  await expect(page.locator("#classic-program-source-name")).toContainText("PotatoHamburgerSurvey · 4 of 4 records");
+  await expect(page.locator("#classic-list-output-head th")).toHaveText(["Potato Salad", "Hamburger", "Count", "Row Percent", "Column Percent", "Standard Error Percent", "Lower Confidence Limit", "Upper Confidence Limit", "Design Effect"]);
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(4);
+  await expect(page.locator("#classic-list-output-body tr").first()).toContainText("52.57894736842105");
+  await expect(page.locator("#classic-list-output-body tr").last()).toContainText("1.3722735249414506");
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.pgm");
+
   await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.pgm", 2);
   await expect(page.locator("#classic-tables-categorical-title")).toHaveText("FoodExposures by Case Status");
   await expect(page.locator("#classic-tables-categorical-count")).toHaveText("3 expanded tables · 96 source records");
@@ -1912,6 +1973,30 @@ test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open
   await expect(page.locator("#classic-tables-categorical-body .classic-tables-expanded-result").nth(2)).toContainText("Grilled Chicken by Case Status");
   await page.locator("#classic-output-history").click();
   await expect(page.locator("#classic-program-history-rows tr").filter({ hasText: "3 exposure fields" })).toHaveCount(1);
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher-rxc.pgm");
+  await expect(page.locator("#classic-tables-categorical-title")).toHaveText("Case Status by Sex");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-fisher")).toContainText("0.8747236693");
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-options.pgm");
+  await expect(page.locator("#classic-tables-categorical-note")).toContainText("STATISTICS=NONE suppressed inferential output");
+  await expect(page.locator("#classic-tables-categorical-note")).toContainText("NOWRAP/COLUMNSIZE were accepted as legacy compatibility no-ops");
+  await expect(page.locator("#classic-tables-categorical-body .classic-tables-pearson")).toHaveCount(0);
+
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar-outtable.pgm", 4);
+  await expect(page.locator("#classic-program-source-name")).toContainText("FoodExposureStatusCounts · 8 of 8 records");
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(8);
+  await expect(page.locator("#classic-list-output-body tr").first()).toContainText("grilled_chicken:case_status");
+
+  // OUTTABLE changes the active READ source, so restore the canonical form before
+  // exercising the second materialization fixture.
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.pgm");
+  await openAndRun("wasm/tests/fixtures/classic-command-parity/foodborne-tables-outtable.pgm", 3);
+  await expect(page.locator("#classic-program-source-name")).toContainText("PotatoStatusBySex \u00b7 16 of 16 records");
+  await expect(page.locator("#classic-list-output-body tr")).toHaveCount(16);
+  await expect(page.locator("#classic-list-output-body tr").first()).toContainText("Female");
+  await expect(page.locator("#classic-list-output-body tr").first()).toContainText("potato_salad:case_status");
+  await expect(page.locator("#classic-list-output-body tr").nth(9)).toContainText("20");
 });
 
 test("Program Editor Cancel stops a sequential run and retains completed work", async ({ page }) => {
@@ -2039,12 +2124,47 @@ test("typed command dialogs insert visible source and selected commands fail clo
   await expect(page.locator("#classic-tables-categorical-body .classic-tables-stratum")).toHaveCount(2);
   await expect(page.locator("#classic-program-command-status")).toContainText("completed as a categorical cross-tabulation");
 
+  const advanced = tree.locator("details").filter({ hasText: "Advanced Statistics" });
+  await advanced.locator("summary").click();
+  await tree.getByRole("treeitem", { name: "Complex Sample Frequencies", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-psu-label")).toBeVisible();
+  await expect(page.locator("#classic-command-dialog-weight-label")).toBeVisible();
+  await page.locator("#classic-command-dialog-outtable").fill("CaseStatusSurvey");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("FREQ case_status STRATAVAR=sex WEIGHTVAR=age PSUVAR=household_neighborhood OUTTABLE=CaseStatusSurvey");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-command-status")).toContainText("Selected PSUVAR FREQ command completed");
+  await expect(page.locator("#classic-tables-categorical-body .classic-complex-frequency tbody tr")).toHaveCount(4);
+
+  await tree.getByRole("treeitem", { name: "Complex Sample Tables", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-psu-label")).toBeVisible();
+  await expect(page.locator("#classic-command-dialog-fisher-label")).toBeHidden();
+  await expect(page.locator("#classic-command-dialog-outtable-label")).toBeVisible();
+  await page.locator("#classic-command-dialog-outcome").selectOption("hamburger");
+  await page.locator("#classic-command-dialog-weight").selectOption("age");
+  await page.locator("#classic-command-dialog-psu").selectOption("household_neighborhood");
+  await page.locator("#classic-command-dialog-outtable").fill("PotatoHamburgerSurvey");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("TABLES potato_salad hamburger STRATAVAR=sex WEIGHTVAR=age PSUVAR=household_neighborhood OUTTABLE=PotatoHamburgerSurvey");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-command-status")).toContainText("Selected PSUVAR TABLES command completed");
+
+  await tree.getByRole("treeitem", { name: "Complex Sample Means", exact: true }).click();
+  await expect(page.locator("#classic-command-dialog-outtable-label")).toContainText("browser adaptation");
+  await expect(page.locator("#classic-command-dialog-outtable-label")).toBeVisible();
+  await page.locator("#classic-command-dialog-outtable").fill("AgeSurvey");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("MEANS age STRATAVAR=case_status OUTTABLE=AgeSurvey PSUVAR=household_neighborhood");
+  await page.locator("#classic-command-dialog-insert").click();
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-command-status")).toContainText("browser-adapted result table is available to READ");
+  await expect(page.locator("#classic-tables-categorical-body .classic-complex-means tbody tr")).toHaveCount(1);
+
   await editor.fill("FREQ age\nMEANS age");
   await editor.press("Control+A");
   await page.locator("#classic-program-run-selection").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Select exactly one complete command");
   await expect(page.locator("#classic-program-feedback")).toContainText("Nothing was run");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("11");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("14");
 });
 
 test("Define and Recode dialogs author a runnable foodborne program as visible source", async ({ page }) => {

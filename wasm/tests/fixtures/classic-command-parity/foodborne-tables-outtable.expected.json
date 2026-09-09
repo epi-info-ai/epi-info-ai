@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.outtable",
+  "planVersion": "classic-tables-v0.11.0",
+  "status": "browser-candidate",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "command": "TABLES potato_salad case_status STRATAVAR=sex OUTTABLE=PotatoStatusBySex",
+  "outputTable": "PotatoStatusBySex",
+  "fields": ["sex", "potato_salad", "case_status", "VARNAME", "COUNT"],
+  "records": [
+    { "sex": "Female", "potato_salad": "No", "case_status": "Confirmed", "VARNAME": "potato_salad:case_status", "COUNT": 0 },
+    { "sex": "Female", "potato_salad": "No", "case_status": "Not a case", "VARNAME": "potato_salad:case_status", "COUNT": 20 },
+    { "sex": "Female", "potato_salad": "No", "case_status": "Probable", "VARNAME": "potato_salad:case_status", "COUNT": 0 },
+    { "sex": "Female", "potato_salad": "No", "case_status": "Suspected", "VARNAME": "potato_salad:case_status", "COUNT": 4 },
+    { "sex": "Female", "potato_salad": "Yes", "case_status": "Confirmed", "VARNAME": "potato_salad:case_status", "COUNT": 10 },
+    { "sex": "Female", "potato_salad": "Yes", "case_status": "Not a case", "VARNAME": "potato_salad:case_status", "COUNT": 6 },
+    { "sex": "Female", "potato_salad": "Yes", "case_status": "Probable", "VARNAME": "potato_salad:case_status", "COUNT": 8 },
+    { "sex": "Female", "potato_salad": "Yes", "case_status": "Suspected", "VARNAME": "potato_salad:case_status", "COUNT": 0 },
+    { "sex": "Male", "potato_salad": "No", "case_status": "Confirmed", "VARNAME": "potato_salad:case_status", "COUNT": 0 },
+    { "sex": "Male", "potato_salad": "No", "case_status": "Not a case", "VARNAME": "potato_salad:case_status", "COUNT": 20 },
+    { "sex": "Male", "potato_salad": "No", "case_status": "Probable", "VARNAME": "potato_salad:case_status", "COUNT": 2 },
+    { "sex": "Male", "potato_salad": "No", "case_status": "Suspected", "VARNAME": "potato_salad:case_status", "COUNT": 2 },
+    { "sex": "Male", "potato_salad": "Yes", "case_status": "Confirmed", "VARNAME": "potato_salad:case_status", "COUNT": 12 },
+    { "sex": "Male", "potato_salad": "Yes", "case_status": "Not a case", "VARNAME": "potato_salad:case_status", "COUNT": 6 },
+    { "sex": "Male", "potato_salad": "Yes", "case_status": "Probable", "VARNAME": "potato_salad:case_status", "COUNT": 6 },
+    { "sex": "Male", "potato_salad": "Yes", "case_status": "Suspected", "VARNAME": "potato_salad:case_status", "COUNT": 0 }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.frequency.complex-sample",
+  "planVersion": "classic-complex-frequency-v0.1.0",
+  "status": "browser-candidate",
+  "purpose": "Mechanical Complex Sample Frequencies validation only; Household Neighborhood is a PSU proxy and Age is not an epidemiologically defensible survey weight.",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "canonicalSource": "FREQ case_status STRATAVAR=sex WEIGHTVAR=age PSUVAR=household_neighborhood OUTTABLE=CaseStatusSurvey",
+  "expected": {
+    "includedRecords": 96, "excludedRecords": 0, "weightedTotal": 3917,
+    "designStrata": 2, "primarySamplingUnits": 57, "degreesOfFreedom": 55,
+    "confidenceMultiplier": 2.0040446519851685,
+    "rows": [
+      { "value": "Confirmed", "count": 22, "weightedCount": 1007, "percent": 25.708450344651517, "standardError": 4.751045733774262, "lowerConfidenceLimit": 16.18714255054426, "upperConfidenceLimit": 35.229758138758775, "logitLowerConfidenceLimit": 17.3690276601985, "logitUpperConfidenceLimit": 36.29324517761368, "designEffect": 1.1227594285303308 },
+      { "value": "Not a case", "count": 52, "weightedCount": 2130, "percent": 54.378350778657136, "standardError": 5.458162899251833, "lowerConfidenceLimit": 43.439948610747635, "upperConfidenceLimit": 65.31675294656664, "logitLowerConfidenceLimit": 43.40531229877059, "logitUpperConfidenceLimit": 64.94222865575487, "designEffect": 1.1227594285303308 },
+      { "value": "Probable", "count": 16, "weightedCount": 482, "percent": 12.305335716109267, "standardError": 3.361969664787264, "lowerConfidenceLimit": 5.567798389255981, "upperConfidenceLimit": 19.042873042962555, "logitLowerConfidenceLimit": 6.990254345898882, "logitUpperConfidenceLimit": 20.759742049658183, "designEffect": 1.1227594285303308 },
+      { "value": "Suspected", "count": 6, "weightedCount": 298, "percent": 7.6078631605820775, "standardError": 3.042632947596387, "lowerConfidenceLimit": 1.5102908739976693, "upperConfidenceLimit": 13.705435447166487, "logitLowerConfidenceLimit": 3.342873721725638, "logitUpperConfidenceLimit": 16.39153166664639, "designEffect": 1.1227594285303308 }
+    ]
+  },
+  "outTable": {
+    "name": "CaseStatusSurvey",
+    "fields": ["case_status", "VARNAME", "COUNT", "RowPct", "ColPct", "StdErr", "LCL", "UCL", "DesignEff"],
+    "categoryOrdinals": [1, 2, 3, 4]
+  }
+}

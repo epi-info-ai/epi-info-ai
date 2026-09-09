@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1, "operation": "classic.means.complex-sample", "planVersion": "classic-complex-means-v0.1.0", "status": "browser-candidate",
+  "purpose": "Mechanical Complex Sample Means validation only; Household Neighborhood and Case Status are design proxies.",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "canonicalSource": "MEANS age sex STRATAVAR=case_status PSUVAR=household_neighborhood",
+  "expected": { "includedRecords": 96, "excludedRecords": 0, "designStrata": 4, "primarySamplingUnits": 63, "degreesOfFreedom": 59, "confidenceMultiplier": 2.0009952783584595,
+    "rows": [
+      { "label": "Female", "count": 48, "mean": 43.541666666666664, "standardError": 2.5853270503507804, "lowerConfidenceLimit": 38.36843944590235, "upperConfidenceLimit": 48.71489388743098, "minimum": 7, "maximum": 75 },
+      { "label": "Male", "count": 48, "mean": 38.0625, "standardError": 2.292717994623338, "lowerConfidenceLimit": 33.474782118151225, "upperConfidenceLimit": 42.650217881848775, "minimum": 5, "maximum": 67 },
+      { "label": "Difference", "count": null, "mean": 5.479166666666664, "standardError": 3.5785007840404575, "lowerConfidenceLimit": -1.6813965058003362, "upperConfidenceLimit": 12.639729839133665, "minimum": null, "maximum": null }
+    ] }
+}

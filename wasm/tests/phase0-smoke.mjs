@@ -67,6 +67,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-summarize.ts",
     "wasm/app/programming/classic-graph.ts",
     "wasm/app/programming/classic-tables.ts",
+    "wasm/app/programming/classic-complex-means.ts",
     "wasm/app/programming/epi-ai-quality.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
@@ -119,6 +120,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/unmatched-case-control-method-contract.md",
     "wasm/docs/validation/chi-square-trend-method-contract.md",
     "wasm/docs/validation/tables-mxn-method-contract.md",
+    "wasm/docs/validation/complex-sample-means-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
     "wasm/docs/design/programming-curriculum-corpus.md",
     "wasm/docs/design/means-compatibility-inventory.md",
@@ -155,6 +157,18 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.pgm",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.expected.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-outtable.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-outtable.expected.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher-rxc.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher-rxc.expected.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar-outtable.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar-outtable.expected.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-options.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-options.expected.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar.expected.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar-outtable.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar-outtable.expected.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -939,7 +953,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const tables = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-tables.ts")).href}?tables=${Date.now()}`);
   const tablesPlan = tables.resolveClassicTablesPlan(tablesProgram, projectSource.fields, tablesCommand.exposure, tablesCommand.outcome, tablesCommand.stratifyBy);
   const tablesResult = tables.applyClassicTables(projectSource.records, tablesPlan);
-  assert.equal(tablesPlan.version, "classic-tables-v0.9.0");
+  assert.equal(tablesPlan.version, "classic-tables-v0.11.0");
   assert.equal(tablesResult.operation, tablesExpected.operation);
   for (const property of ["sourceRecords", "includedRecords", "excludedMissing", "exposureValues", "outcomeValues", "strata"]) {
     assert.deepEqual(tablesResult[property], tablesExpected[property]);
@@ -1180,6 +1194,218 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(invalidWeightResult.weightedTotal, 1.5);
   assert.equal(invalidWeightResult.zeroWeightRecords, 1);
   assert.equal(invalidWeightResult.excludedInvalidWeight, 2);
+
+  const complexTablesProgram = await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar.pgm",
+  ), "utf8");
+  const complexTablesExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar.expected.json",
+  ), "utf8"));
+  const complexTablesCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(complexTablesProgram, projectSource.fields);
+  assert.deepEqual(complexTablesCommand, {
+    kind: "tables", exposure: "potato_salad", outcome: "hamburger", stratifyBy: ["sex"],
+    weightBy: "age", psuBy: "household_neighborhood", source: complexTablesProgram,
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand(complexTablesCommand), complexTablesExpected.canonicalSource);
+  const complexTables = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-complex-tables.ts")).href}?complexTables=${Date.now()}`);
+  const complexPlan = complexTables.resolveClassicComplexTablesPlan(
+    complexTablesProgram, projectSource.fields, complexTablesCommand.exposure, complexTablesCommand.outcome,
+    complexTablesCommand.stratifyBy, complexTablesCommand.weightBy, complexTablesCommand.psuBy,
+  );
+  const complexResult = complexTables.applyClassicComplexTables(projectSource.records, complexPlan);
+  assert.equal(complexPlan.version, complexTablesExpected.planVersion);
+  assert.equal(complexPlan.canonicalSource, complexTablesExpected.canonicalSource);
+  for (const property of ["includedRecords", "excludedRecords", "weightedTotal", "designStrata", "primarySamplingUnits", "degreesOfFreedom", "exposureValues", "outcomeValues"]) {
+    assert.deepEqual(complexResult[property], complexTablesExpected.expected[property], `PSUVAR ${property}`);
+  }
+  near(complexResult.confidenceMultiplier, complexTablesExpected.expected.confidenceMultiplier, 1e-12, "PSUVAR legacy t multiplier");
+  for (const [rowIndex, expectedRow] of complexTablesExpected.expected.rows.entries()) {
+    const actualRow = complexResult.rows[rowIndex];
+    assert.equal(actualRow.exposureValue, expectedRow.exposureValue);
+    near(actualRow.weightedTotal, expectedRow.weightedTotal, 1e-12, `PSUVAR row ${rowIndex + 1} total`);
+    for (const [cellIndex, expectedCell] of expectedRow.cells.entries()) {
+      const actualCell = actualRow.cells[cellIndex];
+      assert.equal(actualCell.outcomeValue, expectedCell.outcomeValue);
+      assert.equal(actualCell.count, expectedCell.count);
+      for (const property of ["weightedCount", "rowPercent", "columnPercent", "standardError", "lowerConfidenceLimit", "upperConfidenceLimit", "designEffect"]) {
+        near(actualCell[property], expectedCell[property], 1e-10, `PSUVAR row ${rowIndex + 1} cell ${cellIndex + 1} ${property}`);
+      }
+    }
+  }
+  for (const property of ["oddsRatio", "oddsRatioStandardError", "oddsRatioLower", "oddsRatioUpper", "riskRatio", "riskRatioStandardError", "riskRatioLower", "riskRatioUpper", "riskDifferencePercent", "riskDifferenceStandardError", "riskDifferenceLower", "riskDifferenceUpper"]) {
+    near(complexResult.risk[property], complexTablesExpected.expected.risk[property], 1e-10, `PSUVAR ${property}`);
+  }
+  assert.throws(
+    () => complexTables.resolveClassicComplexTablesPlan("TABLES potato_salad hamburger STRATAVAR=Sex case_status PSUVAR=household_neighborhood", projectSource.fields, "potato_salad", "hamburger", ["sex", "case_status"], undefined, "household_neighborhood"),
+    /single STRATAVAR design stratum/,
+  );
+  const complexOutTableExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar-outtable.expected.json",
+  ), "utf8"));
+  const complexOutTableCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(complexOutTableExpected.command, projectSource.fields);
+  assert.deepEqual(complexOutTableCommand, {
+    kind: "tables", exposure: "potato_salad", outcome: "hamburger", stratifyBy: ["sex"], weightBy: "age",
+    psuBy: "household_neighborhood", outputTable: "PotatoHamburgerSurvey", source: complexOutTableExpected.command,
+  });
+  const complexOutTablePlan = complexTables.resolveClassicComplexTablesPlan(
+    complexOutTableExpected.command, projectSource.fields, complexOutTableCommand.exposure, complexOutTableCommand.outcome,
+    complexOutTableCommand.stratifyBy, complexOutTableCommand.weightBy, complexOutTableCommand.psuBy, complexOutTableCommand.outputTable,
+  );
+  assert.equal(complexOutTablePlan.canonicalSource, complexOutTableExpected.command);
+  const complexOutTableSource = complexTables.classicComplexTablesOutTable(
+    projectSource, complexOutTablePlan, complexTables.applyClassicComplexTables(projectSource.records, complexOutTablePlan),
+  );
+  assert.equal(complexOutTableSource.formName, complexOutTableExpected.outputTable);
+  assert.deepEqual(complexOutTableSource.fields.map(({ name }) => name), complexOutTableExpected.fields);
+  assert.deepEqual(complexOutTableSource.records, complexOutTableExpected.records);
+  assert.throws(
+    () => complexTables.applyClassicComplexTables([{ potato_salad: "Yes", hamburger: "Yes", household_neighborhood: "Only" }],
+      complexTables.resolveClassicComplexTablesPlan("TABLES potato_salad hamburger PSUVAR=household_neighborhood", projectSource.fields, "potato_salad", "hamburger", undefined, undefined, "household_neighborhood")),
+    /at least two complete PSUs/,
+  );
+
+  const complexFrequencyProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-frequency-psuvar.pgm"), "utf8");
+  const complexFrequencyExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-frequency-psuvar.expected.json"), "utf8"));
+  const complexFrequencyCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(complexFrequencyProgram, projectSource.fields);
+  assert.deepEqual(complexFrequencyCommand, {
+    kind: "frequency", field: "case_status", stratifyBy: "sex", weightBy: "age", psuBy: "household_neighborhood",
+    outputTable: "CaseStatusSurvey", source: complexFrequencyProgram,
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand(complexFrequencyCommand), complexFrequencyExpected.canonicalSource);
+  const complexFrequency = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-complex-frequency.ts")).href}?complexFrequency=${Date.now()}`);
+  const complexFrequencyPlan = complexFrequency.resolveClassicComplexFrequencyPlan(
+    complexFrequencyProgram, projectSource.fields, complexFrequencyCommand.field, complexFrequencyCommand.stratifyBy,
+    complexFrequencyCommand.weightBy, complexFrequencyCommand.psuBy, complexFrequencyCommand.outputTable,
+  );
+  const complexFrequencyResult = complexFrequency.applyClassicComplexFrequency(projectSource.records, complexFrequencyPlan);
+  assert.equal(complexFrequencyPlan.version, complexFrequencyExpected.planVersion);
+  assert.equal(complexFrequencyPlan.canonicalSource, complexFrequencyExpected.canonicalSource);
+  for (const property of ["includedRecords", "excludedRecords", "weightedTotal", "designStrata", "primarySamplingUnits", "degreesOfFreedom"]) {
+    assert.equal(complexFrequencyResult[property], complexFrequencyExpected.expected[property], `CSF ${property}`);
+  }
+  near(complexFrequencyResult.confidenceMultiplier, complexFrequencyExpected.expected.confidenceMultiplier, 1e-12, "CSF legacy t multiplier");
+  for (const [index, expectedRow] of complexFrequencyExpected.expected.rows.entries()) {
+    const actualRow = complexFrequencyResult.rows[index];
+    assert.equal(actualRow.value, expectedRow.value);
+    assert.equal(actualRow.count, expectedRow.count);
+    for (const property of ["weightedCount", "percent", "standardError", "lowerConfidenceLimit", "upperConfidenceLimit", "logitLowerConfidenceLimit", "logitUpperConfidenceLimit", "designEffect"]) {
+      near(actualRow[property], expectedRow[property], 1e-10, `CSF row ${index + 1} ${property}`);
+    }
+  }
+  const complexFrequencyOutTable = complexFrequency.classicComplexFrequencyOutTable(projectSource, complexFrequencyPlan, complexFrequencyResult);
+  assert.equal(complexFrequencyOutTable.formName, complexFrequencyExpected.outTable.name);
+  assert.deepEqual(complexFrequencyOutTable.fields.map(({ name }) => name), complexFrequencyExpected.outTable.fields);
+  assert.deepEqual(complexFrequencyOutTable.records.map((record) => record.case_status), complexFrequencyExpected.outTable.categoryOrdinals);
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("FREQ case_status WEIGHTVAR=age", projectSource.fields), /enabled with the Complex Sample Frequencies PSUVAR path/);
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("FREQ case_status PSUVAR=case_status", projectSource.fields), /must use different fields/);
+
+  const complexMeansProgram = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar.pgm"), "utf8");
+  const complexMeansExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar.expected.json"), "utf8"));
+  const complexMeansCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(complexMeansProgram, projectSource.fields);
+  assert.deepEqual(complexMeansCommand, { kind: "means", field: "age", crossTabBy: "sex", stratifyBy: "case_status", psuBy: "household_neighborhood", source: complexMeansProgram });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand(complexMeansCommand), complexMeansExpected.canonicalSource);
+  const complexMeans = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-complex-means.ts")).href}?complexMeans=${Date.now()}`);
+  const complexMeansPlan = complexMeans.resolveClassicComplexMeansPlan(complexMeansProgram, projectSource.fields, complexMeansCommand.field, complexMeansCommand.crossTabBy, complexMeansCommand.stratifyBy, complexMeansCommand.weightBy, complexMeansCommand.psuBy);
+  const complexMeansResult = complexMeans.applyClassicComplexMeans(projectSource.records, complexMeansPlan);
+  for (const property of ["includedRecords", "excludedRecords", "designStrata", "primarySamplingUnits", "degreesOfFreedom"]) assert.equal(complexMeansResult[property], complexMeansExpected.expected[property], `CSMEANS ${property}`);
+  near(complexMeansResult.confidenceMultiplier, complexMeansExpected.expected.confidenceMultiplier, 1e-12, "CSMEANS legacy t multiplier");
+  for (const [index, expectedRow] of complexMeansExpected.expected.rows.entries()) {
+    const actual = complexMeansResult.rows[index]; assert.equal(actual.label, expectedRow.label); assert.equal(actual.count, expectedRow.count);
+    for (const property of ["mean", "standardError", "lowerConfidenceLimit", "upperConfidenceLimit", "minimum", "maximum"]) if (expectedRow[property] === null) assert.equal(actual[property], null); else near(actual[property], expectedRow[property], 1e-10, `CSMEANS row ${index + 1} ${property}`);
+  }
+  const complexMeansOutTableExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar-outtable.expected.json"), "utf8"));
+  const complexMeansOutTableCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(complexMeansOutTableExpected.command, projectSource.fields);
+  assert.deepEqual(complexMeansOutTableCommand, { kind: "means", field: "age", crossTabBy: "sex", stratifyBy: "case_status", outputTable: "AgeBySexSurvey", psuBy: "household_neighborhood", source: complexMeansOutTableExpected.command });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand(complexMeansOutTableCommand), complexMeansOutTableExpected.command);
+  const complexMeansOutTablePlan = complexMeans.resolveClassicComplexMeansPlan(complexMeansOutTableExpected.command, projectSource.fields, complexMeansOutTableCommand.field, complexMeansOutTableCommand.crossTabBy, complexMeansOutTableCommand.stratifyBy, complexMeansOutTableCommand.weightBy, complexMeansOutTableCommand.psuBy, complexMeansOutTableCommand.outputTable);
+  const complexMeansOutTableResult = complexMeans.applyClassicComplexMeans(projectSource.records, complexMeansOutTablePlan);
+  const complexMeansOutTable = complexMeans.classicComplexMeansOutTable(projectSource, complexMeansOutTablePlan, complexMeansOutTableResult);
+  assert.equal(complexMeansOutTable.formName, complexMeansOutTableExpected.outputTable);
+  assert.deepEqual(complexMeansOutTable.fields.map(({ name }) => name), complexMeansOutTableExpected.fields);
+  assert.deepEqual(complexMeansOutTable.records, complexMeansOutTableExpected.records);
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("MEANS Age OUTTABLE=AgeSurvey", projectSource.fields), /adapted OUTTABLE are enabled with the Complex Sample Means PSUVAR path/);
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand(complexMeansOutTableExpected.command, projectSource.fields, [{ ...projectSource, formName: "agebysexsurvey" }]), /conflicts with an existing project form/);
+
+  const outTableExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-outtable.expected.json",
+  ), "utf8"));
+  const outTableCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(outTableExpected.command, projectSource.fields);
+  assert.deepEqual(outTableCommand, {
+    kind: "tables", exposure: "potato_salad", outcome: "case_status", stratifyBy: ["sex"], outputTable: "PotatoStatusBySex", source: outTableExpected.command,
+  });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand(outTableCommand), outTableExpected.command);
+  const outTablePlan = tables.resolveClassicTablesPlan(
+    outTableExpected.command, projectSource.fields, outTableCommand.exposure, outTableCommand.outcome,
+    outTableCommand.stratifyBy, outTableCommand.statistics, outTableCommand.weightBy, false, "Missing", outTableCommand.outputTable,
+  );
+  const outTableResult = tables.applyClassicTables(projectSource.records, outTablePlan);
+  const outTableSource = tables.classicTablesOutTable(projectSource, outTablePlan, outTableResult);
+  assert.equal(outTablePlan.version, outTableExpected.planVersion);
+  assert.equal(outTablePlan.canonicalSource, outTableExpected.command);
+  assert.equal(outTableSource.formName, outTableExpected.outputTable);
+  assert.deepEqual(outTableSource.fields.map(({ name }) => name), outTableExpected.fields);
+  assert.deepEqual(outTableSource.records, outTableExpected.records);
+  const expandedOutTableCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(
+    "TABLES FoodExposures case_status OUTTABLE=FoodExposureStatusCounts", projectSource.fields, [], [], [groupDefinition],
+  );
+  assert.deepEqual(expandedOutTableCommand.exposures, ["potato_salad", "hamburger", "grilled_chicken"]);
+  assert.equal(expandedOutTableCommand.outputTable, "FoodExposureStatusCounts");
+  const expandedOutTableExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar-outtable.expected.json",
+  ), "utf8"));
+  const expandedOutTables = expandedOutTableCommand.exposures.map((exposure) => {
+    const plan = tables.resolveClassicTablesPlan(expandedOutTableCommand.source, projectSource.fields, exposure, expandedOutTableCommand.outcome, undefined, undefined, undefined, false, "Missing", expandedOutTableCommand.outputTable);
+    return tables.classicTablesOutTable(projectSource, plan, tables.applyClassicTables(projectSource.records, plan));
+  });
+  assert.equal(expandedOutTables.at(-1).formName, expandedOutTableExpected.outputTable);
+  assert.deepEqual(expandedOutTables.at(-1).fields.map(({ name }) => name), expandedOutTableExpected.fields);
+  assert.deepEqual(expandedOutTables.at(-1).records, expandedOutTableExpected.records);
+  const generalExactExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-fisher-rxc.expected.json",
+  ), "utf8"));
+  const generalExactPlan = tables.resolveClassicTablesPlan(generalExactExpected.command, projectSource.fields, "case_status", "sex", undefined, "FISHER");
+  const generalExactResult = tables.applyClassicTables(projectSource.records, generalExactPlan);
+  assert.deepEqual(generalExactResult.strata[0].rows.map(({ counts }) => counts), generalExactExpected.cells);
+  assert.equal(generalExactResult.strata[0].fisherExact.tablesEnumerated, generalExactExpected.fisher.tablesEnumerated);
+  near(generalExactResult.strata[0].fisherExact.pValue, generalExactExpected.fisher.pValue, 1e-14, "TABLES 4 x 2 Fisher-Freeman-Halton p-value");
+  const threeByThreeExact = tables.calculateBoundedFisherExact([[2, 0, 0], [0, 2, 0], [0, 0, 2]]);
+  assert.equal(threeByThreeExact.state, "computed");
+  assert.equal(threeByThreeExact.tablesEnumerated, 21);
+  near(threeByThreeExact.pValue, 1 / 15, 1e-14, "TABLES 3 x 3 Fisher-Freeman-Halton p-value");
+  const tablesOptionsExpected = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/classic-command-parity/foodborne-tables-options.expected.json",
+  ), "utf8"));
+  const tablesOptionsCommand = commandBuilder.resolveSelectedClassicAnalysisCommand(tablesOptionsExpected.command, projectSource.fields);
+  assert.equal(commandBuilder.buildClassicAnalysisCommand(tablesOptionsCommand), tablesOptionsExpected.command);
+  assert.deepEqual({
+    statistics: tablesOptionsCommand.statistics, oneIsYes: tablesOptionsCommand.oneIsYes,
+    noWrap: tablesOptionsCommand.noWrap, columnSize: tablesOptionsCommand.columnSize,
+  }, {
+    statistics: tablesOptionsExpected.statistics, oneIsYes: tablesOptionsExpected.oneIsYes,
+    noWrap: tablesOptionsExpected.noWrap, columnSize: tablesOptionsExpected.columnSize,
+  });
+  const tablesOptionsPlan = tables.resolveClassicTablesPlan(
+    tablesOptionsExpected.command, projectSource.fields, tablesOptionsCommand.exposure, tablesOptionsCommand.outcome,
+    undefined, tablesOptionsCommand.statistics, undefined, false, "Missing", undefined,
+    tablesOptionsCommand.oneIsYes, tablesOptionsCommand.noWrap, tablesOptionsCommand.columnSize,
+  );
+  const tablesOptionsResult = tables.applyClassicTables(projectSource.records, tablesOptionsPlan);
+  assert.deepEqual(tablesOptionsResult.strata[0].rows.map(({ counts }) => counts), tablesOptionsExpected.cells);
+  assert.equal(tablesOptionsResult.strata[0].pearson, null);
+  assert.equal(tablesOptionsResult.strata[0].twoByTwo, undefined);
+  const numericOneIsYesPlan = tables.resolveClassicTablesPlan("TABLES exposure outcome ONEISYES", [
+    { name: "exposure", prompt: "Exposure", type: "number", required: false },
+    { name: "outcome", prompt: "Outcome", type: "number", required: false },
+  ], "exposure", "outcome", undefined, undefined, undefined, false, "Missing", undefined, true);
+  const numericOneIsYes = tables.applyClassicTables([
+    { exposure: 0, outcome: 0 }, { exposure: 0, outcome: 1 }, { exposure: 1, outcome: 0 }, { exposure: 1, outcome: 1 },
+  ], numericOneIsYesPlan);
+  assert.deepEqual(numericOneIsYes.exposureValues, ["1", "0"]);
+  assert.deepEqual(numericOneIsYes.outcomeValues, ["1", "0"]);
+  assert.throws(
+    () => commandBuilder.resolveSelectedClassicAnalysisCommand("TABLES potato_salad case_status OUTTABLE=ExistingOutput", projectSource.fields, [{ ...projectSource, formName: "ExistingOutput" }]),
+    /conflicts with an existing project form/,
+  );
 
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "quality" }), "EPIAI QUALITY *");
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("EPIAI QUALITY *", imported.schema.fields), { kind: "quality", source: "EPIAI QUALITY *" });
@@ -2669,11 +2895,18 @@ async function checkValidationLabSource() {
     "foodborne-tables-missing-v0.6.json",
     "foodborne-tables-adjusted-v0.8.json",
     "foodborne-tables-weighted-v0.9.json",
+    "foodborne-tables-psuvar-v0.2.json",
+    "foodborne-tables-psuvar-outtable-v0.2.json",
     "SET MISSING=ON",
     "chi2_contingency",
     "Rust/WASM kernel",
     "Mantel-Haenszel OR, RR",
     "WEIGHTVAR frequency weights",
+    "PSUVAR Taylor variance",
+    "PSUVAR OUTTABLE",
+    "CSF Taylor variance + OUTTABLE",
+    "CSM domain means, Taylor variance",
+    "foodborne-means-psuvar-outtable-v0.1.json",
   ]) {
     assert.ok(tablesSource.includes(requiredText), `TABLES validation notebook must retain ${requiredText}`);
   }
@@ -2842,10 +3075,11 @@ CANCEL SORT`;
   const commandTour = parser.parseClassicProgram(commandTourSource);
   assert.deepEqual(commandTour.body.map(({ type }) => type), [
     "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement", "SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement", "TablesStatement", "TablesStatement",
-    "TablesStatement", "TablesStatement", "TablesStatement", "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
-    "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement", "DefineGroupStatement", "TablesStatement",
-    "EpiAiQualityStatement",
+    "TablesStatement", "TablesStatement", "TablesStatement", "TablesStatement", "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
+    "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement", "TablesStatement", "DefineGroupStatement", "TablesStatement",
+    "FrequencyStatement", "MeansStatement", "EpiAiQualityStatement",
   ]);
+  assert.equal(commandTour.body[27].options.outputTable.name, "AgeBySexSurvey");
   assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
   assert.throws(() => parser.parseClassicProgram("IF Age > 10 THEN\nFREQ Age"), /IF is missing END/);
   assert.throws(() => parser.parseClassicProgram("ASSIGN Age = (10 + 2"), /closing parenthesis/);

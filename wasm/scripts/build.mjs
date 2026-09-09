@@ -125,6 +125,20 @@ await cp(
   join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-weighted.expected.json"),
   join(validationFixtureDirectory, "foodborne-tables-weighted-v0.9.json"),
 );
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-psuvar.expected.json"),
+  join(validationFixtureDirectory, "foodborne-tables-psuvar-v0.2.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-psuvar-outtable.expected.json"),
+  join(validationFixtureDirectory, "foodborne-tables-psuvar-outtable-v0.2.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-frequency-psuvar.expected.json"),
+  join(validationFixtureDirectory, "foodborne-frequency-psuvar-v0.1.json"),
+);
+await cp(join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-means-psuvar.expected.json"), join(validationFixtureDirectory, "foodborne-means-psuvar-v0.1.json"));
+await cp(join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-means-psuvar-outtable.expected.json"), join(validationFixtureDirectory, "foodborne-means-psuvar-outtable-v0.1.json"));
 
 const entryPoints = await Promise.all(maintainedModules.map(existingSource));
 const commonOptions = {

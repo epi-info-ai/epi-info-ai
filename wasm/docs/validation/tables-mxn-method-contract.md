@@ -1,4 +1,4 @@
-# Classic TABLES method contract — V0.9
+# Classic TABLES method contract — V0.11
 
 ## Scope
 
@@ -16,18 +16,25 @@ the exact exposed, unexposed, case, and non-case values.
 The inspected legacy rule expands a GROUPVAR specifically in the exposure
 position and executes one table per member. This browser adapter preserves that
 behavior for `TABLES group outcome` and `TABLES * outcome`: each resolved field
-runs through the unchanged V0.9 single-table contract, remains separately
+  runs through the unchanged V0.11 single-table contract, remains separately
 labeled in Output, and retains the original command in history. The outcome is
 still one identifier, as specified by the legacy grammar. For safety, wildcard
 expansion excludes the outcome, strata, weight, and non-data command fields
 instead of attempting invalid same-field tables.
 
 `STATISTICS=FISHER` requests a Fisher–Freeman–Halton two-sided exact test for
-an observed 2 × N table. It enumerates fixed-margin tables with log-factorials
+an observed R × C table. It enumerates fixed-margin tables with log-factorials
 and log-sum-exp, uses the `3.45254e-7` comparison tolerance found in legacy
 `SingleMxN`, and stops at a visible 200,000-table limit. Unsupported shapes or
 limit breaches retain the categorical output and report exact statistics as
 unavailable.
+
+`STATISTICS=NONE` retains the cross-tabulation and suppresses Pearson, exact,
+and binary risk/odds inference. `ONEISYES` applies the inspected affirmative-first
+ordering to numeric 0/1 categories. `NOWRAP` and `COLUMNSIZE` are accepted and
+audited as compatibility no-ops because their handlers in the inspected
+`Rule_Tables` executor are empty; they do not silently invent browser layout
+semantics.
 
 `WEIGHTVAR=<number field>` treats each participating row as a frequency weight,
 matching the accumulation role inspected in legacy `cWorkingTable.cs`. The
@@ -35,6 +42,16 @@ browser accepts finite non-negative values, audits missing/invalid exclusions
 and zero-weight rows, and displays both participating records and weighted N.
 Exact and 2 × 2 risk/odds inference are not applied to weighted observations in
 this slice; those methods require a separately validated weighted contract.
+
+`OUTTABLE=<name>` now mirrors the inspected legacy `Tables.cs` long-form output.
+Each stratum/exposure/outcome cell becomes one row with
+the participating strata columns, exposure and outcome columns, `VARNAME` set
+to `exposure:outcome`, and numeric `COUNT`, including zero-count cells. The
+table is retained only in the active Classic browser session and may be selected
+by a later `READ`; it is not silently persisted into the project. For a GROUPVAR
+or wildcard exposure, desktop Epi Info drops and recreates the same output table
+for every expanded exposure. The browser preserves that last-wins behavior and
+explicitly reports which final exposure remains.
 
 When a stratified result contains at least two true 2 × 2 tables, the exact
 displayed affirmative-first cells are sent to the `epi.stratified2x2` Rust/WASM
@@ -83,8 +100,11 @@ TABLES potato_salad case_status STATISTICS=FISHER
 TABLES potato_salad hamburger
 TABLES potato_salad hamburger STRATAVAR=Sex
 TABLES potato_salad case_status WEIGHTVAR=Age
+TABLES potato_salad case_status STRATAVAR=Sex OUTTABLE=PotatoStatusBySex
 DEFINE FoodExposures GROUPVAR potato_salad hamburger grilled_chicken
-TABLES FoodExposures case_status
+TABLES FoodExposures case_status OUTTABLE=FoodExposureStatusCounts
+TABLES case_status Sex STATISTICS=FISHER
+TABLES potato_salad hamburger STATISTICS=NONE ONEISYES NOWRAP COLUMNSIZE=12
 SET (.)="Not recorded"
 SET MISSING=ON
 TABLES vomiting Sex
@@ -110,6 +130,11 @@ result lives in
 `foodborne-tables-potato-salad-by-status-unstratified.expected.json`.
 For that matrix, `STATISTICS=FISHER` enumerates 2,737 tables and returns
 `5.552362909835065e-14`; its anchor is `foodborne-tables-fisher.expected.json`.
+The general R × C anchor transposes the epidemiologic roles into the observed
+4 × 2 `case_status × Sex` matrix `[[10,12],[26,26],[8,8],[4,2]]`; it enumerates
+2,737 fixed-margin tables and returns `0.8747236693202226`. A small synthetic
+3 × 3 diagonal matrix independently anchors the recursion at 21 tables and
+probability `1/15`.
 
 The missing-value fixture uses the two blank `vomiting` values. With the legacy
 default OFF, 94 records are included and 2 excluded. With ON, all 96 are
@@ -144,19 +169,31 @@ chicken; the last table includes 95 records and audits one missing exposure.
 Exact matrices and provenance live in
 `foodborne-tables-groupvar.expected.json`.
 
+The `OUTTABLE` fixture produces 16 rows: two Sex strata × two potato-salad
+values × four case-status values. Its exact schema and every row are asserted in
+`foodborne-tables-outtable.expected.json`; the companion PGM then executes
+`READ PotatoStatusBySex` and `LIST` to prove the generated table is consumable.
+The expanded fixture proves desktop-compatible replacement order: after three
+food exposures, `FoodExposureStatusCounts` contains the final
+`grilled_chicken × case_status` table with eight rows.
+
 ## Evidence and open gates
 
 - Phase 0 derives the result from the checksummed foodborne CSV and asserts the
-  complete V0.9 mapping contract, ordered GROUPVAR/wildcard expansion,
+  complete V0.11 mapping contract, ordered GROUPVAR/wildcard expansion,
   multiple-strata labels, weighted cells, and exact cells,
-  missing-value session behavior, bounded 2 × N exact anchor and limit
+  missing-value session behavior, bounded general R × C exact anchors and limit
   behavior, plus Rust/WebAssembly single and stratified 2 × 2 anchors.
 - Browser tests open the PGM through the visible Program Editor and inspect its
-  tables, percentages, statistics, expected counts, warnings, and history.
+  tables, percentages, statistics, expected counts, warnings, `OUTTABLE`, a
+  subsequent `READ`, and history.
 - `validate-tables.ipynb` independently repeats the derivation with Python and
   SciPy in JupyterLite.
 
 This evidence earns only `browser-verified`. Desktop Epi Info differential
-output, exact formatting/order review, missing-value variants,
-exact legacy wildcard and weight edge/error behavior, output tables, and general R × C Fisher
-remain open before legacy parity can be claimed.
+output, exact formatting/order review, missing-value variants, exact legacy
+wildcard and weight edge/error behavior, persistent output-table adapters, and
+experienced-user review remain open before legacy parity can be claimed.
+`PSUVAR` deliberately routes to the separate Complex Sample Tables statistics
+engine and UI. Its V0.1 browser candidate and remaining gaps are governed by
+`complex-sample-tables-method-contract.md`, not approximated by ordinary TABLES.

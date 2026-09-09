@@ -595,8 +595,18 @@ must never be translated into arbitrary JavaScript execution.
    buffer and an audited legacy quartile/mode contract. The foodborne Age fixture
    and notebook provide initial independent evidence. Cross-tabs and their t,
    ANOVA, Bartlett, and Kruskal-Wallis output, strata, weights, `OUTTABLE`,
-   settings, saved execution, Complex Sample Means, broader corpora, and G5 review
-   remain open. **Candidate V0.11 Visual Dashboard Rates slice complete:** a
+   settings, saved execution, broader corpora, and G5 review remain open for
+   ordinary MEANS. **Complex Sample Means V0.1 candidate complete:** `PSUVAR`
+   routes to a separate bounded survey engine for weighted domain means,
+   PSU-within-stratum Taylor standard errors, legacy design df/t limits, and a
+   two-domain contrast. The mechanical foodborne fixture runs in the Program
+   Editor and is independently reproduced in the JupyterLite TABLES and Complex
+   Samples lab. A documented browser adaptation materializes the visible CSM
+   result rows through session `OUTTABLE`/`READ`/`LIST`; the desktop dialog leaves
+   Output to Table disabled and defines no working result schema. Meaningful
+   survey corpora, persistent output adapters, desktop differential evidence,
+   Rust migration, experienced-user review, and G5 remain open.
+   **Candidate V0.11 Visual Dashboard Rates slice complete:** a
    distinct old-tree Visual Dashboard launcher now exposes the audited
    aggregate-of / PER / aggregate-of workflow for COUNT equality over a
    non-missing denominator. Rust/WASM owns the fail-closed ratio-times-multiplier
@@ -1218,7 +1228,7 @@ current-project READ/RELATE active data, explicit WRITE REPLACE Text downloads, 
 DEFINE GROUPVAR session groups with bounded LIST expansion, bounded DISPLAY
 DBVARIABLES Output, SELECT/SORT session
 effects, bounded Standard-variable IF/ELSE branching, and active-session
-LIST/FREQ/MEANS/TABLES and session `SET MISSING=OFF/ON`, while external READ targets fail closed. TABLES V0.9
+LIST/FREQ/MEANS/TABLES and session `SET MISSING=OFF/ON`, while external READ targets fail closed. TABLES V0.11
 renders all observed exposure/outcome categories unstratified or by one or more strata fields; reports counts,
 row/column percentages, totals, expected counts, Pearson chi-square/df/probability,
 and sparse-cell warnings; and reports missing exclusions. When an observed table
@@ -1226,7 +1236,12 @@ is exactly 2 × 2, it preserves the legacy automatic Single Table Analysis,
 visibly states the category orientation, and sends the four cells to the
 validated Rust/WebAssembly kernel for OR, RR, RD, chi-square, mid-p, Fisher, and
 confidence-limit results. Its JupyterLite notebooks independently reconstruct
-the checksummed foodborne results. Record-context IF,
+the checksummed foodborne results. `STATISTICS=FISHER` now performs bounded
+general R × C fixed-margin enumeration; `STATISTICS=NONE` suppresses inference;
+and `ONEISYES` applies numeric affirmative-first orientation. `OUTTABLE`
+materializes the inspected long-form cell table in session for a later `READ`.
+For expanded exposures it preserves the inspected desktop last-wins replacement
+order. Browser persistence remains open. Record-context IF,
 compound expressions, functions, nested/arbitrary blocks, and missing-value
 comparisons remain outside that allowlist. The next interpreter slice is the
 standalone schema-aware semantic resolver and diagnostic model, followed by
@@ -1264,23 +1279,39 @@ plans. GeoJSON, H3, GeoTIFF, offline packages, and future spatial-analysis
 syntax remain separately labeled modern branches rather than retroactive legacy
 parity claims.
 
-**Next Statistics slice — complete TABLES incrementally:** retain the current
-V0.9 unstratified/multiple-strata categorical M×N counts, percentages, totals, expected counts, Pearson
-statistics, sparse-cell warnings, and JupyterLite comparison as the tested floor;
-bounded `STATISTICS=FISHER` now covers 2 × N tables with a 200,000-table limit;
-and session `SET MISSING`, inverse `SET IGNORE`, and `SET (.)="label"` now
-preserve the legacy default and configurable display label; multiple `STRATAVAR`
-fields now produce labeled Cartesian strata and are exercised in the command tour;
-finite non-negative numeric `WEIGHTVAR` frequency weights now have typed dialog,
-foodborne fixture, browser, and independent JupyterLite coverage, with weighted
-exact/binary inference disabled; legacy exposure-position `GROUPVAR` and `*`
-now expand into one retained TABLES result per field in declared/project order.
-The inspected legacy grammar retains one outcome per command, so multiple
-outcome fields are not presented as a parity requirement. Next add reviewed
-`OUTTABLE`. After those general
-tables, close stratified 2 × 2 Mantel–Haenszel and homogeneity outputs. Each increment
-requires a foodborne `.pgm`, machine-asserted expected output, browser execution,
-and ultimately reviewed desktop differential evidence.
+**Ordinary TABLES browser candidate complete at V0.11:** the tested floor now
+includes unstratified and Cartesian-strata categorical M×N counts, percentages,
+totals, expected counts, Pearson statistics, sparse-cell warnings, missing-value
+settings, finite non-negative frequency weights, automatic Rust/WASM 2 × 2 and
+stratified adjusted output, GROUPVAR/wildcard exposure expansion, bounded general
+R × C Fisher–Freeman–Halton enumeration, `STATISTICS=NONE`, numeric `ONEISYES`,
+the inspected `NOWRAP`/`COLUMNSIZE` no-op behavior, and session `OUTTABLE` with
+desktop-compatible final-expanded-exposure replacement. The command tour and
+standalone foodborne `.pgm` fixtures exercise these paths. The inspected grammar
+retains one outcome per command, so multiple outcome fields are not presented as
+a parity requirement. `MATCH` is a distinct command. `PSUVAR` switches to the
+separate Complex Sample Tables statistics engine under Advanced Statistics.
+Its bounded V0.2 candidate now ports the inspected
+PSU-within-design-stratum Taylor variance, legacy t limits and design effects,
+plus survey OR/RR/RD for complete 2 × 2 tables. The mechanical foodborne
+fixture and visible command tour exercise the branch; they do not claim that
+Household Neighborhood and Age form a defensible survey design. The inspected
+complex `OUTTABLE` result schema now materializes session-locally for subsequent
+`READ`/`LIST`; external persistence, meaningful survey corpora, desktop differential review, and Rust
+migration remain open. Persistent/external
+output-table adapters, desktop differential evidence, experienced-user review,
+Rust `epi-lang` migration, and consolidated G5 remain gates on a formal legacy
+parity claim rather than unimplemented ordinary TABLES syntax.
+
+**Complex Sample Frequencies V0.1 browser candidate:** `FREQ ... PSUVAR`
+now follows its separate legacy Advanced Statistics path. The typed host accepts
+one analysis field, optional design stratum and numeric weight, a required PSU,
+and optional session `OUTTABLE`; it reports weighted proportions, Taylor standard
+errors, linear/logit limits, design df, and the inspected repeated design effect.
+The foodborne command tour, exact fixture, READ/LIST round trip, and independent
+JupyterLite Python cell establish browser evidence only. Desktop differential
+capture, meaningful survey designs, Rust migration, experienced-user review, and
+G5 remain open.
 
 Browser-constrained legacy commands use a common adaptation contract: retain
 their learned names, syntax, and menu placement; replace ambient desktop

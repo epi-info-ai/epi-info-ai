@@ -36,6 +36,6 @@ ANOVA, Bartlett, and Kruskal-Wallis calculations.
 | `WEIGHTVAR` | Open gap | Weight semantics and effective observations |
 | `OUTTABLE` | Open gap | Portable project-table destination |
 | Save Only, filters, and Settings | Open gap | Program/session integration |
-| Complex Sample Means | Separate open branch | Survey-design contract and validation |
+| Complex Sample Means | Bounded V0.1 candidate plus browser-adapted result `OUTTABLE` | Desktop control is disabled and supplies no result schema; retain the adaptation label and add meaningful survey corpus, persistent adapters, desktop differential output, Rust migration, experienced-user and G5 review; see the [method contract](../validation/complex-sample-means-method-contract.md) |
 
 No branch is deprecated. Every open row remains in the compatibility floor.

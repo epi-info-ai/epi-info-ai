@@ -1,0 +1,2 @@
+*** Mechanical Complex Sample Means validation only
+MEANS Age Sex STRATAVAR=case_status PSUVAR=household_neighborhood

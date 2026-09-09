@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.complex-sample.outtable",
+  "planVersion": "classic-complex-tables-v0.2.0",
+  "status": "browser-candidate",
+  "purpose": "Mechanical Complex Sample Tables OUTTABLE validation only; Household Neighborhood is a PSU proxy and Age is not an epidemiologically defensible survey weight.",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "rows": 96
+  },
+  "command": "TABLES potato_salad hamburger STRATAVAR=sex WEIGHTVAR=age PSUVAR=household_neighborhood OUTTABLE=PotatoHamburgerSurvey",
+  "outputTable": "PotatoHamburgerSurvey",
+  "fields": ["potato_salad", "hamburger", "COUNT", "RowPct", "ColPct", "StdErr", "LCL", "UCL", "DesignEff"],
+  "records": [
+    { "potato_salad": "Yes", "hamburger": "Yes", "COUNT": 25, "RowPct": 52.57894736842105, "ColPct": 51.021450459652705, "StdErr": 6.86838248995035, "LCL": 38.81440217164747, "UCL": 66.34349256519462, "DesignEff": 0.8892496959839189 },
+    { "potato_salad": "Yes", "hamburger": "No", "COUNT": 23, "RowPct": 47.421052631578945, "ColPct": 45.99285349668198, "StdErr": 6.86838248995035, "LCL": 33.65650743480537, "UCL": 61.18559782835252, "DesignEff": 0.8892496959839189 },
+    { "potato_salad": "No", "hamburger": "Yes", "COUNT": 24, "RowPct": 47.54586018839861, "ColPct": 48.978549540347295, "StdErr": 8.53331254471005, "LCL": 30.44472081945449, "UCL": 64.64699955734274, "DesignEff": 1.3722735249414506 },
+    { "potato_salad": "No", "hamburger": "No", "COUNT": 24, "RowPct": 52.45413981160139, "ColPct": 54.00714650331802, "StdErr": 8.53331254471005, "LCL": 35.35300044265726, "UCL": 69.55527918054551, "DesignEff": 1.3722735249414506 }
+  ]
+}

@@ -1,0 +1,4 @@
+*** Legacy TABLES OUTTABLE long-form output followed by an in-session READ
+TABLES potato_salad case_status STRATAVAR=sex OUTTABLE=PotatoStatusBySex
+READ PotatoStatusBySex
+LIST Sex potato_salad case_status VARNAME COUNT

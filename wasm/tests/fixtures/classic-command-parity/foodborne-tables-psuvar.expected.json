@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "operation": "classic.tables.complex-sample",
+  "planVersion": "classic-complex-tables-v0.2.0",
+  "status": "browser-candidate",
+  "purpose": "Mechanical Complex Sample Tables validation only; Household Neighborhood is a PSU proxy and Age is not an epidemiologically defensible survey weight.",
+  "dataset": {
+    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+    "rows": 96
+  },
+  "canonicalSource": "TABLES potato_salad hamburger STRATAVAR=sex WEIGHTVAR=age PSUVAR=household_neighborhood",
+  "expected": {
+    "includedRecords": 96,
+    "excludedRecords": 0,
+    "weightedTotal": 3917,
+    "designStrata": 2,
+    "primarySamplingUnits": 57,
+    "degreesOfFreedom": 55,
+    "confidenceMultiplier": 2.0040446519851685,
+    "exposureValues": ["Yes", "No"],
+    "outcomeValues": ["Yes", "No"],
+    "rows": [
+      {
+        "exposureValue": "Yes",
+        "weightedTotal": 1900,
+        "cells": [
+          { "outcomeValue": "Yes", "count": 25, "weightedCount": 999, "rowPercent": 52.57894736842105, "columnPercent": 51.021450459652705, "standardError": 6.86838248995035, "lowerConfidenceLimit": 38.81440217164747, "upperConfidenceLimit": 66.34349256519462, "designEffect": 0.8892496959839189 },
+          { "outcomeValue": "No", "count": 23, "weightedCount": 901, "rowPercent": 47.421052631578945, "columnPercent": 45.99285349668198, "standardError": 6.86838248995035, "lowerConfidenceLimit": 33.65650743480537, "upperConfidenceLimit": 61.18559782835252, "designEffect": 0.8892496959839189 }
+        ]
+      },
+      {
+        "exposureValue": "No",
+        "weightedTotal": 2017,
+        "cells": [
+          { "outcomeValue": "Yes", "count": 24, "weightedCount": 959, "rowPercent": 47.54586018839861, "columnPercent": 48.978549540347295, "standardError": 8.53331254471005, "lowerConfidenceLimit": 30.44472081945449, "upperConfidenceLimit": 64.64699955734274, "designEffect": 1.3722735249414506 },
+          { "outcomeValue": "No", "count": 24, "weightedCount": 1058, "rowPercent": 52.45413981160139, "columnPercent": 54.00714650331802, "standardError": 8.53331254471005, "lowerConfidenceLimit": 35.35300044265726, "upperConfidenceLimit": 69.55527918054551, "designEffect": 1.3722735249414506 }
+        ]
+      }
+    ],
+    "risk": {
+      "oddsRatio": 1.2232289693180673,
+      "oddsRatioStandardError": 0.5780151489638292,
+      "oddsRatioLower": 0.453396952245933,
+      "oddsRatioUpper": 3.3001746129235547,
+      "riskRatio": 1.1058575270292519,
+      "riskRatioStandardError": 0.2759924338185239,
+      "riskRatioLower": 0.670631939217479,
+      "riskRatioUpper": 1.823535084705639,
+      "riskDifferencePercent": 5.033087180022433,
+      "riskDifferenceStandardError": 12.34985668053218,
+      "riskDifferenceLower": -19.716577053381386,
+      "riskDifferenceUpper": 29.782751413426254
+    }
+  }
+}

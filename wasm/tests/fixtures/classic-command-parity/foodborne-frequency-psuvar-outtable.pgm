@@ -1,0 +1,4 @@
+*** Mechanical CSF OUTTABLE read-back test
+FREQ case_status STRATAVAR=Sex WEIGHTVAR=Age PSUVAR=household_neighborhood OUTTABLE=CaseStatusSurvey
+READ CaseStatusSurvey
+LIST *

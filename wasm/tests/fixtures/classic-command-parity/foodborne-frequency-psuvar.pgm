@@ -1,0 +1,2 @@
+*** Mechanical CSF validation only: neighborhood is a PSU proxy and Age is a test weight
+FREQ case_status STRATAVAR=Sex WEIGHTVAR=Age PSUVAR=household_neighborhood OUTTABLE=CaseStatusSurvey

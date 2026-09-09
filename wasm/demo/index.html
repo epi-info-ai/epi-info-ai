@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=60" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=93"></script>
+    <script type="module" src="app.js?v=94"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -1140,7 +1140,11 @@
               <label id="classic-command-dialog-outcome-label" hidden>Outcome variable<select id="classic-command-dialog-outcome"></select></label>
               <label id="classic-command-dialog-strata-label">Stratify by<select id="classic-command-dialog-strata"><option value="">Do not stratify</option></select></label>
               <label id="classic-command-dialog-weight-label" hidden>Weight variable<select id="classic-command-dialog-weight"><option value="">Do not weight</option></select></label>
-              <label id="classic-command-dialog-fisher-label" class="checkbox-row" hidden><input id="classic-command-dialog-fisher" type="checkbox"> Show Fisher's Exact (bounded 2 × N)</label>
+              <label id="classic-command-dialog-psu-label" hidden>PSU variable<select id="classic-command-dialog-psu"><option value="">Choose the primary sampling unit</option></select></label>
+              <label id="classic-command-dialog-statistics-label" class="checkbox-row" hidden><input id="classic-command-dialog-statistics" type="checkbox" checked> Show statistics</label>
+              <label id="classic-command-dialog-fisher-label" class="checkbox-row" hidden><input id="classic-command-dialog-fisher" type="checkbox"> Show Fisher–Freeman–Halton Exact (bounded R × C)</label>
+              <label id="classic-command-dialog-one-is-yes-label" class="checkbox-row" hidden><input id="classic-command-dialog-one-is-yes" type="checkbox"> Treat numeric 1 as Yes</label>
+              <label id="classic-command-dialog-outtable-label" hidden>Output table (optional)<input id="classic-command-dialog-outtable" autocomplete="off" placeholder="e.g. PotatoStatusBySex"></label>
               <div class="classic-command-preview"><strong>Command source</strong><code id="classic-command-dialog-preview">FREQ</code></div>
               <p class="compatibility-note">The dialog inserts ordinary, visible Epi Info source. It does not execute or grant the command additional authority.</p>
               <p id="classic-command-dialog-feedback" class="inline-feedback" role="status"></p>

@@ -462,7 +462,7 @@ discrepancy to its detailed evidence record.
 - Broader legacy output, zero/fractional-cell decisions, property/boundary,
   implementation, and statistical review remain open. G5 stays consolidated.
 
-### Classic TABLES V0.9 validation
+### Classic TABLES V0.11 validation
 
 - `validate-tables.ipynb` derives both the unstratified foodborne potato-salad by
   case-status matrix and the two matrices within Sex directly from the checksummed CSV.
@@ -472,9 +472,9 @@ discrepancy to its detailed evidence record.
 - The binary `TABLES potato_salad hamburger` fixture separately proves the
   category-to-cell mapping and passes those cells to the same deployed
   Rust/WebAssembly operation validated by `validate-2x2.ipynb`.
-- The `STATISTICS=FISHER` fixture fixes the 2 × 4 margins, enumerates 2,737
-  feasible tables, and anchors the Fisher–Freeman–Halton probability at
-  `5.552362909835065e-14`; Phase 0 also checks the fail-visible table limit.
+- The `STATISTICS=FISHER` fixtures cover the original 2 × 4 anchor, a foodborne
+  4 × 2 matrix, and a synthetic 3 × 3 matrix through independent fixed-margin
+  recursion. Phase 0 also checks the visible 200,000-table limit.
 - The foodborne `vomiting × Sex` fixture verifies the legacy missing-value
   default (OFF), two excluded records, `SET MISSING=ON`, the visible two-record
   custom `Not recorded` row, and restoration to OFF plus the default `Missing`
@@ -487,9 +487,33 @@ discrepancy to its detailed evidence record.
 - The mechanical `TABLES potato_salad case_status WEIGHTVAR=Age` fixture fixes
   weighted N at 3,917 and the complete 2 × 4 weighted matrix. Python independently
   sums the frequency weights; Age is not claimed to be a meaningful survey weight.
+- Program Editor fixtures additionally verify `STATISTICS=NONE`, numeric
+  `ONEISYES`, the inspected `NOWRAP`/`COLUMNSIZE` no-ops, and ordinary plus
+  GROUPVAR-expanded `OUTTABLE` materialization and READ-back.
+- The notebook independently recomputes the V0.2 Complex Sample Tables
+  `PSUVAR` fixture by aggregating linearized values within PSU and design
+  stratum. It fixes weighted N 3,917, 57 PSU/stratum units, df 55, cell standard
+  errors and t limits, and survey OR/RR/RD. Household Neighborhood and Age are
+  explicitly mechanical test proxies, not a defensible survey design.
 - The notebook does not treat candidate contract validation as desktop Epi Info parity.
-- General R × C Fisher, exact legacy weight edge/error behavior, output tables, syntax breadth,
-  desktop differential evidence, and G5 approval remain open.
+- The session-local complex `OUTTABLE` fixture fixes the inspected nine-column
+  result shape and proves `TABLES → READ → LIST`; external persistence remains open.
+- The mechanical Complex Sample Frequencies fixture applies the same independent
+  PSU-within-stratum Taylor construction to weighted Case Status proportions,
+  checks linear limits and the inspected first-category design effect repeated
+  across rows, and fixes the legacy nine-column CSF `OUTTABLE` shape. It uses
+  Household Neighborhood and Age only as deterministic test proxies.
+- The mechanical Complex Sample Means fixture independently derives Age means
+  by Sex, with Case Status as design strata and Household Neighborhood as PSU.
+  Python recomputes PSU-within-stratum Taylor standard errors, design df/t
+  limits, observed ranges, and the covariance-aware Female-minus-Male contrast.
+  The same cell verifies the nine-column browser-adapted CSM result-table fixture
+  and its three rows. The notebook keeps this separate from desktop parity because
+  desktop CSM disables Output to Table and defines no working result schema.
+  These fields are deterministic test proxies, not a defensible survey design.
+- Meaningful survey-design corpora, exact legacy
+  weight/wildcard edges, persistent adapters, desktop differential evidence,
+  and G5 approval remain open.
 
 ### Later releases
 

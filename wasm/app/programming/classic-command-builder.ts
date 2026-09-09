@@ -51,9 +51,9 @@ export type ClassicAnalysisCommandInput =
   | { kind: "sort"; items: Array<{ field: string; direction: ClassicSortDirection }> }
   | { kind: "cancel-sort" }
   | { kind: "list"; fields: string[] }
-  | { kind: "frequency"; field: string; stratifyBy?: string }
-  | { kind: "means"; field: string }
-  | { kind: "tables"; exposure: string; exposures?: string[]; outcome: string; stratifyBy?: string[]; weightBy?: string; statistics?: "FISHER" };
+  | { kind: "frequency"; field: string; stratifyBy?: string; weightBy?: string; psuBy?: string; outputTable?: string }
+  | { kind: "means"; field: string; crossTabBy?: string; stratifyBy?: string; weightBy?: string; psuBy?: string; outputTable?: string }
+  | { kind: "tables"; exposure: string; exposures?: string[]; outcome: string; stratifyBy?: string[]; weightBy?: string; psuBy?: string; statistics?: "NONE" | "FISHER"; outputTable?: string; oneIsYes?: boolean; noWrap?: boolean; columnSize?: number };
 
 type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" }>;
 export type ResolvedClassicAnalysisCommand = SelectedExecutableClassicCommandInput & { source: string };
@@ -118,9 +118,9 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "sort") return buildClassicSortCommand(input.items);
   if (input.kind === "cancel-sort") return "CANCEL SORT";
   if (input.kind === "list") return `LIST ${input.fields.length ? input.fields.map(fieldToken).join(" ") : "*"}`;
-  if (input.kind === "frequency") return `FREQ ${fieldToken(input.field)}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}`;
-  if (input.kind === "means") return `MEANS ${fieldToken(input.field)}`;
-  return `TABLES ${fieldToken(input.exposure)} ${fieldToken(input.outcome)}${input.stratifyBy?.length ? ` STRATAVAR=${input.stratifyBy.map(fieldToken).join(" ")}` : ""}${input.weightBy ? ` WEIGHTVAR=${fieldToken(input.weightBy)}` : ""}${input.statistics ? ` STATISTICS=${input.statistics}` : ""}`;
+  if (input.kind === "frequency") return `FREQ ${fieldToken(input.field)}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}${input.weightBy ? ` WEIGHTVAR=${fieldToken(input.weightBy)}` : ""}${input.psuBy ? ` PSUVAR=${fieldToken(input.psuBy)}` : ""}${input.outputTable ? ` OUTTABLE=${fieldToken(input.outputTable)}` : ""}`;
+  if (input.kind === "means") return `MEANS ${fieldToken(input.field)}${input.crossTabBy ? ` ${fieldToken(input.crossTabBy)}` : ""}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}${input.weightBy ? ` WEIGHTVAR=${fieldToken(input.weightBy)}` : ""}${input.outputTable ? ` OUTTABLE=${fieldToken(input.outputTable)}` : ""}${input.psuBy ? ` PSUVAR=${fieldToken(input.psuBy)}` : ""}`;
+  return `TABLES ${fieldToken(input.exposure)} ${fieldToken(input.outcome)}${input.stratifyBy?.length ? ` STRATAVAR=${input.stratifyBy.map(fieldToken).join(" ")}` : ""}${input.weightBy ? ` WEIGHTVAR=${fieldToken(input.weightBy)}` : ""}${input.psuBy ? ` PSUVAR=${fieldToken(input.psuBy)}` : ""}${input.statistics ? ` STATISTICS=${input.statistics}` : ""}${input.outputTable ? ` OUTTABLE=${fieldToken(input.outputTable)}` : ""}${input.oneIsYes ? " ONEISYES" : ""}${input.noWrap ? " NOWRAP" : ""}${input.columnSize !== undefined ? ` COLUMNSIZE=${input.columnSize}` : ""}`;
 }
 
 function resolvedField(fields: readonly FieldDefinition[], requested: string): string {
@@ -257,29 +257,53 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
   }
   if (statement.type === "FrequencyStatement") {
     if (statement.selection.kind !== "fields" || statement.selection.fields.length !== 1) throw new RangeError("Selected FREQ execution requires exactly one field.");
-    const strata = assertBoundedOptions(statement.options, true);
-    if (strata && strata.toLocaleLowerCase("en-US") === statement.selection.fields[0]!.name.toLocaleLowerCase("en-US")) throw new RangeError("FREQ and STRATAVAR must use different fields.");
+    if (statement.options.statistics || statement.options.columnSize || statement.options.noWrap || statement.options.oneIsYes) throw new RangeError("The selected FREQ uses options that are not enabled in this bounded executor.");
+    if (statement.options.stratifyBy.length > 1) throw new RangeError("Complex Sample Frequencies currently accepts the legacy dialog's single STRATAVAR design stratum.");
+    if (!statement.options.psuVariable && (statement.options.weightBy || statement.options.outputTable)) throw new RangeError("FREQ WEIGHTVAR and OUTTABLE are enabled with the Complex Sample Frequencies PSUVAR path in this slice.");
+    const field = resolvedField(fields, statement.selection.fields[0]!.name);
+    const strata = statement.options.stratifyBy[0] ? resolvedField(fields, statement.options.stratifyBy[0].name) : undefined;
+    const weightBy = statement.options.weightBy ? resolvedField(fields, statement.options.weightBy.name) : undefined;
+    const psuBy = statement.options.psuVariable ? resolvedField(fields, statement.options.psuVariable.name) : undefined;
+    if (statement.options.outputTable && dataSources.some((source) => source.formName.toLocaleLowerCase("en-US") === statement.options.outputTable!.name.toLocaleLowerCase("en-US"))) {
+      throw new RangeError(`${statement.options.outputTable.name} conflicts with an existing project form; choose a distinct in-session OUTTABLE name.`);
+    }
+    if (weightBy && fields.find((candidate) => candidate.name === weightBy)?.type !== "number") throw new RangeError(`${weightBy} must be a Number field for Complex Sample Frequencies WEIGHTVAR.`);
+    const selected = [field, strata, weightBy, psuBy].filter((value): value is string => Boolean(value));
+    if (new Set(selected.map((name) => name.toLocaleLowerCase("en-US"))).size !== selected.length) throw new RangeError("FREQ, STRATAVAR, WEIGHTVAR, and PSUVAR must use different fields.");
     return {
-      kind: "frequency", field: resolvedField(fields, statement.selection.fields[0]!.name),
-      ...(strata ? { stratifyBy: resolvedField(fields, strata) } : {}), source,
+      kind: "frequency", field, ...(strata ? { stratifyBy: strata } : {}),
+      ...(weightBy ? { weightBy } : {}), ...(psuBy ? { psuBy } : {}),
+      ...(statement.options.outputTable ? { outputTable: statement.options.outputTable.name } : {}), source,
     };
   }
   if (statement.type === "MeansStatement") {
     const field = resolvedField(fields, statement.field.name);
     if (fields.find((candidate) => candidate.name === field)?.type !== "number") throw new RangeError(`${field} must be a Number field for MEANS.`);
-    return { kind: "means", field, source };
+    if (statement.options.statistics || statement.options.oneIsYes || statement.options.columnSize || statement.options.noWrap) throw new RangeError("The selected MEANS uses options that are not enabled in this bounded executor.");
+    if (statement.options.stratifyBy.length > 1) throw new RangeError("Complex Sample Means currently accepts one design STRATAVAR.");
+    const crossTabBy = statement.crossTab ? resolvedField(fields, statement.crossTab.name) : undefined;
+    const stratifyBy = statement.options.stratifyBy[0] ? resolvedField(fields, statement.options.stratifyBy[0].name) : undefined;
+    const weightBy = statement.options.weightBy ? resolvedField(fields, statement.options.weightBy.name) : undefined;
+    const psuBy = statement.options.psuVariable ? resolvedField(fields, statement.options.psuVariable.name) : undefined;
+    if (!psuBy && (crossTabBy || stratifyBy || weightBy || statement.options.outputTable)) throw new RangeError("MEANS cross-tabulation, STRATAVAR, WEIGHTVAR, and adapted OUTTABLE are enabled with the Complex Sample Means PSUVAR path in this slice.");
+    if (statement.options.outputTable && dataSources.some((source) => source.formName.toLocaleLowerCase("en-US") === statement.options.outputTable!.name.toLocaleLowerCase("en-US"))) {
+      throw new RangeError(`${statement.options.outputTable.name} conflicts with an existing project form; choose a distinct in-session OUTTABLE name.`);
+    }
+    if (weightBy && fields.find((candidate) => candidate.name === weightBy)?.type !== "number") throw new RangeError(`${weightBy} must be a Number field for Complex Sample Means WEIGHTVAR.`);
+    const selected = [field, crossTabBy, stratifyBy, weightBy, psuBy].filter((value): value is string => Boolean(value));
+    if (new Set(selected.map((name) => name.toLocaleLowerCase("en-US"))).size !== selected.length) throw new RangeError("MEANS, cross-tabulation, STRATAVAR, WEIGHTVAR, and PSUVAR must use different fields.");
+    return { kind: "means", field, ...(crossTabBy ? { crossTabBy } : {}), ...(stratifyBy ? { stratifyBy } : {}), ...(weightBy ? { weightBy } : {}), ...(statement.options.outputTable ? { outputTable: statement.options.outputTable.name } : {}), ...(psuBy ? { psuBy } : {}), source };
   }
   if (statement.type === "TablesStatement") {
     if (!statement.outcome) throw new RangeError("Selected TABLES execution requires an outcome field.");
-    if (statement.options.outputTable || statement.options.psuVariable || (statement.options.statistics && statement.options.statistics !== "FISHER") || statement.options.columnSize || statement.options.noWrap || statement.options.oneIsYes) {
-      throw new RangeError("The selected TABLES command uses options that are not enabled in this bounded executor.");
-    }
+    if (statement.options.psuVariable && (statement.options.statistics || statement.options.oneIsYes)) throw new RangeError("Complex Sample Tables does not combine PSUVAR with ordinary TABLES STATISTICS or ONEISYES.");
     const outcome = resolvedField(fields, statement.outcome.name);
     const strata = statement.options.stratifyBy.map(({ name }) => resolvedField(fields, name));
     const weightBy = statement.options.weightBy ? resolvedField(fields, statement.options.weightBy.name) : undefined;
+    const psuBy = statement.options.psuVariable ? resolvedField(fields, statement.options.psuVariable.name) : undefined;
     if (weightBy && fields.find((candidate) => candidate.name === weightBy)?.type !== "number") throw new RangeError(`${weightBy} must be a Number field for TABLES WEIGHTVAR.`);
     if (weightBy && statement.options.statistics === "FISHER") throw new RangeError("TABLES STATISTICS=FISHER is not available with WEIGHTVAR because exact tests require unweighted integer observations.");
-    const unavailable = new Set([outcome, ...strata, ...(weightBy ? [weightBy] : [])].map((name) => name.toLocaleLowerCase("en-US")));
+    const unavailable = new Set([outcome, ...strata, ...(weightBy ? [weightBy] : []), ...(psuBy ? [psuBy] : [])].map((name) => name.toLocaleLowerCase("en-US")));
     let exposure = "*";
     let exposures: string[];
     if (statement.exposure === "*") {
@@ -296,13 +320,21 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       exposures = expandClassicGroupNames([exposure], groups).map((name) => resolvedField(fields, name));
     }
     if (!exposures.length) throw new RangeError("TABLES exposure expansion did not contain any eligible current fields.");
+    if (statement.options.outputTable && dataSources.some((source) => source.formName.toLocaleLowerCase("en-US") === statement.options.outputTable!.name.toLocaleLowerCase("en-US"))) {
+      throw new RangeError(`${statement.options.outputTable.name} conflicts with an existing project form; choose a distinct in-session OUTTABLE name.`);
+    }
     const conflict = exposures.find((name) => unavailable.has(name.toLocaleLowerCase("en-US")));
-    if (conflict) throw new RangeError(`${conflict} cannot be both a TABLES exposure and its outcome, STRATAVAR, or WEIGHTVAR.`);
+    if (conflict) throw new RangeError(`${conflict} cannot be both a TABLES exposure and its outcome, STRATAVAR, WEIGHTVAR, or PSUVAR.`);
     return {
       kind: "tables", exposure, ...(exposures.length > 1 || exposure === "*" ? { exposures } : {}), outcome,
       ...(strata.length ? { stratifyBy: strata } : {}), source,
       ...(weightBy ? { weightBy } : {}),
-      ...(statement.options.statistics === "FISHER" ? { statistics: "FISHER" as const } : {}),
+      ...(psuBy ? { psuBy } : {}),
+      ...(statement.options.statistics ? { statistics: statement.options.statistics } : {}),
+      ...(statement.options.outputTable ? { outputTable: statement.options.outputTable.name } : {}),
+      ...(statement.options.oneIsYes ? { oneIsYes: true } : {}),
+      ...(statement.options.noWrap ? { noWrap: true } : {}),
+      ...(statement.options.columnSize !== undefined ? { columnSize: statement.options.columnSize } : {}),
     };
   }
   throw new RangeError("Only selected READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, GRAPH, and SET MISSING commands are enabled in this slice.");
