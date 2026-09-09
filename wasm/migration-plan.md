@@ -409,7 +409,11 @@ parity gaps stay open in the compatibility inventories.
   `SET-NOT-REQUIRED`; arbitrary imported source is never executed.
 - [x] Manual entry and CSV/TSV/JSON/Excel imports share record validation;
   restored local, portable, and hosted snapshots are revalidated and direct the
-  user to Data Quality without silently discarding records.
+  user to Data Quality without silently discarding records. Enter Data imports
+  first produce a non-mutating review: SHA-256 repeat-file warning, suggested
+  identity key, new/matching/changed/unchanged and validation counts, then an
+  explicit legacy-informed update-and-append, update-only, append-new, or
+  browser-adapted replace choice. Ambiguous keys and invalid rows fail closed.
 - [x] Data Quality reports completeness and violations, identifies unique-field
   and exact-row duplicate candidates, and provides side-by-side comparison.
 - [x] Duplicate deletion requires a reason and confirmation, moves the record to
@@ -988,6 +992,73 @@ Two authorized users can enter different records offline/online and synchronize
 without overwriting each other. Same-record conflicts are never silently resolved,
 and unauthorized users cannot discover or access the project.
 
+## Phase 10 - Secure encrypted project exchange
+
+This is one coordinated compatibility/new-branch backlog item named **Secure
+Epi Info Share**. It combines encrypted package handling with consent-gated
+browser-to-browser delivery; it does not make collaboration or synchronization
+claims.
+
+### V0.1 implementation status
+
+- [x] Restored the familiar Enter Data menu paths and a bounded Package Data for
+  Transport dialog with package name/timestamp, optional-field blanking,
+  single-condition record selection, password confirmation, and completion
+  feedback.
+- [x] Added a versioned `.epiax` envelope using Web Crypto
+  PBKDF2-HMAC-SHA-256 (600,000 iterations, random 128-bit salt) and AES-256-GCM
+  (random 96-bit IV, authenticated header, 128-bit tag), plus plaintext digest,
+  length, wrong-password, and tamper validation. PBKDF2 is the dependency-free
+  V0.1 browser baseline; reviewed Argon2id remains the target KDF.
+- [x] Added manual, serverless WebRTC offer/answer exchange, visible DTLS
+  fingerprints, ordered 64 KiB binary chunks, buffered-amount backpressure,
+  progress, bounded receive state, SHA-256 verification, and explicit
+  passphrase/import review. No nearby discovery, QR, STUN, TURN, or resumability
+  is claimed.
+- [x] Added a canonical 96-record foodborne browser round-trip that blanks one
+  optional field, downloads/imports the encrypted package, transfers it between
+  two local peer connections, verifies it, and blocks a blind repeated import.
+
+### Remaining work
+
+- Inventory and fixture-test legacy Epi Info `.edp7` package variants, password
+  parameters, compression, manifest contents, update/append behavior, and error
+  handling. Implement legacy decryption only in an isolated, bounded adapter;
+  never write new data using the inspected unauthenticated legacy cipher format.
+- Define a versioned encrypted `.epia` envelope with algorithm/KDF identifiers,
+  random salt and nonce, reviewed Argon2id parameters appropriate to supported
+  browsers, AES-256-GCM authenticated encryption, authenticated non-sensitive
+  metadata, and cryptographic agility. Wrong passwords and tampering fail without
+  exposing partial plaintext.
+- Add Send and Receive workflows for complete encrypted `.epia` packages using
+  WebRTC `RTCDataChannel`, conservative binary chunks, negotiated message-size
+  limits, `bufferedAmount` backpressure, progress, cancellation, and bounded
+  in-memory/OPFS staging.
+- Pair through QR/manual offer-answer exchange for serverless field use or an
+  approved expiring short-code signaling service. Bind the visible peer
+  confirmation to the WebRTC certificate fingerprint; do not claim automatic
+  nearby discovery from an ordinary browser.
+- Make route policy explicit: direct-only, STUN-assisted, or approved TURN relay.
+  Signaling never carries project bytes, and the UI must disclose when a relay
+  was used even though WebRTC transport remains encrypted.
+- Before acceptance, show sender, project/package label, byte size, format,
+  SHA-256, and available quota. After receipt, verify length/digest/envelope,
+  retain it in quarantine/staging, and require the existing project preview and
+  explicit Open/Import decision. Never automatically execute programs, plugins,
+  Check Code, or merge records from received content.
+- Record privacy-minimized transfer receipts and test wrong password, corruption,
+  truncation, replay, signaling substitution, disconnect/resume policy, buffer
+  pressure, cancellation, quota exhaustion, direct/TURN paths, and supported
+  desktop/mobile browser pairs.
+
+### Exit gate
+
+A sender and receiver can exchange a bounded encrypted `.epia` package through
+an explicitly verified pairing, detect modification or truncation before import,
+cancel without leaving accepted partial data, and review the package before any
+project state changes. A representative legacy `.edp7` fixture can be read in
+compatibility mode, but new exports never use the legacy cryptography.
+
 ## Deferred cross-cutting TODO - page walkthroughs
 
 After the core migration phases are complete, add a reusable optional walkthrough
@@ -1199,8 +1270,11 @@ preserve the legacy default and configurable display label; multiple `STRATAVAR`
 fields now produce labeled Cartesian strata and are exercised in the command tour;
 finite non-negative numeric `WEIGHTVAR` frequency weights now have typed dialog,
 foodborne fixture, browser, and independent JupyterLite coverage, with weighted
-exact/binary inference disabled; next add multiple exposure/outcome forms and
-reviewed `OUTTABLE`. After those general
+exact/binary inference disabled; legacy exposure-position `GROUPVAR` and `*`
+now expand into one retained TABLES result per field in declared/project order.
+The inspected legacy grammar retains one outcome per command, so multiple
+outcome fields are not presented as a parity requirement. Next add reviewed
+`OUTTABLE`. After those general
 tables, close stratified 2 × 2 Mantel–Haenszel and homogeneity outputs. Each increment
 requires a foodborne `.pgm`, machine-asserted expected output, browser execution,
 and ultimately reviewed desktop differential evidence.

@@ -107,9 +107,9 @@ example, selected execution can be browser-tested while its command remains
 | `MEANS` | AST 0.7 | V0.1 | Executes one numeric field against the active session | None | GROUPVAR expansion, cross-tabulation, tests/ANOVA, strata, weights, options, output tables |
 | `SUMMARIZE` | AST 1.0 | V0.1 one aggregate, source field, result name, output table, and optional group selector | Computes the aggregate against active READ/SELECT records, renders the named table, and retains it for READ during the session | None | Multiple aggregates, `COUNT()` without a field in the dialog, multiple strata, `WEIGHTVAR`, persistence/export, exact aggregate types/order/missing semantics, desktop differential output |
 | `GRAPH` | AST 1.0 bounded one-variable form | V0.3 variable, Bar/Column/Pie type, title, and axis titles | Uses the typed FREQ operation over active READ/SELECT records and renders accessible horizontal Bar, vertical Column, or Pie SVG plus an auditable data table | None | Area, Bubble, Epi Curve, Histogram, Line, Rotated Bar, Scatter, Weight Bar, multiple variables/cross-tabs, strata, weights/aggregates, templates, date intervals, 3D, exact legacy sizing/colors/window/output, desktop differential validation |
-| `TABLES` | AST 0.8 | V0.9 | Produces unstratified categorical M×N output or Cartesian strata; honors session missing settings; `STATISTICS=FISHER` adds bounded 2 × N exact enumeration; true observed 2 × 2 tables add validated Rust/WASM statistics and adjusted multi-stratum results; `WEIGHTVAR` sums finite non-negative numeric frequency weights with invalid/zero-weight audit and intentionally disables exact/binary inference | Sequential command-tour component, including weighted categorical and Rust/WASM-adjusted examples | General R × C Fisher, multiple exposure/outcome forms, match variables, reviewed `OUTTABLE`, exact legacy weight/error/output behavior, desktop differential capture, Rust `epi-lang` migration |
+| `TABLES` | AST 0.8 | V0.9 core + V0.1 exposure expansion | Produces unstratified categorical M×N output or Cartesian strata; honors session missing settings; `STATISTICS=FISHER` adds bounded 2 × N exact enumeration; true observed 2 × 2 tables add validated Rust/WASM statistics and adjusted multi-stratum results; `WEIGHTVAR` sums finite non-negative numeric frequency weights with invalid/zero-weight audit and intentionally disables exact/binary inference; an exposure-position GROUPVAR or `*` runs one separately labeled table per resolved field in legacy order | Sequential command-tour component, including weighted categorical, Rust/WASM-adjusted, and three-field food-exposure GROUPVAR examples | General R × C Fisher, match variables, reviewed `OUTTABLE`, exact legacy wildcard/weight/error/output behavior, desktop differential capture, Rust `epi-lang` migration |
 | `DEFINE` | AST 0.7 | V0.1 | Declares one Standard typed scalar in the Classic session | Bounded Standard text variable | Global/Permanent lifetimes, initializers, full variable-expression integration, differential validation |
-| `DEFINE GROUPVAR` | AST 0.7 | V0.1 field/Standard-variable selector | Stores a named session group; LIST expands field members in declared order | None | Nested groups, group replacement/error wording, expansion in FREQ/MEANS/TABLES/other commands, Standard-variable LIST output, desktop differential output |
+| `DEFINE GROUPVAR` | AST 0.7 | V0.1 field/Standard-variable selector | Stores a named session group; LIST and the TABLES exposure position expand field members in declared order | Foodborne TABLES three-exposure expansion | Nested groups, group replacement/error wording, expansion in FREQ/MEANS/other commands, Standard-variable LIST/TABLES output, desktop differential output |
 | `UNDEFINE` | AST 0.7 | V0.1 Standard-variable selector/all toggle | Removes one or all Standard session variables | None | Global/Permanent lifetime, legacy no-op/error wording, full-program sequencing, desktop differential output |
 | `DISPLAY` | AST 0.7 | V0.1 familiar DBVARIABLES choices | Renders all, defined, field, or selected variable metadata in Output | None | DBVIEWS/TABLES, external database choice, OUTTABLE persistence, exact legacy formatting/type labels, desktop differential HTML |
 | `RECODE` | AST 0.7 | V0.1 numeric range grid | No | Bounded numeric ranges to text | Value/date recodes, fill-ranges/reverse options, missing rules, broader target types, selected execution |
@@ -223,10 +223,12 @@ branch commands remain fail-closed.
 `DEFINE name GROUPVAR members...` now has its familiar Variables-tree path and
 typed multi-select dialog. Definitions live in the Classic session, preserve
 declared member order, appear in status/history, reset on READ, and expand field
-members when LIST resolves. The slice does not create a synthetic data column.
-Nested groups, replacement semantics, Standard-variable values in LIST, and
-expansion in FREQ/MEANS/TABLES or other consumers remain fail-closed/open until
-their legacy behavior and output have separate differential evidence.
+members when LIST or the exposure position of TABLES resolves. TABLES retains a
+separate labeled output for each member and preserves the original GROUPVAR
+command in history. The slice does not create a synthetic data column. Nested
+groups, replacement semantics, Standard-variable values in LIST, and expansion
+in FREQ/MEANS or other consumers remain fail-closed/open until their legacy
+behavior and output have separate differential evidence.
 
 `RELATE` now restores the familiar Data-tree path for forms already available
 in the current project. Its typed join engine accepts one or more

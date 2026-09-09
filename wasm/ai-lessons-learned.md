@@ -222,3 +222,24 @@ privacy, security, or production readiness.
 - **Implementation lesson:** resolve the Worker URL from `document.baseURI`.
   Resolving from `import.meta.url` broke after bundling the caller into `/chunks`,
   leaving the UI at “Starting” before any download callback could run.
+
+### 2026-09-03 — One reviewed action boundary across foundation models
+
+- **Decision:** retain local IBM Granite as the offline/default model path and
+  expose OpenAI (ChatGPT-model) and Anthropic (Claude-model) examples only
+  through an administrator-configured, same-origin Epi Assist gateway.
+- **Secret boundary:** provider credentials belong to the gateway. They are not
+  accepted by, embedded in, or persisted by the browser application.
+- **Data boundary:** the cloud request contains the prompt and the existing
+  minimized field/schema and aggregate-quality context, never record values.
+- **Normalization:** each provider adapter returns native tool calls using the
+  shared Epi Assist contract. The browser does not execute vendor-authored code
+  or trust vendor prose; it independently validates tools, fields, types, and
+  argument bounds.
+- **Audit:** store the provider, exact resolved model/revision, opaque gateway
+  request ID, and prompt/tool schema versions with the proposal. A friendly
+  label such as “ChatGPT” or “Claude” is insufficient provenance.
+- **Deployment result:** static GitLab/GitHub Pages can demonstrate the choices
+  and preserve local Granite, but cloud inference requires a separately deployed
+  approved gateway. Failure or absence of that service leaves core Epi Info
+  workflows available and enables no cloud-authored action.

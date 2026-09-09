@@ -51,8 +51,10 @@ git submodule update --init --recursive
 - SQLite WASM and OPFS for browser-local project data
 - Explicit import, export, backup, and audit history
 - Optional AI that calls deterministic tools and is never required for core operation
-- Local IBM Granite prototype with explicit model loading, aggregate-only context,
-  typed reviewed actions, and no inference API
+- Provider-selectable Epi Assist: local IBM Granite plus optional OpenAI
+  (ChatGPT-model) and Anthropic (Claude-model) adapters through a same-origin,
+  administrator-configured gateway; all use aggregate-only context and typed,
+  reviewed actions
 
 ## Browser demo
 
@@ -75,6 +77,18 @@ Current capabilities include:
   Longitude), explicit geocode-result review/selection, and current-form Case
   Cluster handoff;
 - automatic form and record creation from CSV, TSV, JSON records, and Excel `.xlsx`, plus CSV export;
+- non-mutating Enter Data import preview with file-digest repeat warnings,
+  suggested identity-field matching, new/matching/changed/unchanged counts, and
+  explicit update-and-append, update-only, append-new, or replace choices;
+- the familiar Enter Data **Package For Transport** and **From Data Package**
+  paths: V0.1 can filter records, blank selected optional fields, create and
+  read password-protected `.epiax` packages using PBKDF2-SHA-256 plus
+  AES-256-GCM authenticated encryption, and route decrypted records into the
+  same non-mutating import preview; legacy `.edp7` remains an explicit gap;
+- a **Secure Epi Info Share** new branch that manually pairs two browsers with
+  exchanged WebRTC offer/answer codes and visible DTLS fingerprints, transfers
+  only the encrypted `.epiax` bytes in bounded chunks with backpressure and
+  SHA-256 verification, and requires passphrase validation plus import preview;
 - typed, regression-tested Form Designer and Enter Data menus that preserve the
   legacy C# order, expose unported commands as named gaps, and mark browser-only
   additions as new branches;
@@ -136,9 +150,10 @@ Current capabilities include:
   2 x 2 workflow still requires explicit value review;
 - a Tools > Epi Assist **new branch** that can run IBM Granite 4.0 350M
   through a CPU/WebAssembly compatibility path (q4) or compare the WebGPU 350M
-  (fp16) and 1B (q4) options, then propose reviewed handoffs to Data Quality,
-  Classic `FREQ`, and Epi Curve; the non-AI preview demonstrates the same handoff
-  without loading a model;
+  (fp16) and 1B (q4) options, or use optional OpenAI (ChatGPT-model) and Anthropic
+  (Claude-model) choices through a deployment-managed gateway, then propose
+  reviewed handoffs to Data Quality, Classic `FREQ`, and Epi Curve; the non-AI
+  preview demonstrates the same handoff without loading or contacting a model;
 - a StatCalc Population Survey candidate preserving the familiar five inputs and seven-level cluster/total sample table;
 - a StatCalc Cohort or Cross-Sectional candidate with linked effect measures and Kelsey/Fleiss sample-size output;
 - a StatCalc Unmatched Case-Control candidate with linked exposure measures and cases/controls sample-size output;
@@ -167,12 +182,15 @@ a transparent validation demonstration and does not replace the algorithm gates 
 appear in the Epi Info workflow menus. Its current Pyodide runtime and scientific
 packages are fetched on demand, so the first notebook run requires network access.
 
-The Epi Assist prototype likewise distinguishes local inference from offline
-distribution. Its first user-initiated load retrieves approximately 576 MB for
-the default CPU-compatible model, 709 MB for 350M WebGPU, or 1.78 GB for 1B
-WebGPU, and enables browser caching. Prompts,
-record values, and project content are not sent to an inference API; V0.1 sends
-only field metadata and aggregate quality counts into the local Worker. See the
+The Epi Assist prototype distinguishes local inference, offline distribution,
+and managed inference. Its first user-initiated Granite load retrieves
+approximately 576 MB for the default CPU-compatible model, 709 MB for 350M
+WebGPU, or 1.78 GB for 1B WebGPU, and enables browser caching. Granite prompts
+and minimized context stay in the local Worker. ChatGPT/Claude choices require a
+separately deployed same-origin gateway: the browser sends only the prompt,
+field metadata, and aggregate quality counts—not record values—and never holds a
+provider API key. Static Pages without that gateway retain Granite and non-AI
+preview behavior. See the
 [Epi Assist new-branch inventory](wasm/docs/design/epi-assist-compatibility-inventory.md)
 
 [AI enablement lessons learned](wasm/ai-lessons-learned.md)
@@ -512,6 +530,13 @@ checksums, expected metadata, and combined testing workflow are documented in
 
 ## TODO
 
+- **Secure Epi Info Share hardening:** V0.1 now provides authenticated `.epiax`
+  packaging and manual direct WebRTC exchange. Add reviewed legacy `.edp7`
+  reading, Argon2id, QR/short-code signaling, explicit STUN/TURN policy and route
+  reporting, quota preflight, cancellation/resume, durable quarantine, transfer
+  receipts, cross-device testing, and independent security review. It must not
+  claim automatic nearby-device discovery or silently import received data.
+
 - **Next Statistics slice — continue Classic Analysis `TABLES` parity.** The
   current browser-verified V0.9 floor renders unstratified and multi-stratum categorical counts, row/column
   percentages, totals, expected counts, Pearson chi-square/df/probability, and
@@ -526,11 +551,14 @@ checksums, expected metadata, and combined testing workflow are documented in
   defaults in ordered programs. A stratified binary TABLES command now sends
   its displayed cells to the validated Rust/WASM Worker and appends adjusted
   Mantel–Haenszel OR/RR, confidence limits, association tests, conditional OR,
-  and homogeneity tests. Next implement and test:
+  and homogeneity tests.
   `WEIGHTVAR` now supplies finite, non-negative numeric frequency weights with
-  an independent JupyterLite check. Next implement and test:
-  - multiple exposure/outcome variables and GROUPVAR expansion; and
-  - reviewed `OUTTABLE` behavior.
+  an independent JupyterLite check. Legacy exposure-position `GROUPVAR` and `*`
+  now expand into one separately labeled, auditable TABLES output per field in
+  declared/project order; the foodborne command tour exercises a three-food
+  group. Next implement and test reviewed `OUTTABLE` behavior. Multiple outcome
+  fields are not claimed because the inspected legacy grammar accepts one
+  outcome per TABLES command.
   Preserve the legacy dialog and visible command source, add foodborne `.pgm`
   fixtures and expected results for every increment, and do not mark TABLES
   legacy-parity-verified until desktop differential output is reviewed.

@@ -13,6 +13,15 @@ Single Table Analysis from the displayed first-row/first-column orientation.
 Yes/No and Checkbox fields use affirmative-first ordering, and the UI states
 the exact exposed, unexposed, case, and non-case values.
 
+The inspected legacy rule expands a GROUPVAR specifically in the exposure
+position and executes one table per member. This browser adapter preserves that
+behavior for `TABLES group outcome` and `TABLES * outcome`: each resolved field
+runs through the unchanged V0.9 single-table contract, remains separately
+labeled in Output, and retains the original command in history. The outcome is
+still one identifier, as specified by the legacy grammar. For safety, wildcard
+expansion excludes the outcome, strata, weight, and non-data command fields
+instead of attempting invalid same-field tables.
+
 `STATISTICS=FISHER` requests a Fisher–Freeman–Halton two-sided exact test for
 an observed 2 × N table. It enumerates fixed-margin tables with log-factorials
 and log-sum-exp, uses the `3.45254e-7` comparison tolerance found in legacy
@@ -74,6 +83,8 @@ TABLES potato_salad case_status STATISTICS=FISHER
 TABLES potato_salad hamburger
 TABLES potato_salad hamburger STRATAVAR=Sex
 TABLES potato_salad case_status WEIGHTVAR=Age
+DEFINE FoodExposures GROUPVAR potato_salad hamburger grilled_chicken
+TABLES FoodExposures case_status
 SET (.)="Not recorded"
 SET MISSING=ON
 TABLES vomiting Sex
@@ -126,10 +137,18 @@ not represented as an epidemiologically meaningful survey weight—the fixture
 only makes the legacy accumulation behavior deterministic and immediately
 testable on the canonical data.
 
+The exposure GROUPVAR fixture runs three tables in declared order. Their
+unstratified Pearson anchors are `52.07692307692308` for potato salad,
+`3.3397362515903555` for hamburger, and `2.4111360234241594` for grilled
+chicken; the last table includes 95 records and audits one missing exposure.
+Exact matrices and provenance live in
+`foodborne-tables-groupvar.expected.json`.
+
 ## Evidence and open gates
 
 - Phase 0 derives the result from the checksummed foodborne CSV and asserts the
-  complete V0.9 mapping contract, multiple-strata labels, weighted cells, and exact cells,
+  complete V0.9 mapping contract, ordered GROUPVAR/wildcard expansion,
+  multiple-strata labels, weighted cells, and exact cells,
   missing-value session behavior, bounded 2 × N exact anchor and limit
   behavior, plus Rust/WebAssembly single and stratified 2 × 2 anchors.
 - Browser tests open the PGM through the visible Program Editor and inspect its
@@ -139,5 +158,5 @@ testable on the canonical data.
 
 This evidence earns only `browser-verified`. Desktop Epi Info differential
 output, exact formatting/order review, missing-value variants,
-multiple exposure/outcome forms, exact legacy weight edge/error behavior, output tables, and general R × C Fisher
+exact legacy wildcard and weight edge/error behavior, output tables, and general R × C Fisher
 remain open before legacy parity can be claimed.

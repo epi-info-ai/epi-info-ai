@@ -14,8 +14,16 @@ the user back to Data Quality, `FREQ`, and Epi Curve using those existing screen
   709 MB), or Granite 4.0 1B WebGPU (`q4`, approximately 1.78 GB), using browser
   ONNX models through Transformers.js. Changing the selection terminates the
   current Worker so multiple models are not retained in execution memory.
+- Optional managed providers: OpenAI (ChatGPT-model) and Anthropic
+  (Claude-model) choices use the same typed-action UI through a same-origin Epi
+  Assist gateway. The exact provider model is resolved and returned for audit by
+  that gateway; friendly UI names are not treated as model versions.
 - Inference: inside a dedicated browser Worker. No prompt, schema, aggregate, or
-  record is submitted to an inference API.
+  record is submitted to an inference API when Granite is selected. With an
+  explicitly selected managed provider, the prompt and minimized schema and
+  aggregate context are sent to the configured gateway; record values are not.
+- Credentials: cloud-provider keys are gateway-only secrets. The browser has no
+  API-key input and does not embed or persist provider credentials.
 - First use: model loading is user initiated and retrieves the selected model
   files from the configured model host. Browser caching is enabled;
   a network-independent/offline claim requires a later self-hosted and packaged
@@ -58,6 +66,7 @@ gates.
 | LEGACY-AI-004 | Visual Dashboard > Epi Curve | Select a typed date field and optional real grouping field, then run the existing chart operation | Prototype |
 | LEGACY-AI-005 | Cross-cutting security | Aggregate-only context, strict proposal parser, action allowlist, user approval and fail-closed errors | Prototype |
 | LEGACY-AI-006 | Model distribution | Approved CDC-hosted model artifacts, integrity/version pinning, cache/offline policy, device budgets and fallback | Open |
+| LEGACY-AI-007 | Foundation-model gateway | Optional ChatGPT/Claude provider adapters, same-origin boundary, normalized tool calls, exact model/request provenance, and no browser-held secrets | Prototype client; gateway deployment open |
 
 The **Preview without AI** button is a deterministic demonstration of the same
 reviewed-action handoff. It is labeled as not using Granite and makes no AI claim.
