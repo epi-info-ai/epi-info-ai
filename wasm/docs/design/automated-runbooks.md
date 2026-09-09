@@ -19,6 +19,8 @@ The V0.1 contract provides:
 - a Help > Automated Runbooks entry and replayable library;
 - visible spotlight, step count, instructions, Back, Next, Finish, and Stop;
 - action-aware progression after the expected click or selection; and
+- an always-available Next control when an equivalent legacy path has already
+  completed the requested action or the browser does not expose its event; and
 - a screen-reader live region and responsive coach panel.
 
 Open gates include keyboard focus return and trapping review, reduced-motion

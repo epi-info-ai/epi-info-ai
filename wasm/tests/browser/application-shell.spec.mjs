@@ -169,8 +169,9 @@ test("Help runbook guides a dataset-matched foodborne Program Editor workflow", 
   await coach.getByRole("button", { name: "Next" }).click();
   await expect(page.locator("#classic-program-toolbar-open")).toHaveClass(/runbook-highlight/);
   await page.locator("#classic-program-toolbar-open").click();
-  await expect(coach.locator("#runbook-step-title")).toHaveText("Choose the foodborne example");
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Choose a foodborne program");
   await expect(page.locator("#classic-program-dialog")).toBeVisible();
+  await expect(coach.getByRole("button", { name: "Next" })).toBeEnabled();
   await page.locator("#classic-program-example").selectOption("life-stage-by-sex");
   await expect(coach.locator("#runbook-step-title")).toHaveText("Load visible source");
   await page.locator("#classic-program-load-example").click();
@@ -179,6 +180,35 @@ test("Help runbook guides a dataset-matched foodborne Program Editor workflow", 
   await coach.locator("#runbook-stop").click();
   await expect(coach).toBeHidden();
   await expect(page.locator(".runbook-highlight")).toHaveCount(0);
+});
+
+test("Help runbook accepts the saved-project Open Pgm path and never traps Next", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("imported 96 records");
+
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-toolbar-open").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne-classic-command-tour.pgm7");
+  await page.locator("#classic-program-toolbar-save").click();
+  await page.locator("#classic-program-dialog-primary").click();
+  await expect(page.locator("#classic-program-dialog")).toBeHidden();
+  await expect(page.locator("#classic-program-document-state")).toContainText("saved");
+
+  await page.locator("#help-menu summary").click();
+  await page.locator("#help-runbooks").click();
+  await page.locator("#runbook-start").click();
+  const coach = page.locator("#runbook-coach");
+  await coach.getByRole("button", { name: "Next" }).click();
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Choose a foodborne program");
+  await page.locator("#classic-program-dialog-project").selectOption({ label: "foodborne-classic-command-tour" });
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Load visible source");
+  await page.locator("#classic-program-dialog-primary").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Verify the typed program");
+  await expect(coach.getByRole("button", { name: "Next" })).toBeEnabled();
 });
 
 test("File menu opens and saves the migrated official Sample project", async ({ page }) => {

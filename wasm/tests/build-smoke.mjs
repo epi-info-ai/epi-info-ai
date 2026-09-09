@@ -76,7 +76,7 @@ requiredFiles.push("duckdb-eh.wasm", "duckdb-browser-eh.worker.js");
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=92["']/);
+assert.match(html, /src=["']app\.js\?v=93["']/);
 assert.match(html, /href=["']styles\.css\?v=60["']/);
 assert.match(html, /id=["']study-area-dialog["']/);
 assert.match(html, /id=["']main-menu["']/);

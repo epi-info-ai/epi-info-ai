@@ -4,6 +4,7 @@ export interface UiRunbookStep {
   instruction: string;
   target: string;
   advanceOn?: "click" | "change";
+  advanceTargets?: readonly string[];
 }
 
 export interface UiRunbook {
@@ -39,17 +40,19 @@ export const UI_RUNBOOKS: readonly UiRunbook[] = [{
     },
     {
       id: "choose-example",
-      title: "Choose the foodborne example",
-      instruction: "Choose a foodborne example from the list. Examples are offered only when their matching dataset is loaded; Life-stage age groups by sex is a concise first run.",
-      target: "#classic-program-example",
+      title: "Choose a foodborne program",
+      instruction: "Choose the saved foodborne command tour or a dataset-matched example. Compatible examples appear only when their matching dataset is loaded.",
+      target: ".classic-program-dialog-body",
       advanceOn: "change",
+      advanceTargets: ["#classic-program-dialog-project", "#classic-program-example", "#classic-program-file"],
     },
     {
       id: "load-example",
       title: "Load visible source",
-      instruction: "Select Load Example. This loads source into the editor but does not execute it.",
-      target: "#classic-program-load-example",
+      instruction: "Select Open for a saved program or Load Example for a compatible example. This loads visible source but does not execute it.",
+      target: ".legacy-dialog-actions",
       advanceOn: "click",
+      advanceTargets: ["#classic-program-dialog-primary", "#classic-program-load-example"],
     },
     {
       id: "verify",
@@ -133,7 +136,10 @@ export function initializeUiRunbooks(): void {
     instruction.textContent = step.instruction;
     back.disabled = stepIndex === 0;
     next.textContent = stepIndex === active.steps.length - 1 ? "Finish" : "Next";
-    next.disabled = Boolean(step.advanceOn);
+    // Automatic advancement is convenient, but Next must always remain an
+    // escape hatch when a browser event is unavailable or an equivalent legacy
+    // workflow has already completed the requested action.
+    next.disabled = false;
     const target = document.querySelector<HTMLElement>(step.target);
     if (target) {
       highlighted = target;
@@ -175,7 +181,10 @@ export function initializeUiRunbooks(): void {
     if (!active) return;
     const step = active.steps[stepIndex];
     if (!step?.advanceOn || step.advanceOn !== event.type) return;
-    const origin = event.target instanceof Element ? event.target.closest(step.target) : null;
+    const targets = step.advanceTargets ?? [step.target];
+    const origin = event.target instanceof Element
+      ? targets.some((target) => event.target instanceof Element && Boolean(event.target.closest(target)))
+      : false;
     if (origin) move(1);
   };
   document.addEventListener("click", advanceFromAction);
