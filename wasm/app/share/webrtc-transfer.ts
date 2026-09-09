@@ -52,10 +52,18 @@ function safeTransferName(name: string): string {
 
 function waitForIceGathering(peer: RTCPeerConnection): Promise<void> {
   if (peer.iceGatheringState === "complete") return Promise.resolve();
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("The browser could not create a direct WebRTC route within 8 seconds. Secure Share may be unavailable on this network."));
+    }, 8_000);
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      peer.removeEventListener("icegatheringstatechange", changed);
+    };
     const changed = () => {
       if (peer.iceGatheringState !== "complete") return;
-      peer.removeEventListener("icegatheringstatechange", changed);
+      cleanup();
       resolve();
     };
     peer.addEventListener("icegatheringstatechange", changed);
