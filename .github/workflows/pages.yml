@@ -59,8 +59,9 @@ jobs:
           python wasm/validation-lab/verify.py
           jupyter lite build --lite-dir wasm/validation-lab --contents content --output-dir wasm/dist/validation-lab
           test -f wasm/dist/validation-lab/lab/index.html
-          test -f wasm/dist/validation-lab/files/validate-chi-square-trend.ipynb
-          test -f wasm/dist/validation-lab/files/validate-tables.ipynb
+          for notebook in wasm/validation-lab/content/*.ipynb; do
+            test -f "wasm/dist/validation-lab/files/$(basename "$notebook")"
+          done
           touch wasm/dist/.nojekyll
 
       - name: Run browser acceptance tests
