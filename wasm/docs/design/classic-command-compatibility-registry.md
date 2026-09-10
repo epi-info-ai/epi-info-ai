@@ -79,12 +79,12 @@ snapshot makes its current implementation states easy to review:
 
 | State | Count | Commands |
 |---|---:|---|
-| Typed AST/parser | 24 | `READ`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `DEFINE`, `DEFINE GROUPVAR`, `UNDEFINE`, `ASSIGN`, `RECODE`, `DISPLAY`, `SELECT`, `CANCEL SELECT`, `IF`, `SORT`, `CANCEL SORT`, `LIST`, `FREQ`, `MEANS`, `TABLES`, `SUMMARIZE`, `GRAPH` |
-| Typed source dialog | 24 | Same 24 commands |
-| Selected execution or reviewed handoff | 23 | All above except `RECODE`; `TABLES` executes a categorical cross-tab, while `DELETE TABLES`, `DELETE RECORDS`, and `UNDELETE RECORDS` require reviewed mutation handoffs |
-| Bounded full-program component | 3 | `DEFINE`, `RECODE`, `FREQ` |
-| Completely untouched | 25 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
-| Browser-verified with foodborne `.pgm` + expected output | 19 | `READ`, `IF`, `UNDEFINE`, `DISPLAY`, `DEFINE GROUPVAR`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `LIST`, ordinary `FREQ`, Complex Sample Frequencies, `MEANS`, ordinary `TABLES`, Complex Sample Tables, `SUMMARIZE`, `GRAPH` |
+| Typed AST/parser | 28 | The 24 ordinary commands previously listed, plus Complex Sample Frequencies, Complex Sample Tables, Complex Sample Means, and `SET` |
+| Typed source dialog | 28 | Same 28 command entries |
+| Selected execution or reviewed handoff | 27 | All above except `RECODE`; `DELETE TABLES`, `DELETE RECORDS`, and `UNDELETE RECORDS` require reviewed mutation handoffs |
+| Bounded full-program component | 8 | `DEFINE`, `RECODE`, ordinary `FREQ`, ordinary `TABLES`, Complex Sample Frequencies, Complex Sample Tables, Complex Sample Means, and `SET` |
+| Completely untouched | 21 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
+| Browser-verified with foodborne `.pgm` + expected output | 21 | `READ`, `IF`, `UNDEFINE`, `DISPLAY`, `DEFINE GROUPVAR`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `LIST`, ordinary `FREQ`, Complex Sample Frequencies, ordinary `MEANS`, Complex Sample Means, ordinary `TABLES`, Complex Sample Tables, `SUMMARIZE`, `GRAPH`, and `SET` |
 | Legacy-parity-verified | 0 | No command may enter this row without reviewed desktop Epi Info output |
 
 The implementation columns describe port progress, not parity closure. For

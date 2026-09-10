@@ -15,6 +15,7 @@ Project materials currently live in [`wasm/`](wasm/):
 - [`docs/design/legacy-capability-register.md`](wasm/docs/design/legacy-capability-register.md) - compatibility floor, backlog gap IDs, new branches, and deprecation/retirement log;
 - [`docs/design/menu-compatibility-registry.md`](wasm/docs/design/menu-compatibility-registry.md) - item-level menu paths, command-state/function parity, and lifecycle gaps;
 - [`docs/design/classic-command-compatibility-registry.md`](wasm/docs/design/classic-command-compatibility-registry.md) - all 49 legacy Classic Analysis command entries and their independent syntax/dialog/execution/output parity dimensions;
+- [`COMMAND_SET.md`](COMMAND_SET.md) - concise command-by-command port dashboard, evidence status, and remaining parity gaps;
 - [`docs/design/charts-compatibility-inventory.md`](wasm/docs/design/charts-compatibility-inventory.md) - the 8 Classic GRAPH types, 8 Visual Dashboard chart branches, source-only variants, properties, and independent parity gates;
 - [`docs/design/new-branch-command-registry.md`](wasm/docs/design/new-branch-command-registry.md) - explicit Epi Info AI command extensions kept separate from the legacy parity floor;
 - [`docs/demo-runbook.md`](wasm/docs/demo-runbook.md) - a short, failure-aware demo path for experienced Epi Info and global-health surveillance users;
@@ -56,7 +57,8 @@ git submodule update --init --recursive
   administrator-configured gateway; all use aggregate-only context and typed,
   reviewed actions
 - Help > Automated Runbooks new branch with a reusable, action-aware walkthrough
-  engine and an initial foodborne Program Editor example
+  engine, a foodborne Program Editor example, and a manual Secure Epi Info Share
+  pairing, fingerprint-verification, transfer, and import-review walkthrough
 
 ## Browser demo
 
@@ -98,10 +100,20 @@ Current capabilities include:
   read password-protected `.epiax` packages using PBKDF2-SHA-256 plus
   AES-256-GCM authenticated encryption, and route decrypted records into the
   same non-mutating import preview; legacy `.edp7` remains an explicit gap;
+- top-level **Save Encrypted Project** and **Open Encrypted Project** new-branch
+  paths: the browser inventories and validates the complete portable `.epia`
+  working copy, including all forms and records, saved programs, code tables,
+  study-area metadata, audit history, and attached PMTiles, GeoJSON, and
+  GeoTIFF map assets, then protects or reviews it as an authenticated `.epiax`;
+  other attachment classes remain disclosed rather than silently omitted;
 - a **Secure Epi Info Share** new branch that manually pairs two browsers with
   exchanged WebRTC offer/answer codes and visible DTLS fingerprints, transfers
   only the encrypted `.epiax` bytes in bounded chunks with backpressure and
   SHA-256 verification, and requires passphrase validation plus import preview;
+- an automated **Encrypted complete-project package** runbook that walks the
+  user through artifact inventory, archive creation, passphrase separation,
+  encrypted download, Secure Share handoff, and reviewed full-project opening
+  without silently encrypting, transmitting, decrypting, or replacing a project;
 - typed, regression-tested Form Designer and Enter Data menus that preserve the
   legacy C# order, expose unported commands as named gaps, and mark browser-only
   additions as new branches;
@@ -128,8 +140,8 @@ Current capabilities include:
   restore, exact-digest PMTiles re-import, blank continuation, or detach;
   proactive quota-pressure warning and network-disabled field acceptance remain open;
 - validated File > Open Project and Save Project As using a portable binary
-  `.epia` package; attached PMTiles archives are embedded, integrity-checked,
-  and restored to browser-local OPFS, while older JSON-only V2 packages remain readable,
+  `.epia` package; attached PMTiles, GeoJSON, and GeoTIFF assets are embedded,
+  integrity-checked, and restored to browser-local OPFS, while older JSON-only V2 packages remain readable,
   plus a reproducible conversion of the official legacy Sample project;
 - standalone and current-form map workflows, browser geolocation, and an optional online OpenStreetMap basemap;
 - browser-local GeoJSON upload, polygon-label field selection, zoom-dependent interior labels, and label visibility controls;

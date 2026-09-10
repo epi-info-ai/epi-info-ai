@@ -5,15 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="A browser-first Epi Info AI 2 by 2 table demonstration with deterministic epidemiologic calculations."
+      content="Epi Info AI: a browser-first public health toolkit preserving familiar Epi Info workflows while adding validated modern capabilities."
     />
+    <meta property="og:title" content="Epi Info AI" />
+    <meta property="og:description" content="Browser-first Epi Info workflows, validated analysis, mapping, and secure project exchange." />
     <meta name="theme-color" content="#075985" />
-    <title>Epi Info AI - 2 x 2 Table Demo</title>
+    <title>Epi Info AI</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
     <link rel="stylesheet" href="styles.css?v=60" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=94"></script>
+    <script type="module" src="app.js?v=97"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -37,6 +39,8 @@
         <div class="legacy-menu-popup" role="menu" aria-label="File">
           <button id="file-open-project" type="button" role="menuitem">Open Project...</button>
           <button id="file-save-project" type="button" role="menuitem">Save Project As...</button>
+          <button id="file-open-encrypted-project" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Open Encrypted Project...</button>
+          <button id="file-save-encrypted-project" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Save Encrypted Project...</button>
           <input id="project-package-open" class="sr-only" type="file" accept=".epia,.json,.epia.json,application/json,application/vnd.epi-info-ai.project" />
           <div class="legacy-menu-separator" role="separator"></div>
           <button id="file-exit" type="button" role="menuitem">Exit</button>
@@ -106,6 +110,55 @@
       <p id="runbook-step-instruction"></p>
       <div class="runbook-coach-actions"><button id="runbook-back" type="button">Back</button><button id="runbook-next" class="primary-button" type="button">Next</button></div>
     </aside>
+
+    <dialog id="encrypted-project-save-dialog" class="legacy-dialog package-transport-dialog" aria-labelledby="encrypted-project-save-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar"><h2 id="encrypted-project-save-title"><span class="new-branch-badge">New branch</span> Save Encrypted Project</h2><button id="encrypted-project-save-close" value="cancel" aria-label="Close">×</button></div>
+        <div class="legacy-dialog-body">
+          <p class="dialog-note"><strong>Complete portable working copy.</strong> The project archive is assembled and validated first, then the complete archive is protected as an authenticated <code>.epiax</code> package.</p>
+          <dl id="encrypted-project-save-summary" class="package-context">
+            <div><dt>Project</dt><dd id="encrypted-project-save-name-summary"></dd></div>
+            <div><dt>Forms</dt><dd id="encrypted-project-save-forms"></dd></div>
+            <div><dt>Records</dt><dd id="encrypted-project-save-records"></dd></div>
+            <div><dt>Programs</dt><dd id="encrypted-project-save-programs"></dd></div>
+            <div><dt>Embedded map assets</dt><dd id="encrypted-project-save-maps"></dd></div>
+          </dl>
+          <p class="dialog-note">The V0.2 archive includes project definitions, records, saved programs, code tables, study-area metadata, audit history, attached PMTiles, GeoJSON, and GeoTIFF. Other attachment types remain an explicit gap.</p>
+          <label for="encrypted-project-save-name">Package name</label>
+          <input id="encrypted-project-save-name" maxlength="100" autocomplete="off" />
+          <fieldset id="encrypted-project-save-security">
+            <legend>Security</legend>
+            <label>Passphrase <input id="encrypted-project-save-passphrase" type="password" minlength="12" maxlength="1024" autocomplete="new-password" /></label>
+            <label>Verify passphrase <input id="encrypted-project-save-passphrase-verify" type="password" minlength="12" maxlength="1024" autocomplete="new-password" /></label>
+            <p class="dialog-note">At least 12 characters. Never send the passphrase with the package; it is not saved and cannot be recovered.</p>
+          </fieldset>
+          <p id="encrypted-project-save-status" class="inline-feedback" role="status"></p>
+        </div>
+        <div class="legacy-dialog-actions"><button id="encrypted-project-save-create" class="dialog-primary" type="button">Create Encrypted Project</button><button value="cancel">Close</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="encrypted-project-open-dialog" class="legacy-dialog package-transport-dialog" aria-labelledby="encrypted-project-open-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar"><h2 id="encrypted-project-open-title"><span class="new-branch-badge">New branch</span> Open Encrypted Project</h2><button value="cancel" aria-label="Close">×</button></div>
+        <div class="legacy-dialog-body">
+          <p class="dialog-note">Decryption and complete archive validation occur before the current project changes. Review the inventory before selecting Open Project.</p>
+          <label for="encrypted-project-open-file">Encrypted project package</label>
+          <input id="encrypted-project-open-file" type="file" accept=".epiax,application/vnd.epi-info-ai.encrypted-project" />
+          <label for="encrypted-project-open-passphrase">Passphrase</label>
+          <input id="encrypted-project-open-passphrase" type="password" maxlength="1024" autocomplete="current-password" />
+          <dl id="encrypted-project-open-summary" class="package-context" hidden>
+            <div><dt>Project</dt><dd id="encrypted-project-open-name"></dd></div>
+            <div><dt>Forms</dt><dd id="encrypted-project-open-forms"></dd></div>
+            <div><dt>Records</dt><dd id="encrypted-project-open-records"></dd></div>
+            <div><dt>Programs</dt><dd id="encrypted-project-open-programs"></dd></div>
+            <div><dt>Embedded map assets</dt><dd id="encrypted-project-open-maps"></dd></div>
+          </dl>
+          <p id="encrypted-project-open-status" class="inline-feedback" role="status"></p>
+        </div>
+        <div class="legacy-dialog-actions"><button id="encrypted-project-open-review" class="dialog-primary" type="button">Review Package</button><button id="encrypted-project-open-apply" type="button" disabled>Open Project</button><button value="cancel">Close</button></div>
+      </form>
+    </dialog>
 
     <main id="main-menu" class="main-menu-screen">
       <section class="main-menu-actions" aria-labelledby="main-menu-title">
@@ -483,9 +536,10 @@
                 <p>Sender fingerprint: <code id="secure-share-receive-sender-fingerprint">Not received</code></p>
                 <p>Receiver fingerprint: <code id="secure-share-receive-fingerprint">Not created</code></p>
                 <progress id="secure-share-receive-progress" max="1" value="0"></progress>
-                <label>Package passphrase <input id="secure-share-receive-passphrase" type="password" maxlength="1024" autocomplete="current-password" /></label>
-                <button id="secure-share-review-received" type="button" disabled>2. Review Received Package</button>
-                <p id="secure-share-receive-status" class="inline-feedback" role="status"></p>
+                 <label>Package passphrase <input id="secure-share-receive-passphrase" type="password" maxlength="1024" autocomplete="current-password" /></label>
+                 <button id="secure-share-review-received" type="button" disabled>2. Review Received Package</button>
+                 <button id="secure-share-save-received" type="button" disabled>Save Encrypted Package</button>
+                 <p id="secure-share-receive-status" class="inline-feedback" role="status"></p>
               </fieldset>
             </div>
             <div class="legacy-dialog-actions"><button value="cancel">Close</button></div>

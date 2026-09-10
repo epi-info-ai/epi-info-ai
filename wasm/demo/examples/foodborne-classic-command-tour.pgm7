@@ -70,3 +70,17 @@ MEANS Age Sex STRATAVAR=case_status OUTTABLE=AgeBySexSurvey PSUVAR=household_nei
 
 *** NEW BRANCH - browser-native quality profile; not an Epi Info 7 command
 EPIAI QUALITY *
+
+*** Familiar IF / ELSE / END branch using Standard session variables only
+*** Record-field IF execution remains fail-closed pending record-by-record parity
+DEFINE ReviewLabel TEXTINPUT
+
+DEFINE PriorityFlag YN
+
+ASSIGN ReviewLabel = "Priority review"
+
+IF ReviewLabel = "Priority review" THEN
+  ASSIGN PriorityFlag = (+)
+ELSE
+  ASSIGN PriorityFlag = (-)
+END

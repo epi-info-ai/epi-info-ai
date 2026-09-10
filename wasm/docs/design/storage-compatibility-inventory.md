@@ -22,7 +22,7 @@ credentials; any such compatibility path requires a reviewed HTTPS service.
 | Gap ID | Familiar capability | Current browser state | Disposition and closure gate |
 |---|---|---|---|
 | LEGACY-STORAGE-001 | Project metadata, forms/pages, code tables, and collected-data relationships | Versioned JSON snapshot covers forms and flat records | Preserve. Inventory and map the complete legacy project model before format parity. |
-| LEGACY-STORAGE-002 | Create, open, save, copy, and select projects | File > Open Project and Save Project As validate a binary `.epia` envelope containing the V2 project manifest and any attached PMTiles payloads; legacy JSON V2 packages remain readable; project history/copy remain open | Preserve and extend with more attachment types, streaming limits, quota-eviction recovery, and compatibility tests. |
+| LEGACY-STORAGE-002 | Create, open, save, copy, and select projects | File > Open Project and Save Project As validate a binary `.epia` envelope containing the V2 project manifest and attached PMTiles, GeoJSON, and GeoTIFF payloads; legacy JSON V2 packages remain readable; project history/copy remain open | Preserve and extend with additional attachment/plugin types, streaming limits, quota-eviction recovery, and compatibility tests. |
 | LEGACY-STORAGE-003 | Microsoft Access project/data store | Browser V0.1 reads explicitly selected `.mdb`/`.accdb` files and converts readable tables to `.sqlite`; `.duckdb` is an analytical candidate target | Harden both output-extension branches with explicit object/type mapping, immutable-source handling, migration manifest, unsupported-object reporting, and desktop differential validation; do not silently drop. SQLite remains the operational target and DuckDB the analytical target. |
 | LEGACY-STORAGE-004 | SQL Server project/data store | No direct browser connection | Adapt through a least-privilege HTTPS organizational connector; never expose database credentials to WASM/browser code. |
 | LEGACY-STORAGE-005 | Import data between projects and related tables | CSV form/record import only | Preserve semantics with typed adapters, validation, relationships, and audit evidence. |
@@ -32,6 +32,7 @@ credentials; any such compatibility path requires a reviewed HTTPS service.
 | LEGACY-STORAGE-009 | Clear local/offline/pending/synchronized/failed feedback | Phase 3C state and action-local feedback present | Parity in progress. Persist truthful dirty/last-sync state and test recovery across reloads. |
 | LEGACY-STORAGE-010 | Password-encrypted Epi Info `.edp7` data packages | Not implemented; legacy `ProjectUnpackager` and `Configuration.DecryptFile` are inventoried | Preserve read compatibility through an isolated, bounded adapter and representative fixtures. The inspected legacy PBKDF2/Rijndael-CBC format is not approved for new writes; modern `.epia` encryption requires authenticated encryption and a reviewed password KDF. |
 | LEGACY-STORAGE-011 | Browser-to-browser encrypted project exchange (new branch) | V0.1 manually exchanges WebRTC offer/answer descriptions and visible DTLS fingerprints, then transfers a bounded authenticated `.epiax` package through an ordered DataChannel using 64 KiB chunks, buffered-amount backpressure, progress, and final SHA-256 validation before passphrase and import preview | Browser-verified direct/manual candidate. Add QR/short-code signaling, approved STUN/TURN and route disclosure, quota preflight, cancellation/resume, durable quarantine, receipts, cross-device/field tests, and security review. Do not claim automatic nearby discovery or synchronization. |
+| LEGACY-STORAGE-012 | Complete encrypted project package (new branch) | Top-level File commands inventory and assemble the complete validated `.epia` working copy, including attached PMTiles, GeoJSON, and GeoTIFF bytes, before encrypting it as `.epiax`; opening decrypts, validates, inventories, and restores the map assets before explicit replacement. The Help runbook connects creation to optional Secure Share handoff while preserving the separate data-only Package For Transport workflow | Browser candidate. Add other attachment and future plugin artifact classes, then complete threat, streaming, quota, recovery, and experienced-user review. |
 
 ## Phase 3C interaction contract
 
@@ -70,9 +71,10 @@ transitions, and the New Project dialog’s immediately visible local-storage no
   GUIDs, blobs, and referential integrity against desktop Epi Info/Access.
 - Continue defining Access conversion and organizational connector boundaries
   without placing privileged credentials in the browser. The first binary
-  `.epia` package is bounded to 150 MiB and embeds deduplicated PMTiles after a
-  validated V2 manifest; import verifies linkage, byte length, SHA-256 and
-  PMTiles header provenance before writing a new OPFS copy.
+  `.epia` package is bounded to 150 MiB and embeds deduplicated PMTiles,
+  GeoJSON, and GeoTIFF assets after a validated V2 manifest; import verifies
+  linkage, byte length, SHA-256 and format provenance before writing new OPFS
+  copies.
 - Preserve optional project study-area metadata as a closed WGS84 GeoJSON
   bounding polygon, ordered bounds, acquisition source, and explicit offline-map
   plan. The current plan records zoom 0 through a reviewed maximum, provider ID,
@@ -93,5 +95,5 @@ transitions, and the New Project dialog’s immediately visible local-storage no
 - Implement recoverable SQLite/OPFS storage and record-level collaboration only
   after their contracts and conflict tests are reviewed.
 - Evolve the initial `.epia` binary envelope without changing its V2 manifest
-  preservation rules; add attachment classes beyond PMTiles and streaming hash/
+  preservation rules; add attachment classes beyond map assets and streaming hash/
   copy limits before raising the current 150 MiB prototype cap.

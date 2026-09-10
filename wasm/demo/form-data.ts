@@ -8,6 +8,8 @@
   type HostedProjectReference,
   type ProjectForm,
   type ProjectSnapshotV1,
+  type ProjectMapAsset,
+  type ProjectMapLayer,
   type ProjectStudyArea,
 } from "../app/contracts/core.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
@@ -60,6 +62,7 @@ import { initializeStudyAreaPicker, openStudyAreaPicker } from "../app/forms/stu
 import { offlineMapProvider } from "../app/maps/offline-map-estimator.ts";
 import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
 import { readStoredPmtilesFile } from "../app/maps/pmtiles-reader.ts";
+import { readProjectMapAsset, removeProjectMapAsset, restoreProjectMapAsset } from "../app/maps/project-map-assets.ts";
 import { createSecureShareReceiver, createSecureShareSender } from "../app/share/webrtc-transfer.ts";
 import { renderFormDesignerMenuContract } from "../app/forms/form-designer-menu.ts";
 import { renderEnterDataMenuContract } from "../app/forms/enter-data-menu.ts";
@@ -562,6 +565,13 @@ export function detachCurrentOfflineMapAsset(sha256: string): void {
   delete studyArea.offlineMap.asset;
   studyArea.offlineMap.status = "not-downloaded";
   if (!syncCurrentForm()) throw new Error("The offline-map reference could not be detached.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+}
+
+export function replaceCurrentProjectMapState(assets: ProjectMapAsset[], layers: ProjectMapLayer[]): void {
+  const candidate = validateProjectSnapshot({ ...projectState, mapAssets: structuredClone(assets), mapLayers: structuredClone(layers) });
+  projectState = candidate;
+  if (!syncCurrentForm()) throw new Error("The project map layers could not be saved.");
   globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
 }
 
@@ -1479,6 +1489,10 @@ function projectOfflineAssets(snapshot: ProjectSnapshotV1) {
   return assets.filter((asset, index) => assets.findIndex((candidate) => candidate.sha256 === asset.sha256) === index);
 }
 
+function projectMapAssets(snapshot: ProjectSnapshotV1): ProjectMapAsset[] {
+  return snapshot.mapAssets ?? [];
+}
+
 async function saveProjectPackage(): Promise<void> {
   if (!hasActiveProject) {
     requiredElement("#main-menu-status").textContent = "Open or create a project before exporting a project package.";
@@ -1486,25 +1500,100 @@ async function saveProjectPackage(): Promise<void> {
   }
   requiredElement("#main-menu-status").textContent = `Preparing ${projectName} for portable export...`;
   try {
-    syncCurrentForm();
-    const packageValue = createProjectPackage(projectState, projectPackageExtras);
-    const archiveAssets: ProjectArchiveAsset[] = [];
-    for (const asset of projectOfflineAssets(packageValue.project)) {
-      archiveAssets.push({ asset, file: await readStoredPmtilesFile(asset) });
-    }
-    const blob = await createProjectArchive(packageValue, archiveAssets);
+    const { archive: blob, assetCount } = await createCompleteProjectArchive();
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `${safeFileStem(projectName)}.epia`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 0);
-    const mapSummary = archiveAssets.length === 0 ? "" : ` with ${archiveAssets.length} embedded offline map archive${archiveAssets.length === 1 ? "" : "s"}`;
+    const mapSummary = assetCount === 0 ? "" : ` with ${assetCount} embedded map asset${assetCount === 1 ? "" : "s"}`;
     requiredElement("#main-menu-status").textContent = `Saved ${projectName}${mapSummary} as a portable Epi Info AI project package.`;
   } catch (error) {
     requiredElement("#main-menu-status").textContent = error instanceof Error
       ? `Project export failed: ${error.message} Re-import any missing offline map package and try again.`
       : "Project export failed.";
   }
+}
+
+async function createCompleteProjectArchive(): Promise<{ archive: Blob; assetCount: number }> {
+  syncCurrentForm();
+  const packageValue = createProjectPackage(projectState, projectPackageExtras);
+  const archiveAssets: ProjectArchiveAsset[] = [];
+  for (const asset of projectOfflineAssets(packageValue.project)) {
+    archiveAssets.push({ asset, file: await readStoredPmtilesFile(asset) });
+  }
+  for (const asset of projectMapAssets(packageValue.project)) {
+    archiveAssets.push({ asset, file: await readProjectMapAsset(asset) });
+  }
+  return {
+    archive: await createProjectArchive(packageValue, archiveAssets),
+    assetCount: archiveAssets.length,
+  };
+}
+
+function renderEncryptedProjectSaveDialog(): void {
+  syncCurrentForm();
+  requiredElement("#encrypted-project-save-name-summary").textContent = projectName;
+  requiredElement("#encrypted-project-save-forms").textContent = String(projectState.forms.length);
+  requiredElement("#encrypted-project-save-records").textContent = String(projectState.forms.reduce((sum, form) => sum + form.records.length, 0));
+  requiredElement("#encrypted-project-save-programs").textContent = String(projectPackageExtras.programs.length);
+  requiredElement("#encrypted-project-save-maps").textContent = String(projectOfflineAssets(projectState).length + projectMapAssets(projectState).length);
+  requiredElement<HTMLInputElement>("#encrypted-project-save-name").value = safeFileStem(projectName);
+  requiredElement<HTMLInputElement>("#encrypted-project-save-passphrase").value = "";
+  requiredElement<HTMLInputElement>("#encrypted-project-save-passphrase-verify").value = "";
+  requiredElement("#encrypted-project-save-status").textContent = "Review the inventory, then enter and verify a passphrase.";
+  requiredElement<HTMLDialogElement>("#encrypted-project-save-dialog").showModal();
+}
+
+async function saveEncryptedCompleteProject(): Promise<void> {
+  const status = requiredElement("#encrypted-project-save-status");
+  const passphrase = requiredElement<HTMLInputElement>("#encrypted-project-save-passphrase").value;
+  const verification = requiredElement<HTMLInputElement>("#encrypted-project-save-passphrase-verify").value;
+  if (passphrase !== verification) throw new Error("The passphrases do not match.");
+  const packageName = safeFileStem(requiredElement<HTMLInputElement>("#encrypted-project-save-name").value);
+  status.textContent = "Assembling and validating the complete project archive...";
+  const { archive, assetCount } = await createCompleteProjectArchive();
+  status.textContent = "Encrypting the validated archive...";
+  const encrypted = await encryptProjectArchive(archive, passphrase);
+  const fileName = `${packageName}${ENCRYPTED_PROJECT_EXTENSION}`;
+  lastTransportPackage = new File([encrypted], fileName, { type: encrypted.type });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(lastTransportPackage);
+  link.download = fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  status.textContent = `Encrypted project complete: ${projectState.forms.length} form${projectState.forms.length === 1 ? "" : "s"}, ${projectPackageExtras.programs.length} program${projectPackageExtras.programs.length === 1 ? "" : "s"}, and ${assetCount} map asset${assetCount === 1 ? "" : "s"}. Store the passphrase separately.`;
+}
+
+let pendingEncryptedProject: File | null = null;
+
+function resetEncryptedProjectOpenDialog(): void {
+  pendingEncryptedProject = null;
+  requiredElement<HTMLInputElement>("#encrypted-project-open-file").value = "";
+  requiredElement<HTMLInputElement>("#encrypted-project-open-passphrase").value = "";
+  requiredElement<HTMLElement>("#encrypted-project-open-summary").hidden = true;
+  requiredElement<HTMLButtonElement>("#encrypted-project-open-apply").disabled = true;
+  requiredElement("#encrypted-project-open-status").textContent = "Select an encrypted project and enter its passphrase. Nothing changes until Open Project is selected.";
+}
+
+async function reviewEncryptedCompleteProject(): Promise<void> {
+  const status = requiredElement("#encrypted-project-open-status");
+  const file = requiredElement<HTMLInputElement>("#encrypted-project-open-file").files?.[0];
+  if (!file) throw new Error("Select an encrypted project package.");
+  if (!await isEncryptedProjectArchive(file)) throw new Error("The selected file is not a supported encrypted Epi Info AI package.");
+  status.textContent = `Decrypting and validating ${file.name}...`;
+  const decrypted = await decryptProjectArchive(file, requiredElement<HTMLInputElement>("#encrypted-project-open-passphrase").value);
+  const parsed = await parseProjectArchive(decrypted);
+  const project = parsed.projectPackage.project;
+  requiredElement("#encrypted-project-open-name").textContent = project.name;
+  requiredElement("#encrypted-project-open-forms").textContent = String(project.forms.length);
+  requiredElement("#encrypted-project-open-records").textContent = String(project.forms.reduce((sum, form) => sum + form.records.length, 0));
+  requiredElement("#encrypted-project-open-programs").textContent = String(parsed.projectPackage.programs.length);
+  requiredElement("#encrypted-project-open-maps").textContent = String(parsed.assets.length);
+  requiredElement<HTMLElement>("#encrypted-project-open-summary").hidden = false;
+  requiredElement<HTMLButtonElement>("#encrypted-project-open-apply").disabled = false;
+  pendingEncryptedProject = decrypted;
+  status.textContent = "Package authentication and project validation passed. Review the inventory; the current project is still unchanged.";
 }
 
 async function openProjectPackage(file: File): Promise<void> {
@@ -1522,21 +1611,35 @@ async function openProjectPackage(file: File): Promise<void> {
     }
     packageValue = parseProjectPackage(await file.text());
   }
-  const restoredAssets = [];
+  const restoredAssets: ProjectArchiveAsset[] = [];
   try {
-    for (const embedded of embeddedAssets) restoredAssets.push(await restorePmtilesAsset(embedded.asset, embedded.file));
+    for (const embedded of embeddedAssets) {
+      if (embedded.asset.format === "pmtiles-v3") {
+        restoredAssets.push({ asset: await restorePmtilesAsset(embedded.asset, embedded.file), file: embedded.file });
+      } else {
+        restoredAssets.push({ asset: await restoreProjectMapAsset(embedded.asset, embedded.file), file: embedded.file });
+      }
+    }
   } catch (error) {
-    await Promise.all(restoredAssets.map((asset) => removePmtilesAsset(asset).catch(() => undefined)));
+    await Promise.all(restoredAssets.map(({ asset }) => asset.format === "pmtiles-v3"
+      ? removePmtilesAsset(asset).catch(() => undefined)
+      : removeProjectMapAsset(asset).catch(() => undefined)));
     throw error;
   }
   for (const area of packageValue.project.studyAreas ?? []) {
     const asset = area.offlineMap.asset;
     if (!asset) continue;
-    const restored = restoredAssets.find((candidate) => candidate.sha256 === asset.sha256);
-    if (restored) area.offlineMap.asset = restored;
+    const restored = restoredAssets.find((candidate) => candidate.asset.format === "pmtiles-v3" && candidate.asset.sha256 === asset.sha256);
+    if (restored?.asset.format === "pmtiles-v3") area.offlineMap.asset = restored.asset;
   }
+  packageValue.project.mapAssets = (packageValue.project.mapAssets ?? []).map((asset) => {
+    const restored = restoredAssets.find((candidate) => candidate.asset.format !== "pmtiles-v3" && candidate.asset.sha256 === asset.sha256);
+    return restored && restored.asset.format !== "pmtiles-v3" ? restored.asset : asset;
+  });
   if (!closeCurrentProject("Current project saved to Recent Projects before opening a project package.")) {
-    await Promise.all(restoredAssets.map((asset) => removePmtilesAsset(asset).catch(() => undefined)));
+    await Promise.all(restoredAssets.map(({ asset }) => asset.format === "pmtiles-v3"
+      ? removePmtilesAsset(asset).catch(() => undefined)
+      : removeProjectMapAsset(asset).catch(() => undefined)));
     throw new Error("The selected package was not opened because the current project could not be closed safely.");
   }
   projectPackageExtras = {
@@ -1549,11 +1652,11 @@ async function openProjectPackage(file: File): Promise<void> {
   const legacySummary = packageValue.migration
     ? ` Migrated inventory: ${packageValue.migration.inventory.forms} forms, ${packageValue.migration.inventory.pages} pages, ${packageValue.migration.inventory.fields} fields.`
     : "";
-  const referencedMapCount = projectOfflineAssets(packageValue.project).length;
+  const referencedMapCount = projectOfflineAssets(packageValue.project).length + (packageValue.project.mapAssets?.length ?? 0);
   const mapSummary = restoredAssets.length > 0
-    ? ` Restored ${restoredAssets.length} offline map archive${restoredAssets.length === 1 ? "" : "s"} into this browser.`
+    ? ` Restored ${restoredAssets.length} project map asset${restoredAssets.length === 1 ? "" : "s"} into this browser.`
     : referencedMapCount > 0
-      ? " This older JSON package records an offline map but does not contain its bytes; re-import the PMTiles archive before offline use."
+      ? " This older JSON package references map assets but does not contain their bytes; re-import the PMTiles, GeoJSON, or GeoTIFF files before offline use."
       : "";
   requiredElement("#main-menu-status").textContent = `Opened ${packageValue.project.name}.${legacySummary}${mapSummary}`;
   requiredElement("#form-status").textContent = `Opened ${packageValue.project.name} with ${packageValue.programs.length} program${packageValue.programs.length === 1 ? "" : "s"} and ${packageValue.codeTables.length} code table${packageValue.codeTables.length === 1 ? "" : "s"}.${legacySummary}${mapSummary}`;
@@ -1738,6 +1841,7 @@ function resetSecureShare(): void {
   requiredElement<HTMLProgressElement>("#secure-share-receive-progress").value = 0;
   requiredElement<HTMLButtonElement>("#secure-share-accept-answer").disabled = true;
   requiredElement<HTMLButtonElement>("#secure-share-review-received").disabled = true;
+  requiredElement<HTMLButtonElement>("#secure-share-save-received").disabled = true;
   requiredElement("#secure-share-send-status").textContent = "";
   requiredElement("#secure-share-receive-status").textContent = "";
   requiredElement("#secure-share-send-selection").textContent = lastTransportPackage
@@ -1807,6 +1911,44 @@ export function initializeFormDataDemo() {
 
   requiredElement("#file-open-project").addEventListener("click", () => requiredElement<HTMLInputElement>("#project-package-open").click());
   requiredElement("#file-save-project").addEventListener("click", () => void saveProjectPackage());
+  requiredElement("#file-save-encrypted-project").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#file-menu").open = false;
+    if (!hasActiveProject) {
+      requiredElement("#main-menu-status").textContent = "Open or create a project before exporting an encrypted project package.";
+      return;
+    }
+    renderEncryptedProjectSaveDialog();
+  });
+  requiredElement("#file-open-encrypted-project").addEventListener("click", () => {
+    requiredElement<HTMLDetailsElement>("#file-menu").open = false;
+    resetEncryptedProjectOpenDialog();
+    requiredElement<HTMLDialogElement>("#encrypted-project-open-dialog").showModal();
+  });
+  requiredElement("#encrypted-project-save-create").addEventListener("click", async () => {
+    try { await saveEncryptedCompleteProject(); }
+    catch (error) { requiredElement("#encrypted-project-save-status").textContent = error instanceof Error ? error.message : "Unable to create the encrypted project."; }
+  });
+  requiredElement("#encrypted-project-open-review").addEventListener("click", async () => {
+    try { await reviewEncryptedCompleteProject(); }
+    catch (error) {
+      pendingEncryptedProject = null;
+      requiredElement<HTMLButtonElement>("#encrypted-project-open-apply").disabled = true;
+      requiredElement<HTMLElement>("#encrypted-project-open-summary").hidden = true;
+      requiredElement("#encrypted-project-open-status").textContent = error instanceof Error ? error.message : "Unable to review the encrypted project.";
+    }
+  });
+  requiredElement("#encrypted-project-open-apply").addEventListener("click", async () => {
+    if (!pendingEncryptedProject) return;
+    const status = requiredElement("#encrypted-project-open-status");
+    status.textContent = "Opening the reviewed project package...";
+    try {
+      await openProjectPackage(pendingEncryptedProject);
+      pendingEncryptedProject = null;
+      requiredElement<HTMLDialogElement>("#encrypted-project-open-dialog").close("opened");
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : "Unable to open the encrypted project.";
+    }
+  });
   requiredElement("#designer-open-project").addEventListener("click", () => {
     requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
     requiredElement<HTMLInputElement>("#project-package-open").click();
@@ -1974,6 +2116,7 @@ export function initializeFormDataDemo() {
       secureShareReceiver?.close();
       receivedSecureSharePackage = null;
       requiredElement<HTMLButtonElement>("#secure-share-review-received").disabled = true;
+      requiredElement<HTMLButtonElement>("#secure-share-save-received").disabled = true;
       secureShareReceiver = createSecureShareReceiver({
         onStatus(message) { status.textContent = message; },
         onProgress({ transferred, total }) {
@@ -1983,6 +2126,7 @@ export function initializeFormDataDemo() {
         onFile(file) {
           receivedSecureSharePackage = file;
           requiredElement<HTMLButtonElement>("#secure-share-review-received").disabled = false;
+          requiredElement<HTMLButtonElement>("#secure-share-save-received").disabled = false;
         },
         onError(error) { status.textContent = error.message; },
       });
@@ -1998,6 +2142,15 @@ export function initializeFormDataDemo() {
       if (!receivedSecureSharePackage) throw new Error("No verified package has been received.");
       await reviewEncryptedDataPackage(receivedSecureSharePackage, requiredElement<HTMLInputElement>("#secure-share-receive-passphrase").value);
     } catch (error) { status.textContent = error instanceof Error ? error.message : "Unable to review the received package."; }
+  });
+  requiredElement("#secure-share-save-received").addEventListener("click", () => {
+    if (!receivedSecureSharePackage) return;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(receivedSecureSharePackage);
+    link.download = receivedSecureSharePackage.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    requiredElement("#secure-share-receive-status").textContent = "Saved the verified encrypted package. For a complete-project package, use File > Open Encrypted Project and review its inventory before opening.";
   });
   requiredElement("#secure-share-dialog").addEventListener("close", resetSecureShare);
   requiredElement("#enter-menu-new-record").addEventListener("click", () => {

@@ -1,6 +1,7 @@
-import type { OfflineMapAsset } from "./core.ts";
+import type { OfflineMapAsset, ProjectMapAsset } from "./core.ts";
 import { validateProjectPackage, type ProjectPackageV2 } from "./project-package.ts";
 import { parsePmtilesHeader } from "../maps/pmtiles-import.ts";
+import { validateProjectMapAssetFile } from "../maps/project-map-assets.ts";
 
 export const PROJECT_ARCHIVE_FORMAT = "epi-info-ai-archive" as const;
 export const PROJECT_ARCHIVE_VERSION = 1 as const;
@@ -13,11 +14,13 @@ interface ProjectArchiveManifest {
   format: typeof PROJECT_ARCHIVE_FORMAT;
   version: typeof PROJECT_ARCHIVE_VERSION;
   projectPackage: ProjectPackageV2;
-  assets: OfflineMapAsset[];
+  assets: PortableProjectAsset[];
 }
 
+export type PortableProjectAsset = OfflineMapAsset | ProjectMapAsset;
+
 export interface ProjectArchiveAsset {
-  asset: OfflineMapAsset;
+  asset: PortableProjectAsset;
   file: File;
 }
 
@@ -26,19 +29,21 @@ export interface ParsedProjectArchive {
   assets: ProjectArchiveAsset[];
 }
 
-function linkedAssets(projectPackage: ProjectPackageV2): OfflineMapAsset[] {
-  const assets = (projectPackage.project.studyAreas ?? [])
-    .flatMap((studyArea) => studyArea.offlineMap.asset ? [studyArea.offlineMap.asset] : []);
+function linkedAssets(projectPackage: ProjectPackageV2): PortableProjectAsset[] {
+  const assets: PortableProjectAsset[] = [
+    ...(projectPackage.project.studyAreas ?? []).flatMap((studyArea) => studyArea.offlineMap.asset ? [studyArea.offlineMap.asset] : []),
+    ...(projectPackage.project.mapAssets ?? []),
+  ];
   for (const asset of assets) {
     const sameDigest = assets.find((candidate) => candidate !== asset && candidate.sha256 === asset.sha256);
     if (sameDigest && !sameAsset(asset, sameDigest)) {
-      throw new Error(`Offline-map references for SHA-256 ${asset.sha256} contain conflicting provenance.`);
+      throw new Error(`Project asset references for SHA-256 ${asset.sha256} contain conflicting provenance.`);
     }
   }
   return assets.filter((asset, index) => assets.findIndex((candidate) => candidate.sha256 === asset.sha256) === index);
 }
 
-function sameAsset(left: OfflineMapAsset, right: OfflineMapAsset): boolean {
+function sameAsset(left: PortableProjectAsset, right: PortableProjectAsset): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
@@ -51,9 +56,18 @@ function validatePmtilesPayload(asset: OfflineMapAsset, file: File): void {
   if (file.size !== asset.byteLength) throw new Error(`Embedded PMTiles ${asset.fileName} has the wrong byte length.`);
 }
 
-async function validatePayload(asset: OfflineMapAsset, file: File): Promise<void> {
+function isOfflineMapAsset(asset: PortableProjectAsset): asset is OfflineMapAsset {
+  return asset.format === "pmtiles-v3";
+}
+
+async function validatePayload(asset: PortableProjectAsset, file: File): Promise<void> {
+  if (file.size !== asset.byteLength) throw new Error(`Embedded project asset ${asset.fileName} has the wrong byte length.`);
+  if (await sha256(file) !== asset.sha256) throw new Error(`Embedded project asset ${asset.fileName} failed its SHA-256 check.`);
+  if (!isOfflineMapAsset(asset)) {
+    await validateProjectMapAssetFile(file, asset.format);
+    return;
+  }
   validatePmtilesPayload(asset, file);
-  if (await sha256(file) !== asset.sha256) throw new Error(`Embedded PMTiles ${asset.fileName} failed its SHA-256 check.`);
   const header = parsePmtilesHeader(await file.slice(0, 127).arrayBuffer(), file.size);
   if (header.tileType !== asset.tileType || header.tileCompression !== asset.tileCompression
     || header.minZoom !== asset.minZoom || header.maxZoom !== asset.maxZoom
@@ -64,11 +78,11 @@ async function validatePayload(asset: OfflineMapAsset, file: File): Promise<void
 
 function validateAssetSet(projectPackage: ProjectPackageV2, assets: ProjectArchiveAsset[]): void {
   const expected = linkedAssets(projectPackage);
-  if (expected.length !== assets.length) throw new Error("The project archive does not contain exactly its referenced offline-map assets.");
-  if (new Set(assets.map(({ asset }) => asset.sha256)).size !== assets.length) throw new Error("The project archive contains duplicate offline-map assets.");
+  if (expected.length !== assets.length) throw new Error("The project archive does not contain exactly its referenced map assets.");
+  if (new Set(assets.map(({ asset }) => asset.sha256)).size !== assets.length) throw new Error("The project archive contains duplicate map assets.");
   for (const expectedAsset of expected) {
     if (!assets.some(({ asset }) => sameAsset(asset, expectedAsset))) {
-      throw new Error(`The project archive is missing the referenced PMTiles asset ${expectedAsset.fileName}.`);
+      throw new Error(`The project archive is missing the referenced asset ${expectedAsset.fileName}.`);
     }
   }
 }
@@ -126,11 +140,13 @@ export async function parseProjectArchive(file: File): Promise<ParsedProjectArch
   const assets: ProjectArchiveAsset[] = [];
   for (const expectedAsset of expected) {
     const recorded = manifest.assets.find((asset) => asset && typeof asset === "object"
-      && (asset as OfflineMapAsset).sha256 === expectedAsset.sha256) as OfflineMapAsset | undefined;
+      && (asset as PortableProjectAsset).sha256 === expectedAsset.sha256) as PortableProjectAsset | undefined;
     if (!recorded || !sameAsset(recorded, expectedAsset)) throw new Error(`The archive manifest does not match ${expectedAsset.fileName}.`);
     const end = offset + expectedAsset.byteLength;
-    if (!Number.isSafeInteger(end) || end > file.size) throw new Error(`Embedded PMTiles ${expectedAsset.fileName} is truncated.`);
-    const payload = new File([file.slice(offset, end)], expectedAsset.fileName, { type: "application/vnd.pmtiles" });
+    if (!Number.isSafeInteger(end) || end > file.size) throw new Error(`Embedded project asset ${expectedAsset.fileName} is truncated.`);
+    const payload = new File([file.slice(offset, end)], expectedAsset.fileName, {
+      type: isOfflineMapAsset(expectedAsset) ? "application/vnd.pmtiles" : expectedAsset.mediaType,
+    });
     assets.push({ asset: expectedAsset, file: payload });
     offset = end;
   }

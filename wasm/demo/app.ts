@@ -9,6 +9,7 @@ import {
   deleteCurrentProjectProgram,
   getCurrentProjectSnapshot,
   replaceCurrentOfflineMapAsset,
+  replaceCurrentProjectMapState,
   detachCurrentOfflineMapAsset,
   getCurrentProjectData,
   getCurrentProjectPrograms,
@@ -4492,6 +4493,7 @@ try {
     getCurrentProjectSnapshot,
     replaceCurrentOfflineMapAsset,
     detachCurrentOfflineMapAsset,
+    replaceCurrentProjectMapState,
   );
   initializeSupabaseSync({
     getSnapshot: () => {

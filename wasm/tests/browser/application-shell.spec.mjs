@@ -211,6 +211,116 @@ test("Help runbook accepts the saved-project Open Pgm path and never traps Next"
   await expect(coach.getByRole("button", { name: "Next" })).toBeEnabled();
 });
 
+test("Help runbook opens the manual Secure Epi Info Share workflow without sending data", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("imported 96 records");
+
+  await page.locator("#help-menu summary").click();
+  await page.locator("#help-runbooks").click();
+  const library = page.getByRole("dialog", { name: "Automated Runbooks" });
+  await library.locator("#runbook-select").selectOption("secure-epi-info-share");
+  await expect(library.locator("#runbook-description")).toContainText("Pair two browsers manually");
+  await expect(library.locator("#runbook-prerequisite")).toContainText("encrypted .epiax package");
+  await library.getByRole("button", { name: "Start Runbook" }).click();
+
+  const coach = page.locator("#runbook-coach");
+  await expect(page.locator('[data-module="data"]')).toHaveAttribute("aria-current", "page");
+  await expect(coach.locator("#runbook-progress")).toHaveText("Step 1 of 11");
+  await expect(page.locator("#data-title")).toHaveClass(/runbook-highlight/);
+  await coach.getByRole("button", { name: "Next" }).click();
+  await page.locator("#enter-file-menu summary").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Open Secure Epi Info Share");
+  await page.locator("#enter-menu-secure-share").click();
+  const shareDialog = page.getByRole("dialog", { name: /Secure Epi Info Share/ });
+  await expect(shareDialog).toBeVisible();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Review the connection boundary");
+  await expect(shareDialog.locator("#runbook-coach")).toBeVisible();
+  await expect(shareDialog.locator(".data-import-preview-warning")).toHaveClass(/runbook-highlight/);
+  await expect(shareDialog.locator("#secure-share-send-offer")).toHaveValue("");
+  await coach.locator("#runbook-stop").click();
+  await expect(coach).toBeHidden();
+  await expect(page.locator(".runbook-highlight")).toHaveCount(0);
+});
+
+test("encrypted complete-project runbook inventories and exports a reviewable project archive", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("imported 96 records");
+
+  await page.locator('.module-rail [data-module="maps"]').click();
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await page.getByRole("button", { name: "GeoJSON Layer..." }).click();
+  await page.locator("#geojson-file").setInputFiles("wasm/demo/examples/city-of-toledo-neighborhoods.geojson");
+  await expect(page.locator("#geojson-dialog-status")).toContainText("feature");
+  await page.locator("#geojson-form").getByRole("button", { name: "Add Layer" }).click();
+  await expect(page.locator("#map-geojson-layers")).toContainText("city-of-toledo-neighborhoods");
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await page.getByRole("button", { name: "GeoTIFF Raster..." }).click();
+  await page.locator("#raster-file").setInputFiles("wasm/demo/examples/worldpop-toledo-population-density.tif");
+  await page.locator("#raster-form").getByRole("button", { name: "Add Layer" }).click();
+  await expect(page.locator("#map-raster-layers")).toContainText("worldpop-toledo-population-density");
+  await page.locator('.module-rail [data-module="forms"]').click();
+
+  await page.locator("#help-menu summary").click();
+  await page.locator("#help-runbooks").click();
+  const library = page.getByRole("dialog", { name: "Automated Runbooks" });
+  await library.locator("#runbook-select").selectOption("encrypted-project-package");
+  await expect(library.locator("#runbook-description")).toContainText("complete portable project");
+  await library.getByRole("button", { name: "Start Runbook" }).click();
+
+  const coach = page.locator("#runbook-coach");
+  await expect(coach.locator("#runbook-progress")).toHaveText("Step 1 of 12");
+  await coach.getByRole("button", { name: "Next" }).click();
+  await page.locator("#file-menu summary").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Choose Save Encrypted Project");
+  await page.locator("#file-save-encrypted-project").click();
+
+  const saveDialog = page.getByRole("dialog", { name: /Save Encrypted Project/ });
+  await expect(saveDialog).toBeVisible();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Review the artifact inventory");
+  await expect(saveDialog.locator("#encrypted-project-save-records")).toHaveText("96");
+  await expect(saveDialog.locator("#encrypted-project-save-maps")).toHaveText("2");
+  await saveDialog.locator("#encrypted-project-save-name").fill("foodborne-complete-project");
+  await saveDialog.locator("#encrypted-project-save-passphrase").fill("field-demo-passphrase");
+  await saveDialog.locator("#encrypted-project-save-passphrase-verify").fill("field-demo-passphrase");
+  await coach.getByRole("button", { name: "Next" }).click();
+  await coach.getByRole("button", { name: "Next" }).click();
+  await coach.getByRole("button", { name: "Next" }).click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Create the encrypted project");
+  const downloadPromise = page.waitForEvent("download");
+  await saveDialog.locator("#encrypted-project-save-create").click();
+  const download = await downloadPromise;
+  await expect(saveDialog.locator("#encrypted-project-save-status")).toContainText("Encrypted project complete");
+  expect(download.suggestedFilename()).toBe("foodborne-complete-project.epiax");
+  const encryptedPath = await download.path();
+  expect(encryptedPath).toBeTruthy();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Confirm successful creation");
+  await coach.getByRole("button", { name: "Next" }).click();
+  await saveDialog.locator("#encrypted-project-save-close").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Open the Enter Data File menu");
+  await coach.locator("#runbook-stop").click();
+
+  await page.locator("#file-menu summary").click();
+  await page.locator("#file-open-encrypted-project").click();
+  const openDialog = page.getByRole("dialog", { name: /Open Encrypted Project/ });
+  await openDialog.locator("#encrypted-project-open-file").setInputFiles(encryptedPath);
+  await openDialog.locator("#encrypted-project-open-passphrase").fill("field-demo-passphrase");
+  await openDialog.locator("#encrypted-project-open-review").click();
+  await expect(openDialog.locator("#encrypted-project-open-status")).toContainText("validation passed");
+  await expect(openDialog.locator("#encrypted-project-open-records")).toHaveText("96");
+  await expect(openDialog.locator("#encrypted-project-open-maps")).toHaveText("2");
+  await expect(openDialog.locator("#encrypted-project-open-apply")).toBeEnabled();
+  await openDialog.locator("#encrypted-project-open-apply").click();
+  await page.locator('.module-rail [data-module="maps"]').click();
+  await expect(page.locator("#map-geojson-layers")).toContainText("city-of-toledo-neighborhoods", { timeout: 15_000 });
+  await expect(page.locator("#map-raster-layers")).toContainText("worldpop-toledo-population-density", { timeout: 15_000 });
+  await expect(page.locator(".leaflet-image-layer")).toBeVisible();
+});
+
 test("File menu opens and saves the migrated official Sample project", async ({ page }) => {
   await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/sample-project.epia.json");
   await expect(page.locator("#main-menu-status")).toContainText("Opened Sample");
@@ -1771,8 +1881,8 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   }, await sourceScroller.elementHandle())).toBe(true);
 
   await page.locator("#classic-program-toolbar-run").click();
-  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 29 of 29 commands succeeded.");
-  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 29 commands in source order");
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 33 of 33 commands succeeded.");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 33 commands in source order");
   await expect(page.locator("#classic-program-session-status")).toContainText("96 records; no selection");
   await expect(page.locator("#classic-program-session-status")).not.toContainText("SORT Age");
   await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
@@ -1784,10 +1894,10 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await expect(page.locator("#classic-quality-output")).toBeVisible();
   await expect(page.locator("#classic-quality-output-count")).toHaveText("96 records · 27 fields");
   await expect(page.locator('#classic-quality-output-body tr[data-field-name="hospitalization_date"]')).toContainText("74");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("30");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("34");
   await expect(page.locator("#classic-sequential-output")).toBeVisible();
-  await expect(page.locator("#classic-sequential-output-count")).toHaveText("29 of 29 commands retained");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(29);
+  await expect(page.locator("#classic-sequential-output-count")).toHaveText("33 of 33 commands retained");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(33);
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(4)).toHaveText('SET (.)="Not recorded"');
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(5)).toHaveText("SET MISSING=ON");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(6)).toHaveText("TABLES vomiting Sex");
@@ -1816,6 +1926,11 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(27)).toHaveText("MEANS Age Sex STRATAVAR=case_status OUTTABLE=AgeBySexSurvey PSUVAR=household_neighborhood");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(27).locator(".classic-complex-means tbody tr")).toHaveCount(3);
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(27)).toContainText("Browser-adapted OUTTABLE stored 3 rows as AgeBySexSurvey");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(29)).toHaveText("DEFINE ReviewLabel TEXTINPUT");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(30)).toHaveText("DEFINE PriorityFlag YN");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(31)).toHaveText('ASSIGN ReviewLabel = "Priority review"');
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(32)).toContainText('IF ReviewLabel = "Priority review" THEN');
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(32)).toContainText("selected THEN; PriorityFlag = true");
   await expect(page.locator("#classic-sequential-output-body .classic-tables-2x2")).toHaveCount(12);
 
   await expect(page.locator("#classic-program-title")).toBeVisible();
@@ -1827,10 +1942,10 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   for (const selector of ["#classic-program-output", "#classic-sequential-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-program-history-output"]) {
     await expect(page.locator(selector)).toBeHidden();
   }
-  await expect(page.locator("#classic-program-history-count")).toHaveText("30");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("34");
   await page.locator("#classic-output-history").click();
   await expect(page.locator("#classic-program-history-output")).toBeVisible();
-  await expect(page.locator("#classic-program-history-count")).toHaveText("30");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("34");
 });
 
 test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open Pgm", async ({ page }) => {

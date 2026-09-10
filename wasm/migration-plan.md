@@ -923,6 +923,10 @@ tests. With the plugin subsystem disabled, all core workflows still pass.
   packages still open and explicitly require PMTiles re-import when they carry
   offline-map provenance without bytes. A browser regression removes the
   original archive before restore to prove the backup is self-contained.
+- [x] Persist uploaded GeoJSON and GeoTIFF sources plus their layer visibility,
+  label, and opacity settings as project map assets; embed their bytes in
+  `.epia`/`.epiax`, validate size/type/SHA-256, restore them to digest-addressed
+  OPFS paths, and reconstruct their map layers when the project opens.
 - [x] Detect a missing, corrupt, or unavailable OPFS package before Maps claims
   readiness; fail to a blank background and offer explicit `.epia` restore,
   digest-matched PMTiles re-import, blank-map continuation, or detachment while
@@ -1028,6 +1032,15 @@ claims.
 - [x] Added a canonical 96-record foodborne browser round-trip that blanks one
   optional field, downloads/imports the encrypted package, transfers it between
   two local peer connections, verifies it, and blocks a blind repeated import.
+- [x] Added distinct top-level Save/Open Encrypted Project paths. Save assembles
+  the complete validated `.epia` working copy—including all forms and records,
+  saved programs, code tables, study-area metadata, audit history, and attached
+  PMTiles, GeoJSON, and GeoTIFF assets—before `.epiax` encryption. Open decrypts and validates into a
+  non-mutating inventory before explicit project replacement.
+- [x] Added an encrypted complete-project runbook that distinguishes this path
+  from filtered data-only Package For Transport, guides archive inventory and
+  passphrase separation, and hands off to Secure Epi Info Share. A verified
+  received ciphertext can be downloaded before File > Open Encrypted Project.
 
 ### Remaining work
 
@@ -1040,10 +1053,12 @@ claims.
   browsers, AES-256-GCM authenticated encryption, authenticated non-sensitive
   metadata, and cryptographic agility. Wrong passwords and tampering fail without
   exposing partial plaintext.
-- Add Send and Receive workflows for complete encrypted `.epia` packages using
-  WebRTC `RTCDataChannel`, conservative binary chunks, negotiated message-size
-  limits, `bufferedAmount` backpressure, progress, cancellation, and bounded
-  in-memory/OPFS staging.
+- Extend the current Send and Receive workflow for complete encrypted `.epia`
+  packages with negotiated message-size limits, cancellation, resumability,
+  quota preflight, durable quarantine/OPFS staging, and a direct reviewed-open
+  handoff. V0.1 already transfers bounded ciphertext with conservative chunks,
+  `bufferedAmount` backpressure and progress, and can save the verified received
+  package for the top-level reviewed Open Encrypted Project path.
 - Pair through QR/manual offer-answer exchange for serverless field use or an
   approved expiring short-code signaling service. Bind the visible peer
   confirmation to the WebRTC certificate fingerprint; do not claim automatic
@@ -1071,11 +1086,16 @@ compatibility mode, but new exports never use the legacy cryptography.
 
 ## Cross-cutting page walkthroughs
 
-V0.1 now supplies a reusable Help > Automated Runbooks library and an initial
-foodborne Program Editor walkthrough. It points to actual controls, provides
-Back/Next/Finish/Stop, advances after expected user actions, and never silently
-loads source or executes analysis. Automated browser coverage fails when its
-semantic targets disappear.
+V0.3 now supplies a reusable Help > Automated Runbooks library, a foodborne
+Program Editor walkthrough, a Secure Epi Info Share walkthrough, and an encrypted
+complete-project package walkthrough. The Share
+runbook follows the encrypted-package, manual offer/answer, DTLS fingerprint,
+transfer-status, passphrase, and non-mutating import-preview workflow without
+creating a connection or sending data on the user's behalf. Runbooks point to
+actual controls, provide Back/Next/Finish/Stop, advance after expected user
+actions, and never silently load source, execute analysis, transfer a package,
+or import records. Automated browser coverage fails when semantic targets
+disappear.
 
 After the core migration phases are complete, extend this foundation to every
 user-facing page while leaving project and partially entered form state unchanged.

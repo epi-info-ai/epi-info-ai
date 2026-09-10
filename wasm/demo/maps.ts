@@ -17,7 +17,7 @@ import type {
   SupportedGeoJsonGeometry,
   TimeLapseStop,
 } from "../app/contracts/maps.js";
-import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
+import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectMapAsset, ProjectMapLayer, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
 import {
   openBrowserPmtiles,
   pmtilesRasterMimeType,
@@ -25,6 +25,7 @@ import {
 } from "../app/maps/pmtiles-reader.ts";
 import { createMapLibrePmtilesOverlay, type MapLibrePmtilesOverlay } from "../app/maps/maplibre-pmtiles.ts";
 import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
+import { readProjectMapAsset, removeProjectMapAsset, storeProjectMapAsset } from "../app/maps/project-map-assets.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
 // confined to this adapter module until the vendored distribution carries types.
@@ -80,6 +81,7 @@ interface GeoJsonLayerEntry {
   labelField: string;
   labels: GeoJsonLabel[];
   labelsEnabled: boolean;
+  asset: ProjectMapAsset;
 }
 
 interface H3LayerEntry {
@@ -100,6 +102,7 @@ interface RasterLayerEntry {
   displayWidth: number;
   displayHeight: number;
   opacity: number;
+  asset: ProjectMapAsset;
 }
 
 interface TemporalValue {
@@ -129,6 +132,7 @@ let offlineRecoveryStudyAreaLimitMiB = 100;
 let replaceOfflineMapAsset: ((previousSha256: string, replacement: OfflineMapAsset) => void) | null = null;
 let detachOfflineMapAsset: ((sha256: string) => void) | null = null;
 let currentProjectSnapshot: (() => ProjectSnapshotV1 | null) | null = null;
+let saveProjectMapState: ((assets: ProjectMapAsset[], layers: ProjectMapLayer[]) => void) | null = null;
 let recordLayer: LeafletLayer | null = null;
 let locationLayer: LeafletLayer | null = null;
 let lastBounds: LeafletBounds | null = null;
@@ -166,6 +170,33 @@ export function mapPaneForGeometryType(type: string): string {
 function updateLayerCount() {
   const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + h3Layers.size + rasterLayers.size;
   requiredElement("#map-layer-count").textContent = String(count);
+}
+
+function persistProjectMapLayers(): void {
+  if (!saveProjectMapState || !map) return;
+  const assets = [...geoJsonLayers.values(), ...rasterLayers.values()]
+    .map(({ asset }) => asset)
+    .filter((asset, index, values) => values.findIndex((candidate) => candidate.id === asset.id) === index);
+  const layers: ProjectMapLayer[] = [
+    ...[...geoJsonLayers].map(([id, entry]): ProjectMapLayer => ({
+      id,
+      kind: "geojson",
+      assetId: entry.asset.id,
+      name: entry.name,
+      visible: map.hasLayer(entry.layer),
+      labelField: entry.labelField,
+      labelsEnabled: entry.labelsEnabled,
+    })),
+    ...[...rasterLayers].map(([id, entry]): ProjectMapLayer => ({
+      id,
+      kind: "raster",
+      assetId: entry.asset.id,
+      name: entry.name,
+      visible: map.hasLayer(entry.layer),
+      opacity: entry.opacity,
+    })),
+  ];
+  saveProjectMapState(assets, layers);
 }
 
 function option(value: string, label: string): HTMLOptionElement {
@@ -879,7 +910,13 @@ function rasterColor(value: number, low: number, high: number): [number, number,
   return [0, 1, 2].map((channel) => Math.round(start[channel]! + (end[channel]! - start[channel]!) * local)) as [number, number, number];
 }
 
-async function addRasterLayer(file: File, name: string, opacity: number): Promise<void> {
+async function addRasterLayer(
+  file: File,
+  name: string,
+  opacity: number,
+  asset: ProjectMapAsset,
+  options: { id?: string; visible?: boolean; persist?: boolean } = {},
+): Promise<void> {
   if (file.size > MAX_RASTER_BYTES) throw new Error("This file is larger than the 50 MB demo limit.");
   const tiff = await fromArrayBuffer(await file.arrayBuffer());
   const image = await tiff.getImage();
@@ -929,13 +966,15 @@ async function addRasterLayer(file: File, name: string, opacity: number): Promis
   const bounds = L.latLngBounds([[south, west], [north, east]]);
   const layer = L.imageOverlay(canvas.toDataURL("image/png"), bounds, { pane: "epi-raster-pane", opacity, interactive: false });
   layer.addTo(ensureMap());
-  const id = globalThis.crypto?.randomUUID?.() || `raster-${Date.now()}`;
-  rasterLayers.set(id, { layer, name, bounds, sourceWidth, sourceHeight, displayWidth, displayHeight, opacity });
+  const id = options.id ?? globalThis.crypto?.randomUUID?.() ?? `raster-${Date.now()}`;
+  rasterLayers.set(id, { layer, name, bounds, sourceWidth, sourceHeight, displayWidth, displayHeight, opacity, asset });
+  if (options.visible === false && map.hasLayer(layer)) map.removeLayer(layer);
   renderRasterLayerList();
   updateLayerCount();
   refreshMapEmptyState();
   ensureMap().fitBounds(bounds.pad(0.08));
   requiredElement("#map-status").textContent = `Added GeoTIFF raster “${name}” beneath vector layers.`;
+  if (options.persist !== false) persistProjectMapLayers();
 }
 
 function combinedLayerBounds() {
@@ -979,7 +1018,14 @@ function updateGeoJsonLabelVisibility() {
   }
 }
 
-function addGeoJsonLayer(geojson: SupportedGeoJson, featureCount: number, name: string, labelField = ""): void {
+function addGeoJsonLayer(
+  geojson: SupportedGeoJson,
+  featureCount: number,
+  name: string,
+  labelField: string,
+  asset: ProjectMapAsset,
+  options: { id?: string; visible?: boolean; labelsEnabled?: boolean; persist?: boolean } = {},
+): void {
   const currentMap = ensureMap();
   const labelLayer = L.layerGroup();
   const labels: GeoJsonLabel[] = [];
@@ -1042,8 +1088,9 @@ function addGeoJsonLayer(geojson: SupportedGeoJson, featureCount: number, name: 
   const layer = L.layerGroup([geometryLayer, labelLayer]);
   layer.addTo(currentMap);
   const bounds = geometryLayer.getBounds();
-  const id = globalThis.crypto?.randomUUID?.() || `geojson-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  geoJsonLayers.set(id, { layer, name, featureCount, bounds, labelField, labels, labelsEnabled: true });
+  const id = options.id ?? globalThis.crypto?.randomUUID?.() ?? `geojson-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  geoJsonLayers.set(id, { layer, name, featureCount, bounds, labelField, labels, labelsEnabled: options.labelsEnabled ?? true, asset });
+  if (options.visible === false && currentMap.hasLayer(layer)) currentMap.removeLayer(layer);
   renderGeoJsonLayerList();
   updateLayerCount();
   refreshMapEmptyState();
@@ -1051,6 +1098,7 @@ function addGeoJsonLayer(geojson: SupportedGeoJson, featureCount: number, name: 
   requiredElement("#map-status").textContent = `Added GeoJSON layer “${name}” with ${featureCount.toLocaleString()} feature${featureCount === 1 ? "" : "s"}.${labelMessage}`;
   if (bounds.isValid()) currentMap.fitBounds(bounds.pad(0.12), { maxZoom: 16 });
   updateGeoJsonLabelVisibility();
+  if (options.persist !== false) persistProjectMapLayers();
 }
 
 export function extractMapPoints(records: EpiRecord[], latitudeField: string, longitudeField: string): MapPoint[] {
@@ -1296,6 +1344,51 @@ function captureLocation() {
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
 }
 
+let projectLayerRestoreSequence = 0;
+
+async function restoreProjectMapLayers(snapshot: ProjectSnapshotV1 | null): Promise<void> {
+  const sequence = ++projectLayerRestoreSequence;
+  const assets = new Map((snapshot?.mapAssets ?? []).map((asset) => [asset.id, asset]));
+  const failures: string[] = [];
+  for (const definition of snapshot?.mapLayers ?? []) {
+    if (sequence !== projectLayerRestoreSequence) return;
+    const asset = assets.get(definition.assetId);
+    if (!asset) { failures.push(`${definition.name}: missing asset metadata`); continue; }
+    try {
+      const file = await readProjectMapAsset(asset);
+      if (definition.kind === "geojson" && asset.format === "geojson") {
+        const { geojson, featureCount } = parseGeoJson(await file.text());
+        addGeoJsonLayer(geojson, featureCount, definition.name, definition.labelField, asset, {
+          id: definition.id,
+          visible: definition.visible,
+          labelsEnabled: definition.labelsEnabled,
+          persist: false,
+        });
+      } else if (definition.kind === "raster" && asset.format === "geotiff") {
+        await addRasterLayer(file, definition.name, definition.opacity, asset, {
+          id: definition.id,
+          visible: definition.visible,
+          persist: false,
+        });
+      } else {
+        throw new Error("layer and asset formats do not match");
+      }
+    } catch (error) {
+      failures.push(`${definition.name}: ${error instanceof Error ? error.message : "restore failed"}`);
+    }
+  }
+  if (sequence !== projectLayerRestoreSequence) return;
+  renderGeoJsonLayerList();
+  renderRasterLayerList();
+  updateLayerCount();
+  refreshMapEmptyState();
+  if (failures.length > 0) {
+    requiredElement("#map-status").textContent = `Some project map layers could not be restored: ${failures.join("; ")}.`;
+  } else if ((snapshot?.mapLayers?.length ?? 0) > 0) {
+    requiredElement("#map-status").textContent = `Restored ${snapshot!.mapLayers!.length} project map layer${snapshot!.mapLayers!.length === 1 ? "" : "s"} from integrity-checked browser assets.`;
+  }
+}
+
 function configureLaunch(context: MapLaunchContext, getCurrentData: () => MapDataSource, openRecord: OpenRecordHandler): void {
   mapContext = context;
   resetMapWorkspace();
@@ -1314,6 +1407,7 @@ function configureLaunch(context: MapLaunchContext, getCurrentData: () => MapDat
     requiredElement("#map-empty-state").textContent = "Select Add Data Layer > Case Cluster, then choose a project form.";
     requiredElement("#map-status").textContent = "Standalone map ready.";
   }
+  void restoreProjectMapLayers(currentProjectSnapshot?.() ?? null);
 }
 
 function prepareCaseClusterDialog(
@@ -1352,10 +1446,12 @@ export function initializeMaps(
   getProjectSnapshot: () => ProjectSnapshotV1 | null,
   replaceOfflineAsset: (previousSha256: string, replacement: OfflineMapAsset) => void,
   detachOfflineAsset: (sha256: string) => void,
+  saveMapState: (assets: ProjectMapAsset[], layers: ProjectMapLayer[]) => void,
 ): void {
   currentProjectSnapshot = getProjectSnapshot;
   replaceOfflineMapAsset = replaceOfflineAsset;
   detachOfflineMapAsset = detachOfflineAsset;
+  saveProjectMapState = saveMapState;
   const caseClusterDialog = requiredElement("#case-cluster-dialog");
   const h3Dialog = requiredElement("#h3-dialog");
   const h3Form = requiredElement("#h3-form");
@@ -1624,10 +1720,15 @@ export function initializeMaps(
       return;
     }
     rasterStatus.textContent = "Reading and rendering the GeoTIFF locally...";
+    let asset: ProjectMapAsset | null = null;
     try {
-      await addRasterLayer(file, rasterName.value.trim() || file.name.replace(/\.tiff?$/i, "") || "GeoTIFF Raster", Number(rasterOpacity.value) / 100);
+      asset = await storeProjectMapAsset(file, "geotiff");
+      await addRasterLayer(file, rasterName.value.trim() || file.name.replace(/\.tiff?$/i, "") || "GeoTIFF Raster", Number(rasterOpacity.value) / 100, asset);
       rasterDialog.close("add");
     } catch (error) {
+      if (asset && ![...rasterLayers.values(), ...geoJsonLayers.values()].some((entry) => entry.asset.id === asset?.id)) {
+        await removeProjectMapAsset(asset).catch(() => undefined);
+      }
       rasterStatus.textContent = error instanceof Error ? error.message : "Unable to add this GeoTIFF raster.";
     }
   });
@@ -1685,12 +1786,17 @@ export function initializeMaps(
       return;
     }
     geoJsonStatus.textContent = "Reading GeoJSON...";
+    let asset: ProjectMapAsset | null = null;
     try {
       const { geojson, featureCount } = parseGeoJson(await file.text());
       const layerName = geoJsonName.value.trim() || file.name.replace(/\.(?:geojson|json)$/i, "") || "GeoJSON Layer";
-      addGeoJsonLayer(geojson, featureCount, layerName, geoJsonLabelField.value);
+      asset = await storeProjectMapAsset(file, "geojson");
+      addGeoJsonLayer(geojson, featureCount, layerName, geoJsonLabelField.value, asset);
       geoJsonDialog.close("add");
     } catch (error) {
+      if (asset && ![...rasterLayers.values(), ...geoJsonLayers.values()].some((entry) => entry.asset.id === asset?.id)) {
+        await removeProjectMapAsset(asset).catch(() => undefined);
+      }
       geoJsonStatus.textContent = error instanceof Error ? error.message : "Unable to add this GeoJSON file.";
     }
   });
@@ -1702,6 +1808,7 @@ export function initializeMaps(
       if (!entry) return;
       entry.labelsEnabled = target.checked;
       updateGeoJsonLabelVisibility();
+      persistProjectMapLayers();
       requiredElement("#map-status").textContent = `${entry.name} labels ${entry.labelsEnabled ? "enabled" : "hidden"}.`;
       return;
     }
@@ -1712,6 +1819,7 @@ export function initializeMaps(
     if (target.checked) entry.layer.addTo(ensureMap());
     else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
     updateGeoJsonLabelVisibility();
+    persistProjectMapLayers();
     requiredElement("#map-status").textContent = `${entry.name} ${target.checked ? "shown" : "hidden"}.`;
   });
   requiredElement("#map-geojson-layers").addEventListener("click", (event) => {
@@ -1721,6 +1829,10 @@ export function initializeMaps(
     if (!entry) return;
     if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
     geoJsonLayers.delete(id);
+    persistProjectMapLayers();
+    if (![...geoJsonLayers.values(), ...rasterLayers.values()].some((candidate) => candidate.asset.id === entry.asset.id)) {
+      void removeProjectMapAsset(entry.asset).catch(() => undefined);
+    }
     renderGeoJsonLayerList();
     updateLayerCount();
     refreshMapEmptyState();
@@ -1756,6 +1868,7 @@ export function initializeMaps(
     if (!entry) return;
     entry.opacity = Number(target.value) / 100;
     entry.layer.setOpacity(entry.opacity);
+    persistProjectMapLayers();
     requiredElement("#map-status").textContent = `${entry.name} opacity ${target.value}%.`;
   });
   requiredElement("#map-raster-layers").addEventListener("change", (event) => {
@@ -1766,6 +1879,7 @@ export function initializeMaps(
     if (!entry) return;
     if (target.checked) entry.layer.addTo(ensureMap());
     else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    persistProjectMapLayers();
     requiredElement("#map-status").textContent = `${entry.name} ${target.checked ? "shown" : "hidden"}.`;
   });
   requiredElement("#map-raster-layers").addEventListener("click", (event) => {
@@ -1775,6 +1889,10 @@ export function initializeMaps(
     if (!entry) return;
     if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
     rasterLayers.delete(id);
+    persistProjectMapLayers();
+    if (![...geoJsonLayers.values(), ...rasterLayers.values()].some((candidate) => candidate.asset.id === entry.asset.id)) {
+      void removeProjectMapAsset(entry.asset).catch(() => undefined);
+    }
     renderRasterLayerList();
     updateLayerCount();
     refreshMapEmptyState();

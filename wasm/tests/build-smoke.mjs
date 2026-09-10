@@ -81,7 +81,9 @@ requiredFiles.push("duckdb-eh.wasm", "duckdb-browser-eh.worker.js");
 await Promise.all(requiredFiles.map(requireFile));
 
 const html = await requireFile("index.html");
-assert.match(html, /src=["']app\.js\?v=94["']/);
+assert.match(html, /<title>Epi Info AI<\/title>/);
+assert.doesNotMatch(html, /2 x 2 Table Demo/);
+assert.match(html, /src=["']app\.js\?v=97["']/);
 assert.match(html, /href=["']styles\.css\?v=60["']/);
 assert.match(html, /id=["']study-area-dialog["']/);
 assert.match(html, /id=["']main-menu["']/);

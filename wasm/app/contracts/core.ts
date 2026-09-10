@@ -128,6 +128,36 @@ export interface OfflineMapAsset {
   persistence: "persistent" | "best-effort";
 }
 
+export interface ProjectMapAsset {
+  id: string;
+  fileName: string;
+  storage: "opfs";
+  storagePath: string;
+  byteLength: number;
+  sha256: string;
+  format: "geojson" | "geotiff";
+  mediaType: "application/geo+json" | "image/tiff";
+  importedAt: string;
+  persistence: "persistent" | "best-effort";
+}
+
+export type ProjectMapLayer = {
+  id: string;
+  kind: "geojson";
+  assetId: string;
+  name: string;
+  visible: boolean;
+  labelField: string;
+  labelsEnabled: boolean;
+} | {
+  id: string;
+  kind: "raster";
+  assetId: string;
+  name: string;
+  visible: boolean;
+  opacity: number;
+};
+
 export interface ProjectStudyArea {
   id: string;
   name: string;
@@ -147,6 +177,8 @@ export interface ProjectSnapshotV1 {
   forms: ProjectForm[];
   auditLog?: ProjectAuditEvent[];
   studyAreas?: ProjectStudyArea[];
+  mapAssets?: ProjectMapAsset[];
+  mapLayers?: ProjectMapLayer[];
 }
 
 export interface MapPoint {
@@ -414,6 +446,71 @@ function remoteAt(value: unknown, path: string): HostedProjectReference {
   return result;
 }
 
+function projectMapAssetAt(value: unknown, path: string): ProjectMapAsset {
+  const source = objectAt(value, path);
+  if (source.storage !== "opfs") fail(`${path}.storage`, "must be opfs");
+  if (source.format !== "geojson" && source.format !== "geotiff") fail(`${path}.format`, "must be geojson or geotiff");
+  const expectedMediaType = source.format === "geojson" ? "application/geo+json" : "image/tiff";
+  if (source.mediaType !== expectedMediaType) fail(`${path}.mediaType`, `must be ${expectedMediaType}`);
+  if (source.persistence !== "persistent" && source.persistence !== "best-effort") fail(`${path}.persistence`, "must be persistent or best-effort");
+  const sha256 = nonEmptyString(source.sha256, `${path}.sha256`).toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(sha256)) fail(`${path}.sha256`, "must be a SHA-256 digest");
+  const id = nonEmptyString(source.id, `${path}.id`);
+  if (id !== sha256) fail(`${path}.id`, "must equal the asset SHA-256 digest");
+  if (typeof source.byteLength !== "number" || !Number.isSafeInteger(source.byteLength) || source.byteLength < 1) {
+    fail(`${path}.byteLength`, "must be a positive safe integer");
+  }
+  const limit = source.format === "geojson" ? 10 * 1024 * 1024 : 50 * 1024 * 1024;
+  if (source.byteLength > limit) fail(`${path}.byteLength`, `exceeds the ${source.format === "geojson" ? 10 : 50} MiB format limit`);
+  const extension = source.format === "geojson" ? ".geojson" : ".tif";
+  const storagePath = nonEmptyString(source.storagePath, `${path}.storagePath`);
+  if (!storagePath.startsWith("epi-info-ai/map-assets/") || storagePath.includes("..")
+    || !storagePath.endsWith(extension) || !storagePath.includes(sha256)) {
+    fail(`${path}.storagePath`, `must remain in the map-assets OPFS directory and end in ${extension}`);
+  }
+  const importedAt = nonEmptyString(source.importedAt, `${path}.importedAt`);
+  if (!Number.isFinite(Date.parse(importedAt))) fail(`${path}.importedAt`, "must be a valid date/time");
+  return {
+    id,
+    fileName: nonEmptyString(source.fileName, `${path}.fileName`),
+    storage: "opfs",
+    storagePath,
+    byteLength: source.byteLength,
+    sha256,
+    format: source.format,
+    mediaType: expectedMediaType,
+    importedAt,
+    persistence: source.persistence,
+  };
+}
+
+function projectMapLayerAt(value: unknown, path: string, assets: ReadonlyMap<string, ProjectMapAsset>): ProjectMapLayer {
+  const source = objectAt(value, path);
+  if (source.kind !== "geojson" && source.kind !== "raster") fail(`${path}.kind`, "must be geojson or raster");
+  const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
+  const asset = assets.get(assetId);
+  if (!asset) fail(`${path}.assetId`, "must identify a project map asset");
+  if (asset.format !== source.kind && !(source.kind === "raster" && asset.format === "geotiff")) {
+    fail(`${path}.assetId`, "does not match the layer kind");
+  }
+  if (typeof source.visible !== "boolean") fail(`${path}.visible`, "must be boolean");
+  const shared = {
+    id: nonEmptyString(source.id, `${path}.id`),
+    assetId,
+    name: nonEmptyString(source.name, `${path}.name`),
+    visible: source.visible,
+  };
+  if (source.kind === "geojson") {
+    if (typeof source.labelsEnabled !== "boolean") fail(`${path}.labelsEnabled`, "must be boolean");
+    if (typeof source.labelField !== "string" || source.labelField.length > 200) fail(`${path}.labelField`, "must be a string of at most 200 characters");
+    return { ...shared, kind: "geojson", labelField: source.labelField, labelsEnabled: source.labelsEnabled };
+  }
+  if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0.1 || source.opacity > 1) {
+    fail(`${path}.opacity`, "must be from 0.1 through 1");
+  }
+  return { ...shared, kind: "raster", opacity: source.opacity };
+}
+
 function finiteCoordinate(value: unknown, path: string, minimum: number, maximum: number): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum) {
     fail(path, `must be a finite number from ${minimum} through ${maximum}`);
@@ -610,6 +707,25 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
     for (const area of result.studyAreas) {
       if (studyAreaIds.has(area.id)) fail("project.studyAreas", `contains duplicate study-area id ${JSON.stringify(area.id)}`);
       studyAreaIds.add(area.id);
+    }
+  }
+  if (snapshot.mapAssets !== undefined) {
+    if (!Array.isArray(snapshot.mapAssets)) fail("project.mapAssets", "must be an array");
+    result.mapAssets = snapshot.mapAssets.map((asset, index) => projectMapAssetAt(asset, `project.mapAssets[${index}]`));
+    const ids = new Set<string>();
+    for (const asset of result.mapAssets) {
+      if (ids.has(asset.id)) fail("project.mapAssets", `contains duplicate asset id ${JSON.stringify(asset.id)}`);
+      ids.add(asset.id);
+    }
+  }
+  if (snapshot.mapLayers !== undefined) {
+    if (!Array.isArray(snapshot.mapLayers)) fail("project.mapLayers", "must be an array");
+    const assets = new Map((result.mapAssets ?? []).map((asset) => [asset.id, asset]));
+    result.mapLayers = snapshot.mapLayers.map((layer, index) => projectMapLayerAt(layer, `project.mapLayers[${index}]`, assets));
+    const ids = new Set<string>();
+    for (const layer of result.mapLayers) {
+      if (ids.has(layer.id)) fail("project.mapLayers", `contains duplicate layer id ${JSON.stringify(layer.id)}`);
+      ids.add(layer.id);
     }
   }
   if (snapshot.auditLog !== undefined) {

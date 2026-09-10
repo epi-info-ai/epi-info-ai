@@ -73,11 +73,13 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
     "wasm/docs/design/charts-compatibility-inventory.md",
+    "COMMAND_SET.md",
     "wasm/app/programming/classic-program-surface.ts",
     "wasm/app/programming/classic-program.ts",
     "wasm/app/programming/run-history.ts",
     "wasm/app/contracts/project-package.ts",
     "wasm/app/contracts/project-archive.ts",
+    "wasm/app/maps/project-map-assets.ts",
     "wasm/app/contracts/encrypted-project.ts",
     "wasm/app/forms/geocoding.ts",
     "wasm/app/forms/import-preview.ts",
@@ -180,6 +182,8 @@ async function checkRequiredAssetsAndUi() {
     "file-exit",
     "file-open-project",
     "file-save-project",
+    "file-open-encrypted-project",
+    "file-save-encrypted-project",
     "project-package-open",
     "view-menu",
     "view-status-bar",
@@ -188,6 +192,11 @@ async function checkRequiredAssetsAndUi() {
     "help-runbooks",
     "runbook-library-dialog",
     "runbook-coach",
+    "encrypted-project-save-dialog",
+    "encrypted-project-save-create",
+    "encrypted-project-open-dialog",
+    "encrypted-project-open-review",
+    "encrypted-project-open-apply",
     "designer-file-menu",
     "designer-no-project",
     "project-lifecycle-status",
@@ -230,6 +239,7 @@ async function checkRequiredAssetsAndUi() {
     "secure-share-create-offer",
     "secure-share-create-answer",
     "secure-share-review-received",
+    "secure-share-save-received",
     "csv-export",
     "enter-open-maps",
     "epi-map",
@@ -400,6 +410,10 @@ async function checkRequiredAssetsAndUi() {
     group, commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.group === group).length,
   ])), { data: 7, variables: 6, "select-if": 5, statistics: 8, "advanced-statistics": 7, output: 7, "user-defined": 4, "user-interaction": 4, options: 1 });
   assert.deepEqual(commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.explorer === "legacy-enum-only").map((entry) => entry.legacyName), ["Match", "Map", "Reports", "Help"]);
+  const commandSet = await readFile(repositoryPath("COMMAND_SET.md"), "utf8");
+  assert.match(commandSet, /Typed AST\/parser branches \| 28 \|/);
+  assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 21 \|/);
+  assert.match(commandSet, /Legacy-parity-verified against reviewed desktop Epi Info output \| 0 \|/);
   for (const entry of commandParity.CLASSIC_COMMAND_PARITY) {
     assert.ok(["not-started", "browser-verified", "legacy-parity-verified"].includes(entry.parityStatus), `${entry.id} must declare parity status`);
     if (entry.parityStatus !== "not-started") {
@@ -2762,16 +2776,45 @@ async function checkPortableProjectArchive() {
     bufferKm: 0,
     offlineMap: { minZoom: 0, maxZoom: 14, packageLimitMiB: 100, status: "stored-unverified", providerId: "browser-pmtiles", asset },
   }];
+  const geojsonBytes = new TextEncoder().encode(JSON.stringify({ type: "FeatureCollection", features: [] }));
+  const geojsonDigest = createHash("sha256").update(geojsonBytes).digest("hex");
+  const geojsonAsset = {
+    id: geojsonDigest, fileName: "study-area.geojson", storage: "opfs",
+    storagePath: `epi-info-ai/map-assets/${geojsonDigest}.geojson`, byteLength: geojsonBytes.byteLength,
+    sha256: geojsonDigest, format: "geojson", mediaType: "application/geo+json",
+    importedAt: "2026-09-10T12:00:00.000Z", persistence: "best-effort",
+  };
+  const geotiffBytes = new Uint8Array([0x49, 0x49, 0x2a, 0x00]);
+  const geotiffDigest = createHash("sha256").update(geotiffBytes).digest("hex");
+  const geotiffAsset = {
+    id: geotiffDigest, fileName: "population.tif", storage: "opfs",
+    storagePath: `epi-info-ai/map-assets/${geotiffDigest}.tif`, byteLength: geotiffBytes.byteLength,
+    sha256: geotiffDigest, format: "geotiff", mediaType: "image/tiff",
+    importedAt: "2026-09-10T12:01:00.000Z", persistence: "best-effort",
+  };
+  snapshot.mapAssets = [geojsonAsset, geotiffAsset];
+  snapshot.mapLayers = [
+    { id: "geojson-study", kind: "geojson", assetId: geojsonDigest, name: "Study area", visible: true, labelField: "", labelsEnabled: false },
+    { id: "raster-population", kind: "raster", assetId: geotiffDigest, name: "Population", visible: true, opacity: 0.7 },
+  ];
   const packageValue = packages.createProjectPackage(snapshot);
   const payload = new File([bytes], asset.fileName, { type: "application/vnd.pmtiles" });
-  const archiveBlob = await archives.createProjectArchive(packageValue, [{ asset, file: payload }]);
+  const archiveBlob = await archives.createProjectArchive(packageValue, [
+    { asset, file: payload },
+    { asset: geojsonAsset, file: new File([geojsonBytes], geojsonAsset.fileName, { type: geojsonAsset.mediaType }) },
+    { asset: geotiffAsset, file: new File([geotiffBytes], geotiffAsset.fileName, { type: geotiffAsset.mediaType }) },
+  ]);
   const archiveFile = new File([archiveBlob], "toledo.epia", { type: archiveBlob.type });
   assert.equal(await archives.isBinaryProjectArchive(archiveFile), true);
   const restored = await archives.parseProjectArchive(archiveFile);
   assert.equal(restored.projectPackage.project.name, snapshot.name);
-  assert.equal(restored.assets.length, 1);
+  assert.equal(restored.assets.length, 3);
   assert.equal(restored.assets[0].asset.sha256, digest);
   assert.deepEqual(new Uint8Array(await restored.assets[0].file.arrayBuffer()), bytes);
+  assert.equal(restored.assets[1].asset.format, "geojson");
+  assert.deepEqual(new Uint8Array(await restored.assets[1].file.arrayBuffer()), geojsonBytes);
+  assert.equal(restored.assets[2].asset.format, "geotiff");
+  assert.deepEqual(new Uint8Array(await restored.assets[2].file.arrayBuffer()), geotiffBytes);
   assert.equal(await archives.isBinaryProjectArchive(new Blob([JSON.stringify(packageValue)])), false);
   const tampered = new Uint8Array(await archiveBlob.arrayBuffer());
   tampered[tampered.length - 1] ^= 0xff;
@@ -3077,9 +3120,10 @@ CANCEL SORT`;
     "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement", "SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement", "TablesStatement", "TablesStatement",
     "TablesStatement", "TablesStatement", "TablesStatement", "TablesStatement", "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
     "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement", "TablesStatement", "DefineGroupStatement", "TablesStatement",
-    "FrequencyStatement", "MeansStatement", "EpiAiQualityStatement",
+    "FrequencyStatement", "MeansStatement", "EpiAiQualityStatement", "DefineStatement", "DefineStatement", "AssignStatement", "IfStatement",
   ]);
   assert.equal(commandTour.body[27].options.outputTable.name, "AgeBySexSurvey");
+  assert.equal(commandTour.body[32].alternate[0].type, "AssignStatement");
   assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
   assert.throws(() => parser.parseClassicProgram("IF Age > 10 THEN\nFREQ Age"), /IF is missing END/);
   assert.throws(() => parser.parseClassicProgram("ASSIGN Age = (10 + 2"), /closing parenthesis/);
