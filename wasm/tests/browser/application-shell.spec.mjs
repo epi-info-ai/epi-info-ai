@@ -1318,7 +1318,7 @@ test("portable project archive restores its embedded PMTiles after local loss", 
     await mapDirectory.removeEntry(storagePath.split("/").at(-1));
   }, originalPath);
   await page.locator("#project-package-open").setInputFiles(downloadPath);
-  await expect(page.locator("#main-menu-status")).toContainText("Restored 1 offline map archive into this browser");
+  await expect(page.locator("#main-menu-status")).toContainText("Restored 1 project map asset into this browser");
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.project-state.v1")));
   const restoredPath = after.studyAreas[0].offlineMap.asset.storagePath;
   expect(restoredPath).not.toBe(originalPath);
