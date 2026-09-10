@@ -296,7 +296,38 @@ checksums, expected metadata, and combined testing workflow are documented in
 - Established the legacy capability register as the backlog and compatibility floor, with stable gap IDs and a required change log for new, deprecated, and retired branches.
 - Passed source/fixture/WASM checks, production-artifact verification, and all 22 Chromium workflow tests.
 
-## Updates on August 27, 2026
+## Progress from August 27 through September 9, 2026
+
+The August 27 validation milestone expanded into a working migration prototype
+with matching GitLab and GitHub Pages deployments. Since that milestone, the
+project has:
+
+- expanded the typed Classic Analysis AST, Program Editor, command dialogs,
+  saved foodborne `.pgm7` tour, output history, and browser-verified command
+  inventory while continuing to record legacy-parity gaps explicitly;
+- completed the ordinary TABLES V0.11 candidate and bounded Complex Sample
+  Tables, Frequencies, and Means slices, including `PSUVAR`, survey variance,
+  design effects, `OUTTABLE`, session `READ`/`LIST`, fixtures, and independent
+  notebook evidence;
+- grown the JupyterLite validation lab to ten notebooks, all built and linked
+  on both GitLab Pages and the public GitHub Pages mirror;
+- added Visual Dashboard Epi Curve and Rates slices, Data Quality missingness
+  bars, type-aware validation, import preview and duplicate warnings, secure
+  `.epiax` packages, and reviewed browser-to-browser Secure Epi Info Share;
+- advanced familiar mapping and geolocation workflows with draggable point
+  preview, GeoJSON, H3, GeoTIFF, offline study-area planning, and validated local
+  PMTiles/OPFS project packaging;
+- prototyped local IBM Granite Epi Assist with typed native tool calls, prompt
+  provenance, fail-closed execution, optional managed-model gateway choices,
+  and recorded AI enablement lessons;
+- added guarded Access-to-SQLite/DuckDB conversion candidates, automated UI
+  runbooks, reproducible browser acceptance gates, and matched GitLab/GitHub
+  Pages deployment pipelines; and
+- mirrored the inspected legacy C# source into the Epi Info AI GitLab group and
+  retained it as the compatibility floor—the old tree from which documented new
+  branches grow.
+
+The detailed cumulative changes and validation increments follow.
 
 - Added the Validation Lab charter, corpus-governance rules, evidence hierarchy,
   notebook contract, and staged roadmap in `wasm/validation-lab.md`.
