@@ -473,9 +473,10 @@ discrepancy to its detailed evidence record.
 - Boundary checks cover no discordance, zero, and infinite odds-ratio states;
   metamorphic checks cover row-order invariance, set-label invariance, and
   exposure-reversal reciprocity.
-- No MATCH WebAssembly export is called because no statistical engine candidate
-  exists yet. Passing this notebook validates the proposed contract and fixture,
-  not execution readiness or legacy desktop parity.
+- The notebook calls the deployed Rust/WebAssembly V0.16 MATCH exports and
+  compares every candidate value with the independent SciPy calculation.
+  Passing validates this bounded candidate and fixture, not Program Editor
+  execution readiness or legacy desktop parity.
 
 ### Classic TABLES V0.11 validation
 

@@ -14,13 +14,15 @@ const maintainedModules = [
   "epi-assist",
   "epi-assist-worker",
   "form-data",
+  "matched-worker",
+  "matched-worker-client",
   "maps",
   "shell",
   "stratified-worker",
   "stratified-worker-client",
   "supabase-sync",
 ];
-const bundledModules = new Set(["app", "epi-assist", "epi-assist-worker", "form-data", "maps", "stratified-worker", "supabase-sync"]);
+const bundledModules = new Set(["app", "epi-assist", "epi-assist-worker", "form-data", "maps", "matched-worker", "stratified-worker", "supabase-sync"]);
 
 async function existingSource(baseName) {
   for (const extension of [".ts", ".js"]) {
@@ -49,6 +51,10 @@ await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb
 await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-eh.wasm"), join(outputDirectory, "duckdb-eh.wasm"));
 await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js"), join(outputDirectory, "duckdb-browser-eh.worker.js"));
 await mkdir(validationFixtureDirectory, { recursive: true });
+await cp(
+  join(wasmDirectory, "tests/fixtures/phase0/wasm-manifest.json"),
+  join(outputDirectory, "engine-manifest.json"),
+);
 await cp(
   join(wasmDirectory, "tests/fixtures/phase0/table2x2-baseline.json"),
   join(validationFixtureDirectory, "table2x2-baseline.json"),

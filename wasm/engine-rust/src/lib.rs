@@ -621,8 +621,28 @@ fn binomial_cdf(k: u32, n: u32, probability: f64) -> f64 {
     if result > 1.0 { 1.0 } else { result }
 }
 
-fn frequency_exact_limit(frequency: u32, total: u32, upper: bool) -> f64 {
-    const TAIL: f64 = 0.025;
+fn binomial_probability(k: u32, n: u32, probability: f64) -> f64 {
+    if k > n || !probability.is_finite() || probability < 0.0 || probability > 1.0 {
+        return f64::NAN;
+    }
+    if probability == 0.0 {
+        return if k == 0 { 1.0 } else { 0.0 };
+    }
+    if probability == 1.0 {
+        return if k == n { 1.0 } else { 0.0 };
+    }
+    let mut log_choose = 0.0;
+    for value in 1..=k {
+        log_choose += libm::log((n - value + 1) as f64) - libm::log(value as f64);
+    }
+    libm::exp(
+        log_choose
+            + k as f64 * libm::log(probability)
+            + (n - k) as f64 * libm::log(1.0 - probability),
+    )
+}
+
+fn binomial_exact_limit(frequency: u32, total: u32, upper: bool, tail: f64) -> f64 {
     if !upper && frequency == 0 {
         return 0.0;
     }
@@ -639,14 +659,14 @@ fn frequency_exact_limit(frequency: u32, total: u32, upper: bool) -> f64 {
         let midpoint = 0.5 * (low + high);
         if upper {
             let probability = binomial_cdf(frequency, total, midpoint);
-            if probability > TAIL {
+            if probability > tail {
                 low = midpoint;
             } else {
                 high = midpoint;
             }
         } else {
             let probability = binomial_cdf(total - frequency, total, 1.0 - midpoint);
-            if probability > TAIL {
+            if probability > tail {
                 high = midpoint;
             } else {
                 low = midpoint;
@@ -654,6 +674,147 @@ fn frequency_exact_limit(frequency: u32, total: u32, upper: bool) -> f64 {
         }
     }
     0.5 * (low + high)
+}
+
+fn frequency_exact_limit(frequency: u32, total: u32, upper: bool) -> f64 {
+    binomial_exact_limit(frequency, total, upper, 0.025)
+}
+
+const MAX_MATCHED_DISCORDANT_PAIRS: u32 = 100_000;
+
+fn matched_counts(case_exposed: f64, control_exposed: f64) -> Option<(u32, u32, u32)> {
+    if !case_exposed.is_finite()
+        || !control_exposed.is_finite()
+        || case_exposed < 0.0
+        || control_exposed < 0.0
+        || case_exposed != libm::floor(case_exposed)
+        || control_exposed != libm::floor(control_exposed)
+        || case_exposed > MAX_MATCHED_DISCORDANT_PAIRS as f64
+        || control_exposed > MAX_MATCHED_DISCORDANT_PAIRS as f64
+        || case_exposed + control_exposed > MAX_MATCHED_DISCORDANT_PAIRS as f64
+    {
+        return None;
+    }
+    let b = case_exposed as u32;
+    let c = control_exposed as u32;
+    Some((b, c, b + c))
+}
+
+/// Proposed V0.16 paired odds ratio, oriented as case-exposed/control-unexposed
+/// discordances divided by case-unexposed/control-exposed discordances.
+#[unsafe(no_mangle)]
+pub extern "C" fn matched_odds_ratio(case_exposed: f64, control_exposed: f64) -> f64 {
+    let Some((b, c, n)) = matched_counts(case_exposed, control_exposed) else {
+        return f64::NAN;
+    };
+    if n == 0 {
+        f64::NAN
+    } else if c == 0 {
+        f64::INFINITY
+    } else {
+        b as f64 / c as f64
+    }
+}
+
+fn matched_odds_ratio_limit(
+    case_exposed: f64,
+    control_exposed: f64,
+    confidence_level: f64,
+    upper: bool,
+) -> f64 {
+    let Some((b, _c, n)) = matched_counts(case_exposed, control_exposed) else {
+        return f64::NAN;
+    };
+    if n == 0 || confidence_level != 0.95 {
+        return f64::NAN;
+    }
+    let probability = binomial_exact_limit(b, n, upper, 0.5 * (1.0 - confidence_level));
+    if probability == 1.0 {
+        f64::INFINITY
+    } else {
+        probability / (1.0 - probability)
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn matched_odds_ratio_exact_lower(
+    case_exposed: f64,
+    control_exposed: f64,
+    confidence_level: f64,
+) -> f64 {
+    matched_odds_ratio_limit(case_exposed, control_exposed, confidence_level, false)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn matched_odds_ratio_exact_upper(
+    case_exposed: f64,
+    control_exposed: f64,
+    confidence_level: f64,
+) -> f64 {
+    matched_odds_ratio_limit(case_exposed, control_exposed, confidence_level, true)
+}
+
+fn matched_mcnemar_statistic(case_exposed: f64, control_exposed: f64, corrected: bool) -> f64 {
+    let Some((b, c, n)) = matched_counts(case_exposed, control_exposed) else {
+        return f64::NAN;
+    };
+    if n == 0 {
+        return f64::NAN;
+    }
+    let difference = libm::fabs(b as f64 - c as f64);
+    let adjusted = if corrected {
+        (difference - 1.0).max(0.0)
+    } else {
+        difference
+    };
+    adjusted * adjusted / n as f64
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn matched_mcnemar_uncorrected(
+    case_exposed: f64,
+    control_exposed: f64,
+) -> f64 {
+    matched_mcnemar_statistic(case_exposed, control_exposed, false)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn matched_mcnemar_corrected(
+    case_exposed: f64,
+    control_exposed: f64,
+) -> f64 {
+    matched_mcnemar_statistic(case_exposed, control_exposed, true)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn matched_exact_two_sided(
+    case_exposed: f64,
+    control_exposed: f64,
+) -> f64 {
+    let Some((b, c, n)) = matched_counts(case_exposed, control_exposed) else {
+        return f64::NAN;
+    };
+    if n == 0 {
+        return f64::NAN;
+    }
+    (2.0 * binomial_cdf(b.min(c), n, 0.5)).min(1.0)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn matched_exact_mid_p_two_sided(
+    case_exposed: f64,
+    control_exposed: f64,
+) -> f64 {
+    let Some((b, c, n)) = matched_counts(case_exposed, control_exposed) else {
+        return f64::NAN;
+    };
+    if n == 0 {
+        return f64::NAN;
+    }
+    let minimum = b.min(c);
+    let tail = binomial_cdf(minimum, n, 0.5);
+    let observed = binomial_probability(minimum, n, 0.5);
+    (2.0 * (tail - 0.5 * observed)).min(1.0)
 }
 
 fn frequency_confidence_limit(frequency: f64, total: f64, upper: bool) -> f64 {
@@ -2430,5 +2591,53 @@ mod tests {
         assert_near(stratified_mh_odds_ratio(MAX_STRATA as u32), 1.0);
         assert_near(stratified_mh_risk_ratio(MAX_STRATA as u32), 1.0);
         assert!(stratified_conditional_odds_ratio(MAX_STRATA as u32).is_nan());
+    }
+
+    #[test]
+    fn matched_pairs_candidate_matches_the_hand_audit_contract() {
+        let (b, c) = (3.0, 2.0);
+        assert_near(matched_odds_ratio(b, c), 1.5);
+        assert_near(
+            matched_odds_ratio_exact_lower(b, c, 0.95),
+            0.171_828_492_555_021_44,
+        );
+        assert_near(
+            matched_odds_ratio_exact_upper(b, c, 0.95),
+            17.959_160_830_022_086,
+        );
+        assert_near(matched_mcnemar_uncorrected(b, c), 0.2);
+        assert_eq!(matched_mcnemar_corrected(b, c), 0.0);
+        assert_near(
+            chi_square_p_value(matched_mcnemar_uncorrected(b, c)),
+            0.654_720_846_018_576_9,
+        );
+        assert_eq!(chi_square_p_value(matched_mcnemar_corrected(b, c)), 1.0);
+        assert_eq!(matched_exact_two_sided(b, c), 1.0);
+        assert_near(matched_exact_mid_p_two_sided(b, c), 0.6875);
+    }
+
+    #[test]
+    fn matched_pairs_candidate_preserves_boundaries_and_reciprocity() {
+        assert!(matched_odds_ratio(0.0, 0.0).is_nan());
+        assert_eq!(matched_odds_ratio(0.0, 2.0), 0.0);
+        assert!(matched_odds_ratio(2.0, 0.0).is_infinite());
+        assert!(matched_exact_two_sided(0.0, 0.0).is_nan());
+        assert!(matched_mcnemar_uncorrected(0.0, 0.0).is_nan());
+        assert_near(
+            matched_odds_ratio(2.0, 3.0),
+            1.0 / matched_odds_ratio(3.0, 2.0),
+        );
+        assert_near(
+            matched_odds_ratio_exact_lower(2.0, 3.0, 0.95),
+            1.0 / matched_odds_ratio_exact_upper(3.0, 2.0, 0.95),
+        );
+        assert_near(
+            matched_odds_ratio_exact_upper(2.0, 3.0, 0.95),
+            1.0 / matched_odds_ratio_exact_lower(3.0, 2.0, 0.95),
+        );
+        assert!(matched_odds_ratio(-1.0, 2.0).is_nan());
+        assert!(matched_odds_ratio(1.5, 2.0).is_nan());
+        assert!(matched_odds_ratio_exact_lower(3.0, 2.0, 0.90).is_nan());
+        assert!(matched_odds_ratio(100_000.0, 1.0).is_nan());
     }
 }

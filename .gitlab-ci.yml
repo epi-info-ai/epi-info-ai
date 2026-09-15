@@ -17,6 +17,7 @@ browser-baseline:
     - job: rust-kernel
       artifacts: true
   script:
+    - node wasm/scripts/refresh-wasm-manifest.mjs
     - pnpm run typecheck
     - pnpm run test
   rules:
@@ -55,6 +56,7 @@ production-build:
     - corepack install
     - pnpm install --frozen-lockfile
   script:
+    - node wasm/scripts/refresh-wasm-manifest.mjs
     - pnpm run build
     - pnpm run test:build
   artifacts:

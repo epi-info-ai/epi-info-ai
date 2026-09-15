@@ -1411,13 +1411,16 @@ now freezes the first bounded 1:1 semantics, output requirements, exclusions,
 zero/infinity states, and a 21-record hand-auditable fixture. The independent
 [`validate-match.ipynb`](validation-lab/content/validate-match.ipynb) lab
 reconstructs the matched sets and supplies SciPy, boundary, and metamorphic
-evidence without calling a MATCH engine. The next slice is the bounded typed
-Rust result/kernel and Worker boundary. The typed result contract and bounded
+evidence without calling a MATCH engine. The typed result contract and bounded
 record-to-pair derivation are now implemented in
 `app/programming/classic-match-analysis.ts`; they enforce explicit binary
 mapping, 1:1 set composition, exclusion accounting, source limits, and the
-case/control orientation passed to the future kernel. Desktop differential
-evidence remains required before a parity claim or general execution is enabled.
+case/control orientation passed to the kernel. V0.16 Rust exports now calculate
+the paired odds ratio, conditional exact limits, McNemar statistics, exact p,
+and mid-p; a dedicated Worker provides time limits, cancellation, termination,
+and recovery. The JupyterLite notebook compares those deployed exports with
+independent SciPy calculations. Desktop differential evidence remains required
+before a parity claim or Program Editor execution is enabled.
 
 **Ordinary TABLES browser candidate complete at V0.11:** the tested floor now
 includes unstratified and Cartesian-strata categorical M×N counts, percentages,

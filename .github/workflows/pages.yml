@@ -46,7 +46,9 @@ jobs:
           pnpm install --frozen-lockfile
 
       - name: Validate and build the browser application
-        run: pnpm run check
+        run: |
+          node wasm/scripts/refresh-wasm-manifest.mjs
+          pnpm run check
 
       - name: Install Python
         uses: actions/setup-python@v7

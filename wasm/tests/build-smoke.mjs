@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,7 @@ const requiredFiles = [
   "epi-assist.js.map",
   "epi-assist-worker.js",
   "epi-assist-worker.js.map",
+  "engine-manifest.json",
   "engine.js",
   "engine.js.map",
   "form-data.js",
@@ -36,6 +38,10 @@ const requiredFiles = [
   "stratified-worker.js.map",
   "stratified-worker-client.js",
   "stratified-worker-client.js.map",
+  "matched-worker.js",
+  "matched-worker.js.map",
+  "matched-worker-client.js",
+  "matched-worker-client.js.map",
   "epi2x2.wasm",
   "sample-case-data.csv",
   "sample-map-layer.geojson",
@@ -89,6 +95,10 @@ requiredFiles.push("sqlite3.wasm");
 requiredFiles.push("duckdb-mvp.wasm", "duckdb-browser-mvp.worker.js");
 requiredFiles.push("duckdb-eh.wasm", "duckdb-browser-eh.worker.js");
 await Promise.all(requiredFiles.map(requireFile));
+const engineManifest = JSON.parse(await requireFile("engine-manifest.json"));
+const engineBytes = await readFile(join(outputDirectory, "epi2x2.wasm"));
+assert.equal(engineBytes.length, engineManifest.size);
+assert.equal(createHash("sha256").update(engineBytes).digest("hex"), engineManifest.sha256);
 
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
@@ -198,6 +208,7 @@ assert.match(app, /calculatePopulationSurvey/);
 assert.match(app, /calculateCohortSampleSize/);
 assert.match(app, /calculateUnmatchedCaseControl/);
 assert.match(app, /calculateChiSquareTrend/);
+assert.match(app, /calculateMatchedPairs/);
 const maps = bundledJavaScript;
 assert.match(maps, /MAP_PANE_Z_INDEX/);
 assert.match(maps, /aggregateH3Cells/);
@@ -210,6 +221,8 @@ assert.ok(manifest.sourceModules.includes("wasm/demo/engine.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/shell.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/stratified-worker.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/stratified-worker-client.ts"));
+assert.ok(manifest.sourceModules.includes("wasm/demo/matched-worker.ts"));
+assert.ok(manifest.sourceModules.includes("wasm/demo/matched-worker-client.ts"));
 assert.ok(manifest.sourceModules.includes("wasm/demo/supabase-sync.ts"));
 assert.ok(manifest.outputs.includes("wasm/dist/app.js"));
 

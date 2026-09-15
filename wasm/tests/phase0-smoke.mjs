@@ -45,7 +45,10 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/shell.ts",
     "wasm/demo/stratified-worker.ts",
     "wasm/demo/stratified-worker-client.ts",
+    "wasm/demo/matched-worker.ts",
+    "wasm/demo/matched-worker-client.ts",
     "wasm/demo/supabase-sync.ts",
+    "wasm/scripts/refresh-wasm-manifest.mjs",
     "wasm/app/contracts/core.ts",
     "wasm/app/contracts/assistant.ts",
     "wasm/app/assistant/proposals.ts",
@@ -540,7 +543,7 @@ async function checkSourceLanguageBoundary() {
     [],
     "handwritten application JavaScript must not return to the demo root",
   );
-  for (const moduleName of ["app", "engine", "form-data", "maps", "shell", "stratified-worker", "stratified-worker-client", "supabase-sync"]) {
+  for (const moduleName of ["app", "engine", "form-data", "maps", "matched-worker", "matched-worker-client", "shell", "stratified-worker", "stratified-worker-client", "supabase-sync"]) {
     assert.ok(rootSources.includes(`${moduleName}.ts`), `${moduleName} must remain a TypeScript source module`);
   }
 }
@@ -2216,6 +2219,41 @@ async function checkMatchedPairsContractFixture() {
   assert.equal(invalidBinary.totals.excludedRecords, 2);
   assert.throws(() => deriveMatchedPairs([], derived.input), /at least one active record/);
   assert.throws(() => deriveMatchedPairs(records, { ...derived.input, matchField: derived.input.exposureField }), /three different/);
+  const rustSource = await readFile(repositoryPath("wasm/engine-rust/src/lib.rs"), "utf8");
+  for (const exportName of [
+    "matched_odds_ratio",
+    "matched_odds_ratio_exact_lower",
+    "matched_odds_ratio_exact_upper",
+    "matched_mcnemar_uncorrected",
+    "matched_mcnemar_corrected",
+    "matched_exact_two_sided",
+    "matched_exact_mid_p_two_sided",
+  ]) assert.match(rustSource, new RegExp(`pub extern \\"C\\" fn ${exportName}\\b`));
+  assert.match(rustSource, /matched_pairs_candidate_matches_the_hand_audit_contract/);
+  assert.match(rustSource, /matched_pairs_candidate_preserves_boundaries_and_reciprocity/);
+  const workerSource = await readFile(repositoryPath("wasm/demo/matched-worker.ts"), "utf8");
+  const workerClientSource = await readFile(repositoryPath("wasm/demo/matched-worker-client.ts"), "utf8");
+  assert.match(workerSource, /calculateMatchedPairs/);
+  assert.match(workerClientSource, /AbortSignal/);
+  assert.match(workerClientSource, /10 seconds/);
+  const wasmBytes = await readFile(repositoryPath("wasm/demo/epi2x2.wasm"));
+  const wasmModule = await WebAssembly.compile(wasmBytes);
+  const wasmExports = new Set(WebAssembly.Module.exports(wasmModule).map((item) => item.name));
+  if (wasmExports.has("matched_odds_ratio")) {
+    const { calculateMatchedPairs } = await importEngineWithFileFetch();
+    const candidate = calculateMatchedPairs(derived.kernelInput);
+    const tolerance = 1e-12;
+    assert.equal(candidate.engine.version, "0.16.0");
+    near(candidate.estimate.value, fixture.expected.matchedOddsRatio.value, tolerance, "MATCH odds ratio");
+    near(candidate.confidenceInterval.lower.value, fixture.expected.matchedOddsRatio.conditionalExactCentral.lower, tolerance, "MATCH exact CI lower");
+    near(candidate.confidenceInterval.upper.value, fixture.expected.matchedOddsRatio.conditionalExactCentral.upper, tolerance, "MATCH exact CI upper");
+    near(candidate.tests.uncorrected.value, fixture.expected.mcnemar.uncorrected.chiSquare, tolerance, "MATCH McNemar chi square");
+    near(candidate.tests.uncorrected.pValue, fixture.expected.mcnemar.uncorrected.pValue, tolerance, "MATCH McNemar p value");
+    near(candidate.tests.continuityCorrected.value, fixture.expected.mcnemar.continuityCorrected.chiSquare, tolerance, "MATCH corrected chi square");
+    near(candidate.tests.continuityCorrected.pValue, fixture.expected.mcnemar.continuityCorrected.pValue, tolerance, "MATCH corrected p value");
+    near(candidate.tests.exactTwoSidedPValue, fixture.expected.mcnemar.exactTwoSidedPValue, tolerance, "MATCH exact p value");
+    near(candidate.tests.exactTwoSidedMidPValue, fixture.expected.mcnemar.exactTwoSidedMidPValue, tolerance, "MATCH exact mid-p value");
+  }
   const sets = new Map();
   for (const record of records) {
     const members = sets.get(record.set_id) ?? [];
@@ -3214,9 +3252,11 @@ async function checkValidationLabSource() {
     "beta.ppf",
     "binom.cdf",
     "chi2.sf",
+    "matched_odds_ratio_exact_lower",
+    "matched_exact_mid_p_two_sided",
     "row-order invariance",
     "exposure-reversal reciprocity",
-    "No MATCH WebAssembly export is called",
+    "Rust/WebAssembly V0.16 candidate",
   ]) {
     assert.ok(matchSource.includes(requiredText), `MATCH validation notebook must retain ${requiredText}`);
   }

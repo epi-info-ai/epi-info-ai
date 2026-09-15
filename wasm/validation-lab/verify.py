@@ -135,9 +135,11 @@ def verify_notebook() -> None:
         "beta.ppf",
         "binom.cdf",
         "chi2.sf",
+        "matched_odds_ratio_exact_lower",
+        "matched_exact_mid_p_two_sided",
         "row-order invariance",
         "exposure-reversal reciprocity",
-        "No MATCH WebAssembly export is called",
+        "Rust/WebAssembly V0.16 candidate",
     ]:
         assert required in source
 

@@ -134,7 +134,8 @@ checked for internal drift in Phase 0. The independent
 [`validate-match.ipynb`](../../validation-lab/content/validate-match.ipynb)
 JupyterLite lab recomputes the binomial tails, beta quantiles, and chi-square
 probabilities rather than copying these expected values. It also exercises
-boundary states and metamorphic properties. No MATCH engine is called.
+boundary states and metamorphic properties and compares the deployed V0.16
+Rust/WebAssembly candidate with those independent results.
 
 ## Validation gates before execution
 
@@ -145,8 +146,8 @@ boundary states and metamorphic properties. No MATCH engine is called.
   green as the future engine candidate is introduced.
 - Promote the 65-pair workbook only after provenance and value-code review.
 - Specify variable-ratio matched sets and multiple match fields separately.
-- Implement the typed result in the statistical kernel and expose it through a
-  Worker with bounded input and cancellation.
+- Keep the typed V0.16 Rust/WASM result and cancellable Worker green in CI and
+  preserve explicit zero/infinity/unavailable states.
 - Test selected command, full-program sequencing, output, history, and failure
   recovery in the browser.
 - Complete statistical and implementation review before changing candidate

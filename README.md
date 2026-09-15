@@ -657,8 +657,9 @@ The detailed cumulative changes and validation increments follow.
   active records, validates the explicit binary domain, classifies complete 1:1
   pairs, and accounts for every excluded set without calculating statistics.
   Next recover the Rely/Toxic Shock Syndrome data, capture reviewed desktop
-  differential output, and implement the Rust/WASM kernel and Worker before
-  enabling execution or making any statistical parity claim.
+  differential output, complete CI review of the V0.16 Rust/WASM kernel and
+  cancellable Worker, and then wire reviewed Output/history before enabling
+  Program Editor execution or making any statistical parity claim.
 
 - **Continue localization as a governed parity workstream.** The inspected
   legacy floor and browser target are now captured in

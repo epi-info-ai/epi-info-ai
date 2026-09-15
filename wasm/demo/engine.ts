@@ -19,7 +19,9 @@ import type {
   UnmatchedCaseControlResult,
   ChiSquareTrendRow,
   ChiSquareTrendResult,
+  ChiSquareTestResult,
   MidPExactResult,
+  MatchedPairsResult,
   StratifiedTable2x2Input,
   StratifiedTable2x2Result,
   Table2x2Input,
@@ -110,6 +112,13 @@ interface EpiWasmExports {
   trend_chi_square: WasmNumericFunction;
   trend_p_value: WasmNumericFunction;
   trend_odds_ratio: WasmNumericFunction;
+  matched_odds_ratio?: WasmNumericFunction;
+  matched_odds_ratio_exact_lower?: WasmNumericFunction;
+  matched_odds_ratio_exact_upper?: WasmNumericFunction;
+  matched_mcnemar_uncorrected?: WasmNumericFunction;
+  matched_mcnemar_corrected?: WasmNumericFunction;
+  matched_exact_two_sided?: WasmNumericFunction;
+  matched_exact_mid_p_two_sided?: WasmNumericFunction;
 }
 
 function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
@@ -194,6 +203,18 @@ function validateWasmExports(exports: WebAssembly.Exports): EpiWasmExports {
     const value = exports[name];
     if (typeof value !== "function") throw new Error(`The WASM engine is missing its ${name} function.`);
     validated[name] = value as WasmNumericFunction;
+  }
+  for (const name of [
+    "matched_odds_ratio",
+    "matched_odds_ratio_exact_lower",
+    "matched_odds_ratio_exact_upper",
+    "matched_mcnemar_uncorrected",
+    "matched_mcnemar_corrected",
+    "matched_exact_two_sided",
+    "matched_exact_mid_p_two_sided",
+  ] as const) {
+    const value = exports[name];
+    if (typeof value === "function") validated[name] = value as WasmNumericFunction;
   }
   return validated;
 }
@@ -979,5 +1000,64 @@ export function calculateChiSquareTrend(rows: readonly ChiSquareTrendRow[]): Chi
     chiSquare,
     pValue: probability,
     diagnostics: { warnings: [] },
+  };
+}
+
+export function calculateMatchedPairs(input: MatchedPairsResult["input"]): MatchedPairsResult {
+  const b = input.caseExposedControlUnexposed;
+  const c = input.caseUnexposedControlExposed;
+  if (!Number.isSafeInteger(b) || !Number.isSafeInteger(c) || b < 0 || c < 0 || b + c > 100_000) {
+    throw new RangeError("MATCH discordant counts must be non-negative safe whole numbers totaling at most 100,000.");
+  }
+  if (input.confidenceLevel !== 0.95) throw new RangeError("MATCH V0.16 supports a 95% confidence level only.");
+  const kernel = {
+    oddsRatio: WASM.matched_odds_ratio,
+    lower: WASM.matched_odds_ratio_exact_lower,
+    upper: WASM.matched_odds_ratio_exact_upper,
+    uncorrected: WASM.matched_mcnemar_uncorrected,
+    corrected: WASM.matched_mcnemar_corrected,
+    exact: WASM.matched_exact_two_sided,
+    midP: WASM.matched_exact_mid_p_two_sided,
+  };
+  if (Object.values(kernel).some((candidate) => typeof candidate !== "function")) {
+    throw new Error("The MATCH V0.16 Rust/WASM kernel is unavailable in this artifact.");
+  }
+  const oddsRatio = kernel.oddsRatio!(b, c);
+  const lower = kernel.lower!(b, c, input.confidenceLevel);
+  const upper = kernel.upper!(b, c, input.confidenceLevel);
+  const uncorrectedValue = kernel.uncorrected!(b, c);
+  const correctedValue = kernel.corrected!(b, c);
+  const exact = kernel.exact!(b, c);
+  const midP = kernel.midP!(b, c);
+  const probability = (value: number): ChiSquareTestResult | null => Number.isFinite(value) ? {
+    value,
+    pValue: WASM.chi_square_p_value(value),
+    degreesOfFreedom: 1,
+  } : null;
+  const warnings: string[] = [];
+  if (b + c === 0) warnings.push("No discordant pairs remain; the matched odds ratio and McNemar tests are unavailable.");
+  else if (b === 0) warnings.push("No case-exposed/control-unexposed discordances remain; the matched odds ratio is zero.");
+  else if (c === 0) warnings.push("No case-unexposed/control-exposed discordances remain; the matched odds ratio is positive infinity.");
+  return {
+    schemaVersion: "0.1.0",
+    operation: "epi.match.paired",
+    engine: { id: "epi-core-wasm", version: "0.16.0", operation: "epi.match.paired" },
+    input: { ...input },
+    methods: {
+      oddsRatio: "discordant-pairs-b-over-c",
+      confidenceInterval: "conditional-exact-central-clopper-pearson-odds-transform",
+      mcnemar: "discordant-pairs-chi-square-df1",
+      exact: "two-sided-doubled-binomial-tail",
+      midP: "two-sided-binomial-tail-minus-half-observed",
+    },
+    estimate: boundaryNumber(oddsRatio),
+    confidenceInterval: { lower: boundaryNumber(lower), upper: boundaryNumber(upper) },
+    tests: {
+      uncorrected: probability(uncorrectedValue),
+      continuityCorrected: probability(correctedValue),
+      exactTwoSidedPValue: wasmNumber(exact),
+      exactTwoSidedMidPValue: wasmNumber(midP),
+    },
+    diagnostics: { warnings },
   };
 }
