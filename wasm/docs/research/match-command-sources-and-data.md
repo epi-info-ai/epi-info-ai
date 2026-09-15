@@ -116,7 +116,9 @@ also published under the
 contains 30,000 rows: 100 simulation iterations, each with 100 matched sets of
 three observations. Every iteration/set combination has one case and two
 controls. Its SHA-256 is
-`662a9ed558f869af0b1ae0222931d288a8c615dc77afb286864e7147729b8a02`.
+`eb9887feacad1dc2a22150c1e9db0cd427687c8be59b3943d14591082e142103`
+for the LF-normalized repository and deployed asset. A Windows checkout may
+materialize CRLF line endings and therefore has a different byte digest.
 This is appropriate for conditional-logistic stress and repeatability tests,
 but not as the primary standalone MATCH teaching example.
 

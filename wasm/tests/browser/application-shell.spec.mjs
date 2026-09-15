@@ -3306,7 +3306,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(editor).toContainText("RECODE age");
   await page.locator("#classic-program-toolbar-open").click();
   await expect(page.locator(".classic-program-examples")).toBeVisible();
-  await expect(page.locator("#classic-program-example option")).toHaveCount(6);
+  await expect(page.locator("#classic-program-example option")).toHaveCount(7);
   await page.locator("#classic-program-example").selectOption("age-band-by-case-status");
   await expect(page.locator("#classic-program-example-description")).toContainText("Case Status");
   await page.locator("#classic-program-load-example").click();
@@ -3733,8 +3733,9 @@ test("integrated project, foodborne, mapping, and MATCH examples are downloadabl
   const matchedStressResponse = await request.get("/examples/matched-case-control/matched-logistic-test-data.csv");
   expect(matchedStressResponse.ok()).toBe(true);
   const matchedStress = await matchedStressResponse.body();
-  expect(createHash("sha256").update(matchedStress).digest("hex")).toBe(
-    "662a9ed558f869af0b1ae0222931d288a8c615dc77afb286864e7147729b8a02",
+  const normalizedMatchedStress = Buffer.from(matchedStress.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
+  expect(createHash("sha256").update(normalizedMatchedStress).digest("hex")).toBe(
+    "eb9887feacad1dc2a22150c1e9db0cd427687c8be59b3943d14591082e142103",
   );
 
   const matchProgramResponse = await request.get("/examples/matched-case-control/match-pb-by-pair.pgm7");

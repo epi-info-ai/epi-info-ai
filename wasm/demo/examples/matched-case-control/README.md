@@ -31,7 +31,9 @@ and two controls. It is useful for bounded set-processing and conditional
 logistic-regression stress tests, not as the primary teaching example.
 
 SHA-256:
-`662a9ed558f869af0b1ae0222931d288a8c615dc77afb286864e7147729b8a02`.
+`eb9887feacad1dc2a22150c1e9db0cd427687c8be59b3943d14591082e142103`
+for the LF-normalized repository and deployed asset. A Windows checkout may
+materialize CRLF line endings and therefore has a different byte digest.
 
 ## Program
 
