@@ -22,3 +22,13 @@ Use this manual as a functional and terminology reference, not as the new applic
 
 The manual is historical and may not describe the repository's latest code exactly. Verify calculation behavior against source, tests, and independently trusted statistical references.
 
+## Removed web pages and earlier manuals
+
+The individual CDC Advanced Statistics and Visual Dashboard guide pages now
+return 404. Their dated Internet Archive captures, stable CDC Stacks records for
+the Epi Info 2000 and Epi Info 6 manuals, and the evidence recovered for the
+`MATCH` command are indexed in
+[`match-command-sources-and-data.md`](../research/match-command-sources-and-data.md).
+That note summarizes only the material needed for migration and points back to
+the authoritative archived documents; it does not duplicate whole manuals as
+Markdown.

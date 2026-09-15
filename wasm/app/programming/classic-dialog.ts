@@ -2,7 +2,7 @@ import type { MapDataSource } from "../contracts/maps.ts";
 import { CLASSIC_AST_VERSION, parseClassicProgram, type ClassicDialogInput, type ClassicDialogStatement, type ClassicIdentifier } from "./classic-ast.ts";
 import type { ClassicSessionVariableDefinition, ClassicVariableValue } from "./classic-assignment.ts";
 
-export const CLASSIC_DIALOG_PLAN_VERSION = "classic-dialog-v0.2.0" as const;
+export const CLASSIC_DIALOG_PLAN_VERSION = "classic-dialog-v0.3.0" as const;
 
 export interface ClassicDialogCommandInput {
   prompt: string;
@@ -22,6 +22,7 @@ export interface ClassicDialogPlan {
   target?: ClassicSessionVariableDefinition;
   input: ClassicDialogInput;
   choices: string[];
+  binding?: { requestedForm: string; resolvedForm: string; resolution: "single-compatible-form" };
 }
 
 const quote = (value: string): string => `"${value.replace(/"/g, '""')}"`;
@@ -29,6 +30,12 @@ const variableToken = (name: string): string => {
   const trimmed = name.trim();
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(trimmed)) throw new RangeError("DIALOG target names must be valid Epi Info identifiers.");
   return trimmed;
+};
+const dataIdentifierToken = (name: string): string => {
+  const trimmed = name.trim();
+  if (/^(?:[A-Za-z_][A-Za-z0-9_]*)(?:\.(?:[A-Za-z_][A-Za-z0-9_]*))*$/.test(trimmed)) return trimmed;
+  if (!trimmed || /[\[\]\r\n]/.test(trimmed)) throw new RangeError("DIALOG data identifiers must be valid Epi Info identifiers or bracketable names.");
+  return `[${trimmed}]`;
 };
 
 export function buildClassicDialogCommand(input: ClassicDialogCommandInput): string {
@@ -52,7 +59,7 @@ export function buildClassicDialogCommand(input: ClassicDialogCommandInput): str
     } else if (format.kind === "db-values") {
       const table = typeof format.table === "string" ? format.table : format.table.name;
       const variable = typeof format.variable === "string" ? format.variable : format.variable.name;
-      suffix = ` ${target} DBVALUES ${variableToken(table)} ${variableToken(variable)}`;
+      suffix = ` ${target} DBVALUES ${dataIdentifierToken(table)} ${dataIdentifierToken(variable)}`;
     } else if (format.kind === "db-views") suffix = ` ${target} DBVIEWS`;
     else if (format.kind === "databases") suffix = ` ${target} DATABASES`;
     else if (format.kind === "db-variables") suffix = ` ${target} DBVARIABLES`;
@@ -109,19 +116,40 @@ export function resolveClassicDialogCommand(
   const target = statement.target ? caseInsensitive(variables, statement.target.name) : undefined;
   if (expected && !target) throw new RangeError(`${statement.target?.name ?? "DIALOG target"} is not a defined Standard variable. Run a matching DEFINE command first.`);
   if (target && target.variableType !== expected) throw new RangeError(`${target.name} is ${target.variableType}; this DIALOG variant requires ${expected}.`);
-  const choices = resolveChoices(statement, dataSources, variables);
-  if (["choices", "db-values", "db-views", "databases", "db-variables"].includes(statement.input.kind) && choices.length === 0) {
-    throw new RangeError(`DIALOG ${statement.input.kind.toUpperCase()} has no available choices.`);
+  let resolvedInput = statement.input;
+  let binding: ClassicDialogPlan["binding"];
+  if (statement.input.kind === "db-values") {
+    const dbInput = statement.input;
+    const requestedForm = dbInput.table.name;
+    let resolvedSource = dataSources.find((candidate) => [candidate.formId, candidate.formName].some((name) => name.toLocaleLowerCase("en-US") === requestedForm.toLocaleLowerCase("en-US")));
+    if (!resolvedSource) {
+      const compatibleSources = dataSources.filter((candidate) => candidate.fields.some((field) => field.name.toLocaleLowerCase("en-US") === dbInput.variable.name.toLocaleLowerCase("en-US")));
+      if (compatibleSources.length !== 1) throw new RangeError(`${requestedForm} is not an available project form identifier for DIALOG DBVALUES.`);
+      resolvedSource = compatibleSources[0]!;
+      binding = { requestedForm, resolvedForm: resolvedSource.formName, resolution: "single-compatible-form" };
+    }
+    const resolvedField = resolvedSource.fields.find((field) => field.name.toLocaleLowerCase("en-US") === dbInput.variable.name.toLocaleLowerCase("en-US"));
+    if (!resolvedField) throw new RangeError(`${dbInput.variable.name} is not a field in ${resolvedSource.formName}.`);
+    resolvedInput = {
+      ...dbInput,
+      table: { ...dbInput.table, name: resolvedSource.formName },
+      variable: { ...dbInput.variable, name: resolvedField.name },
+    };
+  }
+  const resolvedStatement = resolvedInput === statement.input ? statement : { ...statement, input: resolvedInput };
+  const choices = resolveChoices(resolvedStatement, dataSources, variables);
+  if (["choices", "db-values", "db-views", "databases", "db-variables"].includes(resolvedInput.kind) && choices.length === 0) {
+    throw new RangeError(`DIALOG ${resolvedInput.kind.toUpperCase()} has no available choices.`);
   }
   const canonicalSource = buildClassicDialogCommand({
     prompt: statement.prompt,
     ...(statement.title ? { title: statement.title } : {}),
     ...(target ? { target: target.name } : {}),
-    input: statement.input,
+    input: resolvedInput,
   });
   return {
     kind: "dialog", version: CLASSIC_DIALOG_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION, source, canonicalSource,
-    prompt: statement.prompt, ...(statement.title ? { title: statement.title } : {}), ...(target ? { target } : {}), input: statement.input, choices,
+    prompt: statement.prompt, ...(statement.title ? { title: statement.title } : {}), ...(target ? { target } : {}), input: resolvedInput, choices, ...(binding ? { binding } : {}),
   };
 }
 

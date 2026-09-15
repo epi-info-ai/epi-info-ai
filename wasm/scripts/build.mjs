@@ -98,6 +98,10 @@ await cp(
   join(validationFixtureDirectory, "unmatched-case-control-v0.14.json"),
 );
 await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json"),
+  join(validationFixtureDirectory, "matched-pairs-contract-v0.1.json"),
+);
+await cp(
   join(wasmDirectory, "tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"),
   join(validationFixtureDirectory, "chi-square-trend-v0.15.json"),
 );

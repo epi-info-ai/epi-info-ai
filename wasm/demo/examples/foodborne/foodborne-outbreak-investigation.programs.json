@@ -49,6 +49,13 @@
       "source": "TABLES potato_salad hamburger"
     },
     {
+      "id": "complete-dialog-tour",
+      "title": "Complete DIALOG tour",
+      "description": "Interactively exercises all 14 supported DIALOG types and both implicit and explicit numeric syntax, then downloads the active records with WRITE. UNDEFINE * first resets Standard session variables so the tour can be rerun; entered values are omitted from command history.",
+      "requiredFields": ["case_status"],
+      "source": "UNDEFINE *\nDEFINE ReviewAge NUMERIC\nDEFINE ReviewText TEXTINPUT\nDEFINE ReviewFlag YN\nDEFINE ReviewDate DATEFORMAT\nDEFINE ReviewTime TIMEFORMAT\nDEFINE ReviewDateTime DATETIMEFORMAT\nDIALOG \"Review the complete foodborne DIALOG exercise\" TITLETEXT=\"Foodborne DIALOG tour\"\nDIALOG \"Enter the age to review using implicit numeric input\" ReviewAge\nDIALOG \"Enter the age to review\" ReviewAge NUMERIC TITLETEXT=\"Foodborne review\"\nDIALOG \"Enter a reviewer note\" ReviewText TEXTINPUT\nDIALOG \"Continue the review?\" ReviewFlag YN\nDIALOG \"Choose the review date\" ReviewDate DATEFORMAT \"YYYY-MM-DD\"\nDIALOG \"Choose the review time\" ReviewTime TIMEFORMAT \"HH:MM\"\nDIALOG \"Choose the review date and time\" ReviewDateTime DATETIMEFORMAT \"YYYY-MM-DD HH:MM\"\nDIALOG \"Choose a case status\" ReviewText \"Confirmed\", \"Probable\", \"Suspected\", \"Not a case\"\nDIALOG \"Choose a case status from project data\" ReviewText DBVALUES [Foodborne Outbreak Investigation Form] case_status\nDIALOG \"Choose a project form\" ReviewText DBVIEWS\nDIALOG \"Choose a project\" ReviewText DATABASES\nDIALOG \"Choose a defined variable\" ReviewText DBVARIABLES\nDIALOG \"Choose a CSV\" ReviewText READ \"*.csv\"\nDIALOG \"Review an export name (DIALOG exercise only)\" ReviewText WRITE \"*.csv\"\nWRITE REPLACE \"Text\" {foodborne-dialog-tour-export-copy.csv}:foodborne_dialog_tour_export_copy#csv *"
+    },
+    {
       "id": "quality-profile",
       "title": "NEW BRANCH — Foodborne quality profile",
       "description": "Profiles missingness, completeness, validation issues, and duplicate candidates without changing the line list. Select the command and use Run Selected Command.",

@@ -30,7 +30,7 @@ is never silently treated as executable browser behavior.
 
 `scripts/convert-epi-info-access.ps1` reads an Epi Info Access project through the
 Microsoft Access Database Engine in read-only mode and emits the V2 JSON envelope.
-The checked-in `demo/examples/sample-project.epia.json` is generated from the
+The checked-in `demo/examples/projects/sample-project.epia.json` is generated from the
 legacy Community Edition `Sample.mdb` and contains:
 
 | Item | Expected count |
@@ -50,7 +50,7 @@ Regenerate on a Windows host with the Access Database Engine installed:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File wasm/scripts/convert-epi-info-access.ps1 `
   -InputMdb wasm/source/Epi-Info-Community-Edition/Epi.Core/Projects/Sample/Sample.mdb `
-  -OutputPackage wasm/demo/examples/sample-project.epia.json
+  -OutputPackage wasm/demo/examples/projects/sample-project.epia.json
 ```
 
 ## Current UI behavior and limits

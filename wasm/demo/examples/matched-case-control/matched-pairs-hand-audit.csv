@@ -1,0 +1,22 @@
+record_id,set_id,outcome,exposure,note
+R001,S01,1,1,Discordant case exposed
+R002,S01,0,0,Discordant case exposed
+R003,S02,1,1,Discordant case exposed
+R004,S02,0,0,Discordant case exposed
+R005,S03,1,1,Discordant case exposed
+R006,S03,0,0,Discordant case exposed
+R007,S04,1,0,Discordant control exposed
+R008,S04,0,1,Discordant control exposed
+R009,S05,1,0,Discordant control exposed
+R010,S05,0,1,Discordant control exposed
+R011,S06,1,1,Concordant both exposed
+R012,S06,0,1,Concordant both exposed
+R013,S07,1,0,Concordant neither exposed
+R014,S07,0,0,Concordant neither exposed
+R015,S08,1,,Missing case exposure
+R016,S08,0,0,Missing case exposure
+R017,S09,1,1,Invalid set with two cases
+R018,S09,1,0,Invalid set with two cases
+R019,S10,1,1,Deferred 1 to 2 set
+R020,S10,0,0,Deferred 1 to 2 set
+R021,S10,0,1,Deferred 1 to 2 set

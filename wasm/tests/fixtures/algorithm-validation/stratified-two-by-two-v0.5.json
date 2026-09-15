@@ -3,7 +3,7 @@
   "operation": "epi.stratified2x2",
   "provenance": {
     "purpose": "Foodborne potato-salad table stratified by sex, with direct legacy formulas",
-    "dataset": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "dataset": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv",
     "datasetSha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
     "derivation": { "exposure": "Potato Salad", "outcome": "Case Status", "stratum": "Sex", "excludedRows": 0 },
     "legacySources": [

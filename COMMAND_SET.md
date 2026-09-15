@@ -15,14 +15,14 @@ Last reconciled: **2026-09-15**
 |---|---:|
 | Legacy enum entries retained as the compatibility floor | 49 |
 | Visible in the legacy Command Explorer | 45 |
-| Typed AST/parser branches | 35 |
-| Typed source dialogs | 35 |
+| Typed AST/parser branches | 36 |
+| Typed source dialogs | 36 |
 | Selected execution or explicit reviewed handoff | 34 |
 | Bounded full-program components | 15 |
 | Browser-verified using checked-in `.pgm` and expected output | 28 |
 | Legacy-parity-verified against reviewed desktop Epi Info output | 0 |
 | Browser-verified non-command settings entries | 1 |
-| Untouched command entries | 13 |
+| Untouched command entries | 12 |
 
 These counts describe implementation progress, not full parity. A command is
 not parity-complete merely because its syntax parses or one browser workflow
@@ -65,7 +65,7 @@ runs.
 | Statistics | List | `LIST` | Typed parser/dialog; selected execution | BV |
 | Statistics | Frequencies | `FREQ` | Typed parser/dialog; selected and bounded program execution | BV |
 | Statistics | Tables | `TABLES` | Typed parser/dialog; selected and bounded program execution | BV |
-| Statistics | Match | `MATCH` | Legacy enum only | Gap |
+| Statistics | Match | `MATCH` | Typed AST covers all five retained grammar forms and options; revival dialog authors the dormant exposure/outcome form; execution explicitly fails closed because the shipped interpreter says “NOT yet implemented”; [archived sources and candidate corpora](wasm/docs/research/match-command-sources-and-data.md), a [proposed bounded 1:1 method contract](wasm/docs/validation/matched-pairs-method-contract.md), bounded typed record-to-pair derivation, and an [independent JupyterLite contract lab](wasm/validation-lab/content/validate-match.ipynb) are inventoried and tested | Contract, syntax revival, bounded derivation, and independent contract evidence; Rust execution gap |
 | Statistics | Means | `MEANS` | Typed parser/dialog; selected execution | BV |
 | Statistics | Summarize | `SUMMARIZE` | Typed parser/dialog; selected execution | BV |
 | Statistics | Graph | `GRAPH` | Typed parser/dialog; selected execution | BV |

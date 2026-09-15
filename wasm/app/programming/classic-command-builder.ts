@@ -18,8 +18,9 @@ import { buildClassicGraphCommand, resolveClassicGraphCommand, type ClassicGraph
 import { buildEpiAiQualityCommand, resolveEpiAiQualityCommand } from "./epi-ai-quality.ts";
 import { buildFileConvertCommand, resolveFileConvertCommand } from "./file-convert.ts";
 import { buildClassicDialogCommand, resolveClassicDialogCommand, type ClassicDialogCommandInput } from "./classic-dialog.ts";
+import { buildClassicMatchCommand, matchExecutionUnavailable, type ClassicMatchInput } from "./classic-match.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "file-convert";
+export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "match" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "file-convert";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -61,9 +62,10 @@ export type ClassicAnalysisCommandInput =
   | { kind: "list"; fields: string[] }
   | { kind: "frequency"; field: string; stratifyBy?: string; weightBy?: string; psuBy?: string; outputTable?: string }
   | { kind: "means"; field: string; crossTabBy?: string; stratifyBy?: string; weightBy?: string; psuBy?: string; outputTable?: string }
-  | { kind: "tables"; exposure: string; exposures?: string[]; outcome: string; stratifyBy?: string[]; weightBy?: string; psuBy?: string; statistics?: "NONE" | "FISHER"; outputTable?: string; oneIsYes?: boolean; noWrap?: boolean; columnSize?: number };
+  | { kind: "tables"; exposure: string; exposures?: string[]; outcome: string; stratifyBy?: string[]; weightBy?: string; psuBy?: string; statistics?: "NONE" | "FISHER"; outputTable?: string; oneIsYes?: boolean; noWrap?: boolean; columnSize?: number }
+  | ({ kind: "match" } & ClassicMatchInput);
 
-type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" }>;
+type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" } | { kind: "match" }>;
 export type ResolvedClassicAnalysisCommand = SelectedExecutableClassicCommandInput & { source: string };
 export const CLASSIC_TABLES_EXPANSION_PLAN_VERSION = "classic-tables-expansion-v0.1.0" as const;
 
@@ -106,6 +108,7 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "closeout") return "CLOSEOUT";
   if (input.kind === "printout") return "PRINTOUT";
   if (input.kind === "dialog") return buildClassicDialogCommand(input);
+  if (input.kind === "match") return buildClassicMatchCommand(input);
   if (input.kind === "beep") return "BEEP";
   if (input.kind === "quality") return buildEpiAiQualityCommand({ mode: "profile" });
   if (input.kind === "file-convert") return buildFileConvertCommand(input.inputFile, input.outputFile);
@@ -185,6 +188,7 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       ...(plan.target ? { target: plan.target.name } : {}), input: plan.input, source,
     };
   }
+  if (statement.type === "MatchStatement") return matchExecutionUnavailable();
   if (statement.type === "BeepStatement") return { kind: "beep", source };
   if (statement.type === "SetStatement") return statement.option === "MISSING"
     ? { kind: "set-missing", enabled: statement.enabled, source }

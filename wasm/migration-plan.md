@@ -1225,7 +1225,14 @@ time, and datetime input; fixed lists; `DBVALUES`, `DBVIEWS`, `DATABASES`, and
 matching pre-defined Standard session variable. Project/database choices are
 confined to the current browser project; file prompts use an explicit chooser or
 reviewed output name without ambient path authority. Entered values are never
-written to command history. Exact masks, focus/layout, cancellation behavior,
+written to command history. The dataset-bound `foodborne-dialog-tour.pgm7`
+exercises all 14 semantic types and both implicit and explicit numeric syntax in
+one auditable interactive run. It starts with legacy `UNDEFINE *` to clear
+Standard session variables retained by an earlier run; project fields, records,
+and Global variables are not cleared, and ends with a separate ported `WRITE
+REPLACE "Text"` command that downloads the active records as CSV. The DIALOG
+`WRITE` variant remains a reviewed filename prompt rather than filesystem
+authority or dynamic substitution into the later command. Exact masks, focus/layout, cancellation behavior,
 and the legacy Analysis-versus-Enter database differences remain differential
 review items rather than parity claims.
 
@@ -1372,6 +1379,45 @@ spelling and reconcile its intended semantics with typed, auditable map-layer
 plans. GeoJSON, H3, GeoTIFF, offline packages, and future spatial-analysis
 syntax remain separately labeled modern branches rather than retroactive legacy
 parity claims.
+
+`MATCH` is also a revival case, but with a clearer dormant specification. The
+legacy grammar defines five exposure/outcome selection forms plus `WEIGHTVAR`,
+`MATCHVAR`, and applicable `SET` clauses; `MatchDialog` authors the common
+`MATCH exposure outcome MATCHVAR=...` form. However, its shipped Command
+Explorer route is commented out and `Rule_Match.Execute()` returns an explicit
+“NOT yet implemented” result. The parity block must first preserve and test that
+syntax/dialog intent, then specify matched-set epidemiologic semantics and
+independent validation before enabling a new browser execution path. That path
+must be labeled a revival/new branch until historical working-output evidence is
+found; `MERGE ... MATCHING` remains an unrelated record-join operation.
+
+**MATCH syntax revival V0.1 complete:** the versioned typed AST now preserves
+all five retained grammar forms, `WEIGHTVAR`, `MATCHVAR`, and the applicable
+SET-clause spellings. A clearly labeled revival dialog authors the dormant
+exposure/outcome form with foodborne fields, while selected execution fails
+closed and records the rejected attempt in common command history. The next
+slice is a written matched-analysis semantics/output contract and independent
+validation corpus; no statistical execution or parity claim exists yet.
+
+**MATCH source and corpus discovery complete:** the
+[evidence archive](docs/research/match-command-sources-and-data.md) links the
+official CDC archive, CDC Stacks manuals, dated Wayback captures for removed
+guide pages, and the applicable local legacy source. It identifies a checked-in
+130-observation case-control workbook with 65 complete 1:1 matched sets as the
+primary teaching candidate, plus a 30,000-row synthetic 1:2 matched-logistic
+stress corpus and an incomplete Rely/Toxic Shock Syndrome recovery candidate.
+The proposed [paired-analysis method contract](docs/validation/matched-pairs-method-contract.md)
+now freezes the first bounded 1:1 semantics, output requirements, exclusions,
+zero/infinity states, and a 21-record hand-auditable fixture. The independent
+[`validate-match.ipynb`](validation-lab/content/validate-match.ipynb) lab
+reconstructs the matched sets and supplies SciPy, boundary, and metamorphic
+evidence without calling a MATCH engine. The next slice is the bounded typed
+Rust result/kernel and Worker boundary. The typed result contract and bounded
+record-to-pair derivation are now implemented in
+`app/programming/classic-match-analysis.ts`; they enforce explicit binary
+mapping, 1:1 set composition, exclusion accounting, source limits, and the
+case/control orientation passed to the future kernel. Desktop differential
+evidence remains required before a parity claim or general execution is enabled.
 
 **Ordinary TABLES browser candidate complete at V0.11:** the tested floor now
 includes unstratified and Cartesian-strata categorical M×N counts, percentages,

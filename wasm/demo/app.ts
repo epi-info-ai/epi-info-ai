@@ -1090,6 +1090,9 @@ const classicRuntimeDialogFile = requiredElement<HTMLInputElement>("#classic-run
 const classicRuntimeDialogMask = requiredElement<HTMLElement>("#classic-runtime-dialog-mask");
 const classicRuntimeDialogFeedback = requiredElement<HTMLElement>("#classic-runtime-dialog-feedback");
 const classicRuntimeDialogCancel = requiredElement<HTMLButtonElement>("#classic-runtime-dialog-cancel");
+const classicRuntimeDialogClose = requiredElement<HTMLButtonElement>("#classic-runtime-dialog-close");
+classicRuntimeDialogCancel.addEventListener("click", () => classicRuntimeDialog.close("cancel"));
+classicRuntimeDialogClose.addEventListener("click", () => classicRuntimeDialog.close("cancel"));
 const classicCommandDialogField = requiredElement<HTMLSelectElement>("#classic-command-dialog-field");
 const classicCommandDialogExposure = requiredElement<HTMLSelectElement>("#classic-command-dialog-exposure");
 const classicCommandDialogOutcome = requiredElement<HTMLSelectElement>("#classic-command-dialog-outcome");
@@ -1392,8 +1395,14 @@ function classicCommandDialogInput(): ClassicAnalysisCommandInput {
     ...(classicCommandDialogGraphXTitle.value.trim() ? { xTitle: classicCommandDialogGraphXTitle.value } : {}),
     ...(classicCommandDialogGraphYTitle.value.trim() ? { yTitle: classicCommandDialogGraphYTitle.value } : {}),
   };
+  if (kind === "match") return {
+    kind,
+    selection: { kind: "row-column", exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value },
+    matchBy: classicCommandDialogStrata.value ? [classicCommandDialogStrata.value] : [],
+    ...(classicCommandDialogWeight.value ? { weightBy: classicCommandDialogWeight.value } : {}),
+  };
   return {
-    kind, exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value,
+    kind: "tables", exposure: classicCommandDialogExposure.value, outcome: classicCommandDialogOutcome.value,
     ...(classicCommandDialogStrata.value ? { stratifyBy: [classicCommandDialogStrata.value] } : {}),
     ...(classicCommandDialogWeight.value ? { weightBy: classicCommandDialogWeight.value } : {}),
     ...(classicCommandDialogPsu.value ? { psuBy: classicCommandDialogPsu.value } : {}),
@@ -1428,6 +1437,7 @@ function updateClassicCommandDialog(): void {
   const list = kind === "list";
   const means = kind === "means";
   const tables = kind === "tables";
+  const match = kind === "match";
   const summarize = kind === "summarize";
   const graph = kind === "graph";
   const header = kind === "header";
@@ -1626,6 +1636,7 @@ function updateClassicCommandDialog(): void {
   requiredElement<HTMLElement>("#classic-command-dialog-sort").hidden = !sort;
   requiredElement<HTMLElement>("#classic-command-dialog-summarize").hidden = !summarize;
   requiredElement<HTMLElement>("#classic-command-dialog-graph").hidden = !graph;
+  requiredElement<HTMLElement>("#classic-command-dialog-match").hidden = !match;
   requiredElement<HTMLElement>("#classic-command-dialog-header").hidden = !header;
   requiredElement<HTMLElement>("#classic-command-dialog-typeout").hidden = !typeout;
   requiredElement<HTMLElement>("#classic-command-dialog-routeout").hidden = !routeout;
@@ -1636,18 +1647,21 @@ function updateClassicCommandDialog(): void {
   requiredElement<HTMLElement>("#classic-command-dialog-set-missing").hidden = !setMissing;
   requiredElement<HTMLElement>("#classic-command-dialog-quality").hidden = !quality;
   requiredElement<HTMLElement>("#classic-command-dialog-file-convert").hidden = !fileConvert;
-  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize || header || typeout || routeout || closeout || printout || dialogCommand || beep || setMissing || quality || fileConvert;
-  requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables;
-  requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables;
+  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || match || summarize || header || typeout || routeout || closeout || printout || dialogCommand || beep || setMissing || quality || fileConvert;
+  requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables && !match;
+  requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables && !match;
   requiredElement<HTMLElement>("#classic-command-dialog-fisher-label").hidden = !tables || classicComplexTablesDialog;
   requiredElement<HTMLElement>("#classic-command-dialog-statistics-label").hidden = !tables || classicComplexTablesDialog;
   requiredElement<HTMLElement>("#classic-command-dialog-one-is-yes-label").hidden = !tables || classicComplexTablesDialog;
-  requiredElement<HTMLElement>("#classic-command-dialog-weight-label").hidden = !tables && !classicComplexFrequencyDialog && !classicComplexMeansDialog;
+  requiredElement<HTMLElement>("#classic-command-dialog-weight-label").hidden = !tables && !match && !classicComplexFrequencyDialog && !classicComplexMeansDialog;
   requiredElement<HTMLElement>("#classic-command-dialog-psu-label").hidden = (!tables || !classicComplexTablesDialog) && !classicComplexFrequencyDialog && !classicComplexMeansDialog;
   const outTableLabel = requiredElement<HTMLElement>("#classic-command-dialog-outtable-label");
   outTableLabel.hidden = !tables && !classicComplexFrequencyDialog && !classicComplexMeansDialog;
   outTableLabel.firstChild!.textContent = classicComplexMeansDialog ? "Output table (optional · browser adaptation)" : "Output table (optional)";
   requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || (means && !classicComplexMeansDialog) || summarize || graph || header || typeout || routeout || closeout || printout || dialogCommand || beep || setMissing || quality || fileConvert;
+  requiredElement("#classic-command-dialog-exposure-label").firstChild!.textContent = match ? "Exposure variable" : "Exposure variable";
+  requiredElement("#classic-command-dialog-outcome-label").firstChild!.textContent = match ? "Outcome variable" : "Outcome variable";
+  requiredElement("#classic-command-dialog-strata-label").firstChild!.textContent = match ? "Match variable" : "Stratify by";
   requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : graph ? "Graph variable" : "Frequency of";
   const byHint = (pattern: RegExp, excluded = new Set<string>()): string | undefined => source.fields.find((field) => !excluded.has(field.name) && pattern.test(`${field.name} ${field.prompt}`))?.name;
   if (kind === "frequency") classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
@@ -1679,11 +1693,18 @@ function updateClassicCommandDialog(): void {
     classicCommandDialogFisher.disabled = Boolean(classicCommandDialogWeight.value || !classicCommandDialogStatistics.checked);
     if (classicCommandDialogWeight.value || !classicCommandDialogStatistics.checked) classicCommandDialogFisher.checked = false;
   }
+  if (match) {
+    classicCommandDialogExposure.value = byHint(/potato.?salad|expos/) ?? classicCommandDialogExposure.value;
+    classicCommandDialogOutcome.value = byHint(/case.?status|outcome|ill/, new Set([classicCommandDialogExposure.value])) ?? classicCommandDialogOutcome.value;
+    classicCommandDialogStrata.value = byHint(/^sex| sex|gender/, new Set([classicCommandDialogExposure.value, classicCommandDialogOutcome.value])) ?? "";
+    classicCommandDialogWeight.value = "";
+  }
   try {
     const input = classicCommandDialogInput();
     if (classicComplexTablesDialog && input.kind === "tables" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
     if (classicComplexFrequencyDialog && input.kind === "frequency" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
     if (classicComplexMeansDialog && input.kind === "means" && !input.psuBy) throw new RangeError("Choose the primary sampling unit variable.");
+    if (input.kind === "match" && !input.matchBy?.length) throw new RangeError("Choose at least one match variable.");
     if (Object.values(input).some((value) => value === "")) throw new RangeError("Choose every required variable.");
     if (input.kind === "define" && availableFields.some((field) => field.name.toLocaleLowerCase("en-US") === input.variable.trim().toLocaleLowerCase("en-US"))) {
       throw new RangeError(`${input.variable.trim()} already exists in the active Classic Analysis data or program.`);
@@ -1711,10 +1732,12 @@ function updateClassicCommandDialog(): void {
     if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, source.fields);
     if (input.kind === "tables" || input.kind === "frequency" || input.kind === "means") resolveSelectedClassicAnalysisCommand(command, source.fields, projectSources, sessionVariables, sessionGroups);
     requiredElement("#classic-command-dialog-preview").textContent = command;
-    requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
+    requiredElement("#classic-command-dialog-feedback").textContent = input.kind === "match"
+      ? "Ready to insert reviewed MATCH source. Execution remains disabled because the inspected desktop executor is unfinished."
+      : "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
   } catch (error) {
-    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "relate" ? "RELATE" : kind === "write" ? "WRITE" : kind === "merge" ? "MERGE" : kind === "delete-table" ? "DELETE TABLES" : kind === "delete-records" ? "DELETE" : kind === "undelete-records" ? "UNDELETE" : kind === "define" ? "DEFINE" : kind === "define-group" ? "DEFINE GROUPVAR" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "display" ? "DISPLAY DBVARIABLES" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : kind === "summarize" ? "SUMMARIZE" : kind === "graph" ? "GRAPH" : kind === "dialog" ? "DIALOG" : kind === "beep" ? "BEEP" : kind === "quality" ? "EPIAI QUALITY *" : kind === "file-convert" ? "FILE CONVERT" : "TABLES";
+    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "relate" ? "RELATE" : kind === "write" ? "WRITE" : kind === "merge" ? "MERGE" : kind === "delete-table" ? "DELETE TABLES" : kind === "delete-records" ? "DELETE" : kind === "undelete-records" ? "UNDELETE" : kind === "define" ? "DEFINE" : kind === "define-group" ? "DEFINE GROUPVAR" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "display" ? "DISPLAY DBVARIABLES" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : kind === "match" ? "MATCH" : kind === "summarize" ? "SUMMARIZE" : kind === "graph" ? "GRAPH" : kind === "dialog" ? "DIALOG" : kind === "beep" ? "BEEP" : kind === "quality" ? "EPIAI QUALITY *" : kind === "file-convert" ? "FILE CONVERT" : "TABLES";
     requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Choose valid command fields.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
   }
@@ -1728,7 +1751,7 @@ function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"
   classicCommandDialogKind.value = kind;
   if (kind === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
   if (kind === "sort") resetClassicSortRows();
-  const title = complexTables ? "Complex Sample Tables" : kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "dialog" ? "Dialog" : kind === "beep" ? "Beep" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
+  const title = complexTables ? "Complex Sample Tables" : kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "match" ? "REVIVAL — Match" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "dialog" ? "Dialog" : kind === "beep" ? "Beep" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
   requiredElement("#classic-command-dialog-title").textContent = `${complexFrequency ? "Complex Sample Frequencies" : complexMeans ? "Complex Sample Means" : title} Command`;
   updateClassicCommandDialog();
   classicCommandDialog.showModal();
@@ -1871,6 +1894,7 @@ classicProgramToolbarRun.addEventListener("click", () => {
 classicProgramToolbarCancel.addEventListener("click", () => {
   if (!classicProgramRunController || classicProgramRunController.signal.aborted) return;
   classicProgramRunController.abort();
+  if (classicRuntimeDialog.open) classicRuntimeDialog.close("abort");
   classicProgramToolbarCancel.disabled = true;
   classicProgramCommandStatus.textContent = "Cancellation requested; the current statement will finish safely.";
 });
@@ -2060,9 +2084,15 @@ function renderClassicProgramExampleDescription(): void {
 function loadSelectedClassicProgramExample(focusEditor = true): void {
   const example = selectedClassicProgramExample();
   if (!example || !classicProgramAvailability.get(example.id)?.compatible) return;
-  classicProgramEditor.setValue(example.source);
+  const currentSource = getCurrentProjectData();
+  const canonicalFoodborneForm = "[Foodborne Outbreak Investigation Form]";
+  const bindsCurrentForm = example.id === "complete-dialog-tour" && example.source.includes(canonicalFoodborneForm);
+  const boundSource = bindsCurrentForm
+    ? example.source.replaceAll(canonicalFoodborneForm, `[${currentSource.formName.replaceAll("]", "")}]`)
+    : example.source;
+  classicProgramEditor.setValue(boundSource);
   classicExampleSourceLoaded = true;
-  classicProgramFeedback.textContent = `Loaded “${example.title}”. Review the visible source and cut points before running.`;
+  classicProgramFeedback.textContent = `Loaded “${example.title}”${bindsCurrentForm ? ` and bound DBVALUES to the visible current form “${currentSource.formName}”` : ""}. Review the visible source and cut points before running.`;
   classicProgramOutput.hidden = true;
   if (classicProgramDialog.open) classicProgramDialog.close();
   if (focusEditor) classicProgramEditor.focus();
@@ -2093,7 +2123,7 @@ async function refreshClassicProgramExamples(): Promise<void> {
     return;
   }
   try {
-    classicProgramCatalog ??= await loadClassicProgramExampleCatalog(new URL("./examples/foodborne-outbreak-investigation.programs.json", import.meta.url));
+    classicProgramCatalog ??= await loadClassicProgramExampleCatalog(new URL("./examples/foodborne/foodborne-outbreak-investigation.programs.json", import.meta.url));
     const availability = assessClassicProgramCatalog(classicProgramCatalog, {
       ...(source.dataset ? { dataset: source.dataset } : {}),
       fields: source.fields,
@@ -2451,6 +2481,7 @@ requiredElement("#classic-command-complex-frequencies").addEventListener("click"
 requiredElement("#classic-command-complex-means").addEventListener("click", () => showClassicCommandDialog("means", false, false, true));
 requiredElement("#classic-command-means").addEventListener("click", () => showClassicCommandDialog("means"));
 requiredElement("#classic-command-tables").addEventListener("click", () => showClassicCommandDialog("tables"));
+requiredElement("#classic-command-match").addEventListener("click", () => showClassicCommandDialog("match"));
 requiredElement("#classic-command-complex-tables").addEventListener("click", () => showClassicCommandDialog("tables", true));
 requiredElement("#classic-command-set").addEventListener("click", () => showClassicCommandDialog("set-missing"));
 
@@ -3478,6 +3509,9 @@ async function showClassicRuntimeMessage(prompt: string, title?: string): Promis
   classicRuntimeDialogMask.hidden = true;
   classicRuntimeDialogFeedback.textContent = "";
   classicRuntimeDialogCancel.hidden = true;
+  classicRuntimeDialogInput.required = false;
+  classicRuntimeDialogSelect.required = false;
+  classicRuntimeDialogFile.required = false;
   classicRuntimeDialog.showModal();
   await new Promise<void>((resolve) => classicRuntimeDialog.addEventListener("close", () => resolve(), { once: true }));
 }
@@ -3502,8 +3536,9 @@ async function showClassicRuntimeInput(plan: ClassicDialogPlan): Promise<{ accep
   classicRuntimeDialogFileLabel.hidden = true;
   classicRuntimeDialogMask.hidden = true;
   classicRuntimeDialogInput.value = "";
-  classicRuntimeDialogInput.required = true;
+  classicRuntimeDialogInput.required = false;
   classicRuntimeDialogSelect.replaceChildren();
+  classicRuntimeDialogSelect.required = false;
   classicRuntimeDialogFile.value = "";
   classicRuntimeDialogFile.required = false;
   classicRuntimeDialogFile.removeAttribute("accept");
@@ -3515,7 +3550,6 @@ async function showClassicRuntimeInput(plan: ClassicDialogPlan): Promise<{ accep
       : plan.choices.map((value) => new Option(value, value))));
   } else if (kind === "read-file") {
     classicRuntimeDialogFileLabel.hidden = false;
-    classicRuntimeDialogFile.required = true;
     const accept = classicDialogAcceptFilter(plan.input.filter);
     if (accept) classicRuntimeDialogFile.accept = accept;
   } else {
@@ -3607,7 +3641,7 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
         classicProgramSession.assignVariable(plan.target.name, validateClassicDialogValue(plan, response.value));
       }
       const assignment = plan.target && response.accepted ? ` and assigned ${plan.target.name}` : plan.target ? "; the user cancelled and its target was unchanged" : "";
-      classicProgramFeedback.textContent = `DIALOG displayed the reviewed ${plan.input.kind} variant${assignment}. No project records changed.`;
+      classicProgramFeedback.textContent = `DIALOG displayed the reviewed ${plan.input.kind} variant${assignment}.${plan.binding ? ` The unavailable saved form name was bound to the only compatible current form, ${plan.binding.resolvedForm}; history records that resolved form.` : ""} No project records changed.`;
       classicProgramCommandStatus.textContent = response.accepted ? "DIALOG completed after user acknowledgement." : "DIALOG was cancelled; program execution continued without assignment.";
       recordProgramRun({
         origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,

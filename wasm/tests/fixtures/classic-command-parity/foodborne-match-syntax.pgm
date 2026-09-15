@@ -1,0 +1,5 @@
+MATCH * case_status MATCHVAR=Sex
+MATCH * EXCEPT Age onset_date case_status MATCHVAR=Sex
+MATCH potato_salad * MATCHVAR=Sex
+MATCH potato_salad * EXCEPT hamburger hot_dog MATCHVAR=Sex
+MATCH potato_salad case_status WEIGHTVAR=Age MATCHVAR=Sex household_neighborhood STATISTICS=NONE

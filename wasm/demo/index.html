@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="styles.css?v=61" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=104"></script>
+    <script type="module" src="app.js?v=106"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -429,8 +429,9 @@
                 </div>
                 <div class="csv-actions">
                   <a class="text-button sample-link" href="sample-case-data.csv" download>Sample CSV</a>
-                  <a class="text-button sample-link" href="examples/foodborne-outbreak-investigation.csv" download>Outbreak test CSV</a>
-                  <a class="text-button sample-link" href="examples/foodborne-outbreak-investigation.xlsx" download>Outbreak test Excel</a>
+                  <a class="text-button sample-link" href="examples/foodborne/foodborne-outbreak-investigation.csv" download>Outbreak test CSV</a>
+                  <a class="text-button sample-link" href="examples/foodborne/foodborne-outbreak-investigation.xlsx" download>Outbreak test Excel</a>
+                  <a class="text-button sample-link" href="examples/matched-case-control/case-control-database-example.xlsx" download>MATCH test Excel</a>
                   <label class="secondary-button file-button" for="csv-import">Import Data</label>
                   <input id="csv-import" class="sr-only" type="file" accept=".csv,.tsv,.json,.xlsx,text/csv,text/tab-separated-values,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
                   <button id="csv-export" class="secondary-button" type="button">Export CSV</button>
@@ -1070,7 +1071,7 @@
           <form method="dialog">
             <div class="legacy-dialog-titlebar"><h2 id="classic-command-dialog-title">Insert Command</h2><button value="cancel" aria-label="Close">×</button></div>
             <div class="legacy-dialog-body classic-program-dialog-body">
-              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="summarize">Summarize</option><option value="graph">Graph</option><option value="header">Header</option><option value="typeout">Type</option><option value="routeout">RouteOut</option><option value="closeout">CloseOut</option><option value="printout">PrintOut</option><option value="dialog">Dialog</option><option value="set-missing">Set</option><option value="quality">NEW BRANCH — Quality Profile</option></select></label>
+              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="match">REVIVAL — Match (syntax only)</option><option value="summarize">Summarize</option><option value="graph">Graph</option><option value="header">Header</option><option value="typeout">Type</option><option value="routeout">RouteOut</option><option value="closeout">CloseOut</option><option value="printout">PrintOut</option><option value="dialog">Dialog</option><option value="set-missing">Set</option><option value="quality">NEW BRANCH — Quality Profile</option></select></label>
               <label id="classic-command-dialog-source-label" hidden>Project form<select id="classic-command-dialog-source"></select></label>
               <fieldset id="classic-command-dialog-relate" hidden>
                 <legend>Relate tables</legend>
@@ -1199,6 +1200,10 @@
                 <label>Y-axis title<input id="classic-command-dialog-graph-y-title" value="Case Status" autocomplete="off"></label>
                 <p class="method-note">Bar preserves the familiar horizontal orientation, Column uses vertical columns, and Pie shows category shares. All reviewed one-variable branches retain an auditable data table; unsupported variants remain visible gaps.</p>
               </fieldset>
+              <fieldset id="classic-command-dialog-match" hidden>
+                <legend><span class="new-branch-label">REVIVAL</span> Match syntax</legend>
+                <p class="inline-feedback">Authors the dormant legacy dialog form: exposure, outcome, and one MATCHVAR. The command remains deliberately non-executable because the inspected desktop Rule_Match executor reports “NOT yet implemented.”</p>
+              </fieldset>
               <fieldset id="classic-command-dialog-header" hidden>
                 <legend>Output header</legend>
                 <label>Level 1 header<input id="classic-command-dialog-header-text" maxlength="4000" value="Foodborne outbreak analysis" autocomplete="off"></label>
@@ -1282,7 +1287,7 @@
 
         <dialog id="classic-runtime-dialog" class="legacy-dialog" aria-labelledby="classic-runtime-dialog-title">
           <form method="dialog">
-            <div class="legacy-dialog-titlebar"><h2 id="classic-runtime-dialog-title">Epi Info</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-titlebar"><h2 id="classic-runtime-dialog-title">Epi Info</h2><button id="classic-runtime-dialog-close" type="button" aria-label="Close">×</button></div>
             <div class="legacy-dialog-body">
               <p id="classic-runtime-dialog-prompt"></p>
               <label id="classic-runtime-dialog-input-label" hidden>Value<input id="classic-runtime-dialog-input" autocomplete="off"></label>
@@ -1291,7 +1296,7 @@
               <p id="classic-runtime-dialog-mask" class="dialog-note" hidden></p>
               <p id="classic-runtime-dialog-feedback" class="inline-feedback" role="alert"></p>
             </div>
-            <div class="legacy-dialog-actions"><button id="classic-runtime-dialog-cancel" value="cancel" hidden>Cancel</button><button class="dialog-primary" value="ok">OK</button></div>
+            <div class="legacy-dialog-actions"><button id="classic-runtime-dialog-cancel" type="button" hidden>Cancel</button><button class="dialog-primary" value="ok">OK</button></div>
           </form>
         </dialog>
         <dialog id="classic-output-settings-dialog" class="legacy-dialog" aria-labelledby="classic-output-settings-title">
@@ -2141,7 +2146,7 @@
           <p>
             <a class="text-button" href="sample-map-layer.geojson" download>Download sample GeoJSON</a>
             <span aria-hidden="true"> | </span>
-            <a class="text-button" href="examples/city-of-toledo-neighborhoods.geojson" download>Toledo neighborhoods test layer</a>
+            <a class="text-button" href="examples/foodborne/maps/city-of-toledo-neighborhoods.geojson" download>Toledo neighborhoods test layer</a>
           </p>
           <label for="geojson-file">GeoJSON file</label>
           <input id="geojson-file" type="file" accept=".geojson,.json,application/geo+json,application/json" required />
@@ -2169,7 +2174,7 @@
         </div>
         <div class="legacy-dialog-body">
           <p>Choose a WGS 84 GeoTIFF. The first band is rendered locally as a population-density color ramp.</p>
-          <p><a class="text-button" href="examples/worldpop-toledo-population-density.tif" download>Download WorldPop test raster</a></p>
+          <p><a class="text-button" href="examples/foodborne/maps/worldpop-toledo-population-density.tif" download>Download WorldPop test raster</a></p>
           <label for="raster-file">GeoTIFF file</label>
           <input id="raster-file" type="file" accept=".tif,.tiff,image/tiff,image/geotiff" required />
           <label for="raster-layer-name">Layer name</label>

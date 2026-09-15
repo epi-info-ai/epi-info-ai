@@ -1,0 +1,32 @@
+*** Epi Info AI foodborne DIALOG tour
+*** Exercises all 14 supported semantic variants and both numeric syntax forms.
+*** User-entered values remain outside command history.
+
+*** Reset Standard session variables so the complete tour can be run again.
+UNDEFINE *
+
+DEFINE ReviewAge NUMERIC
+DEFINE ReviewText TEXTINPUT
+DEFINE ReviewFlag YN
+DEFINE ReviewDate DATEFORMAT
+DEFINE ReviewTime TIMEFORMAT
+DEFINE ReviewDateTime DATETIMEFORMAT
+
+DIALOG "Review the complete foodborne DIALOG exercise" TITLETEXT="Foodborne DIALOG tour"
+DIALOG "Enter the age to review using implicit numeric input" ReviewAge
+DIALOG "Enter the age to review" ReviewAge NUMERIC TITLETEXT="Foodborne review"
+DIALOG "Enter a reviewer note" ReviewText TEXTINPUT
+DIALOG "Continue the review?" ReviewFlag YN
+DIALOG "Choose the review date" ReviewDate DATEFORMAT "YYYY-MM-DD"
+DIALOG "Choose the review time" ReviewTime TIMEFORMAT "HH:MM"
+DIALOG "Choose the review date and time" ReviewDateTime DATETIMEFORMAT "YYYY-MM-DD HH:MM"
+DIALOG "Choose a case status" ReviewText "Confirmed", "Probable", "Suspected", "Not a case"
+DIALOG "Choose a case status from project data" ReviewText DBVALUES [Foodborne Outbreak Investigation Form] case_status
+DIALOG "Choose a project form" ReviewText DBVIEWS
+DIALOG "Choose a project" ReviewText DATABASES
+DIALOG "Choose a defined variable" ReviewText DBVARIABLES
+DIALOG "Choose a CSV" ReviewText READ "*.csv"
+DIALOG "Review an export name (DIALOG exercise only)" ReviewText WRITE "*.csv"
+
+*** Produce a separate download copy; the active project data remains unchanged.
+WRITE REPLACE "Text" {foodborne-dialog-tour-export-copy.csv}:foodborne_dialog_tour_export_copy#csv *

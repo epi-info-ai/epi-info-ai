@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "operation": "epi.match.paired",
+  "operationVersion": "0.1.0",
+  "status": "contract-only",
+  "dataset": {
+    "file": "wasm/demo/examples/matched-case-control/matched-pairs-hand-audit.csv",
+    "sha256": "a8c0364bcc1ffb37a5ef29b4bf2bb36cef5652a219c51e11cfa0cef98492e518",
+    "records": 21,
+    "sourceSets": 10
+  },
+  "mapping": {
+    "command": "MATCH exposure outcome MATCHVAR=set_id",
+    "recordIdField": "record_id",
+    "matchField": "set_id",
+    "outcomeField": "outcome",
+    "caseValue": "1",
+    "controlValue": "0",
+    "exposureField": "exposure",
+    "exposedValue": "1",
+    "unexposedValue": "0"
+  },
+  "expected": {
+    "included": { "records": 14, "sets": 7 },
+    "excluded": {
+      "records": 7,
+      "sets": 3,
+      "missingAnalysisValueSets": 1,
+      "invalidAnalysisValueSets": 0,
+      "invalidCaseControlCompositionSets": 1,
+      "unsupportedVariableRatioSets": 1
+    },
+    "pairs": {
+      "caseExposedControlUnexposed": 3,
+      "caseUnexposedControlExposed": 2,
+      "bothExposed": 1,
+      "neitherExposed": 1,
+      "discordant": 5,
+      "concordant": 2
+    },
+    "matchedOddsRatio": {
+      "state": "finite",
+      "value": 1.5,
+      "confidenceLevel": 0.95,
+      "conditionalExactCentral": {
+        "lower": 0.17182849255502144,
+        "upper": 17.959160830022086
+      }
+    },
+    "mcnemar": {
+      "uncorrected": { "chiSquare": 0.2, "pValue": 0.6547208460185769 },
+      "continuityCorrected": { "chiSquare": 0, "pValue": 1 },
+      "exactTwoSidedPValue": 1,
+      "exactTwoSidedMidPValue": 0.6875
+    }
+  },
+  "provenance": {
+    "fixtureKind": "hand-auditable-design-anchor",
+    "confidenceInterval": "Clopper-Pearson interval for p=b/(b+c), transformed by p/(1-p)",
+    "warning": "This fixture freezes the proposed bounded 1:1 contract. It is not reviewed desktop Epi Info output and does not authorize MATCH execution."
+  }
+}

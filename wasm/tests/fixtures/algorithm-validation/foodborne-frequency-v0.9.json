@@ -4,7 +4,7 @@
   "operationVersion": "0.9.0",
   "status": "candidate",
   "dataset": {
-    "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv",
+    "file": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv",
     "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
     "rows": 96
   },

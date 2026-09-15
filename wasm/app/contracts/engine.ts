@@ -382,3 +382,77 @@ export interface ChiSquareTrendResult {
   pValue: number;
   diagnostics: { warnings: string[] };
 }
+
+export interface DatasetMatchedPairsRequest {
+  exposureField: string;
+  outcomeField: string;
+  matchField: string;
+  confidenceLevel: 0.95;
+}
+
+export type MatchedPairsExclusionReason =
+  | "missing-analysis-value"
+  | "invalid-analysis-value"
+  | "invalid-case-control-composition"
+  | "unsupported-variable-ratio";
+
+export interface MatchedPairsCounts {
+  caseExposedControlUnexposed: number;
+  caseUnexposedControlExposed: number;
+  bothExposed: number;
+  neitherExposed: number;
+  discordant: number;
+  concordant: number;
+}
+
+export interface MatchedPairsDerivation {
+  schemaVersion: "0.1.0";
+  operation: "epi.match.paired.derive";
+  input: DatasetMatchedPairsRequest;
+  kernelInput: {
+    caseExposedControlUnexposed: number;
+    caseUnexposedControlExposed: number;
+    confidenceLevel: 0.95;
+  };
+  pairs: MatchedPairsCounts;
+  totals: {
+    sourceRecords: number;
+    sourceSets: number;
+    includedRecords: number;
+    includedSets: number;
+    excludedRecords: number;
+    excludedSets: number;
+  };
+  exclusions: {
+    missingAnalysisValueSets: number;
+    invalidAnalysisValueSets: number;
+    invalidCaseControlCompositionSets: number;
+    unsupportedVariableRatioSets: number;
+    sets: Array<{ matchValue: string; recordCount: number; reason: MatchedPairsExclusionReason }>;
+  };
+  command: string;
+  diagnostics: { warnings: string[] };
+}
+
+export interface MatchedPairsResult {
+  schemaVersion: "0.1.0";
+  operation: "epi.match.paired";
+  engine: { id: "epi-core-wasm"; version: "0.16.0"; operation: "epi.match.paired" };
+  input: MatchedPairsDerivation["kernelInput"];
+  methods: {
+    oddsRatio: "discordant-pairs-b-over-c";
+    confidenceInterval: "conditional-exact-central-clopper-pearson-odds-transform";
+    mcnemar: "discordant-pairs-chi-square-df1";
+    exact: "two-sided-doubled-binomial-tail";
+    midP: "two-sided-binomial-tail-minus-half-observed";
+  };
+  estimate: BoundaryNumber;
+  confidenceInterval: BoundaryInterval;
+  tests: {
+    uncorrected: ChiSquareTestResult | null;
+    continuityCorrected: ChiSquareTestResult | null;
+    exactTwoSidedPValue: number | null;
+    exactTwoSidedMidPValue: number | null;
+  };
+  diagnostics: { warnings: string[] };
+}

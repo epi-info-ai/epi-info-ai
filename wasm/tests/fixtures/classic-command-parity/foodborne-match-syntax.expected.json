@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "MATCH",
+  "parityStatus": "syntax-revival-only",
+  "dataset": { "file": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv", "recordCount": 96 },
+  "expected": {
+    "forms": ["row-all", "row-all-except", "column-all", "column-all-except", "row-column"],
+    "options": ["WEIGHTVAR", "MATCHVAR", "STATISTICS=NONE"],
+    "execution": "blocked"
+  },
+  "legacyEvidence": {
+    "grammar": "Epi.Core/Resources/EpiInfoGrammar.txt Match_* productions",
+    "dialog": "Epi.Windows.Analysis/Dialogs/MatchDialog.cs (dormant)",
+    "executor": "Epi.Core.Interpreter/Rules/Rule_Match.cs returns Match command NOT yet implemented"
+  }
+}

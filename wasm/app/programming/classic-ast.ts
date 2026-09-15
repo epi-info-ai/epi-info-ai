@@ -152,6 +152,19 @@ export interface ClassicTablesStatement extends ClassicNode {
   options: ClassicAnalysisOptions;
 }
 
+export interface ClassicMatchStatement extends ClassicNode {
+  type: "MatchStatement";
+  selection:
+    | { kind: "row-all"; outcome: ClassicIdentifier }
+    | { kind: "row-all-except"; excludedRows: ClassicIdentifier[]; outcome: ClassicIdentifier }
+    | { kind: "column-all"; exposure: ClassicIdentifier }
+    | { kind: "column-all-except"; exposure: ClassicIdentifier; excludedColumns: ClassicIdentifier[] }
+    | { kind: "row-column"; exposure: ClassicIdentifier; outcome: ClassicIdentifier };
+  weightBy?: ClassicIdentifier;
+  matchBy: ClassicIdentifier[];
+  settings: Array<{ name: string; value: string }>;
+}
+
 export interface ClassicMeansStatement extends ClassicNode {
   type: "MeansStatement";
   field: ClassicIdentifier;
@@ -334,6 +347,7 @@ export type ClassicStatement =
   | ClassicFrequencyStatement
   | ClassicListStatement
   | ClassicTablesStatement
+  | ClassicMatchStatement
   | ClassicMeansStatement
   | ClassicSummarizeStatement
   | ClassicGraphStatement
@@ -418,8 +432,13 @@ function identifierName(raw: string): string {
 }
 
 function identifier(raw: string, line: SourceLine): ClassicIdentifier {
+  const trimmed = raw.trim();
+  const bracketed = trimmed.startsWith("[") && trimmed.endsWith("]");
   const name = identifierName(raw);
-  if (!name || !/^(?:[A-Za-z_][A-Za-z0-9_]*)(?:\.(?:[A-Za-z_][A-Za-z0-9_]*))*$/.test(name)) {
+  const valid = bracketed
+    ? Boolean(name.trim()) && !/[\[\]\r\n]/.test(name)
+    : /^(?:[A-Za-z_][A-Za-z0-9_]*)(?:\.(?:[A-Za-z_][A-Za-z0-9_]*))*$/.test(name);
+  if (!valid) {
     throw new ClassicSyntaxError(line.line, Math.max(1, line.text.indexOf(raw) + 1), `Expected an identifier; found ${JSON.stringify(raw)}.`);
   }
   const start = Math.max(0, line.text.indexOf(raw));
@@ -690,6 +709,7 @@ class ProgramParser {
     if (command === "FREQ") return this.frequency(line, rest);
     if (command === "LIST") return this.list(line, rest);
     if (command === "TABLES") return this.tables(line, rest);
+    if (command === "MATCH") return this.match(line, rest);
     if (command === "MEANS") return this.means(line, rest);
     if (command === "SUMMARIZE") return this.summarize(line, rest);
     if (command === "GRAPH") return this.graph(line, rest);
@@ -868,6 +888,67 @@ class ProgramParser {
       return { current: identifier(pair[1]!, line), related: identifier(pair[2]!, line) };
     });
     return { type: "RelateStatement", target, keys, join: match[3]?.toUpperCase() === "ALL" ? "all" : "matching", span: lineSpan(line) };
+  }
+
+  private match(line: SourceLine, rest: string): ClassicMatchStatement {
+    const optionPattern = /(?:^|\s)(WEIGHTVAR|MATCHVAR|STATISTICS|PROCESS|BOOLEAN|YN|DELETED|PERCENTS|MISSING|IGNORE|SELECT|FREQGRAPH|HYPERLINKS|SHOWPROMPTS|TABLES|USEBROWSER)\s*=/gi;
+    const optionMatches = [...rest.matchAll(optionPattern)];
+    const base = rest.slice(0, optionMatches[0]?.index ?? rest.length).trim();
+    const baseTokens = words(base);
+    let selection: ClassicMatchStatement["selection"];
+    if (baseTokens[0] === "*") {
+      if (baseTokens[1]?.toUpperCase() === "EXCEPT") {
+        if (baseTokens.length < 4) throw new ClassicSyntaxError(line.line, 1, "MATCH * EXCEPT requires excluded row variables followed by one outcome variable.");
+        selection = {
+          kind: "row-all-except",
+          excludedRows: baseTokens.slice(2, -1).map((value) => identifier(value, line)),
+          outcome: identifier(baseTokens.at(-1)!, line),
+        };
+      } else {
+        if (baseTokens.length !== 2) throw new ClassicSyntaxError(line.line, 1, "MATCH * requires one outcome variable.");
+        selection = { kind: "row-all", outcome: identifier(baseTokens[1]!, line) };
+      }
+    } else {
+      if (baseTokens.length < 2) throw new ClassicSyntaxError(line.line, 1, "MATCH requires row and column selections.");
+      const exposure = identifier(baseTokens[0]!, line);
+      if (baseTokens[1] === "*") {
+        if (baseTokens[2]?.toUpperCase() === "EXCEPT") {
+          if (baseTokens.length < 4) throw new ClassicSyntaxError(line.line, 1, "MATCH exposure * EXCEPT requires at least one excluded column variable.");
+          selection = { kind: "column-all-except", exposure, excludedColumns: baseTokens.slice(3).map((value) => identifier(value, line)) };
+        } else {
+          if (baseTokens.length !== 2) throw new ClassicSyntaxError(line.line, 1, "MATCH exposure * does not accept additional row or column variables.");
+          selection = { kind: "column-all", exposure };
+        }
+      } else {
+        if (baseTokens.length !== 2) throw new ClassicSyntaxError(line.line, 1, "MATCH row-column requires exactly one exposure and one outcome variable before its options.");
+        selection = { kind: "row-column", exposure, outcome: identifier(baseTokens[1]!, line) };
+      }
+    }
+    let weightBy: ClassicIdentifier | undefined;
+    let matchBy: ClassicIdentifier[] = [];
+    const settings: ClassicMatchStatement["settings"] = [];
+    const seen = new Set<string>();
+    for (const [index, matchOption] of optionMatches.entries()) {
+      const name = matchOption[1]!.toUpperCase();
+      if (seen.has(name)) throw new ClassicSyntaxError(line.line, 1, `MATCH option ${name} may appear only once.`);
+      seen.add(name);
+      const start = matchOption.index! + matchOption[0].length;
+      const end = optionMatches[index + 1]?.index ?? rest.length;
+      const value = rest.slice(start, end).trim();
+      if (!value) throw new ClassicSyntaxError(line.line, 1, `MATCH option ${name} requires a value.`);
+      if (name === "WEIGHTVAR") {
+        const values = words(value);
+        if (values.length !== 1) throw new ClassicSyntaxError(line.line, 1, "MATCH WEIGHTVAR requires exactly one variable.");
+        weightBy = identifier(values[0]!, line);
+      } else if (name === "MATCHVAR") {
+        matchBy = words(value).map((item) => identifier(item, line));
+        if (!matchBy.length) throw new ClassicSyntaxError(line.line, 1, "MATCH MATCHVAR requires one or more variables.");
+      } else {
+        if (name === "STATISTICS" && value.toUpperCase() !== "NONE") throw new ClassicSyntaxError(line.line, 1, "The legacy MATCH STATISTICS option accepts NONE only.");
+        settings.push({ name, value });
+      }
+    }
+    return { type: "MatchStatement", selection, ...(weightBy ? { weightBy } : {}), matchBy, settings, span: lineSpan(line) };
   }
 
   private write(line: SourceLine, rest: string): ClassicWriteStatement {

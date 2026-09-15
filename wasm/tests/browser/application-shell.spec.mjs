@@ -178,7 +178,7 @@ test("Options selects and persists a safe pseudolocale", async ({ page }) => {
 test("Help runbook guides a dataset-matched foodborne Program Editor workflow", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
@@ -214,13 +214,13 @@ test("Help runbook guides a dataset-matched foodborne Program Editor workflow", 
 test("Help runbook accepts the saved-project Open Pgm path and never traps Next", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
   await page.locator("#classic-program-toolbar-open").click();
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne-classic-command-tour.pgm7");
+  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne/foodborne-classic-command-tour.pgm7");
   await page.locator("#classic-program-toolbar-save").click();
   await page.locator("#classic-program-dialog-primary").click();
   await expect(page.locator("#classic-program-dialog")).toBeHidden();
@@ -243,7 +243,7 @@ test("Help runbook accepts the saved-project Open Pgm path and never traps Next"
 test("Help runbook opens the manual Secure Epi Info Share workflow without sending data", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("imported 96 records");
 
   await page.locator("#help-menu summary").click();
@@ -277,19 +277,19 @@ test("encrypted complete-project runbook inventories and exports a reviewable pr
   test.setTimeout(90_000);
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("imported 96 records");
 
   await page.locator('.module-rail [data-module="maps"]').click();
   await page.getByText("Add Data Layer", { exact: true }).click();
   await page.getByRole("button", { name: "GeoJSON Layer..." }).click();
-  await page.locator("#geojson-file").setInputFiles("wasm/demo/examples/city-of-toledo-neighborhoods.geojson");
+  await page.locator("#geojson-file").setInputFiles("wasm/demo/examples/foodborne/maps/city-of-toledo-neighborhoods.geojson");
   await expect(page.locator("#geojson-dialog-status")).toContainText("feature");
   await page.locator("#geojson-form").getByRole("button", { name: "Add Layer" }).click();
   await expect(page.locator("#map-geojson-layers")).toContainText("city-of-toledo-neighborhoods");
   await page.getByText("Add Data Layer", { exact: true }).click();
   await page.getByRole("button", { name: "GeoTIFF Raster..." }).click();
-  await page.locator("#raster-file").setInputFiles("wasm/demo/examples/worldpop-toledo-population-density.tif");
+  await page.locator("#raster-file").setInputFiles("wasm/demo/examples/foodborne/maps/worldpop-toledo-population-density.tif");
   await page.locator("#raster-form").getByRole("button", { name: "Add Layer" }).click();
   await expect(page.locator("#map-raster-layers")).toContainText("worldpop-toledo-population-density");
   await page.locator('.module-rail [data-module="forms"]').click();
@@ -358,7 +358,7 @@ test("encrypted complete-project runbook inventories and exports a reviewable pr
 });
 
 test("File menu opens and saves the migrated official Sample project", async ({ page }) => {
-  await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/sample-project.epia.json");
+  await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/projects/sample-project.epia.json");
   await expect(page.locator("#main-menu-status")).toContainText("Opened Sample");
 
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
@@ -520,7 +520,7 @@ test("Form Designer can remove the last Option field from an in-progress form", 
 test("Form Designer parses an Excel workbook instead of treating it as CSV", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#form-csv-import").setInputFiles(
-    "wasm/demo/examples/foodborne-outbreak-investigation.xlsx",
+    "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.xlsx",
   );
   await expect(page.locator("#csv-form-status")).toContainText(
     "from foodborne-outbreak-investigation.xlsx.",
@@ -548,12 +548,12 @@ test("Enter Data imports JSON through the same validated record path", async ({ 
 
 test("Enter Data imports the canonical foodborne coordinates into its inferred form", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields from foodborne-outbreak-investigation.csv");
 
   await page.locator("#designer-enter-data").click();
   await expect(page.locator("#record-count")).toHaveText("(0)");
-  await page.locator("#csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await applyDataImportPreview(page);
   await expect(page.locator("#csv-status")).toContainText("appended 96");
   await expect(page.locator("#record-count")).toHaveText("(96)");
@@ -563,11 +563,11 @@ test("Enter Data imports the canonical foodborne coordinates into its inferred f
 
 test("Enter Data previews and safely rejects a blind repeat-file append", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields from foodborne-outbreak-investigation.csv");
   await page.locator("#designer-enter-data").click();
 
-  const file = "wasm/demo/examples/foodborne-outbreak-investigation.csv";
+  const file = "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv";
   await page.locator("#csv-import").setInputFiles(file);
   const dialog = page.getByRole("dialog", { name: "Preview Data Import" });
   await expect(dialog.locator("#data-import-preview-new")).toHaveText("96");
@@ -592,7 +592,7 @@ test("Data Packager creates an authenticated package and reviews it before impor
   test.setTimeout(60_000);
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("imported 96 records");
   await page.locator("#designer-enter-data").click();
 
@@ -756,7 +756,7 @@ test("Data Quality summarizes completeness and presents a recoverable lifecycle"
 test("Data Quality missingness bars focus attention on incomplete foodborne fields", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="data"]').click();
   await page.getByRole("button", { name: "Data Quality..." }).click();
@@ -1048,6 +1048,49 @@ test("Classic Analysis preserves its four-menu shell and Command Explorer", asyn
   await page.locator("#classic-command-dialog-include-missing").check();
   await expect(page.locator("#classic-command-dialog-preview")).toHaveText("SET MISSING=ON");
   await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
+});
+
+test("MATCH revival authors retained syntax and fails closed before execution", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+
+  const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
+  await tree.locator("summary").filter({ hasText: /^New Branches — Epi Info AI$/ }).click();
+  await page.locator("#classic-command-match").click();
+  await expect(page.locator("#classic-command-dialog-title")).toHaveText("REVIVAL — Match Command");
+  await expect(page.locator("#classic-command-dialog-match")).toBeVisible();
+  await expect(page.locator("#classic-command-dialog-strata-label")).toContainText("Match variable");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("MATCH potato_salad case_status MATCHVAR=sex");
+  await expect(page.locator("#classic-command-dialog-feedback")).toContainText("Execution remains disabled");
+  await page.locator("#classic-command-dialog-insert").click();
+
+  const editor = page.locator("#classic-program-source .cm-content");
+  await expect(editor).toContainText("MATCH potato_salad case_status MATCHVAR=sex");
+  await editor.fill("MATCH potato_salad case_status MATCHVAR=sex");
+  await editor.press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("MATCH syntax is available for revival review, but execution remains disabled");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("1");
+  await expect(page.locator("#classic-program-history")).toContainText("Selected command rejected before execution");
+});
+
+test("MATCH teaching workbook and program compose through the real editor", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles(
+    "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx",
+  );
+  await expect(page.locator("#csv-form-status")).toContainText("Created 121 fields and imported 130 records");
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-file").setInputFiles(
+    "wasm/demo/examples/matched-case-control/match-pb-by-pair.pgm7",
+  );
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("MATCH pb caco MATCHVAR=matched_pairs");
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("MATCH syntax is available for revival review, but execution remains disabled");
 });
 
 test("Form Designer preserves nested legacy Tools menu branches", async ({ page }) => {
@@ -1625,7 +1668,7 @@ test("Classic Analysis stratified table renders Mantel-Haenszel results", async 
 test("Classic Analysis TABLES derives foodborne strata from the current form", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
@@ -1650,7 +1693,7 @@ test("Classic Analysis TABLES derives foodborne strata from the current form", a
 test("Classic Analysis FREQ derives the foodborne Case Status distribution", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
@@ -1693,7 +1736,7 @@ test("Program Editor does not expose foodborne programs without their dataset", 
   await page.locator("#main-menu").getByRole("button", { name: "Classic" }).click();
   await expect(page.locator(".classic-program-examples")).toBeHidden();
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("Enter an Epi Info program for the current project");
-  expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/foodborne-outbreak-investigation.programs.json", location.href).href).length)).toBe(0);
+  expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/foodborne/foodborne-outbreak-investigation.programs.json", location.href).href).length)).toBe(0);
 
   await page.locator('[data-module="forms"]').click();
   await page.locator("#import-rows-with-form").check();
@@ -1705,7 +1748,7 @@ test("Program Editor does not expose foodborne programs without their dataset", 
   await expect(page.locator("#csv-form-status")).toContainText("Created 2 fields and imported 1 record");
   await page.locator('[data-module="classic"]').click();
   await expect(page.locator(".classic-program-examples")).toBeHidden();
-  expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/foodborne-outbreak-investigation.programs.json", location.href).href).length)).toBe(0);
+  expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/foodborne/foodborne-outbreak-investigation.programs.json", location.href).href).length)).toBe(0);
 });
 
 test("Program Editor and Output preserve the legacy menus and toolbar order", async ({ page }) => {
@@ -1819,6 +1862,92 @@ test("simple DIALOG source pauses for acknowledgement without changing project d
   await expect(page.locator("#classic-program-session-status")).toContainText("0 records");
 });
 
+test("foodborne DIALOG tour exercises every supported variant without recording entered values", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles({
+    name: "Foodborne Outbreak Investigation - Submissions_export.csv",
+    mimeType: "text/csv",
+    buffer: await readFile("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv"),
+  });
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-toolbar-open").click();
+  const programDialog = page.locator("#classic-program-dialog");
+  await expect(programDialog).toBeVisible();
+  await page.locator("#classic-program-example").selectOption("complete-dialog-tour");
+  await expect(page.locator("#classic-program-example-description")).toContainText("all 14 supported DIALOG types");
+  await page.locator("#classic-program-load-example").click();
+  await expect(programDialog).toBeHidden();
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("DATETIMEFORMAT");
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("DBVALUES [Foodborne Outbreak Investigation Submissions Export Form] case_status");
+
+  const runtime = page.locator("#classic-runtime-dialog");
+  const prompt = page.locator("#classic-runtime-dialog-prompt");
+  const input = page.locator("#classic-runtime-dialog-input");
+  const select = page.locator("#classic-runtime-dialog-select");
+  const accept = async () => runtime.getByRole("button", { name: "OK" }).click();
+  const enter = async (expectedPrompt, value) => {
+    await expect(runtime).toBeVisible();
+    await expect(prompt).toHaveText(expectedPrompt);
+    await input.fill(value);
+    await accept();
+  };
+  const choose = async (expectedPrompt, value) => {
+    await expect(runtime).toBeVisible();
+    await expect(prompt).toHaveText(expectedPrompt);
+    if (value !== undefined) await select.selectOption(value);
+    await accept();
+  };
+
+  await page.locator("#classic-program-toolbar-run").click();
+  await expect(runtime).toBeVisible();
+  await expect(page.locator("#classic-runtime-dialog-title")).toHaveText("Foodborne DIALOG tour");
+  await expect(prompt).toHaveText("Review the complete foodborne DIALOG exercise");
+  await accept();
+  await enter("Enter the age to review using implicit numeric input", "37");
+  await enter("Enter the age to review", "42");
+  await enter("Enter a reviewer note", "PRIVATE-NOTE-739281");
+  await choose("Continue the review?", "true");
+  await expect(prompt).toHaveText("Choose the review date");
+  await accept();
+  await expect(prompt).toHaveText("Choose the review time");
+  await runtime.getByRole("button", { name: "Cancel", exact: true }).click();
+  await enter("Choose the review date and time", "2026-09-15T10:30");
+  await choose("Choose a case status", "Probable");
+  await choose("Choose a case status from project data", "Confirmed");
+  await choose("Choose a project form");
+  await choose("Choose a project");
+  await choose("Choose a defined variable", "ReviewAge");
+  await expect(runtime).toBeVisible();
+  await expect(prompt).toHaveText("Choose a CSV");
+  await page.locator("#classic-runtime-dialog-file").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
+  await accept();
+  const downloadPromise = page.waitForEvent("download");
+  await enter("Review an export name (DIALOG exercise only)", "foodborne-dialog-review.csv");
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("foodborne-dialog-tour-export-copy.csv");
+
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 23 of 23 commands succeeded.");
+  await expect(page.locator("#classic-sequential-output-count")).toHaveText("23 of 23 commands retained");
+  await expect(page.locator("#classic-program-session-status")).toContainText("96 records");
+  await page.locator('[data-module="data"]').click();
+  await expect(page.locator("#record-count")).toContainText("96");
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-output-history").click();
+  await expect(page.locator("#classic-program-history-output")).toBeVisible();
+  await expect(page.locator("#classic-program-history-rows")).not.toContainText("PRIVATE-NOTE-739281");
+  await expect(page.locator("#classic-program-history-rows")).not.toContainText("foodborne-dialog-review.csv");
+
+  await page.locator("#classic-program-toolbar-run").click();
+  await expect(runtime).toBeVisible();
+  await expect(prompt).toHaveText("Review the complete foodborne DIALOG exercise");
+  await expect(page.locator("#classic-program-command-status")).not.toContainText("already defined");
+});
+
 test("BEEP uses local browser audio and retains an auditable visible result", async ({ page }) => {
   await page.evaluate(() => {
     class MockAudioNode { connect() { return this; } }
@@ -1878,7 +2007,7 @@ test("Program Editor Cut Copy and Paste preserve exact source", async ({ page, c
 });
 
 test("Program Editor saves project programs and exchanges .pgm7 files", async ({ page }) => {
-  await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/sample-project.epia.json");
+  await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/projects/sample-project.epia.json");
   await expect(page.locator("#main-menu-status")).toContainText("Opened Sample");
   await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
   await expect(page.locator("#classic-program-library")).toHaveCount(0);
@@ -1947,16 +2076,16 @@ test("Program Editor saves project programs and exchanges .pgm7 files", async ({
 });
 
 test("Program Editor opens and runs the demo foodborne PGM through visible Output and history", async ({ page }) => {
-  const expectedProgramSource = await readFile("wasm/demo/examples/foodborne-age-groups-by-sex.pgm", "utf8");
+  const expectedProgramSource = await readFile("wasm/demo/examples/foodborne/foodborne-age-groups-by-sex.pgm", "utf8");
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
   await page.locator("#classic-program-toolbar-open").click();
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne-age-groups-by-sex.pgm");
+  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne/foodborne-age-groups-by-sex.pgm");
 
   const editor = page.locator("#classic-program-source .cm-content");
   await expect(editor).toContainText("DEFINE AgeGroup TEXTINPUT");
@@ -1996,13 +2125,13 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   test.setTimeout(60_000);
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
   await page.locator("#classic-program-toolbar-open").click();
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne-classic-command-tour.pgm7");
+  await page.locator("#classic-program-file").setInputFiles("wasm/demo/examples/foodborne/foodborne-classic-command-tour.pgm7");
   await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
   await page.setViewportSize({ width: 900, height: 700 });
   await expect(page.locator("#classic-program-assist")).toBeVisible();
@@ -2018,7 +2147,7 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await sourceEditor.focus();
   await sourceEditor.press("Control+End");
   await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  const commandTourLineCount = (await readFile("wasm/demo/examples/foodborne-classic-command-tour.pgm7", "utf8")).split(/\r?\n/).length;
+  const commandTourLineCount = (await readFile("wasm/demo/examples/foodborne/foodborne-classic-command-tour.pgm7", "utf8")).split(/\r?\n/).length;
   for (let line = 0; line < commandTourLineCount + 2; line++) await sourceEditor.press("ArrowUp");
   await expect(page.locator("#classic-program-cursor-position")).toContainText("Ln 1, Col ");
   await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeLessThanOrEqual(6);
@@ -2122,7 +2251,7 @@ test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open
   test.setTimeout(60_000);
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
 
@@ -2287,7 +2416,7 @@ test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open
 test("Program Editor Cancel stops a sequential run and retains completed work", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2315,7 +2444,7 @@ test("Program Editor Cancel stops a sequential run and retains completed work", 
 test("typed command dialogs insert visible source and selected commands fail closed", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2455,7 +2584,7 @@ test("typed command dialogs insert visible source and selected commands fail clo
 test("Define and Recode dialogs author a runnable foodborne program as visible source", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2501,7 +2630,7 @@ test("Define and Recode dialogs author a runnable foodborne program as visible s
 test("selected DEFINE and ASSIGN manage bounded Standard session variables", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2546,7 +2675,7 @@ test("selected DEFINE and ASSIGN manage bounded Standard session variables", asy
 test("bounded IF executes one audited Standard-variable ASSIGN branch", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2590,7 +2719,7 @@ test("bounded IF executes one audited Standard-variable ASSIGN branch", async ({
 test("UNDEFINE removes one or all Standard session variables", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2629,7 +2758,7 @@ test("UNDEFINE removes one or all Standard session variables", async ({ page }) 
 test("DISPLAY DBVARIABLES renders familiar variable metadata without mutation", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2671,7 +2800,7 @@ test("DISPLAY DBVARIABLES renders familiar variable metadata without mutation", 
 test("DEFINE GROUPVAR stores a foodborne field group and LIST expands it", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2706,7 +2835,7 @@ test("DEFINE GROUPVAR stores a foodborne field group and LIST expands it", async
 test("RELATE joins a current-project foodborne form and activates the combined table", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2739,7 +2868,7 @@ test("RELATE joins a current-project foodborne form and activates the combined t
 test("WRITE exports selected active foodborne fields through an explicit browser download", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2771,7 +2900,7 @@ test("WRITE exports selected active foodborne fields through an explicit browser
 test("MERGE previews and explicitly confirms current-project destination changes", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2808,7 +2937,7 @@ test("MERGE previews and explicitly confirms current-project destination changes
 test("DELETE TABLES requires review and preserves the foodborne form design", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2838,7 +2967,7 @@ test("DELETE TABLES requires review and preserves the foodborne form design", as
 test("DELETE RECORDS moves matching foodborne records to the recoverable Recycle Bin", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2899,7 +3028,7 @@ test("DELETE RECORDS moves matching foodborne records to the recoverable Recycle
 test("SUMMARIZE creates a named foodborne age-by-sex output table", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2940,7 +3069,7 @@ test("SUMMARIZE creates a named foodborne age-by-sex output table", async ({ pag
 test("Classic GRAPH renders the foodborne case-status Bar chart", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -2972,7 +3101,7 @@ test("Classic GRAPH renders the foodborne case-status Bar chart", async ({ page 
 test("NEW BRANCH Quality Profile runs as visible audited IDE source", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -3062,7 +3191,7 @@ test("NEW BRANCH FILE CONVERT selects DuckDB from the output extension", async (
 test("Classic GRAPH renders Column separately from Bar", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -3088,7 +3217,7 @@ test("Classic GRAPH renders Column separately from Bar", async ({ page }) => {
 test("Classic GRAPH renders an auditable foodborne Pie chart", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.locator('[data-module="classic"]').click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -3119,7 +3248,7 @@ test("Classic GRAPH renders an auditable foodborne Pie chart", async ({ page }) 
 test("Program Editor safely runs the taught age-group RECODE and records history", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
@@ -3235,7 +3364,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
 test("Classic Analysis MEANS derives foodborne Age descriptive statistics", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();
@@ -3262,7 +3391,7 @@ test("Classic Analysis MEANS derives foodborne Age descriptive statistics", asyn
 test("Visual Dashboard Rates derives the foodborne Confirmed rate", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="dashboard"]').click();
@@ -3282,7 +3411,7 @@ test("Visual Dashboard Rates derives the foodborne Confirmed rate", async ({ pag
 test("Visual Dashboard Epi Curve charts foodborne onset dates by case status", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="dashboard"]').click();
@@ -3538,10 +3667,23 @@ test("JupyterLite validation lab V0.9 is part of the Pages artifact", async ({ p
   expect(unmatchedFixtureResponse.ok()).toBe(true);
   const unmatchedFixture = await unmatchedFixtureResponse.json();
   expect(unmatchedFixture.cases[0].methods.map((method) => method.total)).toEqual([34, 32, 40]);
+
+  const matchResponse = await request.get("/validation-lab/files/validate-match.ipynb");
+  expect(matchResponse.ok()).toBe(true);
+  const matchNotebook = await matchResponse.json();
+  const matchSource = JSON.stringify(matchNotebook);
+  expect(matchSource).toContain("matched-pairs-contract-v0.1.json");
+  expect(matchSource).toContain("beta.ppf");
+  expect(matchSource).toContain("exposure-reversal reciprocity");
+
+  const matchFixtureResponse = await request.get("/validation-fixtures/matched-pairs-contract-v0.1.json");
+  expect(matchFixtureResponse.ok()).toBe(true);
+  const matchFixture = await matchFixtureResponse.json();
+  expect(matchFixture.expected.pairs).toMatchObject({ caseExposedControlUnexposed: 3, caseUnexposedControlExposed: 2 });
 });
 
-test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadable", async ({ request }) => {
-  const sampleResponse = await request.get("/examples/sample-project.epia.json");
+test("integrated project, foodborne, mapping, and MATCH examples are downloadable", async ({ request }) => {
+  const sampleResponse = await request.get("/examples/projects/sample-project.epia.json");
   expect(sampleResponse.ok()).toBe(true);
   const sample = await sampleResponse.json();
   expect(sample.format).toBe("epi-info-ai-project");
@@ -3550,21 +3692,21 @@ test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadabl
   expect(sample.programs[0].name).toBe("Statistics");
   expect(sample.migration.inventory).toEqual({ forms: 18, pages: 26, fields: 417, programs: 1, codeTables: 22 });
 
-  const csvResponse = await request.get("/examples/foodborne-outbreak-investigation.csv");
+  const csvResponse = await request.get("/examples/foodborne/foodborne-outbreak-investigation.csv");
   expect(csvResponse.ok()).toBe(true);
   const csv = await csvResponse.text();
   const rows = csv.trim().split(/\r?\n/);
   expect(rows).toHaveLength(97);
   expect(rows[0]).toContain("Latitude,Longitude,Household Neighborhood");
 
-  const excelResponse = await request.get("/examples/foodborne-outbreak-investigation.xlsx");
+  const excelResponse = await request.get("/examples/foodborne/foodborne-outbreak-investigation.xlsx");
   expect(excelResponse.ok()).toBe(true);
   const excel = await excelResponse.body();
   expect(createHash("sha256").update(excel).digest("hex")).toBe(
     "ed94c4201abd251304db8b3fddf3c8733bbc46d46bbbcb0f115b7804c6740b9d",
   );
 
-  const geoJsonResponse = await request.get("/examples/city-of-toledo-neighborhoods.geojson");
+  const geoJsonResponse = await request.get("/examples/foodborne/maps/city-of-toledo-neighborhoods.geojson");
   expect(geoJsonResponse.ok()).toBe(true);
   const geoJson = await geoJsonResponse.json();
   expect(geoJson.type).toBe("FeatureCollection");
@@ -3572,7 +3714,7 @@ test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadabl
   expect(geoJson.features.every((feature) => feature.geometry?.type === "MultiPolygon")).toBe(true);
   expect(geoJson.features.every((feature) => typeof feature.properties?.name === "string")).toBe(true);
 
-  const rasterResponse = await request.get("/examples/worldpop-toledo-population-density.tif");
+  const rasterResponse = await request.get("/examples/foodborne/maps/worldpop-toledo-population-density.tif");
   expect(rasterResponse.ok()).toBe(true);
   const raster = await rasterResponse.body();
   expect(raster).toHaveLength(304873);
@@ -3580,6 +3722,32 @@ test("integrated Sample, outbreak, Toledo, and WorldPop examples are downloadabl
   expect(createHash("sha256").update(raster).digest("hex")).toBe(
     "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1",
   );
+
+  const matchWorkbookResponse = await request.get("/examples/matched-case-control/case-control-database-example.xlsx");
+  expect(matchWorkbookResponse.ok()).toBe(true);
+  const matchWorkbook = await matchWorkbookResponse.body();
+  expect(createHash("sha256").update(matchWorkbook).digest("hex")).toBe(
+    "c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48",
+  );
+
+  const matchedStressResponse = await request.get("/examples/matched-case-control/matched-logistic-test-data.csv");
+  expect(matchedStressResponse.ok()).toBe(true);
+  const matchedStress = await matchedStressResponse.body();
+  expect(createHash("sha256").update(matchedStress).digest("hex")).toBe(
+    "662a9ed558f869af0b1ae0222931d288a8c615dc77afb286864e7147729b8a02",
+  );
+
+  const matchProgramResponse = await request.get("/examples/matched-case-control/match-pb-by-pair.pgm7");
+  expect(matchProgramResponse.ok()).toBe(true);
+  expect(await matchProgramResponse.text()).toContain("MATCH pb caco MATCHVAR=matched_pairs");
+
+  const handDataResponse = await request.get("/examples/matched-case-control/matched-pairs-hand-audit.csv");
+  expect(handDataResponse.ok()).toBe(true);
+  expect((await handDataResponse.text()).trim().split(/\r?\n/)).toHaveLength(22);
+
+  const handProgramResponse = await request.get("/examples/matched-case-control/match-hand-audit.pgm7");
+  expect(handProgramResponse.ok()).toBe(true);
+  expect(await handProgramResponse.text()).toContain("MATCH exposure outcome MATCHVAR=set_id");
 });
 
 test("Chi Square for Trend preserves the familiar table and Rust result", async ({ page }) => {
@@ -3597,7 +3765,7 @@ test("Maps uploads and renders the WorldPop GeoTIFF below vector panes", async (
   await page.getByRole("button", { name: "Create Maps" }).click();
   await page.getByText("Add Data Layer", { exact: true }).click();
   await page.getByRole("button", { name: "GeoTIFF Raster..." }).click();
-  await page.locator("#raster-file").setInputFiles("wasm/demo/examples/worldpop-toledo-population-density.tif");
+  await page.locator("#raster-file").setInputFiles("wasm/demo/examples/foodborne/maps/worldpop-toledo-population-density.tif");
   await page.locator("#raster-form").getByRole("button", { name: "Add Layer" }).click();
   await expect(page.locator("#map-raster-layers")).toContainText("worldpop-toledo-population-density");
   await expect(page.locator(".leaflet-image-layer")).toBeVisible();
@@ -3607,7 +3775,7 @@ test("Maps uploads and renders the WorldPop GeoTIFF below vector panes", async (
 test("Epi Assist previews reviewed actions without loading or contacting a model", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
   await page.getByRole("button", { name: /Epi Assist/ }).first().click();
   await expect(page.getByRole("dialog", { name: "Epi Assist" })).toBeVisible();
@@ -3657,7 +3825,7 @@ test("Epi Assist previews reviewed actions without loading or contacting a model
 test("Program Editor Epi Assist hands its prompt to the model-backed dialog", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne-outbreak-investigation.csv");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
   await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
 
   await page.locator('[data-module="classic"]').click();

@@ -1,15 +1,22 @@
+UNDEFINE *
 DEFINE ReviewAge NUMERIC
 DEFINE ReviewText TEXTINPUT
 DEFINE ReviewFlag YN
 DEFINE ReviewDate DATEFORMAT
+DEFINE ReviewTime TIMEFORMAT
+DEFINE ReviewDateTime DATETIMEFORMAT
+DIALOG "Review the complete foodborne DIALOG exercise" TITLETEXT="Foodborne DIALOG tour"
+DIALOG "Enter the age to review using implicit numeric input" ReviewAge
 DIALOG "Enter the age to review" ReviewAge NUMERIC TITLETEXT="Foodborne review"
 DIALOG "Enter a reviewer note" ReviewText TEXTINPUT
 DIALOG "Continue the review?" ReviewFlag YN
+DIALOG "Choose the review date" ReviewDate DATEFORMAT "YYYY-MM-DD"
+DIALOG "Choose the review time" ReviewTime TIMEFORMAT "HH:MM"
+DIALOG "Choose the review date and time" ReviewDateTime DATETIMEFORMAT "YYYY-MM-DD HH:MM"
 DIALOG "Choose a case status" ReviewText "Confirmed", "Probable", "Suspected", "Not a case"
-DIALOG "Choose a case status from project data" ReviewText DBVALUES foodborne case_status
+DIALOG "Choose a case status from project data" ReviewText DBVALUES [Foodborne Outbreak Investigation Form] case_status
 DIALOG "Choose a project form" ReviewText DBVIEWS
 DIALOG "Choose a project" ReviewText DATABASES
 DIALOG "Choose a defined variable" ReviewText DBVARIABLES
-DIALOG "Choose the review date" ReviewDate DATEFORMAT "YYYY-MM-DD"
 DIALOG "Choose a CSV" ReviewText READ "*.csv"
 DIALOG "Name the review export" ReviewText WRITE "*.csv"

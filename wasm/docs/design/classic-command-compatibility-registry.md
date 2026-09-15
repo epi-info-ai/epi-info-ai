@@ -13,7 +13,11 @@ Sample programs, and training corpus.
 The initial inventory contains **49 legacy enum entries in nine groups**. Of
 these, **45 are visible in the shipped Command Explorer**. Match, Map, Reports,
 and Help remain recorded as `legacy-enum-only`; they are not silently promoted
-into the learned browser tree.
+into the learned browser tree. `MATCH` has more retained design evidence than
+that label alone suggests: its grammar and `MatchDialog` survive, but the shipped
+Command Explorer route is disabled and `Rule_Match.Execute()` emits “Match
+command NOT yet implemented.” Its browser work is therefore a documented
+revival target, not a claim that released desktop behavior produced results.
 
 ## Parity dimensions
 
@@ -65,7 +69,7 @@ demo.
 | Data | 7 | 7 | READ selects a current-project form; RELATE joins forms; WRITE downloads selected fields; MERGE previews and confirms current-project upserts; DELETE TABLES clears a reviewed form data table; recoverable DELETE/UNDELETE RECORDS archive and restore matching records; external storage and other destructive variants require reviewed adapters |
 | Variables | 6 | 6 | DEFINE, UNDEFINE, and ASSIGN have bounded Standard session-variable execution; DEFINE GROUPVAR stores named field/Standard-variable groups and LIST expands field members; DISPLAY DBVARIABLES renders field/defined metadata; DEFINE and numeric RECODE also author the bounded full-program component |
 | Select/If | 5 | 5 | SELECT/CANCEL SELECT and SORT/CANCEL SORT have typed source dialogs and bounded selected execution; IF adds a browser-verified Standard-variable branch while record-context semantics remain open |
-| Statistics | 8 | 6 | LIST, FREQ, MEANS, TABLES, SUMMARIZE, and GRAPH have typed dialogs and selected execution; TABLES renders categorical M×N counts, row/column percentages, totals, expected counts, and Pearson results without inferring exposed/case values, and true stratified binary tables append Rust/WASM Mantel–Haenszel and homogeneity output from their displayed orientation; GRAPH renders bounded horizontal Bar, vertical Column, and category-share Pie branches |
+| Statistics | 8 | 6 | LIST, FREQ, MEANS, TABLES, SUMMARIZE, and GRAPH have typed dialogs and selected execution; MATCH now has a typed five-form syntax revival and deliberately blocked execution; TABLES renders categorical M×N counts, row/column percentages, totals, expected counts, and Pearson results without inferring exposed/case values, and true stratified binary tables append Rust/WASM Mantel–Haenszel and homogeneity output from their displayed orientation; GRAPH renders bounded horizontal Bar, vertical Column, and category-share Pie branches |
 | Advanced Statistics | 7 | 7 | Complex Sample Frequencies, Complex Sample Tables, and Complex Sample Means have bounded typed dialogs and browser execution; regression and survival remain visible gaps |
 | Output | 7 | 6 | HEADER, literal TYPEOUT, in-session ROUTEOUT/CLOSEOUT, and reviewed bare PRINTOUT have bounded browser paths; Storing Output preserves its familiar settings dialog in browser-local storage and is correctly classified as UI, not source syntax |
 | User-Defined Commands | 4 | 4 | Visible gaps; RUNPGM requires bounded project resolution; arbitrary EXECUTE is blocked |
@@ -79,12 +83,12 @@ snapshot makes its current implementation states easy to review:
 
 | State | Count | Commands |
 |---|---:|---|
-| Typed AST/parser | 35 | The prior 34 entries plus no-option `BEEP` |
-| Typed source dialog | 35 | Same 35 command entries |
+| Typed AST/parser | 36 | The prior 35 entries plus the five-form `MATCH` syntax revival |
+| Typed source dialog | 36 | Same 36 command entries; MATCH authors the dormant row-column dialog form |
 | Selected execution or reviewed handoff | 34 | All above except `RECODE`; destructive commands and `PRINTOUT` require reviewed handoffs |
 | Bounded full-program component | 15 | The prior fourteen components plus no-option `BEEP` |
 | Browser-verified non-command settings UI | 1 | Storing Output; the legacy dialog generates no command text |
-| Completely untouched | 13 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
+| Completely untouched | 12 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
 | Browser-verified with foodborne `.pgm` + expected output | 28 | The prior 27 entries plus no-option `BEEP` |
 | Legacy-parity-verified | 0 | No command may enter this row without reviewed desktop Epi Info output |
 
@@ -109,6 +113,7 @@ example, selected execution can be browser-tested while its command remains
 | `SUMMARIZE` | AST 1.0 | V0.1 one aggregate, source field, result name, output table, and optional group selector | Computes the aggregate against active READ/SELECT records, renders the named table, and retains it for READ during the session | None | Multiple aggregates, `COUNT()` without a field in the dialog, multiple strata, `WEIGHTVAR`, persistence/export, exact aggregate types/order/missing semantics, desktop differential output |
 | `GRAPH` | AST 1.0 bounded one-variable form | V0.3 variable, Bar/Column/Pie type, title, and axis titles | Uses the typed FREQ operation over active READ/SELECT records and renders accessible horizontal Bar, vertical Column, or Pie SVG plus an auditable data table | None | Area, Bubble, Epi Curve, Histogram, Line, Rotated Bar, Scatter, Weight Bar, multiple variables/cross-tabs, strata, weights/aggregates, templates, date intervals, 3D, exact legacy sizing/colors/window/output, desktop differential validation |
 | `TABLES` | AST 0.8 | V0.11 ordinary + V0.1 exposure expansion + V0.2 complex sample | Produces ordinary categorical output as documented in the TABLES V0.11 contract. `PSUVAR` routes separately to bounded Complex Sample Tables with one optional design stratum, optional numeric weight, required PSU, Taylor standard errors, legacy t limits/design effects, survey OR/RR/RD for complete 2 × 2 tables, and session-local legacy-shaped `OUTTABLE` read-back | Sequential command-tour component, including ordinary/expanded and complex `OUTTABLE`, weighted categorical, Rust/WASM-adjusted, GROUPVAR, and a mechanical PSUVAR example | Meaningful survey-design corpus, persistent/external adapters, exact legacy edge/output behavior, desktop differential capture, Rust `epi-lang` migration |
+| `MATCH` | AST 1.0, all five retained grammar forms | Revival V0.1 authors exposure, outcome, one match variable, and optional weight | Blocked with an explicit historical reason; no analysis is run | Proposed bounded 1:1 method contract plus hand-auditable CSV/expected fixture and real-editor `.pgm7` | Add independent JupyterLite and boundary/metamorphic evidence, define variable-ratio/multiple-match-field/weight/OUTTABLE behavior, implement the reviewed kernel, recover desktop differential output, and obtain experienced-user review; the inspected desktop executor itself is unimplemented |
 | `DEFINE` | AST 0.7 | V0.1 | Declares one Standard typed scalar in the Classic session | Bounded Standard text variable | Global/Permanent lifetimes, initializers, full variable-expression integration, differential validation |
 | `DEFINE GROUPVAR` | AST 0.7 | V0.1 field/Standard-variable selector | Stores a named session group; LIST and the TABLES exposure position expand field members in declared order | Foodborne TABLES three-exposure expansion | Nested groups, group replacement/error wording, expansion in FREQ/MEANS/other commands, Standard-variable LIST/TABLES output, desktop differential output |
 | `UNDEFINE` | AST 0.7 | V0.1 Standard-variable selector/all toggle | Removes one or all Standard session variables | None | Global/Permanent lifetime, legacy no-op/error wording, full-program sequencing, desktop differential output |

@@ -52,6 +52,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-editor.ts",
     "wasm/app/programming/classic-program-document.ts",
     "wasm/app/programming/classic-command-builder.ts",
+    "wasm/app/programming/classic-match.ts",
+    "wasm/app/programming/classic-match-analysis.ts",
     "wasm/app/programming/classic-selection.ts",
     "wasm/app/programming/classic-sort.ts",
     "wasm/app/programming/classic-assignment.ts",
@@ -100,9 +102,18 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/sample-case-data.csv",
     "wasm/demo/sample-map-layer.geojson",
     "wasm/demo/examples/README.md",
-    "wasm/demo/examples/foodborne-outbreak-investigation.csv",
-    "wasm/demo/examples/city-of-toledo-neighborhoods.geojson",
-    "wasm/demo/examples/sample-project.epia.json",
+    "wasm/demo/examples/foodborne/README.md",
+    "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv",
+    "wasm/demo/examples/foodborne/foodborne-dialog-tour.pgm7",
+    "wasm/demo/examples/foodborne/maps/city-of-toledo-neighborhoods.geojson",
+    "wasm/demo/examples/matched-case-control/README.md",
+    "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx",
+    "wasm/demo/examples/matched-case-control/matched-pairs-hand-audit.csv",
+    "wasm/demo/examples/matched-case-control/match-hand-audit.pgm7",
+    "wasm/demo/examples/matched-case-control/matched-logistic-test-data.csv",
+    "wasm/demo/examples/matched-case-control/match-pb-by-pair.pgm7",
+    "wasm/demo/examples/projects/README.md",
+    "wasm/demo/examples/projects/sample-project.epia.json",
     "wasm/demo/vendor/leaflet/leaflet.css",
     "wasm/demo/vendor/leaflet/leaflet.js",
     "wasm/demo/vendor/leaflet/LICENSE",
@@ -143,6 +154,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/content/validate-unmatched-case-control.ipynb",
     "wasm/validation-lab/content/validate-chi-square-trend.ipynb",
     "wasm/validation-lab/content/validate-tables.ipynb",
+    "wasm/validation-lab/content/validate-match.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -161,6 +173,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json",
     "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json",
     "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json",
+    "wasm/tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json",
     "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.pgm",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.expected.json",
@@ -176,6 +189,10 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar.expected.json",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar-outtable.pgm",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-psuvar-outtable.expected.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-dialog-variants.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-dialog-variants.expected.json",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-match-syntax.pgm",
+    "wasm/tests/fixtures/classic-command-parity/foodborne-match-syntax.expected.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
 
@@ -390,7 +407,7 @@ async function checkRequiredAssetsAndUi() {
   const statistics = classicContract.CLASSIC_COMMAND_GROUPS.find((group) => group.key === "statistics");
   assert.deepEqual(statistics.commands.map((entry) => entry.label), ["List", "Frequencies", "Tables", "Means", "Summarize", "Graph"]);
   const newBranches = classicContract.CLASSIC_COMMAND_GROUPS.find((group) => group.key === "new-branches");
-  assert.deepEqual(newBranches.commands.map((entry) => [entry.label, entry.newBranch]), [["Quality Profile", true], ["Convert Access Database", true]]);
+  assert.deepEqual(newBranches.commands.map((entry) => [entry.label, entry.newBranch]), [["MATCH revival (syntax only)", true], ["Quality Profile", true], ["Convert Access Database", true]]);
   const programSurface = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program-surface.ts")).href}?menu=${Date.now()}`);
   assert.deepEqual(programSurface.CLASSIC_PROGRAM_MENUS.map((menu) => menu.label), ["File", "Edit", "Fonts"]);
   assert.equal(programSurface.CLASSIC_PROGRAM_MENUS[2].entries.find((entry) => entry.kind === "command" && entry.key === "editor-font").disposition, "implemented");
@@ -416,7 +433,7 @@ async function checkRequiredAssetsAndUi() {
   ])), { data: 7, variables: 6, "select-if": 5, statistics: 8, "advanced-statistics": 7, output: 7, "user-defined": 4, "user-interaction": 4, options: 1 });
   assert.deepEqual(commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.explorer === "legacy-enum-only").map((entry) => entry.legacyName), ["Match", "Map", "Reports", "Help"]);
   const commandSet = await readFile(repositoryPath("COMMAND_SET.md"), "utf8");
-  assert.match(commandSet, /Typed AST\/parser branches \| 35 \|/);
+  assert.match(commandSet, /Typed AST\/parser branches \| 36 \|/);
   assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 28 \|/);
   assert.match(commandSet, /Legacy-parity-verified against reviewed desktop Epi Info output \| 0 \|/);
   for (const entry of commandParity.CLASSIC_COMMAND_PARITY) {
@@ -449,6 +466,10 @@ async function checkRequiredAssetsAndUi() {
   assert.equal(commandParity.classicCommandParityEntry("statistics", "summarize").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "graph").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "tables").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").parser, "syntax-v1.0");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").dialog, "typed-source-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").browserPolicy, "blocked");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").parityStatus, "not-started");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "list").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "define").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "recode").dialog, "typed-source-v0.1");
@@ -911,6 +932,13 @@ FREQ AgeGroup STRATAVAR=Sex`;
 
   const commandBuilder = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-command-builder.ts")).href}?commands=${Date.now()}`);
   const projectSource = { formId: "foodborne", projectName: "Outbreak Project", formName: "Foodborne Form", fields: imported.schema.fields, records: imported.records };
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({
+    kind: "match", selection: { kind: "row-column", exposure: "potato_salad", outcome: "case_status" }, matchBy: ["sex"],
+  }), "MATCH potato_salad case_status MATCHVAR=sex");
+  assert.throws(
+    () => commandBuilder.resolveSelectedClassicAnalysisCommand("MATCH potato_salad case_status MATCHVAR=sex", projectSource.fields),
+    /execution remains disabled.*Rule_Match executor reports that MATCH is not yet implemented/,
+  );
 
   const readExpected = JSON.parse(await readFile(repositoryPath(
     "wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.expected.json",
@@ -1475,6 +1503,8 @@ FREQ AgeGroup STRATAVAR=Sex`;
     { name: "ReviewText", scope: "STANDARD", variableType: "TEXTINPUT" },
     { name: "ReviewFlag", scope: "STANDARD", variableType: "YN" },
     { name: "ReviewDate", scope: "STANDARD", variableType: "DATEFORMAT" },
+    { name: "ReviewTime", scope: "STANDARD", variableType: "TIMEFORMAT" },
+    { name: "ReviewDateTime", scope: "STANDARD", variableType: "DATETIMEFORMAT" },
   ];
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "dialog", prompt: "Enter age", target: "ReviewAge", input: { kind: "numeric", implicit: false } }), 'DIALOG "Enter age" ReviewAge NUMERIC');
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "dialog", prompt: "Choose status", target: "ReviewText", input: { kind: "choices", values: ["Confirmed", "Probable"] } }), 'DIALOG "Choose status" ReviewText "Confirmed", "Probable"');
@@ -1486,9 +1516,26 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.throws(() => dialog.validateClassicDialogValue(numericDialog, "not a number"), /finite number/);
   const valueDialog = dialog.resolveClassicDialogCommand(`DIALOG "Choose status" ReviewText DBVALUES ${projectSource.formId} case_status`, dialogVariables, [projectSource]);
   assert.deepEqual(valueDialog.choices, ["Confirmed", "Not a case", "Probable", "Suspected"]);
+  const bracketedValueDialog = dialog.resolveClassicDialogCommand('DIALOG "Choose status" ReviewText DBVALUES [Foodborne Form] case_status', dialogVariables, [projectSource]);
+  assert.deepEqual(bracketedValueDialog.choices, valueDialog.choices, "DIALOG DBVALUES must accept the familiar bracketed form name");
+  const renamedProjectSource = { ...projectSource, formName: "Foodborne Outbreak Investigation Submissions Export Form" };
+  const reboundValueDialog = dialog.resolveClassicDialogCommand('DIALOG "Choose status" ReviewText DBVALUES [Foodborne Outbreak Investigation Form] case_status', dialogVariables, [renamedProjectSource]);
+  assert.equal(reboundValueDialog.binding?.resolution, "single-compatible-form");
+  assert.equal(reboundValueDialog.binding?.resolvedForm, renamedProjectSource.formName);
+  assert.match(reboundValueDialog.canonicalSource, /DBVALUES \[Foodborne Outbreak Investigation Submissions Export Form\] case_status/);
+  assert.throws(() => dialog.resolveClassicDialogCommand('DIALOG "Choose status" ReviewText DBVALUES [Missing Form] case_status', dialogVariables, [renamedProjectSource, { ...renamedProjectSource, formId: "second", formName: "Second Form" }]), /not an available project form identifier/);
   assert.throws(() => dialog.resolveClassicDialogCommand('DIALOG "Enter age" ReviewText NUMERIC', dialogVariables, [projectSource]), /requires NUMERIC/);
   assert.equal(dialog.resolveClassicDialogCommand('DIALOG "Continue?" ReviewFlag YN', dialogVariables, [projectSource]).input.kind, "yes-no");
   assert.equal(dialog.resolveClassicDialogCommand('DIALOG "Date" ReviewDate DATEFORMAT "YYYY-MM-DD"', dialogVariables, [projectSource]).input.mask, "YYYY-MM-DD");
+  const dialogTourSource = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-dialog-variants.pgm"), "utf8");
+  const dialogTourExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-dialog-variants.expected.json"), "utf8"));
+  const dialogTourAst = classicAst.parseClassicProgram(dialogTourSource);
+  const dialogTourStatements = dialogTourAst.body.filter((statement) => statement.type === "DialogStatement");
+  assert.equal(dialogTourStatements.length, dialogTourExpected.expected.syntaxFormCount);
+  assert.deepEqual([...new Set(dialogTourStatements.map((statement) => statement.input.kind))], dialogTourExpected.expected.variants);
+  assert.deepEqual(dialogTourStatements.filter((statement) => statement.input.kind === "numeric").map((statement) => statement.input.implicit ? "implicit" : "explicit"), dialogTourExpected.expected.numericSyntaxForms);
+  assert.equal(dialog.validateClassicDialogValue(dialog.resolveClassicDialogCommand('DIALOG "Time" ReviewTime TIMEFORMAT', dialogVariables, [projectSource]), "10:30"), "10:30");
+  assert.equal(dialog.validateClassicDialogValue(dialog.resolveClassicDialogCommand('DIALOG "Date/time" ReviewDateTime DATETIMEFORMAT', dialogVariables, [projectSource]), "2026-09-15T10:30"), "2026-09-15T10:30");
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "beep" }), "BEEP");
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("BEEP", imported.schema.fields), { kind: "beep", source: "BEEP" });
   assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("BEEP 2", imported.schema.fields), /does not accept arguments/);
@@ -1913,7 +1960,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
 
   const examples = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-examples.ts")).href}?examples=${Date.now()}`);
   const catalogValue = JSON.parse(await readFile(repositoryPath(
-    "wasm/demo/examples/foodborne-outbreak-investigation.programs.json",
+    "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.programs.json",
   ), "utf8"));
   const catalog = examples.validateClassicProgramExampleCatalog(catalogValue);
   assert.equal(catalog.dataset.file, "foodborne-outbreak-investigation.csv");
@@ -1921,9 +1968,20 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(catalog.dataset.recordCount, imported.records.length);
   assert.deepEqual(catalog.dataset.fieldTypes, { Age: "number", Sex: "text", case_status: "text", potato_salad: "yes-no" });
   assert.deepEqual(catalog.programs.map(({ id }) => id), [
-    "life-stage-by-sex", "age-band-by-case-status", "age-decades", "potato-salad-by-case-status", "food-exposure-two-by-two", "quality-profile",
+    "life-stage-by-sex", "age-band-by-case-status", "age-decades", "potato-salad-by-case-status", "food-exposure-two-by-two", "complete-dialog-tour", "quality-profile",
   ]);
   for (const example of catalog.programs) {
+    if (example.id === "complete-dialog-tour") {
+      const dialogTour = classicAst.parseClassicProgram(example.source);
+      assert.equal(dialogTour.body.filter((statement) => statement.type === "DefineStatement").length, 6);
+      const dialogStatements = dialogTour.body.filter((statement) => statement.type === "DialogStatement");
+      assert.equal(dialogStatements.length, 15);
+      assert.deepEqual([...new Set(dialogStatements.map((statement) => statement.input.kind))], [
+        "message", "numeric", "text", "yes-no", "date", "time", "datetime", "choices", "db-values", "db-views", "databases", "db-variables", "read-file", "write-file",
+      ]);
+      assert.deepEqual(dialogStatements.filter((statement) => statement.input.kind === "numeric").map((statement) => statement.input.implicit), [true, false]);
+      continue;
+    }
     if (example.id === "quality-profile") {
       assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand(example.source, imported.schema.fields), { kind: "quality", source: "EPIAI QUALITY *" });
       continue;
@@ -2099,6 +2157,128 @@ async function checkUnmatchedCaseControlContract() {
   assert.throws(() => calculateUnmatchedCaseControl({ ...source.input, oddsRatio: 1 }), /different from 1/);
 }
 
+async function checkMatchedPairsContractFixture() {
+  const fixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json",
+  ), "utf8"));
+  const data = await readFile(repositoryPath(fixture.dataset.file));
+  assert.equal(createHash("sha256").update(data).digest("hex"), fixture.dataset.sha256);
+  const { parseCsv } = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/csv.ts")).href}?matched=${Date.now()}`);
+  const [headers, ...rows] = parseCsv(data.toString("utf8"));
+  const records = rows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])));
+  assert.equal(records.length, fixture.dataset.records);
+  const { deriveMatchedPairs } = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-match-analysis.ts")).href}?matched=${Date.now()}`);
+  const derived = deriveMatchedPairs(records, {
+    exposureField: fixture.mapping.exposureField,
+    outcomeField: fixture.mapping.outcomeField,
+    matchField: fixture.mapping.matchField,
+    confidenceLevel: 0.95,
+  });
+  assert.equal(derived.schemaVersion, "0.1.0");
+  assert.equal(derived.operation, "epi.match.paired.derive");
+  assert.equal(derived.command, fixture.mapping.command);
+  assert.equal(derived.totals.sourceSets, fixture.dataset.sourceSets);
+  assert.deepEqual(derived.pairs, fixture.expected.pairs);
+  assert.deepEqual({ records: derived.totals.includedRecords, sets: derived.totals.includedSets }, fixture.expected.included);
+  assert.deepEqual({
+    records: derived.totals.excludedRecords,
+    sets: derived.totals.excludedSets,
+    missingAnalysisValueSets: derived.exclusions.missingAnalysisValueSets,
+    invalidAnalysisValueSets: derived.exclusions.invalidAnalysisValueSets,
+    invalidCaseControlCompositionSets: derived.exclusions.invalidCaseControlCompositionSets,
+    unsupportedVariableRatioSets: derived.exclusions.unsupportedVariableRatioSets,
+  }, fixture.expected.excluded);
+  assert.deepEqual(derived.kernelInput, {
+    caseExposedControlUnexposed: 3,
+    caseUnexposedControlExposed: 2,
+    confidenceLevel: 0.95,
+  });
+  assert.deepEqual(deriveMatchedPairs([...records].reverse(), derived.input).pairs, derived.pairs);
+  const relabeled = records.map((record) => ({ ...record, set_id: `RELABEL-${record.set_id}` }));
+  assert.deepEqual(deriveMatchedPairs(relabeled, derived.input).pairs, derived.pairs);
+  const reversedExposure = records.map((record) => ({
+    ...record,
+    exposure: record.exposure === "1" ? "0" : record.exposure === "0" ? "1" : record.exposure,
+  }));
+  const reversed = deriveMatchedPairs(reversedExposure, derived.input);
+  assert.equal(reversed.pairs.caseExposedControlUnexposed, derived.pairs.caseUnexposedControlExposed);
+  assert.equal(reversed.pairs.caseUnexposedControlExposed, derived.pairs.caseExposedControlUnexposed);
+  const typedBinary = deriveMatchedPairs([
+    { pair: 1, outcome: true, exposure: "Yes" },
+    { pair: 1, outcome: false, exposure: "No" },
+  ], { exposureField: "exposure", outcomeField: "outcome", matchField: "pair", confidenceLevel: 0.95 });
+  assert.equal(typedBinary.pairs.caseExposedControlUnexposed, 1);
+  const invalidBinary = deriveMatchedPairs([
+    { set_id: "A", outcome: 1, exposure: 2 },
+    { set_id: "A", outcome: 0, exposure: 0 },
+  ], derived.input);
+  assert.equal(invalidBinary.exclusions.invalidAnalysisValueSets, 1);
+  assert.equal(invalidBinary.totals.excludedRecords, 2);
+  assert.throws(() => deriveMatchedPairs([], derived.input), /at least one active record/);
+  assert.throws(() => deriveMatchedPairs(records, { ...derived.input, matchField: derived.input.exposureField }), /three different/);
+  const sets = new Map();
+  for (const record of records) {
+    const members = sets.get(record.set_id) ?? [];
+    members.push(record);
+    sets.set(record.set_id, members);
+  }
+  assert.equal(sets.size, fixture.dataset.sourceSets);
+
+  const pairs = { caseExposedControlUnexposed: 0, caseUnexposedControlExposed: 0, bothExposed: 0, neitherExposed: 0 };
+  const excluded = { missingAnalysisValueSets: 0, invalidAnalysisValueSets: 0, invalidCaseControlCompositionSets: 0, unsupportedVariableRatioSets: 0, records: 0, sets: 0 };
+  let includedRecords = 0;
+  let includedSets = 0;
+  for (const members of sets.values()) {
+    if (members.some(({ set_id, outcome, exposure }) => !set_id || !outcome || !exposure)) {
+      excluded.missingAnalysisValueSets += 1;
+    } else if (members.some(({ outcome, exposure }) => !["0", "1"].includes(outcome) || !["0", "1"].includes(exposure))) {
+      throw new Error("The hand fixture must keep nonbinary-domain cases separate from its three set-shape exclusions.");
+    } else if (members.length !== 2) {
+      excluded.unsupportedVariableRatioSets += 1;
+    } else {
+      const cases = members.filter(({ outcome }) => outcome === "1");
+      const controls = members.filter(({ outcome }) => outcome === "0");
+      if (cases.length !== 1 || controls.length !== 1) {
+        excluded.invalidCaseControlCompositionSets += 1;
+      } else {
+        includedSets += 1;
+        includedRecords += 2;
+        const pair = `${cases[0].exposure}${controls[0].exposure}`;
+        if (pair === "10") pairs.caseExposedControlUnexposed += 1;
+        else if (pair === "01") pairs.caseUnexposedControlExposed += 1;
+        else if (pair === "11") pairs.bothExposed += 1;
+        else pairs.neitherExposed += 1;
+        continue;
+      }
+    }
+    excluded.sets += 1;
+    excluded.records += members.length;
+  }
+  assert.deepEqual({ records: includedRecords, sets: includedSets }, fixture.expected.included);
+  assert.deepEqual(excluded, fixture.expected.excluded);
+  assert.deepEqual({
+    ...pairs,
+    discordant: pairs.caseExposedControlUnexposed + pairs.caseUnexposedControlExposed,
+    concordant: pairs.bothExposed + pairs.neitherExposed,
+  }, fixture.expected.pairs);
+  const b = pairs.caseExposedControlUnexposed;
+  const c = pairs.caseUnexposedControlExposed;
+  const discordant = b + c;
+  assert.equal(b / c, fixture.expected.matchedOddsRatio.value);
+  assert.equal(((b - c) ** 2) / discordant, fixture.expected.mcnemar.uncorrected.chiSquare);
+  assert.equal((Math.max(Math.abs(b - c) - 1, 0) ** 2) / discordant, fixture.expected.mcnemar.continuityCorrected.chiSquare);
+  const choose = (n, k) => Array.from({ length: k }, (_, index) => (n - index) / (index + 1)).reduce((value, factor) => value * factor, 1);
+  const minimum = Math.min(b, c);
+  const lowerTail = Array.from({ length: minimum + 1 }, (_, value) => choose(discordant, value) / (2 ** discordant)).reduce((sum, value) => sum + value, 0);
+  const exact = Math.min(1, 2 * lowerTail);
+  const point = choose(discordant, minimum) / (2 ** discordant);
+  const midP = Math.min(1, 2 * (lowerTail - (0.5 * point)));
+  assert.equal(exact, fixture.expected.mcnemar.exactTwoSidedPValue);
+  assert.equal(midP, fixture.expected.mcnemar.exactTwoSidedMidPValue);
+  assert.ok(fixture.expected.matchedOddsRatio.conditionalExactCentral.lower < fixture.expected.matchedOddsRatio.value);
+  assert.ok(fixture.expected.matchedOddsRatio.conditionalExactCentral.upper > fixture.expected.matchedOddsRatio.value);
+}
+
 async function checkFoodborneValidationFixture() {
   const fixturePath = "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json";
   const fixture = JSON.parse(await readFile(repositoryPath(fixturePath), "utf8"));
@@ -2255,7 +2435,7 @@ async function checkCsvAndProjectFixtures() {
   ]);
   assert.throws(() => module.parseJsonRecords('{"type":"FeatureCollection","features":[]}'), /array of record objects/i);
 
-  const outbreakCsv = await readFile(join(examplesDirectory, "foodborne-outbreak-investigation.csv"), "utf8");
+  const outbreakCsv = await readFile(join(examplesDirectory, "foodborne", "foodborne-outbreak-investigation.csv"), "utf8");
   const outbreakRows = module.parseCsv(outbreakCsv);
   const importedRecordValidation = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/validation.ts")).href}?csvvalidation=${Date.now()}`);
   assert.equal(outbreakRows.length, 97);
@@ -2524,7 +2704,7 @@ async function checkMapFixture() {
   assert.equal(parsed.geojson.type, "FeatureCollection");
   assert.equal(parsed.featureCount, 3);
   assert.deepEqual(listGeoJsonPolygonProperties(parsed.geojson), ["name", "status"]);
-  const toledoText = await readFile(join(examplesDirectory, "city-of-toledo-neighborhoods.geojson"), "utf8");
+  const toledoText = await readFile(join(examplesDirectory, "foodborne", "maps", "city-of-toledo-neighborhoods.geojson"), "utf8");
   const toledo = parseGeoJson(toledoText);
   assert.equal(toledo.geojson.type, "FeatureCollection");
   assert.equal(toledo.featureCount, 87);
@@ -2757,7 +2937,7 @@ async function checkGeocodingProviderBoundary() {
 
 async function checkSampleProjectPackage() {
   const contracts = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?package=${Date.now()}`);
-  const source = await readFile(repositoryPath("wasm/demo/examples/sample-project.epia.json"), "utf8");
+  const source = await readFile(repositoryPath("wasm/demo/examples/projects/sample-project.epia.json"), "utf8");
   const canonicalSource = source.replace(/\r\n/g, "\n");
   assert.equal(createHash("sha256").update(canonicalSource).digest("hex"), "00af75d2d22d669bc4ea204f07a9525557023bafad349564c813c942238f3bb4");
   const packageValue = contracts.parseProjectPackage(source);
@@ -3023,6 +3203,23 @@ async function checkValidationLabSource() {
   ]) {
     assert.ok(tablesSource.includes(requiredText), `TABLES validation notebook must retain ${requiredText}`);
   }
+
+  const matchNotebook = JSON.parse(await readFile(repositoryPath("wasm/validation-lab/content/validate-match.ipynb"), "utf8"));
+  assert.equal(matchNotebook.nbformat, 4);
+  assert.equal(matchNotebook.metadata?.kernelspec?.name, "python");
+  const matchSource = matchNotebook.cells.flatMap((cell) => cell.source || []).join("");
+  for (const requiredText of [
+    "matched-pairs-contract-v0.1.json",
+    "matched-pairs-hand-audit.csv",
+    "beta.ppf",
+    "binom.cdf",
+    "chi2.sf",
+    "row-order invariance",
+    "exposure-reversal reciprocity",
+    "No MATCH WebAssembly export is called",
+  ]) {
+    assert.ok(matchSource.includes(requiredText), `MATCH validation notebook must retain ${requiredText}`);
+  }
 }
 
 async function checkEpiAssistProposalBoundary() {
@@ -3135,6 +3332,7 @@ async function checkEpiAssistProposalBoundary() {
 
 async function checkClassicProgramAst() {
   const parser = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-ast.ts")).href}?ast=${Date.now()}`);
+  const matchCommands = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-match.ts")).href}?match=${Date.now()}`);
   const source = `READ {Projects\\Sample\\Sample.prj}:Oswego
 DEFINE AgeGroup TEXTINPUT
 ASSIGN AgeGroup = "Unknown"
@@ -3184,7 +3382,40 @@ CANCEL SORT`;
   assert.equal(graph.body[0].type, "GraphStatement");
   assert.equal(graph.body[0].field.name, "Case_Status");
   assert.equal(graph.body[0].graphType, "Bar");
-  const commandTourSource = await readFile(repositoryPath("wasm/demo/examples/foodborne-classic-command-tour.pgm7"), "utf8");
+  const matchFixture = await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/foodborne-match-syntax.pgm"), "utf8");
+  const matchAst = parser.parseClassicProgram(matchFixture);
+  assert.deepEqual(matchAst.body.map((statement) => statement.type), Array(5).fill("MatchStatement"));
+  assert.deepEqual(matchAst.body.map((statement) => statement.selection.kind), [
+    "row-all", "row-all-except", "column-all", "column-all-except", "row-column",
+  ]);
+  assert.deepEqual(matchAst.body[1].selection.excludedRows.map(({ name }) => name), ["Age", "onset_date"]);
+  assert.deepEqual(matchAst.body[3].selection.excludedColumns.map(({ name }) => name), ["hamburger", "hot_dog"]);
+  assert.equal(matchAst.body[4].weightBy.name, "Age");
+  assert.deepEqual(matchAst.body[4].matchBy.map(({ name }) => name), ["Sex", "household_neighborhood"]);
+  assert.deepEqual(matchAst.body[4].settings, [{ name: "STATISTICS", value: "NONE" }]);
+  assert.equal(matchCommands.buildClassicMatchCommand({
+    selection: { kind: "row-column", exposure: "potato_salad", outcome: "case_status" }, matchBy: ["Sex"],
+  }), "MATCH potato_salad case_status MATCHVAR=Sex");
+  assert.equal(matchCommands.parseClassicMatchCommand("MATCH potato_salad case_status MATCHVAR=Sex").selection.kind, "row-column");
+  assert.throws(() => matchCommands.parseClassicMatchCommand("MATCH potato_salad case_status\nMATCH hamburger case_status"), /exactly one complete MATCH/);
+  assert.throws(() => parser.parseClassicProgram("MATCH potato_salad case_status STATISTICS=FISHER"), /accepts NONE only/);
+  assert.throws(() => parser.parseClassicProgram("MATCH potato_salad case_status MATCHVAR=Sex MATCHVAR=Age"), /may appear only once/);
+  assert.throws(() => matchCommands.matchExecutionUnavailable(), /Rule_Match executor reports that MATCH is not yet implemented/);
+  const matchedCaseControlTourSource = await readFile(repositoryPath("wasm/demo/examples/matched-case-control/match-pb-by-pair.pgm7"), "utf8");
+  const matchedCaseControlTour = parser.parseClassicProgram(matchedCaseControlTourSource);
+  assert.equal(matchedCaseControlTour.body.length, 1);
+  assert.equal(matchedCaseControlTour.body[0].type, "MatchStatement");
+  assert.equal(matchedCaseControlTour.body[0].selection.exposure.name, "pb");
+  assert.equal(matchedCaseControlTour.body[0].selection.outcome.name, "caco");
+  assert.deepEqual(matchedCaseControlTour.body[0].matchBy.map(({ name }) => name), ["matched_pairs"]);
+  const matchedHandTourSource = await readFile(repositoryPath("wasm/demo/examples/matched-case-control/match-hand-audit.pgm7"), "utf8");
+  const matchedHandTour = parser.parseClassicProgram(matchedHandTourSource);
+  assert.equal(matchedHandTour.body.length, 1);
+  assert.equal(matchedHandTour.body[0].type, "MatchStatement");
+  assert.equal(matchedHandTour.body[0].selection.exposure.name, "exposure");
+  assert.equal(matchedHandTour.body[0].selection.outcome.name, "outcome");
+  assert.deepEqual(matchedHandTour.body[0].matchBy.map(({ name }) => name), ["set_id"]);
+  const commandTourSource = await readFile(repositoryPath("wasm/demo/examples/foodborne/foodborne-classic-command-tour.pgm7"), "utf8");
   const commandTour = parser.parseClassicProgram(commandTourSource);
   assert.deepEqual(commandTour.body.map(({ type }) => type), [
     "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement", "SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement", "TablesStatement", "TablesStatement",
@@ -3263,6 +3494,7 @@ async function run() {
     ["StatCalc Population Survey contract", checkPopulationSurveyContract],
     ["StatCalc Cohort or Cross-Sectional contract", checkCohortSampleSizeContract],
     ["StatCalc Unmatched Case-Control contract", checkUnmatchedCaseControlContract],
+    ["Classic MATCH paired-analysis contract fixture", checkMatchedPairsContractFixture],
     ["foodborne 2 x 2 validation fixture", checkFoodborneValidationFixture],
     ["legacy 100-case exact 2 x 2 corpus", checkLegacyTwoByTwoCorpus],
     ["CSV, grid, and project fixtures", checkCsvAndProjectFixtures],

@@ -91,6 +91,7 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
   ] },
   { key: "options", label: "Options", commands: [command("set", "Set", "classic-command-set")] },
   { key: "new-branches", label: "New Branches — Epi Info AI", commands: [
+    newBranchCommand("match-revival", "MATCH revival (syntax only)", "classic-command-match"),
     newBranchCommand("quality", "Quality Profile", "classic-command-quality"),
     newBranchCommand("file-convert", "Convert Access Database", "classic-command-file-convert"),
   ] },

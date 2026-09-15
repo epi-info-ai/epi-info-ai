@@ -74,6 +74,7 @@ GitLab CI and GitHub Actions build and publish the same complete JupyterLite lab
 
 | Validation notebook | GitLab Pages | GitHub Pages |
 | --- | --- | --- |
+| MATCH paired-analysis contract | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-match.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-match.ipynb) |
 | TABLES V0.11 + Complex Samples | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-tables.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-tables.ipynb) |
 | Chi Square for Trend | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb) |
 | Unmatched Case-Control | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-unmatched-case-control.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-unmatched-case-control.ipynb) |
@@ -321,7 +322,7 @@ project has:
   Tables, Frequencies, and Means slices, including `PSUVAR`, survey variance,
   design effects, `OUTTABLE`, session `READ`/`LIST`, fixtures, and independent
   notebook evidence;
-- grown the JupyterLite validation lab to ten notebooks, all built and linked
+- grown the JupyterLite validation lab to eleven notebooks, all built and linked
   on both GitLab Pages and the public GitHub Pages mirror;
 - added Visual Dashboard Epi Curve and Rates slices, Data Quality missingness
   bars, type-aware validation, import preview and duplicate warnings, secure
@@ -348,7 +349,11 @@ The detailed cumulative changes and validation increments follow.
   non-command Storing Output settings dialog.
 - Completed typed coverage of the inspected `DIALOG` grammar and added
   session/type-aware message, scalar, list, current-project database, and
-  explicit browser file/name prompts; user-entered values stay out of history.
+  explicit browser file/name prompts; the foodborne DIALOG tour exercises all
+  14 semantic types and both numeric spellings while user-entered values stay
+  out of history. It begins with legacy `UNDEFINE *`, making repeat runs
+  deterministic instead of colliding with variables retained by the session,
+  and ends with a ported `WRITE REPLACE "Text"` CSV download.
 - Added browser-adapted `BEEP`, matching fixtures, and the resulting forty-step
   foodborne command tour.
 - Established the localization parity inventory and a bounded TypeScript
@@ -495,6 +500,12 @@ The detailed cumulative changes and validation increments follow.
   join supports composite keys, one-to-many output, matched-only or retained
   unmatched parent records, collision-safe related fields, and auditable active
   table replacement. External data sources remain mediated browser adapters.
+- Revived the retained `MATCH` language surface as syntax-only: the typed AST
+  accepts all five legacy grammar forms and retained options, while a clearly
+  labeled editor dialog authors the dormant exposure/outcome form. Execution
+  fails closed because the inspected Epi Info 7 `Rule_Match` implementation
+  itself reports the command as not implemented; epidemiologic semantics and
+  validation remain the next MATCH slice.
 - Added familiar `WRITE REPLACE "Text" destination fields` authoring and
   selected execution as an explicit UTF-8 CSV download. The foodborne fixture
   verifies 96 exported records and selected-field order. Legacy APPEND remains
@@ -629,6 +640,25 @@ The detailed cumulative changes and validation increments follow.
   foodborne command tour now has 40 statements.
 
 ## TODO
+
+- **Complete the `MATCH` execution gates without lowering the parity floor.** The
+  [source and dataset inventory](wasm/docs/research/match-command-sources-and-data.md)
+  recovers the historical command intent and identifies the legacy
+  [`Case Control DatabaseExample.xlsx` workbook](wasm/demo/examples/matched-case-control/)
+  (65 complete 1:1 sets) as the leading teaching candidate. Confirm its
+  provenance and codebook. A proposed
+  [bounded 1:1 method contract](wasm/docs/validation/matched-pairs-method-contract.md),
+  hand-auditable edge-case CSV, and Program Editor `.pgm7` now freeze the first
+  acceptance target. The independent
+  [`validate-match.ipynb`](wasm/validation-lab/content/validate-match.ipynb)
+  lab now reconstructs the sets and verifies the paired odds ratio, exact
+  interval, McNemar tests, exclusions, boundary states, and metamorphic
+  properties without calling a MATCH engine. A bounded typed adapter now groups
+  active records, validates the explicit binary domain, classifies complete 1:1
+  pairs, and accounts for every excluded set without calculating statistics.
+  Next recover the Rely/Toxic Shock Syndrome data, capture reviewed desktop
+  differential output, and implement the Rust/WASM kernel and Worker before
+  enabling execution or making any statistical parity claim.
 
 - **Continue localization as a governed parity workstream.** The inspected
   legacy floor and browser target are now captured in

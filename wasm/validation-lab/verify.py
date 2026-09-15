@@ -23,6 +23,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-unmatched-case-control.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-chi-square-trend.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-tables.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-match.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -32,6 +33,7 @@ RATE_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-
 POPULATION_SURVEY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/population-survey-v0.12.json"
 COHORT_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json"
 UNMATCHED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json"
+MATCH_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json"
 TREND_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"
 TABLES_FIXTURES = [
     REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.expected.json",
@@ -124,6 +126,20 @@ def verify_notebook() -> None:
     assert "population-survey-v0.12.json" in source
     assert "population_survey_cluster_size" in source
     assert "scipy.stats" in source
+
+    match = nbformat.read(NOTEBOOKS[10], as_version=4)
+    source = "\n".join(cell.source for cell in match.cells)
+    for required in [
+        "matched-pairs-contract-v0.1.json",
+        "matched-pairs-hand-audit.csv",
+        "beta.ppf",
+        "binom.cdf",
+        "chi2.sf",
+        "row-order invariance",
+        "exposure-reversal reciprocity",
+        "No MATCH WebAssembly export is called",
+    ]:
+        assert required in source
 
 
 def verify_stratified_operational_fixture() -> None:
@@ -241,6 +257,31 @@ def verify_unmatched() -> None:
         {"method": "Fleiss with continuity correction", "cases": 20, "controls": 20, "total": 40},
     ]
     assert fixture["cases"][1]["methods"][2]["total"] == 159
+
+
+def verify_match_contract() -> None:
+    fixture = json.loads(MATCH_FIXTURE.read_text(encoding="utf-8"))
+    data = (REPOSITORY / fixture["dataset"]["file"]).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+    records = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    assert len(records) == fixture["dataset"]["records"] == 21
+    sets: dict[str, list[dict[str, str]]] = {}
+    for record in records:
+        sets.setdefault(record["set_id"], []).append(record)
+    assert len(sets) == fixture["dataset"]["sourceSets"] == 10
+    included: list[tuple[dict[str, str], dict[str, str]]] = []
+    for members in sets.values():
+        if len(members) != 2 or any(not member[field].strip() for member in members for field in ("set_id", "outcome", "exposure")):
+            continue
+        cases = [member for member in members if member["outcome"] == "1"]
+        controls = [member for member in members if member["outcome"] == "0"]
+        if len(cases) == len(controls) == 1:
+            included.append((cases[0], controls[0]))
+    b = sum(case["exposure"] == "1" and control["exposure"] == "0" for case, control in included)
+    c = sum(case["exposure"] == "0" and control["exposure"] == "1" for case, control in included)
+    assert len(included) == fixture["expected"]["included"]["sets"] == 7
+    assert (b, c) == (3, 2)
+    assert b / c == fixture["expected"]["matchedOddsRatio"]["value"] == 1.5
 
 
 def verify_chi_square_trend() -> None:
@@ -422,6 +463,7 @@ if __name__ == "__main__":
     verify_population_survey()
     verify_cohort()
     verify_unmatched()
+    verify_match_contract()
     verify_chi_square_trend()
     verify_foodborne_tables()
     verify_foodborne_tables_adjusted()

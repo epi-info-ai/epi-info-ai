@@ -62,7 +62,7 @@ The lab keeps three kinds of parity separate:
 The 96-record foodborne-outbreak example is the initial coherent validation
 corpus. It is synthetic demonstration data and contains no real case records. The
 immutable source currently resides at
-[`demo/examples/foodborne-outbreak-investigation.csv`](demo/examples/foodborne-outbreak-investigation.csv).
+[`demo/examples/foodborne/foodborne-outbreak-investigation.csv`](demo/examples/foodborne/foodborne-outbreak-investigation.csv).
 
 | Property | Frozen value |
 |---|---|
@@ -461,6 +461,21 @@ discrepancy to its detailed evidence record.
   reports a transparent PASS object.
 - Broader legacy output, zero/fractional-cell decisions, property/boundary,
   implementation, and statistical review remain open. G5 stays consolidated.
+
+### MATCH paired-analysis contract V0.1
+
+- `validate-match.ipynb` independently reads the hand-auditable 21-record CSV,
+  reconstructs its ten matched sets, and applies the proposed bounded 1:1
+  inclusion and exclusion rules.
+- SciPy independently calculates the paired odds ratio's central exact interval,
+  uncorrected and corrected McNemar probabilities, exact binomial probability,
+  and mid-p probability from the discordant-pair counts.
+- Boundary checks cover no discordance, zero, and infinite odds-ratio states;
+  metamorphic checks cover row-order invariance, set-label invariance, and
+  exposure-reversal reciprocity.
+- No MATCH WebAssembly export is called because no statistical engine candidate
+  exists yet. Passing this notebook validates the proposed contract and fixture,
+  not execution readiness or legacy desktop parity.
 
 ### Classic TABLES V0.11 validation
 

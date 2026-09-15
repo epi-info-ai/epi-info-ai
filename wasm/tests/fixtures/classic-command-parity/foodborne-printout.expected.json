@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "command": "PRINTOUT",
   "parityStatus": "browser-verified",
-  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "recordCount": 96 },
+  "dataset": { "file": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv", "recordCount": 96 },
   "precondition": { "currentOutput": true },
   "expected": { "handoff": "browser-print-dialog", "automaticPrint": false, "recordsChanged": false },
   "legacyDifferential": { "status": "not-run", "note": "Legacy external-file printing and exact printer/page-setting behavior remain under differential review." }

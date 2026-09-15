@@ -1,0 +1,6 @@
+*** Epi Info AI MATCH revival exercise
+*** Dataset: case-control-database-example.xlsx (130 records; 65 matched pairs)
+*** Import normalizes CaCo to caco and Matched pairs to matched_pairs.
+*** SYNTAX-ONLY: execution remains blocked until the MATCH method contract and validation gates are complete.
+
+MATCH pb caco MATCHVAR=matched_pairs

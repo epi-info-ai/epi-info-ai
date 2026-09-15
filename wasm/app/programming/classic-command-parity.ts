@@ -1,6 +1,6 @@
 export type ClassicCommandGroupKey = "data" | "variables" | "select-if" | "statistics" | "advanced-statistics" | "output" | "user-defined" | "user-interaction" | "options";
 export type ClassicCommandParserState = "none" | "syntax-v0.8" | "syntax-v0.9" | "syntax-v1.0";
-export type ClassicCommandDialogState = "gap" | "typed-source-v0.1" | "settings-v0.1";
+export type ClassicCommandDialogState = "gap" | "typed-source-v0.1" | "typed-source-v0.2" | "settings-v0.1";
 export type ClassicCommandSelectedState = "none" | "executes-v0.1" | "review-required-v0.1";
 export type ClassicCommandFullProgramState = "none" | "bounded-component-v0.1";
 export type ClassicCommandBrowserPolicy = "candidate" | "adapt-required" | "blocked";
@@ -119,7 +119,12 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
     validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.pgm",
     expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.expected.json",
   }),
-  entry("statistics", "match", "Match", "MATCH", { explorer: "legacy-enum-only" }),
+  entry("statistics", "match", "Match", "MATCH", {
+    explorer: "legacy-enum-only", parser: "syntax-v1.0", dialog: "typed-source-v0.1", browserPolicy: "blocked",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-match-syntax.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-match-syntax.expected.json",
+    evidence: "Typed syntax covers all five EpiInfoGrammar.txt Match_* productions plus WEIGHTVAR, MATCHVAR, and SET-clause options; the browser revival dialog authors the dormant MatchDialog row-column form. CommandExplorer.cs keeps its route disabled and Rule_Match.cs explicitly returns NOT yet implemented, so execution remains fail-closed.",
+  }),
   entry("statistics", "means", "Means", "MEANS", {
     parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", parityStatus: "browser-verified",
     validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-means-age.pgm",
@@ -197,10 +202,10 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
   entry("user-defined", "execute-file", "ExecuteFile", "EXECUTE", { browserPolicy: "blocked" }),
 
   entry("user-interaction", "dialog", "Dialog", "DIALOG", {
-    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    parser: "syntax-v1.0", dialog: "typed-source-v0.2", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
     browserPolicy: "adapt-required", parityStatus: "browser-verified",
-    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-dialog-simple.pgm",
-    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-dialog-simple.expected.json",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-dialog-variants.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-dialog-variants.expected.json",
     evidence: "Epi.Core/Resources/EpiInfoGrammar.txt: Simple_Dialog_Statement; Epi.Windows.Analysis/Dialogs/DialogDialog.cs",
   }),
   entry("user-interaction", "beep", "Beep", "BEEP", {

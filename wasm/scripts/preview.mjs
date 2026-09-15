@@ -21,7 +21,10 @@ const server = createServer(async (request, response) => {
     const file = resolve(join(root, relativePath));
     if (file !== root && !file.startsWith(`${root}${sep}`)) throw new Error("Invalid path");
     if (!(await stat(file)).isFile()) throw new Error("Not found");
-    response.writeHead(200, { "content-type": contentTypes.get(extname(file)) || "application/octet-stream" });
+    response.writeHead(200, {
+      "content-type": contentTypes.get(extname(file)) || "application/octet-stream",
+      "cache-control": "no-store",
+    });
     createReadStream(file).pipe(response);
   } catch {
     response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });

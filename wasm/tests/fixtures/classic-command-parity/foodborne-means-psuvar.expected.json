@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1, "operation": "classic.means.complex-sample", "planVersion": "classic-complex-means-v0.1.0", "status": "browser-candidate",
   "purpose": "Mechanical Complex Sample Means validation only; Household Neighborhood and Case Status are design proxies.",
-  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
+  "dataset": { "file": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv", "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5", "rows": 96 },
   "canonicalSource": "MEANS age sex STRATAVAR=case_status PSUVAR=household_neighborhood",
   "expected": { "includedRecords": 96, "excludedRecords": 0, "designStrata": 4, "primarySamplingUnits": 63, "degreesOfFreedom": 59, "confidenceMultiplier": 2.0009952783584595,
     "rows": [

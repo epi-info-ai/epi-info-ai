@@ -40,12 +40,21 @@ const requiredFiles = [
   "sample-case-data.csv",
   "sample-map-layer.geojson",
   "examples/README.md",
-  "examples/foodborne-outbreak-investigation.csv",
-  "examples/foodborne-outbreak-investigation.xlsx",
-  "examples/foodborne-outbreak-investigation.programs.json",
-  "examples/city-of-toledo-neighborhoods.geojson",
-  "examples/worldpop-toledo-population-density.tif",
-  "examples/sample-project.epia.json",
+  "examples/foodborne/README.md",
+  "examples/foodborne/foodborne-outbreak-investigation.csv",
+  "examples/foodborne/foodborne-outbreak-investigation.xlsx",
+  "examples/foodborne/foodborne-outbreak-investigation.programs.json",
+  "examples/foodborne/foodborne-dialog-tour.pgm7",
+  "examples/foodborne/maps/city-of-toledo-neighborhoods.geojson",
+  "examples/foodborne/maps/worldpop-toledo-population-density.tif",
+  "examples/matched-case-control/README.md",
+  "examples/matched-case-control/case-control-database-example.xlsx",
+  "examples/matched-case-control/matched-pairs-hand-audit.csv",
+  "examples/matched-case-control/match-hand-audit.pgm7",
+  "examples/matched-case-control/matched-logistic-test-data.csv",
+  "examples/matched-case-control/match-pb-by-pair.pgm7",
+  "examples/projects/README.md",
+  "examples/projects/sample-project.epia.json",
   "vendor/leaflet/leaflet.js",
   "vendor/h3-js/h3-js.es.js",
   "setup/supabase-schema.sql",
@@ -61,6 +70,7 @@ const requiredFiles = [
   "validation-fixtures/population-survey-v0.12.json",
   "validation-fixtures/cohort-cross-sectional-v0.13.json",
   "validation-fixtures/unmatched-case-control-v0.14.json",
+  "validation-fixtures/matched-pairs-contract-v0.1.json",
   "validation-fixtures/chi-square-trend-v0.15.json",
   "validation-fixtures/foodborne-tables-stratified-v0.3.json",
   "validation-fixtures/foodborne-tables-unstratified-v0.3.json",
@@ -83,7 +93,7 @@ await Promise.all(requiredFiles.map(requireFile));
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
-assert.match(html, /src=["']app\.js\?v=104["']/);
+assert.match(html, /src=["']app\.js\?v=106["']/);
 assert.match(html, /href=["']styles\.css\?v=61["']/);
 assert.match(html, /id=["']study-area-dialog["']/);
 assert.match(html, /id=["']main-menu["']/);
