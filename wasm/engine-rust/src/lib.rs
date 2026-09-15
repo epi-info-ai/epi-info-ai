@@ -771,26 +771,17 @@ fn matched_mcnemar_statistic(case_exposed: f64, control_exposed: f64, corrected:
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn matched_mcnemar_uncorrected(
-    case_exposed: f64,
-    control_exposed: f64,
-) -> f64 {
+pub extern "C" fn matched_mcnemar_uncorrected(case_exposed: f64, control_exposed: f64) -> f64 {
     matched_mcnemar_statistic(case_exposed, control_exposed, false)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn matched_mcnemar_corrected(
-    case_exposed: f64,
-    control_exposed: f64,
-) -> f64 {
+pub extern "C" fn matched_mcnemar_corrected(case_exposed: f64, control_exposed: f64) -> f64 {
     matched_mcnemar_statistic(case_exposed, control_exposed, true)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn matched_exact_two_sided(
-    case_exposed: f64,
-    control_exposed: f64,
-) -> f64 {
+pub extern "C" fn matched_exact_two_sided(case_exposed: f64, control_exposed: f64) -> f64 {
     let Some((b, c, n)) = matched_counts(case_exposed, control_exposed) else {
         return f64::NAN;
     };
@@ -801,10 +792,7 @@ pub extern "C" fn matched_exact_two_sided(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn matched_exact_mid_p_two_sided(
-    case_exposed: f64,
-    control_exposed: f64,
-) -> f64 {
+pub extern "C" fn matched_exact_mid_p_two_sided(case_exposed: f64, control_exposed: f64) -> f64 {
     let Some((b, c, n)) = matched_counts(case_exposed, control_exposed) else {
         return f64::NAN;
     };
