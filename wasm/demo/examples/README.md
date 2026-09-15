@@ -56,14 +56,17 @@ SHA-256: `E22085C3578C913AA88F6474A639107C2E4B3B0516BCBC10F7AA2FAF67773EEC`
 [`foodborne-classic-command-tour.pgm7`](foodborne-classic-command-tour.pgm7) is
 an official-extension **parity acceptance target** for `LIST`, `FREQ`, `MEANS`, `TABLES`, `SET MISSING`, `SELECT`,
 `CANCEL SELECT`, `SORT`, `CANCEL SORT`, `SUMMARIZE`, `GRAPH`, `DEFINE`, `ASSIGN`,
-and bounded Standard-variable `IF / ELSE / END`, including a
+and bounded Standard-variable `IF / ELSE / END`, a simple-message `DIALOG` that
+awaits acknowledgement, and a no-option browser-adapted `BEEP`, plus familiar level-1
+`HEADER`, safe literal `TYPEOUT`, and in-session `ROUTEOUT`/`CLOSEOUT` browser
+Output with an explicit report download, plus reviewed bare `PRINTOUT`, including a
 session-local TABLES `OUTTABLE`, mechanical Complex Sample Tables and Complex
 Sample Frequencies `PSUVAR` exercise with its legacy-shaped result `OUTTABLE`,
 a Complex Sample Means calculation with explicitly browser-adapted result
 `OUTTABLE`, and three-field TABLES exposure GROUPVAR with
 desktop-compatible final-exposure `OUTTABLE` replacement, followed by the
 explicitly labeled new-branch `EPIAI QUALITY *` profile. Choose the familiar **Run
-Commands** toolbar button with no selection to execute all thirty-three statements in
+Commands** toolbar button with no selection to execute all forty statements in
 source order. Like Epi Info 7, highlighting one complete command or block first
 makes the same toolbar run only that selected source. This proves the current
 bounded browser paths compose; it is not a full-parity claim. The file becomes a
@@ -71,7 +74,7 @@ completed legacy demo program only when every legacy command it references is
 `legacy-parity-verified` in the command compatibility registry; `EPIAI QUALITY`
 remains independently governed as a new branch.
 
-SHA-256: `9163F30174646E2E1D2D92CAEFF23D90A9258EF63E27F5DB4E55ADF4C5556188`
+SHA-256: `6B94CED0F8EB5281E0602A5B428945018195AC8D43F56ABFFBFCEE8DB17FF0FC`
 
 ## City of Toledo neighborhoods
 

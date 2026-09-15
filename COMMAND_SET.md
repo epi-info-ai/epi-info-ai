@@ -9,19 +9,20 @@ and the evidence rules and detailed gaps are in the
 
 ## Snapshot
 
-Last reconciled: **2026-09-10**
+Last reconciled: **2026-09-15**
 
 | Measure | Count |
 |---|---:|
 | Legacy enum entries retained as the compatibility floor | 49 |
 | Visible in the legacy Command Explorer | 45 |
-| Typed AST/parser branches | 28 |
-| Typed source dialogs | 28 |
-| Selected execution or explicit reviewed handoff | 27 |
-| Bounded full-program components | 8 |
-| Browser-verified using checked-in `.pgm` and expected output | 21 |
+| Typed AST/parser branches | 35 |
+| Typed source dialogs | 35 |
+| Selected execution or explicit reviewed handoff | 34 |
+| Bounded full-program components | 15 |
+| Browser-verified using checked-in `.pgm` and expected output | 28 |
 | Legacy-parity-verified against reviewed desktop Epi Info output | 0 |
-| Untouched command entries | 21 |
+| Browser-verified non-command settings entries | 1 |
+| Untouched command entries | 13 |
 
 These counts describe implementation progress, not full parity. A command is
 not parity-complete merely because its syntax parses or one browser workflow
@@ -76,19 +77,19 @@ runs.
 | Advanced Statistics | ComplexSampleFrequencies | `FREQ` | Typed `PSUVAR` branch; bounded program execution | BV |
 | Advanced Statistics | ComplexSampleTables | `TABLES` | Typed `PSUVAR` branch; bounded program execution | BV |
 | Advanced Statistics | ComplexSampleMeans | `MEANS` | Typed complex-sample branch; bounded program execution | BV |
-| Output | Header | `HEADER` | Browser output adaptation not started | Gap |
-| Output | Type | `TYPEOUT` | Browser output adaptation not started | Gap |
-| Output | Routeout | `ROUTEOUT` | Browser output adaptation not started | Gap |
-| Output | Closeout | `CLOSEOUT` | Browser output adaptation not started | Gap |
-| Output | Printout | `PRINTOUT` | Browser output adaptation not started | Gap |
+| Output | Header | `HEADER` | Typed level-1 literal; selected and bounded program execution | BV |
+| Output | Type | `TYPEOUT` | Typed safe literal; selected and bounded program execution | BV |
+| Output | Routeout | `ROUTEOUT` | Typed in-session HTML destination; selected and bounded program execution | BV |
+| Output | Closeout | `CLOSEOUT` | Finalizes active browser report for explicit download | BV |
+| Output | Printout | `PRINTOUT` | Reviewed handoff of current Output to browser Print | BV, Reviewed |
 | Output | Reports | `REPORT` | Legacy enum only; browser adaptation not started | Gap |
-| Output | StoreOutput | `STORE` | Browser output adaptation not started | Gap |
+| Output | StoreOutput | N/A (settings dialog) | Familiar prefix, sequence, and result-flag settings persist in browser-local storage; session results can be inspected | BV UI |
 | User-Defined Commands | DefineCommand | `DEFINE COMMAND` | Inventoried | Gap |
 | User-Defined Commands | UserCommand | `USERCOMMAND` | Inventoried | Gap |
 | User-Defined Commands | RunSavedProgram | `RUNPGM` | Project-scoped browser adaptation not started | Gap |
 | User-Defined Commands | ExecuteFile | `EXECUTE` | Arbitrary execution is blocked; safe adaptation required | Gap |
-| User Interaction | Dialog | `DIALOG` | Browser dialog adaptation not started | Gap |
-| User Interaction | Beep | `BEEP` | Browser audio adaptation not started | Gap |
+| User Interaction | Dialog | `DIALOG` | Full legacy grammar parsed and authored; message, typed scalar, fixed/project choices, and explicit browser file/name prompts execute against Standard session variables | BV candidate |
+| User Interaction | Beep | `BEEP` | No-option typed command; local Web Audio notification with visible audited fallback | BV |
 | User Interaction | Help | `HELP` | Legacy enum only; browser adaptation not started | Gap |
 | User Interaction | Quit | `QUIT` | Browser lifecycle adaptation not started | Gap |
 | Options | Set | `SET` | Typed parser/dialog; selected and bounded program execution | BV |

@@ -275,6 +275,55 @@ export interface ClassicIfStatement extends ClassicNode {
   alternate: ClassicStatement[];
 }
 
+export interface ClassicHeaderStatement extends ClassicNode {
+  type: "HeaderStatement";
+  level: 1;
+  text: string;
+}
+
+export interface ClassicTypeoutStatement extends ClassicNode {
+  type: "TypeoutStatement";
+  text: string;
+}
+
+export interface ClassicRouteoutStatement extends ClassicNode {
+  type: "RouteoutStatement";
+  fileName: string;
+  mode: "APPEND" | "REPLACE";
+}
+
+export interface ClassicCloseoutStatement extends ClassicNode {
+  type: "CloseoutStatement";
+}
+
+export interface ClassicPrintoutStatement extends ClassicNode {
+  type: "PrintoutStatement";
+  fileName?: string;
+}
+
+export type ClassicDialogInput =
+  | { kind: "message" }
+  | { kind: "numeric"; implicit: boolean; mask?: string }
+  | { kind: "text"; mask?: string }
+  | { kind: "yes-no" }
+  | { kind: "date" | "time" | "datetime"; mask?: string }
+  | { kind: "choices"; values: string[] }
+  | { kind: "db-values"; table: ClassicIdentifier; variable: ClassicIdentifier }
+  | { kind: "db-views" | "databases" | "db-variables" }
+  | { kind: "read-file" | "write-file"; filter?: string };
+
+export interface ClassicDialogStatement extends ClassicNode {
+  type: "DialogStatement";
+  prompt: string;
+  title?: string;
+  target?: ClassicIdentifier;
+  input: ClassicDialogInput;
+}
+
+export interface ClassicBeepStatement extends ClassicNode {
+  type: "BeepStatement";
+}
+
 export type ClassicStatement =
   | ClassicReadStatement
   | ClassicRelateStatement
@@ -288,6 +337,13 @@ export type ClassicStatement =
   | ClassicMeansStatement
   | ClassicSummarizeStatement
   | ClassicGraphStatement
+  | ClassicHeaderStatement
+  | ClassicTypeoutStatement
+  | ClassicRouteoutStatement
+  | ClassicCloseoutStatement
+  | ClassicPrintoutStatement
+  | ClassicDialogStatement
+  | ClassicBeepStatement
   | ClassicSetStatement
   | EpiAiQualityStatement
   | FileConvertStatement
@@ -637,6 +693,13 @@ class ProgramParser {
     if (command === "MEANS") return this.means(line, rest);
     if (command === "SUMMARIZE") return this.summarize(line, rest);
     if (command === "GRAPH") return this.graph(line, rest);
+    if (command === "HEADER") return this.header(line, rest);
+    if (command === "TYPEOUT") return this.typeout(line, rest);
+    if (command === "ROUTEOUT") return this.routeout(line, rest);
+    if (command === "CLOSEOUT") return this.closeout(line, rest);
+    if (command === "PRINTOUT") return this.printout(line, rest);
+    if (command === "DIALOG") return this.dialog(line, rest);
+    if (command === "BEEP") return this.beep(line, rest);
     if (command === "SET") return this.setOption(line, rest);
     if (command === "EPIAI") return this.epiAi(line, rest);
     if (command === "FILE") return this.file(line, rest);
@@ -651,6 +714,115 @@ class ProgramParser {
     if (command === "RECODE") return this.recode(line, rest);
     if (command === "IF") return this.ifStatement(line, rest, restColumn);
     throw new ClassicSyntaxError(line.line, 1, `Unsupported command: ${line.trimmed}`);
+  }
+
+  private header(line: SourceLine, rest: string): ClassicHeaderStatement {
+    const match = rest.match(/^(\d+)\s+"((?:[^"]|"")*)"$/);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, 'This bounded HEADER slice uses HEADER 1 "literal text"; font and style options remain a preserved gap.');
+    if (match[1] !== "1") throw new ClassicSyntaxError(line.line, 1, "The reviewed browser slice supports legacy HEADER level 1 only.");
+    const text = match[2]!.replace(/""/g, '"');
+    if (!text.trim()) throw new ClassicSyntaxError(line.line, 1, "HEADER text cannot be blank.");
+    if (text.length > 4000) throw new ClassicSyntaxError(line.line, 1, "HEADER text cannot exceed 4,000 characters.");
+    return { type: "HeaderStatement", level: 1, text, span: lineSpan(line) };
+  }
+
+  private typeout(line: SourceLine, rest: string): ClassicTypeoutStatement {
+    if (/^'/.test(rest.trim())) throw new ClassicSyntaxError(line.line, 1, "TYPEOUT file input requires a reviewed browser file adapter and remains fail-closed.");
+    const match = rest.match(/^"((?:[^"]|"")*)"$/);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, 'This bounded TYPEOUT slice uses TYPEOUT "literal text"; file, font, and style options remain preserved gaps.');
+    const text = match[1]!.replace(/""/g, '"');
+    if (!text.trim()) throw new ClassicSyntaxError(line.line, 1, "TYPEOUT text cannot be blank.");
+    if (text.length > 4000) throw new ClassicSyntaxError(line.line, 1, "TYPEOUT text cannot exceed 4,000 characters.");
+    return { type: "TypeoutStatement", text, span: lineSpan(line) };
+  }
+
+  private routeout(line: SourceLine, rest: string): ClassicRouteoutStatement {
+    const match = rest.match(/^"((?:[^"]|"")*)"(?:\s+(APPEND|REPLACE))?$/i);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, 'ROUTEOUT requires a quoted file and optional APPEND or REPLACE.');
+    const fileName = match[1]!.replace(/""/g, '"');
+    if (!fileName.trim()) throw new ClassicSyntaxError(line.line, 1, "ROUTEOUT file cannot be blank.");
+    return { type: "RouteoutStatement", fileName, mode: (match[2]?.toUpperCase() ?? "APPEND") as "APPEND" | "REPLACE", span: lineSpan(line) };
+  }
+
+  private closeout(line: SourceLine, rest: string): ClassicCloseoutStatement {
+    if (rest.trim()) throw new ClassicSyntaxError(line.line, 1, "CLOSEOUT does not accept arguments.");
+    return { type: "CloseoutStatement", span: lineSpan(line) };
+  }
+
+  private printout(line: SourceLine, rest: string): ClassicPrintoutStatement {
+    const source = rest.trim();
+    if (!source) return { type: "PrintoutStatement", span: lineSpan(line) };
+    const match = source.match(/^'((?:[^']|'')*)'$/);
+    if (!match) throw new ClassicSyntaxError(line.line, 1, "PRINTOUT accepts no argument or one single-quoted legacy file.");
+    const fileName = match[1]!.replace(/''/g, "'");
+    if (!fileName.trim()) throw new ClassicSyntaxError(line.line, 1, "PRINTOUT file cannot be blank.");
+    return { type: "PrintoutStatement", fileName, span: lineSpan(line) };
+  }
+
+  private dialog(line: SourceLine, rest: string): ClassicDialogStatement {
+    let body = rest.trim();
+    const titleMatch = body.match(/\s+TITLETEXT\s*=\s*"((?:[^"]|"")*)"\s*$/i);
+    const title = titleMatch?.[1]?.replace(/""/g, '"');
+    if (titleMatch?.index !== undefined) body = body.slice(0, titleMatch.index).trim();
+    const promptMatch = body.match(/^"((?:[^"]|"")*)"(?:\s+(.+))?$/);
+    if (!promptMatch) throw new ClassicSyntaxError(line.line, 1, 'DIALOG requires a quoted prompt followed by an optional target and legacy input format.');
+    const prompt = promptMatch[1]!.replace(/""/g, '"');
+    if (!prompt.trim()) throw new ClassicSyntaxError(line.line, 1, "DIALOG prompt cannot be blank.");
+    if (prompt.length > 4000) throw new ClassicSyntaxError(line.line, 1, "DIALOG prompt cannot exceed 4,000 characters.");
+    if (title !== undefined && !title.trim()) throw new ClassicSyntaxError(line.line, 1, "DIALOG TITLETEXT cannot be blank.");
+    if (title !== undefined && title.length > 200) throw new ClassicSyntaxError(line.line, 1, "DIALOG TITLETEXT cannot exceed 200 characters.");
+    const tail = promptMatch[2]?.trim();
+    if (!tail) return { type: "DialogStatement", prompt, ...(title !== undefined ? { title } : {}), input: { kind: "message" }, span: lineSpan(line) };
+
+    const targetMatch = tail.match(/^(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)(?:\s+(.+))?$/);
+    if (!targetMatch) throw new ClassicSyntaxError(line.line, 1, "DIALOG input requires a target variable.");
+    const target = identifier(targetMatch[1]!, line);
+    const format = targetMatch[2]?.trim();
+    if (!format) return { type: "DialogStatement", prompt, ...(title !== undefined ? { title } : {}), target, input: { kind: "numeric", implicit: true }, span: lineSpan(line) };
+
+    const scalar = format.match(/^(TEXTINPUT|NUMERIC|DATEFORMAT|TIMEFORMAT|DATETIMEFORMAT)(?:\s+"((?:[^"]|"")*)")?$/i);
+    let input: ClassicDialogInput;
+    if (scalar) {
+      const modifier = scalar[1]!.toUpperCase();
+      const mask = scalar[2]?.replace(/""/g, '"');
+      const withMask = mask === undefined ? {} : { mask };
+      input = modifier === "TEXTINPUT" ? { kind: "text", ...withMask }
+        : modifier === "NUMERIC" ? { kind: "numeric", implicit: false, ...withMask }
+        : { kind: modifier === "DATEFORMAT" ? "date" : modifier === "TIMEFORMAT" ? "time" : "datetime", ...withMask };
+    } else if (/^YN$/i.test(format)) input = { kind: "yes-no" };
+    else if (/^(DBVIEWS|DATABASES|DBVARIABLES)$/i.test(format)) {
+      const modifier = format.toUpperCase();
+      input = { kind: modifier === "DBVIEWS" ? "db-views" : modifier === "DATABASES" ? "databases" : "db-variables" };
+    } else {
+      const dbValues = format.match(/^DBVALUES\s+(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)\s+(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)$/i);
+      const file = format.match(/^(READ|WRITE)(?:\s+"((?:[^"]|"")*)")?$/i);
+      if (dbValues) input = { kind: "db-values", table: identifier(dbValues[1]!, line), variable: identifier(dbValues[2]!, line) };
+      else if (file) input = {
+        kind: file[1]!.toUpperCase() === "READ" ? "read-file" : "write-file",
+        ...(file[2] === undefined ? {} : { filter: file[2].replace(/""/g, '"') }),
+      };
+      else {
+        const values: string[] = [];
+        const listPattern = /\s*"((?:[^"]|"")*)"\s*(?:,|$)/gy;
+        let cursor = 0;
+        while (cursor < format.length) {
+          listPattern.lastIndex = cursor;
+          const value = listPattern.exec(format);
+          if (!value || value.index !== cursor) throw new ClassicSyntaxError(line.line, 1, "DIALOG choice values must be quoted and comma-separated.");
+          values.push(value[1]!.replace(/""/g, '"'));
+          cursor = listPattern.lastIndex;
+        }
+        if (!values.length || values.some((value) => !value.trim())) throw new ClassicSyntaxError(line.line, 1, "DIALOG requires one or more nonblank choice values.");
+        if (values.length > 500) throw new ClassicSyntaxError(line.line, 1, "DIALOG cannot exceed 500 choice values in the browser.");
+        input = { kind: "choices", values };
+      }
+    }
+    return { type: "DialogStatement", prompt, ...(title !== undefined ? { title } : {}), target, input, span: lineSpan(line) };
+  }
+
+  private beep(line: SourceLine, rest: string): ClassicBeepStatement {
+    if (rest.trim()) throw new ClassicSyntaxError(line.line, 1, "BEEP does not accept arguments.");
+    return { type: "BeepStatement", span: lineSpan(line) };
   }
 
   private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement {

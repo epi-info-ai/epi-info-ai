@@ -84,3 +84,17 @@ IF ReviewLabel = "Priority review" THEN
 ELSE
   ASSIGN PriorityFlag = (-)
 END
+
+DIALOG "Review the foodborne outbreak analysis results." TITLETEXT="Foodborne outbreak review"
+
+BEEP
+
+ROUTEOUT "foodborne-command-tour.html" REPLACE
+
+HEADER 1 "Foodborne outbreak command tour"
+
+TYPEOUT "Canonical example: 96 submitted foodborne outbreak records."
+
+CLOSEOUT
+
+PRINTOUT

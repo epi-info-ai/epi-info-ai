@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "DIALOG",
+  "parityStatus": "browser-verified",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "recordCount": 96 },
+  "expected": {
+    "variant": "simple-message",
+    "prompt": "Review the foodborne outbreak analysis results.",
+    "title": "Foodborne outbreak review",
+    "requiresAcknowledgement": true,
+    "recordsChanged": false
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Exact desktop window sizing, focus, and message rendering require reviewed Epi Info 7 evidence. Input-producing variants are covered by the companion browser-adaptation fixture."
+  }
+}

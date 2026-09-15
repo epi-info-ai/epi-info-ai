@@ -17,8 +17,9 @@ import { buildClassicSummarizeCommand, resolveClassicSummarizeCommand, type Clas
 import { buildClassicGraphCommand, resolveClassicGraphCommand, type ClassicGraphInput } from "./classic-graph.ts";
 import { buildEpiAiQualityCommand, resolveEpiAiQualityCommand } from "./epi-ai-quality.ts";
 import { buildFileConvertCommand, resolveFileConvertCommand } from "./file-convert.ts";
+import { buildClassicDialogCommand, resolveClassicDialogCommand, type ClassicDialogCommandInput } from "./classic-dialog.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "summarize" | "graph" | "set-missing" | "set-missing-label" | "quality" | "file-convert";
+export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "file-convert";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -34,6 +35,13 @@ export type ClassicAnalysisCommandInput =
   | ({ kind: "undelete-records" } & ClassicUndeleteRecordsInput)
   | ({ kind: "summarize" } & ClassicSummarizeInput)
   | ({ kind: "graph" } & ClassicGraphInput)
+  | { kind: "header"; text: string }
+  | { kind: "typeout"; text: string }
+  | { kind: "routeout"; fileName: string; mode: "APPEND" | "REPLACE" }
+  | { kind: "closeout" }
+  | { kind: "printout" }
+  | ({ kind: "dialog" } & ClassicDialogCommandInput)
+  | { kind: "beep" }
   | { kind: "quality" }
   | { kind: "file-convert"; inputFile: string; outputFile: string }
   | { kind: "set-missing"; enabled: boolean }
@@ -72,6 +80,11 @@ const recodeBoundary = (value: string): string => {
   if (!trimmed || !Number.isFinite(number)) throw new RangeError("RECODE boundaries must be finite numbers, LOVALUE, or HIVALUE.");
   return String(number);
 };
+const quotedClassicText = (value: string, command: "HEADER" | "TYPEOUT" | "DIALOG", maximum = 4000): string => {
+  if (!value.trim()) throw new RangeError(`${command} text cannot be blank.`);
+  if (value.length > maximum) throw new RangeError(`${command} text cannot exceed ${maximum.toLocaleString("en-US")} characters.`);
+  return `"${value.replace(/"/g, '""')}"`;
+};
 
 export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput): string {
   if (input.kind === "read") return `READ ${fieldToken(input.table)}`;
@@ -83,6 +96,17 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "undelete-records") return buildClassicUndeleteRecordsCommand(input);
   if (input.kind === "summarize") return buildClassicSummarizeCommand(input);
   if (input.kind === "graph") return buildClassicGraphCommand(input);
+  if (input.kind === "header") return `HEADER 1 ${quotedClassicText(input.text, "HEADER")}`;
+  if (input.kind === "typeout") return `TYPEOUT ${quotedClassicText(input.text, "TYPEOUT")}`;
+  if (input.kind === "routeout") {
+    const fileName = input.fileName.trim();
+    if (!/^[^\\/:*?"<>|]+\.html?$/i.test(fileName)) throw new RangeError("Browser ROUTEOUT requires a local report name ending in .htm or .html; paths remain unavailable.");
+    return `ROUTEOUT "${fileName.replace(/"/g, '""')}" ${input.mode}`;
+  }
+  if (input.kind === "closeout") return "CLOSEOUT";
+  if (input.kind === "printout") return "PRINTOUT";
+  if (input.kind === "dialog") return buildClassicDialogCommand(input);
+  if (input.kind === "beep") return "BEEP";
   if (input.kind === "quality") return buildEpiAiQualityCommand({ mode: "profile" });
   if (input.kind === "file-convert") return buildFileConvertCommand(input.inputFile, input.outputFile);
   if (input.kind === "set-missing") return `SET MISSING=${input.enabled ? "ON" : "OFF"}`;
@@ -139,10 +163,29 @@ function assertBoundedOptions(options: ClassicAnalysisOptions, allowStrata: bool
 }
 
 export function resolveSelectedClassicAnalysisCommand(source: string, fields: readonly FieldDefinition[], dataSources: readonly MapDataSource[] = [], variables: readonly ClassicSessionVariableDefinition[] = [], groups: readonly ClassicGroupDefinition[] = []): ResolvedClassicAnalysisCommand {
-  if (!source.trim()) throw new RangeError("Select one complete READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, GRAPH, or SET MISSING command in the Program Editor.");
+  if (!source.trim()) throw new RangeError("Select one complete supported command in the Program Editor.");
   const ast = parseClassicProgram(source);
   if (ast.body.length !== 1) throw new RangeError("Select exactly one complete command. Multiple statements were not run.");
   const statement = ast.body[0]!;
+  if (statement.type === "HeaderStatement") return { kind: "header", text: statement.text, source };
+  if (statement.type === "TypeoutStatement") return { kind: "typeout", text: statement.text, source };
+  if (statement.type === "RouteoutStatement") {
+    if (!/^[^\\/:*?"<>|]+\.html?$/i.test(statement.fileName)) throw new RangeError("Browser ROUTEOUT requires a local report name ending in .htm or .html; paths remain unavailable.");
+    return { kind: "routeout", fileName: statement.fileName, mode: statement.mode, source };
+  }
+  if (statement.type === "CloseoutStatement") return { kind: "closeout", source };
+  if (statement.type === "PrintoutStatement") {
+    if (statement.fileName) throw new RangeError("PRINTOUT of a legacy file remains fail-closed; open the file in the sandboxed Output viewer first.");
+    return { kind: "printout", source };
+  }
+  if (statement.type === "DialogStatement") {
+    const plan = resolveClassicDialogCommand(source, variables, dataSources);
+    return {
+      kind: "dialog", prompt: plan.prompt, ...(plan.title !== undefined ? { title: plan.title } : {}),
+      ...(plan.target ? { target: plan.target.name } : {}), input: plan.input, source,
+    };
+  }
+  if (statement.type === "BeepStatement") return { kind: "beep", source };
   if (statement.type === "SetStatement") return statement.option === "MISSING"
     ? { kind: "set-missing", enabled: statement.enabled, source }
     : { kind: "set-missing-label", value: statement.value, source };

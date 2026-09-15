@@ -30,6 +30,7 @@ import { CLASSIC_AST_VERSION, parseClassicProgram } from "../app/programming/cla
 import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type ClassicProgramTabSize } from "../app/programming/classic-editor.js";
 import { buildClassicAnalysisCommand, CLASSIC_TABLES_EXPANSION_PLAN_VERSION, resolveSelectedClassicAnalysisCommand, type ClassicAnalysisCommandInput, type ClassicAnalysisCommandKind, type ClassicDefineVariableScope, type ClassicDefineVariableType } from "../app/programming/classic-command-builder.js";
 import { initializeUiRunbooks } from "../app/help/runbooks.js";
+import { initializeBrowserLocalization } from "../app/localization/browser-localization.js";
 import { applyClassicSelection, resolveClassicSelectionCommand, type ClassicSelectionOperator } from "../app/programming/classic-selection.js";
 import { resolveClassicSortCommand, type ClassicSortDirection } from "../app/programming/classic-sort.js";
 import { assignmentValueFromInput, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand } from "../app/programming/classic-assignment.js";
@@ -51,6 +52,8 @@ import { applyClassicComplexFrequency, classicComplexFrequencyOutTable, resolveC
 import { applyClassicComplexMeans, classicComplexMeansOutTable, resolveClassicComplexMeansPlan, type ClassicComplexMeansPlan, type ClassicComplexMeansResult } from "../app/programming/classic-complex-means.js";
 import { applyEpiAiQualityProfile, resolveEpiAiQualityCommand } from "../app/programming/epi-ai-quality.js";
 import { convertAccessFile, resolveFileConvertCommand } from "../app/programming/file-convert.js";
+import { parseClassicOutputSettings, validateClassicOutputSettings, type ClassicOutputSettings } from "../app/programming/classic-output-settings.js";
+import { resolveClassicDialogCommand, validateClassicDialogValue, type ClassicDialogCommandInput, type ClassicDialogPlan } from "../app/programming/classic-dialog.js";
 import type { DataQualityReport } from "../app/forms/data-quality.js";
 import { renderClassicProgramSurface } from "../app/programming/classic-program-surface.js";
 import { ClassicProgramDocumentService, normalizeClassicProgramName, readClassicProgramFile, safeClassicProgramFileName } from "../app/programming/classic-program-document.js";
@@ -1026,6 +1029,7 @@ requiredElement("#classic-program-edit-beginning").addEventListener("click", () 
 requiredElement("#classic-program-edit-end").addEventListener("click", () => editorAction(() => classicProgramEditor.moveToEnd(), "Cursor moved to Program End."));
 const classicCommandDialog = requiredElement<HTMLDialogElement>("#classic-command-dialog");
 const classicCommandDialogKind = requiredElement<HTMLSelectElement>("#classic-command-dialog-kind");
+classicCommandDialogKind.insertBefore(new Option("Beep", "beep"), classicCommandDialogKind.querySelector('option[value="set-missing"]'));
 classicCommandDialogKind.append(new Option("NEW BRANCH — Convert Access Database", "file-convert"));
 const classicCommandDialogAccessFile = requiredElement<HTMLInputElement>("#classic-command-dialog-access-file");
 const classicCommandDialogFileConvertTarget = requiredElement<HTMLSelectElement>("#classic-command-dialog-file-convert-target");
@@ -1061,6 +1065,31 @@ const classicCommandDialogGraphType = requiredElement<HTMLSelectElement>("#class
 const classicCommandDialogGraphTitle = requiredElement<HTMLInputElement>("#classic-command-dialog-graph-title");
 const classicCommandDialogGraphXTitle = requiredElement<HTMLInputElement>("#classic-command-dialog-graph-x-title");
 const classicCommandDialogGraphYTitle = requiredElement<HTMLInputElement>("#classic-command-dialog-graph-y-title");
+const classicCommandDialogHeaderText = requiredElement<HTMLInputElement>("#classic-command-dialog-header-text");
+const classicCommandDialogTypeoutText = requiredElement<HTMLTextAreaElement>("#classic-command-dialog-typeout-text");
+const classicCommandDialogRouteoutFile = requiredElement<HTMLInputElement>("#classic-command-dialog-routeout-file");
+const classicCommandDialogRouteoutMode = requiredElement<HTMLSelectElement>("#classic-command-dialog-routeout-mode");
+const classicCommandDialogDialogPrompt = requiredElement<HTMLTextAreaElement>("#classic-command-dialog-dialog-prompt");
+const classicCommandDialogDialogTitle = requiredElement<HTMLInputElement>("#classic-command-dialog-dialog-title");
+const classicCommandDialogDialogVariant = requiredElement<HTMLSelectElement>("#classic-command-dialog-dialog-variant");
+const classicCommandDialogDialogTarget = requiredElement<HTMLSelectElement>("#classic-command-dialog-dialog-target");
+const classicCommandDialogDialogMask = requiredElement<HTMLInputElement>("#classic-command-dialog-dialog-mask");
+const classicCommandDialogDialogFilter = requiredElement<HTMLInputElement>("#classic-command-dialog-dialog-filter");
+const classicCommandDialogDialogChoices = requiredElement<HTMLTextAreaElement>("#classic-command-dialog-dialog-choices");
+const classicCommandDialogDialogTable = requiredElement<HTMLSelectElement>("#classic-command-dialog-dialog-table");
+const classicCommandDialogDialogField = requiredElement<HTMLSelectElement>("#classic-command-dialog-dialog-field");
+const classicRuntimeDialog = requiredElement<HTMLDialogElement>("#classic-runtime-dialog");
+const classicRuntimeDialogTitle = requiredElement<HTMLElement>("#classic-runtime-dialog-title");
+const classicRuntimeDialogPrompt = requiredElement<HTMLElement>("#classic-runtime-dialog-prompt");
+const classicRuntimeDialogInputLabel = requiredElement<HTMLElement>("#classic-runtime-dialog-input-label");
+const classicRuntimeDialogInput = requiredElement<HTMLInputElement>("#classic-runtime-dialog-input");
+const classicRuntimeDialogSelectLabel = requiredElement<HTMLElement>("#classic-runtime-dialog-select-label");
+const classicRuntimeDialogSelect = requiredElement<HTMLSelectElement>("#classic-runtime-dialog-select");
+const classicRuntimeDialogFileLabel = requiredElement<HTMLElement>("#classic-runtime-dialog-file-label");
+const classicRuntimeDialogFile = requiredElement<HTMLInputElement>("#classic-runtime-dialog-file");
+const classicRuntimeDialogMask = requiredElement<HTMLElement>("#classic-runtime-dialog-mask");
+const classicRuntimeDialogFeedback = requiredElement<HTMLElement>("#classic-runtime-dialog-feedback");
+const classicRuntimeDialogCancel = requiredElement<HTMLButtonElement>("#classic-runtime-dialog-cancel");
 const classicCommandDialogField = requiredElement<HTMLSelectElement>("#classic-command-dialog-field");
 const classicCommandDialogExposure = requiredElement<HTMLSelectElement>("#classic-command-dialog-exposure");
 const classicCommandDialogOutcome = requiredElement<HTMLSelectElement>("#classic-command-dialog-outcome");
@@ -1248,6 +1277,27 @@ function classicUndeleteRecordsValue(): string | number | boolean {
 
 function classicCommandDialogInput(): ClassicAnalysisCommandInput {
   const kind = classicCommandDialogKind.value as ClassicAnalysisCommandKind;
+  if (kind === "header") return { kind, text: classicCommandDialogHeaderText.value };
+  if (kind === "typeout") return { kind, text: classicCommandDialogTypeoutText.value };
+  if (kind === "routeout") return { kind, fileName: classicCommandDialogRouteoutFile.value, mode: classicCommandDialogRouteoutMode.value as "APPEND" | "REPLACE" };
+  if (kind === "closeout") return { kind };
+  if (kind === "printout") return { kind };
+  if (kind === "dialog") {
+    const variant = classicCommandDialogDialogVariant.value;
+    let input: NonNullable<ClassicDialogCommandInput["input"]> = { kind: "message" };
+    const mask = classicCommandDialogDialogMask.value.trim();
+    if (variant === "numeric-implicit") input = { kind: "numeric", implicit: true };
+    else if (variant === "numeric") input = { kind: "numeric", implicit: false, ...(mask ? { mask } : {}) };
+    else if (variant === "text") input = { kind: "text", ...(mask ? { mask } : {}) };
+    else if (variant === "yes-no") input = { kind: "yes-no" };
+    else if (["date", "time", "datetime"].includes(variant)) input = { kind: variant as "date" | "time" | "datetime", ...(mask ? { mask } : {}) };
+    else if (variant === "choices") input = { kind: "choices", values: classicCommandDialogDialogChoices.value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean) };
+    else if (variant === "db-values") input = { kind: "db-values", table: classicCommandDialogDialogTable.value, variable: classicCommandDialogDialogField.value };
+    else if (["db-views", "databases", "db-variables"].includes(variant)) input = { kind: variant as "db-views" | "databases" | "db-variables" };
+    else if (variant === "read-file" || variant === "write-file") input = { kind: variant, ...(classicCommandDialogDialogFilter.value.trim() ? { filter: classicCommandDialogDialogFilter.value.trim() } : {}) };
+    return { kind, prompt: classicCommandDialogDialogPrompt.value, ...(classicCommandDialogDialogTitle.value.trim() ? { title: classicCommandDialogDialogTitle.value } : {}), ...(variant === "message" ? {} : { target: classicCommandDialogDialogTarget.value }), input };
+  }
+  if (kind === "beep") return { kind };
   if (kind === "set-missing") return { kind, enabled: classicCommandDialogIncludeMissing.checked };
   if (kind === "set-missing-label") return { kind, value: classicProgramSession.missingLabel() };
   if (kind === "quality") return { kind };
@@ -1380,6 +1430,13 @@ function updateClassicCommandDialog(): void {
   const tables = kind === "tables";
   const summarize = kind === "summarize";
   const graph = kind === "graph";
+  const header = kind === "header";
+  const typeout = kind === "typeout";
+  const routeout = kind === "routeout";
+  const closeout = kind === "closeout";
+  const printout = kind === "printout";
+  const dialogCommand = kind === "dialog";
+  const beep = kind === "beep";
   const setMissing = kind === "set-missing";
   const quality = kind === "quality";
   const fileConvert = kind === "file-convert";
@@ -1387,6 +1444,31 @@ function updateClassicCommandDialog(): void {
   const availableFields = [...source.fields, ...definedFields];
   const sessionVariables = classicProgramSession.variables();
   const sessionGroups = classicProgramSession.groups();
+  const dialogVariant = classicCommandDialogDialogVariant.value;
+  const dialogExpectedType = dialogVariant.startsWith("numeric") ? "NUMERIC" : dialogVariant === "yes-no" ? "YN" : dialogVariant === "date" ? "DATEFORMAT" : dialogVariant === "time" ? "TIMEFORMAT" : dialogVariant === "datetime" ? "DATETIMEFORMAT" : "TEXTINPUT";
+  const previousDialogTarget = classicCommandDialogDialogTarget.value;
+  const dialogTargets = sessionVariables.filter(({ variableType }) => variableType === dialogExpectedType);
+  classicCommandDialogDialogTarget.replaceChildren(...dialogTargets.map((variable) => new Option(`${variable.prompt ?? variable.name} (${variable.variableType})`, variable.name)));
+  if (dialogTargets.some(({ name }) => name === previousDialogTarget)) classicCommandDialogDialogTarget.value = previousDialogTarget;
+  const previousDialogTable = classicCommandDialogDialogTable.value;
+  classicCommandDialogDialogTable.replaceChildren(...getProjectDataSources().map((item) => new Option(`${item.formName} — ${item.records.length} records`, item.formId)));
+  if (getProjectDataSources().some(({ formId }) => formId === previousDialogTable)) classicCommandDialogDialogTable.value = previousDialogTable;
+  const dialogTable = getProjectDataSources().find(({ formId }) => formId === classicCommandDialogDialogTable.value);
+  const previousDialogField = classicCommandDialogDialogField.value;
+  classicCommandDialogDialogField.replaceChildren(...(dialogTable?.fields ?? []).filter(({ type }) => type !== "command-button").map((field) => new Option(`${field.prompt} (${field.name})`, field.name)));
+  if (dialogTable?.fields.some(({ name }) => name === previousDialogField)) classicCommandDialogDialogField.value = previousDialogField;
+  requiredElement<HTMLElement>("#classic-command-dialog-dialog-target-label").hidden = !dialogCommand || dialogVariant === "message";
+  requiredElement<HTMLElement>("#classic-command-dialog-dialog-mask-label").hidden = !dialogCommand || !["numeric", "text", "date", "time", "datetime"].includes(dialogVariant);
+  requiredElement<HTMLElement>("#classic-command-dialog-dialog-filter-label").hidden = !dialogCommand || !["read-file", "write-file"].includes(dialogVariant);
+  requiredElement<HTMLElement>("#classic-command-dialog-dialog-choices-label").hidden = !dialogCommand || dialogVariant !== "choices";
+  requiredElement<HTMLElement>("#classic-command-dialog-dialog-table-label").hidden = !dialogCommand || dialogVariant !== "db-values";
+  requiredElement<HTMLElement>("#classic-command-dialog-dialog-field-label").hidden = !dialogCommand || dialogVariant !== "db-values";
+  requiredElement("#classic-command-dialog-dialog-note").textContent = dialogVariant === "message"
+    ? "Displays an audited message and does not assign a variable."
+    : dialogVariant === "read-file" ? "Browser adaptation: the selected local file name is assigned; no file is read automatically."
+    : dialogVariant === "write-file" ? "Browser adaptation: a reviewed download name is assigned; no filesystem authority is granted."
+    : dialogVariant.startsWith("db-") || dialogVariant === "databases" ? "Choices are limited to the current browser project and session."
+    : "Run a matching Standard DEFINE first. The entered value is assigned in session memory and omitted from command history.";
   const previousGroupMembers = new Set([...classicCommandDialogGroupMembers.selectedOptions].map((option) => option.value));
   classicCommandDialogGroupMembers.replaceChildren(
     ...source.fields.map((field) => new Option(`${field.prompt} (Field)`, field.name, false, previousGroupMembers.has(field.name))),
@@ -1544,10 +1626,17 @@ function updateClassicCommandDialog(): void {
   requiredElement<HTMLElement>("#classic-command-dialog-sort").hidden = !sort;
   requiredElement<HTMLElement>("#classic-command-dialog-summarize").hidden = !summarize;
   requiredElement<HTMLElement>("#classic-command-dialog-graph").hidden = !graph;
+  requiredElement<HTMLElement>("#classic-command-dialog-header").hidden = !header;
+  requiredElement<HTMLElement>("#classic-command-dialog-typeout").hidden = !typeout;
+  requiredElement<HTMLElement>("#classic-command-dialog-routeout").hidden = !routeout;
+  requiredElement<HTMLElement>("#classic-command-dialog-closeout").hidden = !closeout;
+  requiredElement<HTMLElement>("#classic-command-dialog-printout").hidden = !printout;
+  requiredElement<HTMLElement>("#classic-command-dialog-dialog").hidden = !dialogCommand;
+  requiredElement<HTMLElement>("#classic-command-dialog-beep").hidden = !beep;
   requiredElement<HTMLElement>("#classic-command-dialog-set-missing").hidden = !setMissing;
   requiredElement<HTMLElement>("#classic-command-dialog-quality").hidden = !quality;
   requiredElement<HTMLElement>("#classic-command-dialog-file-convert").hidden = !fileConvert;
-  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize || setMissing || quality || fileConvert;
+  requiredElement<HTMLElement>("#classic-command-dialog-field-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || tables || summarize || header || typeout || routeout || closeout || printout || dialogCommand || beep || setMissing || quality || fileConvert;
   requiredElement<HTMLElement>("#classic-command-dialog-exposure-label").hidden = !tables;
   requiredElement<HTMLElement>("#classic-command-dialog-outcome-label").hidden = !tables;
   requiredElement<HTMLElement>("#classic-command-dialog-fisher-label").hidden = !tables || classicComplexTablesDialog;
@@ -1558,7 +1647,7 @@ function updateClassicCommandDialog(): void {
   const outTableLabel = requiredElement<HTMLElement>("#classic-command-dialog-outtable-label");
   outTableLabel.hidden = !tables && !classicComplexFrequencyDialog && !classicComplexMeansDialog;
   outTableLabel.firstChild!.textContent = classicComplexMeansDialog ? "Output table (optional · browser adaptation)" : "Output table (optional)";
-  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || (means && !classicComplexMeansDialog) || summarize || graph || setMissing || quality || fileConvert;
+  requiredElement<HTMLElement>("#classic-command-dialog-strata-label").hidden = read || relate || write || merge || deleteTable || deleteRecords || undeleteRecords || define || defineGroup || undefine || assign || recode || display || select || cancelSelect || ifCommand || sort || cancelSort || list || (means && !classicComplexMeansDialog) || summarize || graph || header || typeout || routeout || closeout || printout || dialogCommand || beep || setMissing || quality || fileConvert;
   requiredElement("#classic-command-dialog-field-label").firstChild!.textContent = list ? "Fields to list" : means ? "Means of" : graph ? "Graph variable" : "Frequency of";
   const byHint = (pattern: RegExp, excluded = new Set<string>()): string | undefined => source.fields.find((field) => !excluded.has(field.name) && pattern.test(`${field.name} ${field.prompt}`))?.name;
   if (kind === "frequency") classicCommandDialogField.value = byHint(/case.?status|status/) ?? classicCommandDialogField.value;
@@ -1610,6 +1699,7 @@ function updateClassicCommandDialog(): void {
     if (input.kind === "undelete-records") resolveClassicUndeleteRecordsCommand(command, source.fields);
     if (input.kind === "summarize") resolveClassicSummarizeCommand(command, source.fields);
     if (input.kind === "graph") resolveClassicGraphCommand(command, source.fields);
+    if (input.kind === "dialog") resolveClassicDialogCommand(command, sessionVariables, getProjectDataSources());
     if (input.kind === "quality") resolveEpiAiQualityCommand(command, source.fields);
     if (input.kind === "file-convert") resolveFileConvertCommand(command);
     if (input.kind === "define-group") resolveClassicDefineGroupCommand(command, source.fields, sessionVariables, sessionGroups);
@@ -1624,7 +1714,7 @@ function updateClassicCommandDialog(): void {
     requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
   } catch (error) {
-    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "relate" ? "RELATE" : kind === "write" ? "WRITE" : kind === "merge" ? "MERGE" : kind === "delete-table" ? "DELETE TABLES" : kind === "delete-records" ? "DELETE" : kind === "undelete-records" ? "UNDELETE" : kind === "define" ? "DEFINE" : kind === "define-group" ? "DEFINE GROUPVAR" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "display" ? "DISPLAY DBVARIABLES" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : kind === "summarize" ? "SUMMARIZE" : kind === "graph" ? "GRAPH" : kind === "quality" ? "EPIAI QUALITY *" : kind === "file-convert" ? "FILE CONVERT" : "TABLES";
+    requiredElement("#classic-command-dialog-preview").textContent = kind === "read" ? "READ" : kind === "relate" ? "RELATE" : kind === "write" ? "WRITE" : kind === "merge" ? "MERGE" : kind === "delete-table" ? "DELETE TABLES" : kind === "delete-records" ? "DELETE" : kind === "undelete-records" ? "UNDELETE" : kind === "define" ? "DEFINE" : kind === "define-group" ? "DEFINE GROUPVAR" : kind === "undefine" ? "UNDEFINE" : kind === "assign" ? "ASSIGN" : kind === "recode" ? "RECODE" : kind === "display" ? "DISPLAY DBVARIABLES" : kind === "select" ? "SELECT" : kind === "cancel-select" ? "CANCEL SELECT" : kind === "if" ? "IF" : kind === "sort" ? "SORT" : kind === "cancel-sort" ? "CANCEL SORT" : kind === "list" ? "LIST" : kind === "frequency" ? "FREQ" : kind === "means" ? "MEANS" : kind === "summarize" ? "SUMMARIZE" : kind === "graph" ? "GRAPH" : kind === "dialog" ? "DIALOG" : kind === "beep" ? "BEEP" : kind === "quality" ? "EPIAI QUALITY *" : kind === "file-convert" ? "FILE CONVERT" : "TABLES";
     requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Choose valid command fields.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = true;
   }
@@ -1638,7 +1728,7 @@ function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"
   classicCommandDialogKind.value = kind;
   if (kind === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
   if (kind === "sort") resetClassicSortRows();
-  const title = complexTables ? "Complex Sample Tables" : kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
+  const title = complexTables ? "Complex Sample Tables" : kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "dialog" ? "Dialog" : kind === "beep" ? "Beep" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
   requiredElement("#classic-command-dialog-title").textContent = `${complexFrequency ? "Complex Sample Frequencies" : complexMeans ? "Complex Sample Means" : title} Command`;
   updateClassicCommandDialog();
   classicCommandDialog.showModal();
@@ -1746,6 +1836,12 @@ classicCommandDialogSelectField.addEventListener("change", updateClassicCommandD
 for (const select of [classicCommandDialogIfVariable, classicCommandDialogIfThenVariable, classicCommandDialogIfElseVariable]) select.addEventListener("change", updateClassicCommandDialog);
 classicCommandDialogIfHasElse.addEventListener("change", updateClassicCommandDialog);
 for (const input of [classicCommandDialogVariable, classicCommandDialogPrompt, classicCommandDialogRecodeElse, classicCommandDialogSelectValue, classicCommandDialogAssignValue, classicCommandDialogIfValue, classicCommandDialogIfThenValue, classicCommandDialogIfElseValue, classicCommandDialogGraphTitle, classicCommandDialogGraphXTitle, classicCommandDialogGraphYTitle]) input.addEventListener("input", refreshClassicCommandDialogPreview);
+for (const input of [classicCommandDialogDialogPrompt, classicCommandDialogDialogTitle]) input.addEventListener("input", refreshClassicCommandDialogPreview);
+classicCommandDialogDialogVariant.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogDialogTarget.addEventListener("change", refreshClassicCommandDialogPreview);
+classicCommandDialogDialogTable.addEventListener("change", updateClassicCommandDialog);
+classicCommandDialogDialogField.addEventListener("change", refreshClassicCommandDialogPreview);
+for (const input of [classicCommandDialogDialogMask, classicCommandDialogDialogFilter, classicCommandDialogDialogChoices]) input.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogGroupName.addEventListener("input", refreshClassicCommandDialogPreview);
 classicCommandDialogGroupMembers.addEventListener("change", refreshClassicCommandDialogPreview);
 classicCommandDialogRecodeRows.addEventListener("input", refreshClassicCommandDialogPreview);
@@ -1779,7 +1875,7 @@ classicProgramToolbarCancel.addEventListener("click", () => {
   classicProgramCommandStatus.textContent = "Cancellation requested; the current statement will finish safely.";
 });
 
-const classicOutputTargets = ["#classic-program-output", "#classic-sequential-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
+const classicOutputTargets = ["#classic-program-output", "#classic-sequential-output", "#classic-route-output", "#classic-text-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
 const classicOutputBrowser = requiredElement<HTMLElement>("#classic-output-browser");
 for (const selector of classicOutputTargets) {
   const output = document.querySelector<HTMLElement>(selector);
@@ -2279,6 +2375,63 @@ requiredElement("#classic-command-delete-records").addEventListener("click", () 
 requiredElement("#classic-command-undelete-records").addEventListener("click", () => showClassicCommandDialog("undelete-records"));
 requiredElement("#classic-command-summarize").addEventListener("click", () => showClassicCommandDialog("summarize"));
 requiredElement("#classic-command-graph").addEventListener("click", () => showClassicCommandDialog("graph"));
+requiredElement("#classic-command-header").addEventListener("click", () => showClassicCommandDialog("header"));
+requiredElement("#classic-command-typeout").addEventListener("click", () => showClassicCommandDialog("typeout"));
+requiredElement("#classic-command-routeout").addEventListener("click", () => showClassicCommandDialog("routeout"));
+requiredElement("#classic-command-closeout").addEventListener("click", () => showClassicCommandDialog("closeout"));
+requiredElement("#classic-command-printout").addEventListener("click", () => showClassicCommandDialog("printout"));
+requiredElement("#classic-command-user-dialog").addEventListener("click", () => showClassicCommandDialog("dialog"));
+requiredElement("#classic-command-beep").addEventListener("click", () => showClassicCommandDialog("beep"));
+const CLASSIC_OUTPUT_SETTINGS_STORAGE_KEY = "epi-info-ai.classic-output-settings.v0.1";
+const classicOutputSettingsDialog = requiredElement<HTMLDialogElement>("#classic-output-settings-dialog");
+const classicOutputSettingsPrefix = requiredElement<HTMLInputElement>("#classic-output-settings-prefix");
+const classicOutputSettingsSequence = requiredElement<HTMLInputElement>("#classic-output-settings-sequence");
+const classicOutputSettingsAge = requiredElement<HTMLInputElement>("#classic-output-settings-age");
+const classicOutputSettingsCount = requiredElement<HTMLInputElement>("#classic-output-settings-count");
+const classicOutputSettingsSize = requiredElement<HTMLInputElement>("#classic-output-settings-size");
+let classicOutputSettings = parseClassicOutputSettings(localStorage.getItem(CLASSIC_OUTPUT_SETTINGS_STORAGE_KEY));
+
+function populateClassicOutputSettings(settings: ClassicOutputSettings): void {
+  classicOutputSettingsPrefix.value = settings.outputPrefix;
+  classicOutputSettingsSequence.value = String(settings.outputSequence);
+  classicOutputSettingsAge.value = String(settings.flagAgeDays);
+  classicOutputSettingsCount.value = String(settings.flagResultCount);
+  classicOutputSettingsSize.value = String(settings.flagSizeKb);
+}
+
+function saveClassicOutputSettings(close: boolean): void {
+  try {
+    classicOutputSettings = validateClassicOutputSettings({
+      outputPrefix: classicOutputSettingsPrefix.value,
+      outputSequence: classicOutputSettingsSequence.valueAsNumber,
+      flagAgeDays: classicOutputSettingsAge.valueAsNumber,
+      flagResultCount: classicOutputSettingsCount.valueAsNumber,
+      flagSizeKb: classicOutputSettingsSize.valueAsNumber,
+    });
+    localStorage.setItem(CLASSIC_OUTPUT_SETTINGS_STORAGE_KEY, JSON.stringify(classicOutputSettings));
+    requiredElement("#classic-output-settings-feedback").textContent = "Output storage settings saved in this browser.";
+    classicMessageArea.textContent = `Message Area: Storing Output settings saved (${classicOutputSettings.outputPrefix}, sequence ${classicOutputSettings.outputSequence}).`;
+    if (close) classicOutputSettingsDialog.close();
+  } catch (error) {
+    requiredElement("#classic-output-settings-feedback").textContent = error instanceof Error ? error.message : "Unable to save Output storage settings.";
+  }
+}
+
+requiredElement("#classic-command-store-output").addEventListener("click", () => {
+  populateClassicOutputSettings(classicOutputSettings);
+  requiredElement("#classic-output-settings-results").textContent = "";
+  requiredElement("#classic-output-settings-feedback").textContent = "";
+  classicOutputSettingsDialog.showModal();
+  classicOutputSettingsPrefix.focus();
+});
+requiredElement("#classic-output-settings-apply").addEventListener("click", () => saveClassicOutputSettings(false));
+requiredElement("#classic-output-settings-ok").addEventListener("click", () => saveClassicOutputSettings(true));
+requiredElement("#classic-output-settings-view-results").addEventListener("click", () => {
+  const reports = [...classicRoutedReports.values()];
+  requiredElement("#classic-output-settings-results").textContent = reports.length
+    ? `Session results: ${reports.map((report) => `${report.fileName} (${report.paragraphs.length} literal item${report.paragraphs.length === 1 ? "" : "s"})`).join("; ")}.`
+    : "No routed reports are stored in this browser session.";
+});
 requiredElement("#classic-command-quality").addEventListener("click", () => showClassicCommandDialog("quality"));
 requiredElement("#classic-command-file-convert").addEventListener("click", () => showClassicCommandDialog("file-convert"));
 requiredElement("#classic-command-define").addEventListener("click", () => showClassicCommandDialog("define"));
@@ -2793,6 +2946,68 @@ function renderClassicDisplayOutput(project: ReturnType<typeof getCurrentProject
   return rows.length;
 }
 
+let classicTextOutputHeader = "Epi Info Analysis";
+interface ClassicRoutedReport { fileName: string; heading: string; paragraphs: string[] }
+const classicRoutedReports = new Map<string, ClassicRoutedReport>();
+let activeClassicRoutedReport: ClassicRoutedReport | null = null;
+let finalizedClassicRoutedReport: ClassicRoutedReport | null = null;
+
+function renderClassicRouteOutput(state: "active" | "closed", report: ClassicRoutedReport): void {
+  requiredElement("#classic-route-output-title").textContent = report.fileName;
+  requiredElement("#classic-route-output-state").textContent = state === "active" ? "Routing active" : "Closed";
+  requiredElement("#classic-route-output-summary").textContent = state === "active"
+    ? `${report.paragraphs.length} literal Output item${report.paragraphs.length === 1 ? "" : "s"} captured in this browser session. Run CLOSEOUT to finalize the report.`
+    : `${report.paragraphs.length} literal Output item${report.paragraphs.length === 1 ? "" : "s"} finalized. Download is available explicitly below.`;
+  requiredElement<HTMLButtonElement>("#classic-route-output-download").hidden = state !== "closed";
+  requiredElement<HTMLElement>("#classic-route-output").hidden = false;
+}
+
+function classicRoutedReportHtml(report: ClassicRoutedReport): string {
+  const document = window.document.implementation.createHTMLDocument(report.heading);
+  document.documentElement.lang = "en";
+  const meta = document.createElement("meta");
+  meta.setAttribute("charset", "utf-8");
+  document.head.prepend(meta);
+  const heading = document.createElement("h1");
+  heading.textContent = report.heading;
+  document.body.append(heading);
+  for (const text of report.paragraphs) {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = text;
+    document.body.append(paragraph);
+  }
+  return `<!doctype html>\n${document.documentElement.outerHTML}`;
+}
+
+function renderClassicTextOutput(kind: "header" | "typeout", text: string): void {
+  const body = requiredElement<HTMLElement>("#classic-text-output-body");
+  if (kind === "header") {
+    classicTextOutputHeader = text;
+    if (activeClassicRoutedReport) activeClassicRoutedReport.heading = text;
+    body.replaceChildren();
+    requiredElement("#classic-text-output-count").textContent = "HEADER level 1";
+  } else {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = text;
+    body.append(paragraph);
+    if (activeClassicRoutedReport) activeClassicRoutedReport.paragraphs.push(text);
+    requiredElement("#classic-text-output-count").textContent = `${body.childElementCount} TYPEOUT line${body.childElementCount === 1 ? "" : "s"}`;
+  }
+  requiredElement("#classic-text-output-title").textContent = classicTextOutputHeader;
+  requiredElement<HTMLElement>("#classic-text-output").hidden = false;
+  if (activeClassicRoutedReport) renderClassicRouteOutput("active", activeClassicRoutedReport);
+}
+
+requiredElement("#classic-route-output-download").addEventListener("click", () => {
+  if (!finalizedClassicRoutedReport) return;
+  const url = URL.createObjectURL(new Blob([classicRoutedReportHtml(finalizedClassicRoutedReport)], { type: "text/html;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = finalizedClassicRoutedReport.fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+});
+
 function renderClassicSummarizeOutput(result: ReturnType<typeof applyClassicSummarize>): void {
   requiredElement("#classic-summarize-output-title").textContent = result.source.formName;
   requiredElement("#classic-summarize-output-count").textContent = `${result.groups} row${result.groups === 1 ? "" : "s"}`;
@@ -3252,6 +3467,113 @@ let pendingClassicMerge: { plan: ClassicMergePlan; result: ClassicMergeResult } 
 let pendingClassicDelete: { plan: ClassicDeleteTablePlan; staged: ReturnType<typeof stageClassicDeleteTable> } | null = null;
 let pendingClassicDeleteRecords: ClassicDeleteRecordsResult | null = null;
 let pendingClassicUndeleteRecords: ClassicUndeleteRecordsResult | null = null;
+
+async function showClassicRuntimeMessage(prompt: string, title?: string): Promise<void> {
+  classicRuntimeDialog.returnValue = "";
+  classicRuntimeDialogTitle.textContent = title ?? "Epi Info";
+  classicRuntimeDialogPrompt.textContent = prompt;
+  classicRuntimeDialogInputLabel.hidden = true;
+  classicRuntimeDialogSelectLabel.hidden = true;
+  classicRuntimeDialogFileLabel.hidden = true;
+  classicRuntimeDialogMask.hidden = true;
+  classicRuntimeDialogFeedback.textContent = "";
+  classicRuntimeDialogCancel.hidden = true;
+  classicRuntimeDialog.showModal();
+  await new Promise<void>((resolve) => classicRuntimeDialog.addEventListener("close", () => resolve(), { once: true }));
+}
+
+function classicDialogAcceptFilter(filter?: string): string {
+  if (!filter) return "";
+  return filter.split(/[;,]/).map((value) => value.trim()).filter(Boolean).map((value) => {
+    const extension = value.match(/^\*?(\.[A-Za-z0-9]+)$/);
+    return extension?.[1] ?? (/^[\w.+-]+\/[\w.+-]+$/.test(value) ? value : "");
+  }).filter(Boolean).join(",");
+}
+
+async function showClassicRuntimeInput(plan: ClassicDialogPlan): Promise<{ accepted: boolean; value?: string | boolean }> {
+  classicRuntimeDialog.returnValue = "";
+  const kind = plan.input.kind;
+  classicRuntimeDialogTitle.textContent = plan.title ?? "Epi Info";
+  classicRuntimeDialogPrompt.textContent = plan.prompt;
+  classicRuntimeDialogFeedback.textContent = "";
+  classicRuntimeDialogCancel.hidden = false;
+  classicRuntimeDialogInputLabel.hidden = true;
+  classicRuntimeDialogSelectLabel.hidden = true;
+  classicRuntimeDialogFileLabel.hidden = true;
+  classicRuntimeDialogMask.hidden = true;
+  classicRuntimeDialogInput.value = "";
+  classicRuntimeDialogInput.required = true;
+  classicRuntimeDialogSelect.replaceChildren();
+  classicRuntimeDialogFile.value = "";
+  classicRuntimeDialogFile.required = false;
+  classicRuntimeDialogFile.removeAttribute("accept");
+
+  if (["choices", "db-values", "db-views", "databases", "db-variables", "yes-no"].includes(kind)) {
+    classicRuntimeDialogSelectLabel.hidden = false;
+    classicRuntimeDialogSelect.replaceChildren(...(kind === "yes-no"
+      ? [new Option("Yes (+)", "true"), new Option("No (-)", "false")]
+      : plan.choices.map((value) => new Option(value, value))));
+  } else if (kind === "read-file") {
+    classicRuntimeDialogFileLabel.hidden = false;
+    classicRuntimeDialogFile.required = true;
+    const accept = classicDialogAcceptFilter(plan.input.filter);
+    if (accept) classicRuntimeDialogFile.accept = accept;
+  } else {
+    classicRuntimeDialogInputLabel.hidden = false;
+    classicRuntimeDialogInput.type = kind === "numeric" ? "number" : kind === "date" ? "date" : kind === "time" ? "time" : kind === "datetime" ? "datetime-local" : "text";
+    if (kind === "numeric") classicRuntimeDialogInput.step = "any";
+    if (kind === "write-file") classicRuntimeDialogInput.value = "output.csv";
+  }
+  if ("mask" in plan.input && plan.input.mask) {
+    classicRuntimeDialogMask.textContent = `Legacy input mask: ${plan.input.mask}. The browser displays this constraint for review; exact desktop mask enforcement remains a differential item.`;
+    classicRuntimeDialogMask.hidden = false;
+  } else if ((kind === "read-file" || kind === "write-file") && plan.input.filter) {
+    classicRuntimeDialogMask.textContent = `Legacy file filter: ${plan.input.filter}. Browser access remains limited to the file explicitly chosen by the user.`;
+    classicRuntimeDialogMask.hidden = false;
+  }
+
+  classicRuntimeDialog.showModal();
+  if (!classicRuntimeDialogInputLabel.hidden) queueMicrotask(() => classicRuntimeDialogInput.focus());
+  else if (!classicRuntimeDialogSelectLabel.hidden) queueMicrotask(() => classicRuntimeDialogSelect.focus());
+  else queueMicrotask(() => classicRuntimeDialogFile.focus());
+  await new Promise<void>((resolve) => classicRuntimeDialog.addEventListener("close", () => resolve(), { once: true }));
+  if (classicRuntimeDialog.returnValue !== "ok") return { accepted: false };
+  const value = kind === "read-file" ? classicRuntimeDialogFile.files?.[0]?.name
+    : kind === "yes-no" ? classicRuntimeDialogSelect.value === "true"
+    : !classicRuntimeDialogSelectLabel.hidden ? classicRuntimeDialogSelect.value
+    : classicRuntimeDialogInput.value;
+  if (value === undefined || value === "") return { accepted: false };
+  return { accepted: true, value };
+}
+
+type ClassicBeepResult = "played" | "unavailable" | "blocked";
+
+async function playClassicBrowserBeep(): Promise<ClassicBeepResult> {
+  const AudioContextConstructor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextConstructor) return "unavailable";
+  let context: AudioContext | undefined;
+  try {
+    context = new AudioContextConstructor();
+    if (context.state === "suspended") await context.resume();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, context.currentTime);
+    gain.gain.setValueAtTime(0.08, context.currentTime);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    const ended = new Promise<void>((resolve) => oscillator.addEventListener("ended", () => resolve(), { once: true }));
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + 0.12);
+    await ended;
+    await context.close();
+    return "played";
+  } catch {
+    if (context && context.state !== "closed") await context.close().catch(() => undefined);
+    return "blocked";
+  }
+}
+
 async function runSelectedClassicCommand(sourceOverride?: string, rethrow = false, signal?: AbortSignal): Promise<void> {
   const fallbackProject = getCurrentProjectData();
   let project = classicProgramSession.current(fallbackProject);
@@ -3261,6 +3583,110 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
     const selectedAst = parseClassicProgram(selectedSource);
     const selectedSources = selectedAst.body[0]?.type === "ReadStatement" ? [...getProjectDataSources(), ...classicProgramSession.outTables()] : getProjectDataSources();
     const command = resolveSelectedClassicAnalysisCommand(selectedSource, project.fields, selectedSources, classicProgramSession.variables(), classicProgramSession.groups());
+    if (command.kind === "beep") {
+      const result = await playClassicBrowserBeep();
+      assertClassicProgramNotCancelled(signal);
+      const summary = result === "played"
+        ? "BEEP played a short local browser notification tone."
+        : `BEEP audio was ${result}; visible notification feedback was retained.`;
+      classicProgramFeedback.textContent = `${summary} No project data changed.`;
+      classicProgramCommandStatus.textContent = result === "played" ? "BEEP completed." : "BEEP completed with a visible notification fallback.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: "BEEP", summary, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "dialog") {
+      const plan = resolveClassicDialogCommand(selectedSource, classicProgramSession.variables(), [...getProjectDataSources(), ...classicProgramSession.outTables()]);
+      if (plan.input.kind === "message") await showClassicRuntimeMessage(plan.prompt, plan.title);
+      const response = plan.input.kind === "message" ? { accepted: true as const } : await showClassicRuntimeInput(plan);
+      assertClassicProgramNotCancelled(signal);
+      if (response.accepted && response.value !== undefined && plan.target) {
+        classicProgramSession.assignVariable(plan.target.name, validateClassicDialogValue(plan, response.value));
+      }
+      const assignment = plan.target && response.accepted ? ` and assigned ${plan.target.name}` : plan.target ? "; the user cancelled and its target was unchanged" : "";
+      classicProgramFeedback.textContent = `DIALOG displayed the reviewed ${plan.input.kind} variant${assignment}. No project records changed.`;
+      classicProgramCommandStatus.textContent = response.accepted ? "DIALOG completed after user acknowledgement." : "DIALOG was cancelled; program execution continued without assignment.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command),
+        summary: `DIALOG displayed ${plan.title ? `“${plan.title}”` : `a ${plan.input.kind} prompt`}${assignment}; entered values were not written to history.`,
+        diagnostics: response.accepted ? [] : ["User cancelled DIALOG; no value was assigned."],
+      });
+      return;
+    }
+    if (command.kind === "routeout") {
+      const key = command.fileName.toLocaleLowerCase("en-US");
+      const prior = classicRoutedReports.get(key);
+      const report = command.mode === "APPEND" && prior
+        ? prior
+        : { fileName: command.fileName, heading: classicTextOutputHeader, paragraphs: [] };
+      classicRoutedReports.set(key, report);
+      activeClassicRoutedReport = report;
+      finalizedClassicRoutedReport = null;
+      renderClassicRouteOutput("active", report);
+      classicProgramFeedback.textContent = `ROUTEOUT ${command.mode} opened in-session browser report ${command.fileName}.`;
+      classicProgramCommandStatus.textContent = "ROUTEOUT completed; bounded literal Output is now captured until CLOSEOUT.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command),
+        summary: `ROUTEOUT ${command.mode} opened in-session report ${command.fileName}.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "closeout") {
+      if (!activeClassicRoutedReport) throw new RangeError("CLOSEOUT requires an active browser ROUTEOUT destination.");
+      finalizedClassicRoutedReport = activeClassicRoutedReport;
+      activeClassicRoutedReport = null;
+      renderClassicRouteOutput("closed", finalizedClassicRoutedReport);
+      classicProgramFeedback.textContent = `CLOSEOUT finalized ${finalizedClassicRoutedReport.fileName}; use Download routed report to save it.`;
+      classicProgramCommandStatus.textContent = "CLOSEOUT completed; routed browser report download is ready.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: "CLOSEOUT",
+        summary: `CLOSEOUT finalized ${finalizedClassicRoutedReport.fileName} with ${finalizedClassicRoutedReport.paragraphs.length} literal Output items.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "printout") {
+      const routedText = requiredElement<HTMLElement>("#classic-text-output");
+      const output = (!routedText.hidden && (activeClassicRoutedReport || finalizedClassicRoutedReport)) ? routedText : currentClassicOutput();
+      if (!output) throw new RangeError("PRINTOUT requires a current Output document.");
+      classicOutputPosition = visibleClassicOutputs().indexOf(output);
+      output.scrollIntoView({ behavior: "smooth", block: "start" });
+      const title = output.querySelector("h2, h3")?.textContent?.trim() ?? "Output";
+      const printButton = requiredElement<HTMLButtonElement>("#classic-output-print");
+      printButton.dataset.printPrepared = "true";
+      printButton.focus({ preventScroll: true });
+      requiredElement("#classic-output-navigation-status").textContent = `${title} is prepared. Select Print to open the browser print dialog.`;
+      classicProgramFeedback.textContent = `PRINTOUT prepared “${title}” for reviewed browser printing; nothing was sent automatically.`;
+      classicProgramCommandStatus.textContent = "PRINTOUT completed as a reviewed browser-print handoff.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: "PRINTOUT",
+        summary: `PRINTOUT prepared current Output “${title}”; browser print awaits an explicit user action.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "header" || command.kind === "typeout") {
+      renderClassicTextOutput(command.kind, command.text);
+      requiredElement("#classic-text-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = command.kind === "header" ? `Set Output level-1 header to “${command.text}”.` : "Typed one safe literal into Output.";
+      classicProgramCommandStatus.textContent = `${command.kind === "header" ? "HEADER" : "TYPEOUT"} completed through the bounded literal-text executor.`;
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command),
+        summary: command.kind === "header" ? "HEADER set the current level-1 Output heading." : "TYPEOUT rendered one escaped literal in Output.", diagnostics: [],
+      });
+      return;
+    }
     if (command.kind === "set-missing") {
       classicProgramSession.setIncludeMissing(command.enabled);
       renderClassicProgramSession();
@@ -3848,6 +4274,8 @@ function sequentialOutputSource(statement: ReturnType<typeof parseClassicProgram
   if (statement.type === "SummarizeStatement") return requiredElement<HTMLElement>("#classic-summarize-output");
   if (statement.type === "GraphStatement") return requiredElement<HTMLElement>("#classic-graph-output");
   if (statement.type === "DisplayStatement") return requiredElement<HTMLElement>("#classic-display-output");
+  if (statement.type === "HeaderStatement" || statement.type === "TypeoutStatement") return requiredElement<HTMLElement>("#classic-text-output");
+  if (statement.type === "RouteoutStatement" || statement.type === "CloseoutStatement") return requiredElement<HTMLElement>("#classic-route-output");
   if (statement.type === "EpiAiQualityStatement") return requiredElement<HTMLElement>("#classic-quality-output");
   if (statement.type === "FileConvertStatement") return requiredElement<HTMLElement>("#classic-file-convert-output");
   return null;
@@ -4482,6 +4910,7 @@ refreshMeansSelector();
 refreshRatesSelectors();
 
 try {
+  initializeBrowserLocalization();
   initializeFormDataDemo();
   classicProgramSession.reset(getCurrentProjectData());
   renderClassicProgramSession();

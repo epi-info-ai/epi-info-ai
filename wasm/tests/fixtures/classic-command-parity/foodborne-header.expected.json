@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "HEADER",
+  "parityStatus": "browser-verified",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "recordCount": 96 },
+  "expected": { "level": 1, "text": "Foodborne outbreak analysis", "recordsChanged": false },
+  "legacyDifferential": { "status": "not-run", "note": "Font, color, size, and text-effect variants require reviewed legacy output." }
+}

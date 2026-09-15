@@ -2145,6 +2145,19 @@ select {
   max-width: 42rem;
 }
 
+.localization-options-dialog {
+  max-width: 34rem;
+}
+
+.localization-options-dialog h3 {
+  margin: 0;
+  color: var(--epi-navy);
+}
+
+.localization-options-dialog #application-language-status:empty {
+  display: none;
+}
+
 .data-import-preview-dialog {
   max-width: 46rem;
 }
@@ -2196,7 +2209,7 @@ select {
 .package-filter-grid {
   display: grid;
   gap: 0.5rem;
-  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) minmax(10rem, 2fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
 }
 
 .package-filter-grid label,
@@ -2213,6 +2226,14 @@ select {
   min-height: var(--control-min-size);
   padding: 0.3rem 0.45rem;
   border: 1px solid #9caeb8;
+}
+
+.package-filter-grid input,
+.package-filter-grid select,
+.package-transport-dialog input,
+.package-transport-dialog select {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (max-width: 42rem) {

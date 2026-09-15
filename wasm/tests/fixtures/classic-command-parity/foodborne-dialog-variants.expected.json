@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "DIALOG",
+  "parityStatus": "browser-verified-candidate",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "recordCount": 96 },
+  "expected": {
+    "variants": ["numeric", "text", "yes-no", "choices", "db-values", "db-views", "databases", "db-variables", "date", "read-file", "write-file"],
+    "assignmentScope": "standard-session-variable",
+    "databaseScope": "current-browser-project",
+    "historyContainsEnteredValues": false,
+    "recordsChanged": false
+  },
+  "browserAdaptations": {
+    "readFile": "explicit chooser returns the selected local file name only",
+    "writeFile": "reviewed output name only; no ambient filesystem authority",
+    "mask": "displayed for review; exact desktop mask enforcement remains differential work"
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Exact desktop masks, DBVIEWS/DATABASES behavior across Analysis versus Enter, focus, cancellation, and dialog layout require captured Epi Info 7 comparison evidence."
+  }
+}

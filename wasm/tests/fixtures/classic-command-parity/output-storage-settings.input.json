@@ -1,0 +1,7 @@
+{
+  "outputPrefix": "OUTBREAK",
+  "outputSequence": 7,
+  "flagAgeDays": 20,
+  "flagResultCount": 100,
+  "flagSizeKb": 500
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "BEEP",
+  "parityStatus": "browser-verified",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "recordCount": 96 },
+  "expected": {
+    "arguments": 0,
+    "browserAdapter": "local-web-audio-tone",
+    "visibleFallback": true,
+    "recordsChanged": false
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Desktop Epi Info invokes the default Windows MessageBeep. Exact system sound equivalence is platform-dependent; the browser adapter and fallback require review."
+  }
+}

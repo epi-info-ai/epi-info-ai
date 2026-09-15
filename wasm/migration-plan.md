@@ -1197,9 +1197,83 @@ variables, and a reviewed initial function set; the remaining function/date/
 collation matrix stays open. SORT/CANCEL SORT now independently
 applies or clears stable, typed, multi-field ordering without changing selection
 membership. Selected DEFINE/ASSIGN now adds bounded Standard scalar state, resets
-it on READ, and rejects field mutation and general expressions. The next
-command-runtime candidate is bounded IF control flow; Supabase
-program/extras sync needs a separate versioned contract and conflict policy.
+it on READ, and rejects field mutation and general expressions. Bounded
+Standard-variable IF control flow is now present. The first Output parity slice
+also adds typed `HEADER 1 "literal"` and `TYPEOUT "literal"` to the Command
+Explorer, selected execution, and sequential foodborne tour. Text is rendered
+without HTML interpretation. TYPEOUT file input and legacy font, color, size,
+and effect switches remain fail-closed pending reviewed adapters and desktop
+differential evidence. A session-scoped `ROUTEOUT` / `CLOSEOUT` browser adapter
+now opens a basename-only `.htm/.html` destination with APPEND or REPLACE,
+captures the bounded HEADER/TYPEOUT stream, and finalizes an explicit download.
+Ambient desktop paths and capture of every analysis output type remain gaps.
+Bare `PRINTOUT` now prepares current Output and focuses the familiar Print action;
+the browser print dialog opens only after that explicit user gesture. Legacy
+`PRINTOUT 'file.htm'` remains fail-closed because local HTML must first pass
+through the sandboxed Output viewer. Legacy review corrected the inventory for
+Storing Output: it is a configuration dialog with no generated source command,
+so the browser now preserves its prefix, sequence, and result-flag thresholds
+as validated local settings rather than inventing `STORE` syntax. Folder and
+archive controls remain disclosed adaptations; the checked-in legacy archive
+and delete handlers are empty. Supabase program/extras sync needs a separate
+versioned contract and conflict policy.
+
+The User Interaction unit now types and authors the complete inspected `DIALOG`
+grammar: simple messages; implicit and explicit numeric, text, yes/no, date,
+time, and datetime input; fixed lists; `DBVALUES`, `DBVIEWS`, `DATABASES`, and
+`DBVARIABLES`; and `READ`/`WRITE` prompts. Input-producing variants require a
+matching pre-defined Standard session variable. Project/database choices are
+confined to the current browser project; file prompts use an explicit chooser or
+reviewed output name without ambient path authority. Entered values are never
+written to command history. Exact masks, focus/layout, cancellation behavior,
+and the legacy Analysis-versus-Enter database differences remain differential
+review items rather than parity claims.
+
+No-option `BEEP` now maps the legacy default Windows system notification to a
+short offline Web Audio tone. Audio policy or hardware failure retains visible
+audited feedback and does not stop the program; exact platform sound identity
+remains a documented differential-review item.
+
+### Localization and language translation strategy
+
+Localization is a governed compatibility workstream, not ad hoc replacement of
+visible strings. First inventory the legacy `.resx` resource keys, shipped
+locales, translations, ownership, and gaps. Reuse a legacy translation only
+where the restored workflow retains the same meaning; version new resource keys
+for browser adaptations and clearly labeled new branches. Maintained UI and Help
+text must be externalized from TypeScript/HTML, with English as the explicit
+fallback and locale-aware plural, date/time, and number formatting at the
+presentation boundary.
+
+The Epi Info programming language is a separate concern: canonical keywords,
+identifiers, serialized AST contracts, and `.pgm` files remain locale-neutral
+and portable. Menus, command descriptions, completion documentation, and
+diagnostics may be translated, but translation must never rewrite executable
+source or change parsing, comparison, statistical, or audit semantics. The plan
+must cover browser locale negotiation plus an in-product override, right-to-left
+layout, Unicode/font coverage, accessible names, translator context, review by
+public-health users, and release-version alignment between UI and Manual.
+
+Acceptance requires automated missing-key/fallback checks, a pseudolocale for
+clipping and concatenation defects, representative non-Latin and right-to-left
+browser tests, localized screenshot/manual checks, and invariant tests proving
+that the same program and data produce the same typed plan and statistical
+results in every UI locale.
+
+The first localization slice is now recorded in
+`docs/design/localization-parity-inventory.md`. It inventories the inspected
+desktop discovery, selection, persistence, import/export, removal, and legacy
+Access translation paths and distinguishes shipped resource evidence from a
+browser translation claim. The TypeScript `app/localization/localization.ts`
+stub establishes a bounded V0.1 language-pack schema, BCP 47 normalization,
+English and related-locale fallback, placeholder preservation, direction
+metadata, diagnostics, and locale-aware display formatting without storage or
+network authority. A bounded Tools > Options > Language host now persists a
+versioned browser-local preference, applies catalog text and document direction,
+and supplies an accented `en-XA` pseudolocale. Full UI-string externalization,
+the complete multi-tab Options surface, catalog-file import/export,
+signing/governance, translated catalogs, and
+cross-locale semantic invariance evidence remain subsequent slices.
 
 Phase 5 V0.15 restores Chi Square for Trend as the fourth learned StatCalc menu
 branch. It preserves the legacy editable score/case/control table, Add Row action,
@@ -1342,8 +1416,10 @@ WRITE is the first reference: REPLACE Text produces a CSV download, while the
 planned APPEND adapter will choose an existing file, validate and preview the
 combined schema/data, require confirmation, write through a granted handle on
 supporting browsers, and fall back to upload/merge/download elsewhere. MERGE and
-the current-project DELETE TABLES subset now follow this rule. External DELETE
-FILE/TABLE, ROUTEOUT, RUNPGM, and related commands remain adapter work.
+the current-project DELETE TABLES subset now follow this rule. ROUTEOUT now has
+a bounded in-session HTML/download adapter; capture of nonliteral analysis
+output is still open. External DELETE FILE/TABLE, RUNPGM, and related commands
+remain adapter work.
 
 The shared adapter should expose a virtual **Project Files** workspace backed by
 origin-private browser storage as the portable baseline. Legacy commands can

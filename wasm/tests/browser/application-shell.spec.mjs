@@ -146,6 +146,35 @@ test("legacy application menus expose familiar workflows", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Form Designer" })).toBeVisible();
 });
 
+test("Options selects and persists a safe pseudolocale", async ({ page }) => {
+  const toolsMenu = page.locator("#tools-menu");
+  await toolsMenu.locator("summary").click();
+  await page.locator("#tools-options").click();
+  const dialog = page.locator("#application-options-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("#application-language")).toHaveValue("en-US");
+  await dialog.locator("#application-language").selectOption("en-XA");
+  await dialog.locator("#application-language-apply").click();
+
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en-XA");
+  await expect(page.locator("#file-menu summary")).toHaveText(/^\[!!/);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.localization-preferences.v1")))).toEqual({
+    schemaVersion: 1,
+    locale: "en-XA",
+  });
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en-XA");
+  await expect(page.locator("#file-menu summary")).toHaveText(/^\[!!/);
+
+  await page.locator("#tools-menu summary").click();
+  await page.locator("#tools-options").click();
+  await page.locator("#application-language").selectOption("en-US");
+  await page.locator("#application-language-apply").click();
+  await expect(page.locator("#file-menu summary")).toHaveText("File");
+});
+
 test("Help runbook guides a dataset-matched foodborne Program Editor workflow", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
@@ -304,10 +333,17 @@ test("encrypted complete-project runbook inventories and exports a reviewable pr
   await expect(coach.locator("#runbook-step-title")).toHaveText("Open the Enter Data File menu");
   await coach.locator("#runbook-stop").click();
 
-  await page.locator("#file-menu summary").click();
-  await page.locator("#file-open-encrypted-project").click();
+  // The familiar Open Project picker discovers encrypted packages and routes
+  // them into the same non-mutating passphrase/review workflow.
+  await page.locator("#project-package-open").setInputFiles({
+    name: "foodborne-complete-project.epiax",
+    mimeType: "application/vnd.epi-info-ai.encrypted-project",
+    buffer: await readFile(encryptedPath),
+  });
   const openDialog = page.getByRole("dialog", { name: /Open Encrypted Project/ });
-  await openDialog.locator("#encrypted-project-open-file").setInputFiles(encryptedPath);
+  await expect(openDialog).toBeVisible();
+  await expect(openDialog.locator("#encrypted-project-open-file")).toHaveValue(/foodborne-complete-project\.epiax$/);
+  await expect(openDialog.locator("#encrypted-project-open-status")).toContainText("Enter its passphrase");
   await openDialog.locator("#encrypted-project-open-passphrase").fill("field-demo-passphrase");
   await openDialog.locator("#encrypted-project-open-review").click();
   await expect(openDialog.locator("#encrypted-project-open-status")).toContainText("validation passed");
@@ -468,6 +504,19 @@ test("Form Designer creates forms from TSV and JSON records", async ({ page }) =
   await expect(status).toContainText("Created 3 fields from case-line-list.json.");
 });
 
+test("Form Designer can remove the last Option field from an in-progress form", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.getByRole("button", { name: "New Form", exact: true }).click();
+  await expect(page.locator("#field-list tr")).toHaveCount(0);
+  await page.locator('#field-palette [data-field-type="option"]').click();
+  await expect(page.locator("#field-list tr")).toHaveCount(1);
+  await expect(page.locator("#canvas-fields .canvas-field")).toHaveCount(1);
+  await page.locator("#field-list tr").getByRole("button", { name: "Remove" }).click();
+  await expect(page.locator("#field-list tr")).toHaveCount(0);
+  await expect(page.locator("#canvas-fields .canvas-field")).toHaveCount(0);
+  await expect(page.locator("#form-status")).toHaveText("Option removed. Save Form to persist the change.");
+});
+
 test("Form Designer parses an Excel workbook instead of treating it as CSV", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#form-csv-import").setInputFiles(
@@ -552,10 +601,26 @@ test("Data Packager creates an authenticated package and reviews it before impor
   await enterMenu.getByRole("menuitem", { name: "Package For Transport", exact: true }).click();
   const packageDialog = page.getByRole("dialog", { name: "Package Data for Transport" });
   await expect(packageDialog).toBeVisible();
+  expect(await packageDialog.locator(".legacy-dialog-body").evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true);
   await expect(packageDialog.locator("#package-record-count")).toHaveText("96");
+  await expect(packageDialog.locator("#package-filter-operator")).toBeDisabled();
+  await expect(packageDialog.locator("#package-filter-value")).toBeDisabled();
+  await expect(packageDialog.getByRole("button", { name: "Package", exact: true })).toBeDisabled();
+  await packageDialog.locator("#package-filter-field").selectOption("case_status");
+  await expect(packageDialog.locator("#package-filter-value")).toBeEnabled();
+  await packageDialog.locator("#package-filter-value").fill("Confirmed");
+  await expect(packageDialog.locator("#package-filter-summary")).toContainText("22 of 96 records will be included");
+  await packageDialog.locator("#package-filter-field").selectOption("");
+  await expect(packageDialog.locator("#package-filter-summary")).toContainText("96 of 96 records will be included");
   await packageDialog.locator("#package-remove-fields").selectOption("nausea");
+  await expect(packageDialog.locator("#package-filter-summary")).toContainText("1 field will be blanked");
+  await packageDialog.locator("#package-append-timestamp").check();
+  await expect(packageDialog.locator("#package-file-preview")).toContainText("-YYYY-MM-DDTHH-MM-SS.epiax");
   await packageDialog.locator("#package-passphrase").fill("field-demo-passphrase");
+  await expect(packageDialog.locator("#package-security-status")).toHaveText("Re-enter the passphrase for verification.");
   await packageDialog.locator("#package-passphrase-verify").fill("field-demo-passphrase");
+  await expect(packageDialog.locator("#package-security-status")).toHaveText("Passphrase verified. Ready to encrypt.");
+  await expect(packageDialog.getByRole("button", { name: "Package", exact: true })).toBeEnabled();
   const downloadPromise = page.waitForEvent("download");
   await packageDialog.getByRole("button", { name: "Package", exact: true }).click();
   const download = await downloadPromise;
@@ -1705,6 +1770,89 @@ test("Output opens safe files and supports bookmarks print and maximize", async 
   await expect(page.locator("#classic-opened-output")).toBeVisible();
 });
 
+test("Storing Output preserves the familiar settings without inventing a program command", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
+  await page.locator("#classic-command-tree .classic-command-group summary", { hasText: "Output" }).click();
+  await page.locator("#classic-command-store-output").click();
+  const dialog = page.locator("#classic-output-settings-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("#classic-output-settings-prefix")).toHaveValue("OUTPUT");
+  await expect(page.locator("#classic-output-settings-sequence")).toHaveValue("1");
+  await expect(page.locator("#classic-output-settings-age")).toHaveValue("20");
+  await expect(page.locator("#classic-output-settings-count")).toHaveValue("100");
+  await expect(page.locator("#classic-output-settings-size")).toHaveValue("500");
+  await page.locator("#classic-output-settings-prefix").fill("OUTBREAK");
+  await page.locator("#classic-output-settings-sequence").fill("7");
+  await page.locator("#classic-output-settings-apply").click();
+  await expect(page.locator("#classic-output-settings-feedback")).toHaveText("Output storage settings saved in this browser.");
+  await page.locator("#classic-output-settings-view-results").click();
+  await expect(page.locator("#classic-output-settings-results")).toHaveText("No routed reports are stored in this browser session.");
+  await expect(dialog.getByRole("button", { name: "Archive..." })).toBeDisabled();
+  const disabledDeleteActions = dialog.getByRole("button", { name: "Delete..." });
+  await expect(disabledDeleteActions).toHaveCount(2);
+  await expect(disabledDeleteActions.nth(0)).toBeDisabled();
+  await expect(disabledDeleteActions.nth(1)).toBeDisabled();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.locator("#classic-command-store-output").click();
+  await expect(page.locator("#classic-output-settings-prefix")).toHaveValue("OUTBREAK");
+  await expect(page.locator("#classic-output-settings-sequence")).toHaveValue("7");
+});
+
+test("simple DIALOG source pauses for acknowledgement without changing project data", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
+  await page.locator("#classic-command-tree .classic-command-group summary", { hasText: "User Interaction" }).click();
+  await page.locator("#classic-command-user-dialog").click();
+  await expect(page.locator("#classic-command-dialog-title")).toHaveText("Dialog Command");
+  await page.locator("#classic-command-dialog-dialog-prompt").fill("Review the foodborne outbreak analysis results.");
+  await page.locator("#classic-command-dialog-dialog-title").fill("Foodborne outbreak review");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText('DIALOG "Review the foodborne outbreak analysis results." TITLETEXT="Foodborne outbreak review"');
+  await page.locator("#classic-command-dialog-insert").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  await expect(editor).toContainText('DIALOG "Review the foodborne outbreak analysis results." TITLETEXT="Foodborne outbreak review"');
+  await editor.focus();
+  await editor.press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-runtime-dialog-title")).toHaveText("Foodborne outbreak review");
+  await expect(page.locator("#classic-runtime-dialog-prompt")).toHaveText("Review the foodborne outbreak analysis results.");
+  await page.locator("#classic-runtime-dialog").getByRole("button", { name: "OK" }).click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("DIALOG completed after user acknowledgement.");
+  await expect(page.locator("#classic-program-session-status")).toContainText("0 records");
+});
+
+test("BEEP uses local browser audio and retains an auditable visible result", async ({ page }) => {
+  await page.evaluate(() => {
+    class MockAudioNode { connect() { return this; } }
+    class MockOscillator extends MockAudioNode {
+      type = "sine"; frequency = { setValueAtTime() {} }; listeners = [];
+      addEventListener(_name, listener) { this.listeners.push(listener); }
+      start() {}
+      stop() { queueMicrotask(() => this.listeners.forEach((listener) => listener())); }
+    }
+    class MockAudioContext {
+      state = "running"; currentTime = 0; destination = {};
+      createOscillator() { return new MockOscillator(); }
+      createGain() { return Object.assign(new MockAudioNode(), { gain: { setValueAtTime() {} } }); }
+      async resume() {}
+      async close() { this.state = "closed"; }
+    }
+    Object.defineProperty(window, "AudioContext", { configurable: true, value: MockAudioContext });
+  });
+  await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
+  await page.locator("#classic-command-tree .classic-command-group summary", { hasText: "User Interaction" }).click();
+  await page.locator("#classic-command-beep").click();
+  await expect(page.locator("#classic-command-dialog-title")).toHaveText("Beep Command");
+  await expect(page.locator("#classic-command-dialog-beep")).toContainText("There are no options for this command.");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("BEEP");
+  await page.locator("#classic-command-dialog-insert").click();
+  const editor = page.locator("#classic-program-source .cm-content");
+  await editor.focus();
+  await editor.press("Control+A");
+  await page.locator("#classic-program-run-selection").click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("BEEP completed.");
+  await expect(page.locator("#classic-program-feedback")).toContainText("short local browser notification tone");
+  await expect(page.locator("#classic-program-session-status")).toContainText("0 records");
+});
+
 test("Program Editor Cut Copy and Paste preserve exact source", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(page.url()).origin });
   await page.locator("#main-menu").getByRole("button", { name: "Classic", exact: true }).click();
@@ -1870,7 +2018,7 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await sourceEditor.focus();
   await sourceEditor.press("Control+End");
   await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  const commandTourLineCount = await sourceEditor.locator(".cm-line").count();
+  const commandTourLineCount = (await readFile("wasm/demo/examples/foodborne-classic-command-tour.pgm7", "utf8")).split(/\r?\n/).length;
   for (let line = 0; line < commandTourLineCount + 2; line++) await sourceEditor.press("ArrowUp");
   await expect(page.locator("#classic-program-cursor-position")).toContainText("Ln 1, Col ");
   await expect.poll(() => sourceScroller.evaluate((element) => element.scrollTop)).toBeLessThanOrEqual(6);
@@ -1881,8 +2029,12 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   }, await sourceScroller.elementHandle())).toBe(true);
 
   await page.locator("#classic-program-toolbar-run").click();
-  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 33 of 33 commands succeeded.");
-  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 33 commands in source order");
+  await expect(page.locator("#classic-runtime-dialog")).toBeVisible({ timeout: 50_000 });
+  await expect(page.locator("#classic-runtime-dialog-title")).toHaveText("Foodborne outbreak review");
+  await expect(page.locator("#classic-runtime-dialog-prompt")).toHaveText("Review the foodborne outbreak analysis results.");
+  await page.locator("#classic-runtime-dialog").getByRole("button", { name: "OK" }).click();
+  await expect(page.locator("#classic-program-command-status")).toHaveText("Program completed: 40 of 40 commands succeeded.");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 40 commands in source order");
   await expect(page.locator("#classic-program-session-status")).toContainText("96 records; no selection");
   await expect(page.locator("#classic-program-session-status")).not.toContainText("SORT Age");
   await expect(page.locator("#classic-list-output-body tr")).toHaveCount(96);
@@ -1894,10 +2046,28 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
   await expect(page.locator("#classic-quality-output")).toBeVisible();
   await expect(page.locator("#classic-quality-output-count")).toHaveText("96 records · 27 fields");
   await expect(page.locator('#classic-quality-output-body tr[data-field-name="hospitalization_date"]')).toContainText("74");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("34");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("41");
   await expect(page.locator("#classic-sequential-output")).toBeVisible();
-  await expect(page.locator("#classic-sequential-output-count")).toHaveText("33 of 33 commands retained");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(33);
+  await expect(page.locator("#classic-sequential-output-count")).toHaveText("40 of 40 commands retained");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(40);
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(33)).toContainText('DIALOG "Review the foodborne outbreak analysis results."');
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(34)).toHaveText("BEEP");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(35)).toHaveText('ROUTEOUT "foodborne-command-tour.html" REPLACE');
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(36)).toHaveText('HEADER 1 "Foodborne outbreak command tour"');
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command").nth(37)).toContainText("Canonical example: 96 submitted foodborne outbreak records.");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(38)).toHaveText("CLOSEOUT");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(39)).toHaveText("PRINTOUT");
+  await expect(page.locator("#classic-route-output-state")).toHaveText("Closed");
+  await expect(page.locator("#classic-route-output-download")).toBeVisible();
+  await expect(page.locator("#classic-output-print")).toHaveAttribute("data-print-prepared", "true");
+  await expect(page.locator("#classic-output-navigation-status")).toContainText("Select Print to open the browser print dialog");
+  const routedDownloadPromise = page.waitForEvent("download");
+  await page.locator("#classic-route-output-download").click();
+  const routedDownload = await routedDownloadPromise;
+  expect(routedDownload.suggestedFilename()).toBe("foodborne-command-tour.html");
+  const routedHtml = await readFile(await routedDownload.path(), "utf8");
+  expect(routedHtml).toContain("<h1>Foodborne outbreak command tour</h1>");
+  expect(routedHtml).toContain("<p>Canonical example: 96 submitted foodborne outbreak records.</p>");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(4)).toHaveText('SET (.)="Not recorded"');
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(5)).toHaveText("SET MISSING=ON");
   await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(6)).toHaveText("TABLES vomiting Sex");
@@ -1939,13 +2109,13 @@ test("Program Editor runs the foodborne pgm7 command tour sequentially", async (
 
   await page.locator("#classic-output-clear").click();
   await expect(page.locator("#classic-output-navigation-status")).toHaveText("Output cleared. Command history is retained.");
-  for (const selector of ["#classic-program-output", "#classic-sequential-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-program-history-output"]) {
+  for (const selector of ["#classic-program-output", "#classic-sequential-output", "#classic-route-output", "#classic-text-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-program-history-output"]) {
     await expect(page.locator(selector)).toBeHidden();
   }
-  await expect(page.locator("#classic-program-history-count")).toHaveText("34");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("41");
   await page.locator("#classic-output-history").click();
   await expect(page.locator("#classic-program-history-output")).toBeVisible();
-  await expect(page.locator("#classic-program-history-count")).toHaveText("34");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("41");
 });
 
 test("browser-verified READ LIST FREQ MEANS and TABLES fixtures run through Open Pgm", async ({ page }) => {

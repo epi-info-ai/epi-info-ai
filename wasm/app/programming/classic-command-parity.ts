@@ -1,6 +1,6 @@
 export type ClassicCommandGroupKey = "data" | "variables" | "select-if" | "statistics" | "advanced-statistics" | "output" | "user-defined" | "user-interaction" | "options";
 export type ClassicCommandParserState = "none" | "syntax-v0.8" | "syntax-v0.9" | "syntax-v1.0";
-export type ClassicCommandDialogState = "gap" | "typed-source-v0.1";
+export type ClassicCommandDialogState = "gap" | "typed-source-v0.1" | "settings-v0.1";
 export type ClassicCommandSelectedState = "none" | "executes-v0.1" | "review-required-v0.1";
 export type ClassicCommandFullProgramState = "none" | "bounded-component-v0.1";
 export type ClassicCommandBrowserPolicy = "candidate" | "adapt-required" | "blocked";
@@ -20,12 +20,13 @@ export interface ClassicCommandParityEntry {
   browserPolicy: ClassicCommandBrowserPolicy;
   parityStatus: ClassicCommandParityStatus;
   validationProgram?: string;
+  validationFixture?: string;
   expectedOutput?: string;
   legacyOutput?: string;
   evidence: string;
 }
 
-type EntryOverrides = Partial<Omit<ClassicCommandParityEntry, "id" | "group" | "key" | "legacyName" | "sourceCommand" | "evidence">>;
+type EntryOverrides = Partial<Omit<ClassicCommandParityEntry, "id" | "group" | "key" | "legacyName" | "sourceCommand">>;
 const entry = (group: ClassicCommandGroupKey, key: string, legacyName: string, sourceCommand: string, overrides: EntryOverrides = {}): ClassicCommandParityEntry => ({
   id: `CLASSIC-CMD-${group.toUpperCase().replace(/-/g, "_")}-${key.toUpperCase().replace(/-/g, "_")}`,
   group, key, legacyName, sourceCommand,
@@ -152,21 +153,63 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
   }),
   entry("advanced-statistics", "complex-means", "ComplexSampleMeans", "MEANS", { parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1", browserPolicy: "adapt-required", parityStatus: "browser-verified", validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar-outtable.pgm", expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-means-psuvar-outtable.expected.json" }),
 
-  entry("output", "header", "Header", "HEADER", { browserPolicy: "adapt-required" }),
-  entry("output", "type", "Type", "TYPEOUT", { browserPolicy: "adapt-required" }),
-  entry("output", "routeout", "Routeout", "ROUTEOUT", { browserPolicy: "adapt-required" }),
-  entry("output", "closeout", "Closeout", "CLOSEOUT", { browserPolicy: "adapt-required" }),
-  entry("output", "printout", "Printout", "PRINTOUT", { browserPolicy: "adapt-required" }),
+  entry("output", "header", "Header", "HEADER", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-header.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-header.expected.json",
+  }),
+  entry("output", "type", "Type", "TYPEOUT", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-typeout.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-typeout.expected.json",
+  }),
+  entry("output", "routeout", "Routeout", "ROUTEOUT", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-routeout.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-routeout.expected.json",
+  }),
+  entry("output", "closeout", "Closeout", "CLOSEOUT", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-closeout.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-closeout.expected.json",
+  }),
+  entry("output", "printout", "Printout", "PRINTOUT", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "review-required-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-printout.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-printout.expected.json",
+  }),
   entry("output", "reports", "Reports", "REPORT", { explorer: "legacy-enum-only", browserPolicy: "adapt-required" }),
-  entry("output", "store-output", "StoreOutput", "STORE", { browserPolicy: "adapt-required" }),
+  entry("output", "store-output", "StoreOutput", "N/A (settings dialog)", {
+    dialog: "settings-v0.1", browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationFixture: "wasm/tests/fixtures/classic-command-parity/output-storage-settings.input.json",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/output-storage-settings.expected.json",
+    evidence: "Epi.Windows.Analysis/Dialogs/StoringOutputDialog.cs (configuration dialog; no generated command text)",
+  }),
 
   entry("user-defined", "define-command", "DefineCommand", "DEFINE COMMAND"),
   entry("user-defined", "user-command", "UserCommand", "USERCOMMAND"),
   entry("user-defined", "run-saved-program", "RunSavedProgram", "RUNPGM", { browserPolicy: "adapt-required" }),
   entry("user-defined", "execute-file", "ExecuteFile", "EXECUTE", { browserPolicy: "blocked" }),
 
-  entry("user-interaction", "dialog", "Dialog", "DIALOG", { browserPolicy: "adapt-required" }),
-  entry("user-interaction", "beep", "Beep", "BEEP", { browserPolicy: "adapt-required" }),
+  entry("user-interaction", "dialog", "Dialog", "DIALOG", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-dialog-simple.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-dialog-simple.expected.json",
+    evidence: "Epi.Core/Resources/EpiInfoGrammar.txt: Simple_Dialog_Statement; Epi.Windows.Analysis/Dialogs/DialogDialog.cs",
+  }),
+  entry("user-interaction", "beep", "Beep", "BEEP", {
+    parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1",
+    browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-beep.pgm",
+    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-beep.expected.json",
+    evidence: "Epi.Core/Resources/EpiInfoGrammar.txt: Beep_Statement; Epi.Windows.Analysis/Dialogs/BeepDialog.cs; AnalysisMainForm.cs: Action.Beep",
+  }),
   entry("user-interaction", "help", "Help", "HELP", { explorer: "legacy-enum-only", browserPolicy: "adapt-required" }),
   entry("user-interaction", "quit-program", "Quit", "QUIT", { browserPolicy: "adapt-required" }),
 

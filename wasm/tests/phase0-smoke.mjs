@@ -68,6 +68,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-graph.ts",
     "wasm/app/programming/classic-tables.ts",
     "wasm/app/programming/classic-complex-means.ts",
+    "wasm/app/programming/classic-output-settings.ts",
     "wasm/app/programming/epi-ai-quality.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
@@ -85,6 +86,10 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/forms/import-preview.ts",
     "wasm/app/share/webrtc-transfer.ts",
     "wasm/app/help/runbooks.ts",
+    "wasm/app/localization/localization.ts",
+    "wasm/app/localization/browser-localization.ts",
+    "wasm/app/localization/catalogs/en-US.ts",
+    "wasm/docs/design/localization-parity-inventory.md",
     "wasm/app/forms/form-designer-menu.ts",
     "wasm/app/forms/enter-data-menu.ts",
     "wasm/app/maps/pmtiles-reader.ts",
@@ -411,14 +416,15 @@ async function checkRequiredAssetsAndUi() {
   ])), { data: 7, variables: 6, "select-if": 5, statistics: 8, "advanced-statistics": 7, output: 7, "user-defined": 4, "user-interaction": 4, options: 1 });
   assert.deepEqual(commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.explorer === "legacy-enum-only").map((entry) => entry.legacyName), ["Match", "Map", "Reports", "Help"]);
   const commandSet = await readFile(repositoryPath("COMMAND_SET.md"), "utf8");
-  assert.match(commandSet, /Typed AST\/parser branches \| 28 \|/);
-  assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 21 \|/);
+  assert.match(commandSet, /Typed AST\/parser branches \| 35 \|/);
+  assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 28 \|/);
   assert.match(commandSet, /Legacy-parity-verified against reviewed desktop Epi Info output \| 0 \|/);
   for (const entry of commandParity.CLASSIC_COMMAND_PARITY) {
     assert.ok(["not-started", "browser-verified", "legacy-parity-verified"].includes(entry.parityStatus), `${entry.id} must declare parity status`);
     if (entry.parityStatus !== "not-started") {
-      assert.ok(entry.validationProgram && entry.expectedOutput, `${entry.id} verified status requires a PGM and expected output`);
-      await assertFile(entry.validationProgram);
+      assert.ok((entry.validationProgram || entry.validationFixture) && entry.expectedOutput, `${entry.id} verified status requires a validation input and expected output`);
+      if (entry.validationProgram) await assertFile(entry.validationProgram);
+      if (entry.validationFixture) await assertFile(entry.validationFixture);
       await assertFile(entry.expectedOutput);
     }
     if (entry.parityStatus === "legacy-parity-verified") {
@@ -456,7 +462,31 @@ async function checkRequiredAssetsAndUi() {
   assert.equal(commandParity.classicCommandParityEntry("select-if", "sort").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("select-if", "cancel-sort").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("select-if", "if").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("output", "header").fullProgramExecution, "bounded-component-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("output", "type").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("output", "routeout").fullProgramExecution, "bounded-component-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("output", "closeout").parityStatus, "browser-verified");
+  assert.equal(commandParity.classicCommandParityEntry("output", "printout").selectedExecution, "review-required-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("output", "store-output").sourceCommand, "N/A (settings dialog)");
+  assert.equal(commandParity.classicCommandParityEntry("output", "store-output").dialog, "settings-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("user-interaction", "dialog").fullProgramExecution, "bounded-component-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("user-interaction", "beep").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("user-defined", "execute-file").browserPolicy, "blocked");
+
+  const outputSettings = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-output-settings.ts")).href}?settings=${Date.now()}`);
+  const outputSettingsInput = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/output-storage-settings.input.json"), "utf8"));
+  const outputSettingsExpected = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/classic-command-parity/output-storage-settings.expected.json"), "utf8"));
+  assert.deepEqual(outputSettings.validateClassicOutputSettings(outputSettingsInput), {
+    version: outputSettingsExpected.expected.version,
+    outputPrefix: outputSettingsExpected.expected.outputPrefix,
+    outputSequence: outputSettingsExpected.expected.outputSequence,
+    flagAgeDays: outputSettingsExpected.expected.flagAgeDays,
+    flagResultCount: outputSettingsExpected.expected.flagResultCount,
+    flagSizeKb: outputSettingsExpected.expected.flagSizeKb,
+  });
+  assert.deepEqual(outputSettings.parseClassicOutputSettings("not json"), outputSettings.DEFAULT_CLASSIC_OUTPUT_SETTINGS);
+  assert.throws(() => outputSettings.validateClassicOutputSettings({ ...outputSettingsInput, outputPrefix: "bad/path" }), /Output File Prefix/);
+  assert.throws(() => outputSettings.validateClassicOutputSettings({ ...outputSettingsInput, flagAgeDays: -1 }), /Age In Days/);
 
   const chartInventory = await readFile(repositoryPath("wasm/docs/design/charts-compatibility-inventory.md"), "utf8");
   assert.deepEqual([...chartInventory.matchAll(/\| LEGACY-CLASSIC-GRAPH-\d{3} \| ([^|]+) \|/g)].map((match) => match[1].trim()), [
@@ -1422,6 +1452,46 @@ FREQ AgeGroup STRATAVAR=Sex`;
   );
 
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "quality" }), "EPIAI QUALITY *");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "header", text: 'Foodborne "review"' }), 'HEADER 1 "Foodborne ""review"""');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('HEADER 1 "Foodborne ""review"""', imported.schema.fields), { kind: "header", text: 'Foodborne "review"', source: 'HEADER 1 "Foodborne ""review"""' });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "typeout", text: "Canonical example" }), 'TYPEOUT "Canonical example"');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('TYPEOUT "Canonical example"', imported.schema.fields), { kind: "typeout", text: "Canonical example", source: 'TYPEOUT "Canonical example"' });
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("TYPEOUT 'notes.txt'", imported.schema.fields), /file input.*fail-closed/i);
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "routeout", fileName: "foodborne-report.html", mode: "REPLACE" }), 'ROUTEOUT "foodborne-report.html" REPLACE');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('ROUTEOUT "foodborne-report.html" REPLACE', imported.schema.fields), { kind: "routeout", fileName: "foodborne-report.html", mode: "REPLACE", source: 'ROUTEOUT "foodborne-report.html" REPLACE' });
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("CLOSEOUT", imported.schema.fields), { kind: "closeout", source: "CLOSEOUT" });
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand('ROUTEOUT "C:\\reports\\foodborne.html" REPLACE', imported.schema.fields), /paths remain unavailable/);
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "printout" }), "PRINTOUT");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("PRINTOUT", imported.schema.fields), { kind: "printout", source: "PRINTOUT" });
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("PRINTOUT 'report.htm'", imported.schema.fields), /legacy file remains fail-closed/);
+  const simpleDialogSource = 'DIALOG "Review the foodborne outbreak analysis results." TITLETEXT="Foodborne outbreak review"';
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "dialog", prompt: "Review the foodborne outbreak analysis results.", title: "Foodborne outbreak review" }), simpleDialogSource);
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand(simpleDialogSource, imported.schema.fields), {
+    kind: "dialog", prompt: "Review the foodborne outbreak analysis results.", title: "Foodborne outbreak review", input: { kind: "message" }, source: simpleDialogSource,
+  });
+  const dialog = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-dialog.ts")).href}?dialog=${Date.now()}`);
+  const dialogVariables = [
+    { name: "ReviewAge", scope: "STANDARD", variableType: "NUMERIC" },
+    { name: "ReviewText", scope: "STANDARD", variableType: "TEXTINPUT" },
+    { name: "ReviewFlag", scope: "STANDARD", variableType: "YN" },
+    { name: "ReviewDate", scope: "STANDARD", variableType: "DATEFORMAT" },
+  ];
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "dialog", prompt: "Enter age", target: "ReviewAge", input: { kind: "numeric", implicit: false } }), 'DIALOG "Enter age" ReviewAge NUMERIC');
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "dialog", prompt: "Choose status", target: "ReviewText", input: { kind: "choices", values: ["Confirmed", "Probable"] } }), 'DIALOG "Choose status" ReviewText "Confirmed", "Probable"');
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "dialog", prompt: "Choose field", target: "ReviewText", input: { kind: "db-values", table: projectSource.formId, variable: "case_status" } }), `DIALOG "Choose field" ReviewText DBVALUES ${projectSource.formId} case_status`);
+  const numericDialog = dialog.resolveClassicDialogCommand('DIALOG "Enter age" ReviewAge NUMERIC TITLETEXT="Review"', dialogVariables, [projectSource]);
+  assert.equal(numericDialog.input.kind, "numeric");
+  assert.equal(numericDialog.target.name, "ReviewAge");
+  assert.equal(dialog.validateClassicDialogValue(numericDialog, "42"), 42);
+  assert.throws(() => dialog.validateClassicDialogValue(numericDialog, "not a number"), /finite number/);
+  const valueDialog = dialog.resolveClassicDialogCommand(`DIALOG "Choose status" ReviewText DBVALUES ${projectSource.formId} case_status`, dialogVariables, [projectSource]);
+  assert.deepEqual(valueDialog.choices, ["Confirmed", "Not a case", "Probable", "Suspected"]);
+  assert.throws(() => dialog.resolveClassicDialogCommand('DIALOG "Enter age" ReviewText NUMERIC', dialogVariables, [projectSource]), /requires NUMERIC/);
+  assert.equal(dialog.resolveClassicDialogCommand('DIALOG "Continue?" ReviewFlag YN', dialogVariables, [projectSource]).input.kind, "yes-no");
+  assert.equal(dialog.resolveClassicDialogCommand('DIALOG "Date" ReviewDate DATEFORMAT "YYYY-MM-DD"', dialogVariables, [projectSource]).input.mask, "YYYY-MM-DD");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "beep" }), "BEEP");
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("BEEP", imported.schema.fields), { kind: "beep", source: "BEEP" });
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("BEEP 2", imported.schema.fields), /does not accept arguments/);
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand("EPIAI QUALITY *", imported.schema.fields), { kind: "quality", source: "EPIAI QUALITY *" });
   const quality = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-quality.ts")).href}?quality=${Date.now()}`);
   const qualityPlan = quality.resolveEpiAiQualityCommand("EPIAI QUALITY *", imported.schema.fields);
@@ -3120,13 +3190,61 @@ CANCEL SORT`;
     "ListStatement", "FrequencyStatement", "FrequencyStatement", "MeansStatement", "SetStatement", "SetStatement", "TablesStatement", "SetStatement", "SetStatement", "TablesStatement", "TablesStatement",
     "TablesStatement", "TablesStatement", "TablesStatement", "TablesStatement", "SelectStatement", "FrequencyStatement", "SelectStatement", "SortStatement",
     "ListStatement", "SortStatement", "SummarizeStatement", "GraphStatement", "TablesStatement", "DefineGroupStatement", "TablesStatement",
-    "FrequencyStatement", "MeansStatement", "EpiAiQualityStatement", "DefineStatement", "DefineStatement", "AssignStatement", "IfStatement",
+    "FrequencyStatement", "MeansStatement", "EpiAiQualityStatement", "DefineStatement", "DefineStatement", "AssignStatement", "IfStatement", "DialogStatement", "BeepStatement", "RouteoutStatement", "HeaderStatement", "TypeoutStatement", "CloseoutStatement", "PrintoutStatement",
   ]);
   assert.equal(commandTour.body[27].options.outputTable.name, "AgeBySexSurvey");
   assert.equal(commandTour.body[32].alternate[0].type, "AssignStatement");
+  assert.equal(commandTour.body[33].title, "Foodborne outbreak review");
+  assert.equal(commandTour.body[34].type, "BeepStatement");
+  assert.equal(commandTour.body[35].fileName, "foodborne-command-tour.html");
+  assert.equal(commandTour.body[36].text, "Foodborne outbreak command tour");
+  assert.equal(commandTour.body[37].text, "Canonical example: 96 submitted foodborne outbreak records.");
+  assert.equal(commandTour.body[39].type, "PrintoutStatement");
   assert.throws(() => parser.parseClassicProgram("EXECUTE \"malware.exe\""), /Unsupported command/);
   assert.throws(() => parser.parseClassicProgram("IF Age > 10 THEN\nFREQ Age"), /IF is missing END/);
   assert.throws(() => parser.parseClassicProgram("ASSIGN Age = (10 + 2"), /closing parenthesis/);
+}
+
+async function checkLocalizationBoundary() {
+  const localization = await import(`${pathToFileURL(repositoryPath("wasm/app/localization/localization.ts")).href}?localization=${Date.now()}`);
+  const catalog = await import(`${pathToFileURL(repositoryPath("wasm/app/localization/catalogs/en-US.ts")).href}?catalog=${Date.now()}`);
+  const diagnostics = [];
+  const registry = new localization.LocalizationRegistry(catalog.englishLanguagePack, {
+    initialLocale: "en-US",
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+  });
+  registry.register({
+    schema: localization.LANGUAGE_PACK_SCHEMA,
+    locale: "fr-FR",
+    englishName: "French (France)",
+    nativeName: "français (France)",
+    direction: "ltr",
+    version: "0.1.0-test",
+    messages: {
+      "menu.file.label": "Fichier",
+      "status.records.count": "{count} enregistrements",
+    },
+  });
+  assert.equal(registry.setLocale("fr-CA"), "fr-FR", "a related installed culture should be selected before English fallback");
+  assert.equal(registry.translate("menu.file.label"), "Fichier");
+  assert.equal(registry.translate("menu.help.label"), "Help", "missing translations must fall back to source English");
+  assert.equal(registry.translate("status.records.count", { count: 96 }), "96 enregistrements");
+  assert.equal(registry.setLocale("de-DE"), "en-US");
+  assert.ok(diagnostics.some(({ code, locale }) => code === "locale-fallback" && locale === "de-DE"));
+  assert.throws(() => registry.register({
+    schema: localization.LANGUAGE_PACK_SCHEMA,
+    locale: "es-ES",
+    englishName: "Spanish (Spain)",
+    nativeName: "español (España)",
+    direction: "ltr",
+    version: "bad-placeholder-test",
+    messages: { "status.records.count": "Registros" },
+  }), /Placeholder mismatch/);
+  assert.equal(registry.remove("en-US"), false, "the source catalog must not be removable");
+  const pseudo = localization.createPseudoLanguagePack(catalog.englishLanguagePack);
+  assert.equal(pseudo.locale, "en-XA");
+  assert.match(pseudo.messages["menu.file.label"], /^\[!!/);
+  assert.ok(pseudo.messages["status.records.count"].includes("{count}"), "pseudolocalization must preserve placeholders");
 }
 
 async function run() {
@@ -3160,6 +3278,7 @@ async function run() {
     ["JupyterLite validation lab source", checkValidationLabSource],
     ["Epi Assist typed proposal allowlist", checkEpiAssistProposalBoundary],
     ["versioned Classic Program AST", checkClassicProgramAst],
+    ["browser localization and language-pack boundary", checkLocalizationBoundary],
   ];
 
   for (const [name, check] of checks) {

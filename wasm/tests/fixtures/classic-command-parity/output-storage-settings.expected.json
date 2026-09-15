@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "legacyEntry": "Storing Output",
+  "parityStatus": "browser-verified",
+  "isProgrammingCommand": false,
+  "expected": {
+    "version": "0.1.0",
+    "outputPrefix": "OUTBREAK",
+    "outputSequence": 7,
+    "flagAgeDays": 20,
+    "flagResultCount": 100,
+    "flagSizeKb": 500,
+    "persistence": "browser-local"
+  },
+  "legacyDifferential": {
+    "status": "not-run",
+    "note": "Folder selection maps to browser storage; the checked-in legacy Archive/Delete/View Archive handlers are empty and remain disabled."
+  }
+}

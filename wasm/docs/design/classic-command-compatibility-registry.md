@@ -67,9 +67,9 @@ demo.
 | Select/If | 5 | 5 | SELECT/CANCEL SELECT and SORT/CANCEL SORT have typed source dialogs and bounded selected execution; IF adds a browser-verified Standard-variable branch while record-context semantics remain open |
 | Statistics | 8 | 6 | LIST, FREQ, MEANS, TABLES, SUMMARIZE, and GRAPH have typed dialogs and selected execution; TABLES renders categorical M×N counts, row/column percentages, totals, expected counts, and Pearson results without inferring exposed/case values, and true stratified binary tables append Rust/WASM Mantel–Haenszel and homogeneity output from their displayed orientation; GRAPH renders bounded horizontal Bar, vertical Column, and category-share Pie branches |
 | Advanced Statistics | 7 | 7 | Complex Sample Frequencies, Complex Sample Tables, and Complex Sample Means have bounded typed dialogs and browser execution; regression and survival remain visible gaps |
-| Output | 7 | 6 | Visible gaps; every file/print route requires an explicit browser adaptation |
+| Output | 7 | 6 | HEADER, literal TYPEOUT, in-session ROUTEOUT/CLOSEOUT, and reviewed bare PRINTOUT have bounded browser paths; Storing Output preserves its familiar settings dialog in browser-local storage and is correctly classified as UI, not source syntax |
 | User-Defined Commands | 4 | 4 | Visible gaps; RUNPGM requires bounded project resolution; arbitrary EXECUTE is blocked |
-| User Interaction | 4 | 3 | Visible gaps; browser dialog/audio/help/quit adaptations required |
+| User Interaction | 4 | 3 | DIALOG now covers the full legacy grammar through typed, session-scoped browser adaptations; no-option BEEP uses local Web Audio with visible fallback; HELP and QUIT adaptations remain gaps. Exact masks and legacy database-dialog differences still require differential review. |
 | Options | 1 | 1 | Visible gap; session-scoped SET semantics required |
 
 ## Port inventory snapshot
@@ -79,12 +79,13 @@ snapshot makes its current implementation states easy to review:
 
 | State | Count | Commands |
 |---|---:|---|
-| Typed AST/parser | 28 | The 24 ordinary commands previously listed, plus Complex Sample Frequencies, Complex Sample Tables, Complex Sample Means, and `SET` |
-| Typed source dialog | 28 | Same 28 command entries |
-| Selected execution or reviewed handoff | 27 | All above except `RECODE`; `DELETE TABLES`, `DELETE RECORDS`, and `UNDELETE RECORDS` require reviewed mutation handoffs |
-| Bounded full-program component | 8 | `DEFINE`, `RECODE`, ordinary `FREQ`, ordinary `TABLES`, Complex Sample Frequencies, Complex Sample Tables, Complex Sample Means, and `SET` |
-| Completely untouched | 21 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
-| Browser-verified with foodborne `.pgm` + expected output | 21 | `READ`, `IF`, `UNDEFINE`, `DISPLAY`, `DEFINE GROUPVAR`, `RELATE`, `WRITE`, `MERGE`, `DELETE TABLES`, `DELETE RECORDS`, `UNDELETE RECORDS`, `LIST`, ordinary `FREQ`, Complex Sample Frequencies, ordinary `MEANS`, Complex Sample Means, ordinary `TABLES`, Complex Sample Tables, `SUMMARIZE`, `GRAPH`, and `SET` |
+| Typed AST/parser | 35 | The prior 34 entries plus no-option `BEEP` |
+| Typed source dialog | 35 | Same 35 command entries |
+| Selected execution or reviewed handoff | 34 | All above except `RECODE`; destructive commands and `PRINTOUT` require reviewed handoffs |
+| Bounded full-program component | 15 | The prior fourteen components plus no-option `BEEP` |
+| Browser-verified non-command settings UI | 1 | Storing Output; the legacy dialog generates no command text |
+| Completely untouched | 13 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
+| Browser-verified with foodborne `.pgm` + expected output | 28 | The prior 27 entries plus no-option `BEEP` |
 | Legacy-parity-verified | 0 | No command may enter this row without reviewed desktop Epi Info output |
 
 The implementation columns describe port progress, not parity closure. For
@@ -162,8 +163,17 @@ The reference adaptation is WRITE: keep the learned command and dialog concepts,
 request a capability only through a user gesture, validate and preview before a
 mutation, audit the result, and offer a portable fallback where a browser-native
 capability is unavailable. MERGE and DELETE TABLES now follow that pattern;
-external DELETE FILE/TABLE, ROUTEOUT, RUNPGM, and other desktop-bound variants
-remain disabled until their reviewed adapters exist.
+ROUTEOUT/CLOSEOUT use a bounded in-session HTML report and explicit download,
+while routing nonliteral analysis output remains open. External DELETE
+FILE/TABLE, RUNPGM, and other desktop-bound variants remain disabled until their
+reviewed adapters exist.
+
+Storing Output is deliberately not represented as `STORE`: the reviewed legacy
+`StoringOutputDialog` edits output prefix, sequence, and result-flag thresholds
+and has no command-generation method. The browser retains those settings locally
+and can inspect current-session routed reports. Results/archive folder paths are
+browser adaptations; Archive/Delete/View Archive/Delete Archive remain disabled
+because their handlers are empty in the checked-in C# source.
 
 ## Closure order
 

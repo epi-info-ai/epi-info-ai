@@ -341,6 +341,24 @@ project has:
 
 The detailed cumulative changes and validation increments follow.
 
+## Progress from September 10 through September 15, 2026
+
+- Restored the first Classic Output command family: `HEADER`, literal `TYPEOUT`,
+  bounded in-session `ROUTEOUT`/`CLOSEOUT`, reviewed `PRINTOUT`, and the familiar
+  non-command Storing Output settings dialog.
+- Completed typed coverage of the inspected `DIALOG` grammar and added
+  session/type-aware message, scalar, list, current-project database, and
+  explicit browser file/name prompts; user-entered values stay out of history.
+- Added browser-adapted `BEEP`, matching fixtures, and the resulting forty-step
+  foodborne command tour.
+- Established the localization parity inventory and a bounded TypeScript
+  language-pack registry with English fallback, an accented pseudolocale, and a
+  first Tools > Options > Language host surface.
+- Corrected Form Designer removal of the final Option field, made Package Data
+  for Transport responsive with live record/redaction/security feedback, and
+  routed `.epiax` files selected through familiar Open Project into the existing
+  passphrase, authentication, inventory-review, and explicit-open workflow.
+
 - Added the Validation Lab charter, corpus-governance rules, evidence hierarchy,
   notebook contract, and staged roadmap in `wasm/validation-lab.md`.
 - Promoted the synthetic 96-record foodborne example to a frozen candidate corpus
@@ -583,8 +601,52 @@ The detailed cumulative changes and validation increments follow.
   the Program Editor/Output/Message Area frame, and tested routes from
   Statistics to the existing Frequencies, Tables, and Means panels. Unported
   commands remain visible compatibility gaps.
+- Added the first familiar Classic Output command slice: typed level-1
+  `HEADER` and literal `TYPEOUT` run from their legacy Command Explorer branch,
+  selected editor source, and the foodborne tour. Output is escaped;
+  file input and legacy text styling remain explicit browser-adaptation gaps.
+- Added bounded `ROUTEOUT name.html APPEND|REPLACE` and `CLOSEOUT`. The browser
+  keeps the named report in session memory, captures safe HEADER/TYPEOUT text,
+  and exposes an explicit HTML download after close. Ambient paths and routing
+  of every statistical output remain explicit gaps.
+- Added bare `PRINTOUT` as a reviewed browser handoff: a program prepares the
+  current Output, and the user explicitly selects Print to open the browser
+  dialog. External-file printing remains fail-closed behind the sandboxed
+  Output viewer; the foodborne tour includes this reviewed handoff.
+- Restored the familiar Storing Output configuration dialog with validated,
+  browser-local prefix, sequence, and result-flag thresholds plus a session
+  results view. Legacy evidence shows this is UI configuration, not a `STORE`
+  programming command; folder/archive operations remain disclosed adaptations.
+- Expanded the User Interaction parity unit across the legacy `DIALOG` grammar:
+  messages; implicit/explicit numeric, text, yes/no, date, time, and datetime
+  input; fixed lists; `DBVALUES`, `DBVIEWS`, `DATABASES`, and `DBVARIABLES`;
+  and `READ`/`WRITE` file prompts. Values are type-checked into pre-defined
+  Standard session variables and are deliberately omitted from command history.
+  Project choices cannot escape the current browser project; file variants use
+  an explicit chooser or reviewed output name and grant no ambient path access.
+- Added no-option `BEEP` with a short, offline Web Audio notification and a
+  visible audited fallback when browser audio is unavailable or blocked. The
+  foodborne command tour now has 40 statements.
 
 ## TODO
+
+- **Continue localization as a governed parity workstream.** The inspected
+  legacy floor and browser target are now captured in
+  [`localization-parity-inventory.md`](wasm/docs/design/localization-parity-inventory.md),
+  and a bounded TypeScript catalog registry now supplies canonical locale IDs,
+  English/related-locale fallback, placeholder validation, direction metadata,
+  diagnostics, and locale-aware display formatting. **Tools > Options >
+  Language** now applies and persists English or the accented layout-test
+  pseudolocale for the first externalized shell strings. Next, complete the legacy
+  resource-key inventory and review applicable translations; externalize
+  every maintained and new-branch UI/help string; define locale negotiation,
+  English fallback, pluralization, date/time/number formatting, accessibility,
+  right-to-left layout, font coverage, and translation-review ownership. Keep
+  canonical Epi Info programming keywords and saved `.pgm` source stable across
+  UI languages, while localizing editor descriptions, diagnostics, menus, and
+  documentation. Add pseudolocale, representative-language, screenshot, and
+  browser tests so translation cannot alter command execution or statistical
+  results.
 
 - **Write and maintain the Epi Info AI Manual.** Use the Epi Info 7 manual as
   the familiar workflow and terminology floor—the old tree—while documenting

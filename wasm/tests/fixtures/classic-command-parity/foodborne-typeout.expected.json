@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "TYPEOUT",
+  "parityStatus": "browser-verified",
+  "dataset": { "file": "wasm/demo/examples/foodborne-outbreak-investigation.csv", "recordCount": 96 },
+  "expected": { "text": "Canonical example: 96 submitted foodborne outbreak records.", "htmlInterpreted": false, "recordsChanged": false },
+  "legacyDifferential": { "status": "not-run", "note": "File input and font/text-effect variants require a reviewed browser adapter and legacy comparison." }
+}

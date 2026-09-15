@@ -12,10 +12,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=60" />
+    <link rel="stylesheet" href="styles.css?v=61" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=97"></script>
+    <script type="module" src="app.js?v=104"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -24,7 +24,7 @@
       <div class="brand-mark" aria-hidden="true">E</div>
       <div class="brand-copy">
         <strong>Epi Info<span class="ai-label">AI</span></strong>
-        <span>Tools for public health practice</span>
+        <span data-i18n="app.brand.tagline">Tools for public health practice</span>
       </div>
       <div class="titlebar-actions" aria-label="Project status">
         <button class="epi-assist-launch" type="button" data-open-epi-assist><span aria-hidden="true">AI</span> Epi Assist</button>
@@ -35,19 +35,19 @@
 
     <nav class="legacy-menubar" aria-label="Application menu">
       <details id="file-menu" class="legacy-menu">
-        <summary aria-haspopup="menu">File</summary>
+        <summary aria-haspopup="menu" data-i18n="menu.file.label">File</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="File">
           <button id="file-open-project" type="button" role="menuitem">Open Project...</button>
           <button id="file-save-project" type="button" role="menuitem">Save Project As...</button>
           <button id="file-open-encrypted-project" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Open Encrypted Project...</button>
           <button id="file-save-encrypted-project" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Save Encrypted Project...</button>
-          <input id="project-package-open" class="sr-only" type="file" accept=".epia,.json,.epia.json,application/json,application/vnd.epi-info-ai.project" />
+          <input id="project-package-open" class="sr-only" type="file" accept=".epia,.epiax,.json,.epia.json,application/json,application/vnd.epi-info-ai.project,application/vnd.epi-info-ai.encrypted-project" />
           <div class="legacy-menu-separator" role="separator"></div>
           <button id="file-exit" type="button" role="menuitem">Exit</button>
         </div>
       </details>
       <details id="view-menu" class="legacy-menu">
-        <summary aria-haspopup="menu">View</summary>
+        <summary aria-haspopup="menu" data-i18n="menu.view.label">View</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="View">
           <button id="view-status-bar" type="button" role="menuitemcheckbox" aria-checked="true">&#10003; Status Bar</button>
           <div class="legacy-menu-separator" role="separator"></div>
@@ -63,7 +63,7 @@
         </div>
       </details>
       <details id="tools-menu" class="legacy-menu">
-        <summary aria-haspopup="menu">Tools</summary>
+        <summary aria-haspopup="menu" data-i18n="menu.tools.label">Tools</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="Tools">
           <button type="button" role="menuitem" data-open-module="forms">Create Forms</button>
           <button type="button" role="menuitem" data-open-module="data">Enter Data</button>
@@ -73,12 +73,12 @@
           <button type="button" role="menuitem" data-open-module="maps" data-map-context="standalone">Create Maps</button>
           <div class="legacy-menu-separator" role="separator"></div>
           <button type="button" role="menuitem" data-open-epi-assist>Epi Assist (foundation models)...</button>
-          <button type="button" role="menuitem" disabled title="Not yet implemented">Options...</button>
+          <button id="tools-options" type="button" role="menuitem" data-i18n="menu.tools.options">Options...</button>
         </div>
       </details>
-      <button type="button" data-open-module="statcalc">StatCalc</button>
+      <button type="button" data-open-module="statcalc" data-i18n="menu.statcalc.label">StatCalc</button>
       <details id="help-menu" class="legacy-menu legacy-menu-right">
-        <summary aria-haspopup="menu">Help</summary>
+        <summary aria-haspopup="menu" data-i18n="menu.help.label">Help</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="Help">
           <button id="help-runbooks" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Automated Runbooks...</button>
           <div class="legacy-menu-separator" role="separator"></div>
@@ -89,6 +89,29 @@
         </div>
       </details>
     </nav>
+
+    <dialog id="application-options-dialog" class="legacy-dialog localization-options-dialog" aria-labelledby="application-options-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <h2 id="application-options-title" data-i18n="options.title">Options</h2>
+          <button value="cancel" aria-label="Close" data-i18n-aria-label="common.close">&times;</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <h3 data-i18n="options.language.heading">Language</h3>
+          <p data-i18n="options.language.description">Choose the language used for application menus and messages.</p>
+          <label for="application-language" data-i18n="options.language.label">Application language</label>
+          <select id="application-language"></select>
+          <p class="dialog-note" data-i18n="options.language.englishFallback">English remains available as the fallback language. Program commands, field names, coded values, and stored data are not translated.</p>
+          <p class="dialog-note" data-i18n="options.language.pseudoNote">Pseudo (accented test) expands text to reveal clipping and untranslated interface strings. It is not a user language.</p>
+          <p class="dialog-note" data-i18n="options.language.restart">Language changes apply immediately where supported. Some legacy surfaces may require reopening.</p>
+          <p id="application-language-status" class="inline-feedback" role="status"></p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button id="application-language-apply" class="dialog-primary" type="button" data-i18n="common.apply">Apply</button>
+          <button value="cancel" data-i18n="common.cancel">Cancel</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="runbook-library-dialog" class="legacy-dialog runbook-library-dialog" aria-labelledby="runbook-library-title">
       <form method="dialog">
@@ -142,7 +165,7 @@
       <form method="dialog">
         <div class="legacy-dialog-titlebar"><h2 id="encrypted-project-open-title"><span class="new-branch-badge">New branch</span> Open Encrypted Project</h2><button value="cancel" aria-label="Close">×</button></div>
         <div class="legacy-dialog-body">
-          <p class="dialog-note">Decryption and complete archive validation occur before the current project changes. Review the inventory before selecting Open Project.</p>
+          <p class="dialog-note">Decryption and complete archive validation occur before the current project changes. You can select an <code>.epiax</code> here or through the familiar Open Project command. Review the inventory before selecting Open Project.</p>
           <label for="encrypted-project-open-file">Encrypted project package</label>
           <input id="encrypted-project-open-file" type="file" accept=".epiax,application/vnd.epi-info-ai.encrypted-project" />
           <label for="encrypted-project-open-passphrase">Passphrase</label>
@@ -163,16 +186,16 @@
     <main id="main-menu" class="main-menu-screen">
       <section class="main-menu-actions" aria-labelledby="main-menu-title">
         <h1 id="main-menu-title" class="sr-only">Epi Info AI main menu</h1>
-        <button class="legacy-launch-button" type="button" data-open-module="forms">Create Forms</button>
-        <button class="legacy-launch-button" type="button" data-open-module="data">Enter Data</button>
+        <button class="legacy-launch-button" type="button" data-open-module="forms" data-i18n="main.createForms">Create Forms</button>
+        <button class="legacy-launch-button" type="button" data-open-module="data" data-i18n="main.enterData">Enter Data</button>
 
         <fieldset class="analyze-group">
-          <legend>Analyze Data</legend>
-          <button class="legacy-launch-button" type="button" data-open-module="classic">Classic</button>
-          <button class="legacy-launch-button wide-button" type="button" data-open-module="dashboard">Visual Dashboard</button>
+          <legend data-i18n="main.analyzeData">Analyze Data</legend>
+          <button class="legacy-launch-button" type="button" data-open-module="classic" data-i18n="main.classic">Classic</button>
+          <button class="legacy-launch-button wide-button" type="button" data-open-module="dashboard" data-i18n="main.visualDashboard">Visual Dashboard</button>
         </fieldset>
 
-        <button class="legacy-launch-button" type="button" data-open-module="maps" data-map-context="standalone">Create Maps</button>
+        <button class="legacy-launch-button" type="button" data-open-module="maps" data-map-context="standalone" data-i18n="main.createMaps">Create Maps</button>
         <button class="legacy-launch-button" type="button" data-menu-message="The external website link is disabled in this local demo.">Epi Info Website</button>
         <button class="legacy-launch-button" type="button" data-menu-message="Browser applications remain open until you close their tab.">Exit</button>
         <p id="main-menu-status" class="main-menu-status" role="status">Ready</p>
@@ -470,6 +493,7 @@
               <label for="package-name">Package name</label>
               <input id="package-name" maxlength="100" autocomplete="off" />
               <label><input id="package-append-timestamp" type="checkbox" /> Append timestamp to file name</label>
+              <p id="package-file-preview" class="dialog-note" aria-live="polite"></p>
               <fieldset>
                 <legend>Remove data in fields</legend>
                 <p class="dialog-note">Select optional fields whose values must be blanked in the transported copy. Required and identity fields remain protected.</p>
@@ -480,19 +504,21 @@
                 <div class="package-filter-grid">
                   <label>Field<select id="package-filter-field"></select></label>
                   <label>Operator<select id="package-filter-operator"><option value="equals">Equals</option><option value="not-equals">Does not equal</option><option value="contains">Contains</option></select></label>
-                  <label>Value<input id="package-filter-value" autocomplete="off" /></label>
+                  <label>Value<input id="package-filter-value" list="package-filter-values" autocomplete="off" /><datalist id="package-filter-values"></datalist></label>
                 </div>
                 <p class="dialog-note">Leave the filter value blank to include every record.</p>
+                <p id="package-filter-summary" class="inline-feedback" aria-live="polite"></p>
               </fieldset>
               <fieldset>
                 <legend>Security</legend>
                 <label>Passphrase <input id="package-passphrase" type="password" minlength="12" maxlength="1024" autocomplete="new-password" /></label>
                 <label>Verify passphrase <input id="package-passphrase-verify" type="password" minlength="12" maxlength="1024" autocomplete="new-password" /></label>
                 <p class="dialog-note">At least 12 characters. The passphrase is never saved and cannot be recovered.</p>
+                <p id="package-security-status" class="inline-feedback" aria-live="polite"></p>
               </fieldset>
               <p id="package-transport-status" class="inline-feedback" role="status"></p>
             </div>
-            <div class="legacy-dialog-actions"><button id="package-create" class="dialog-primary" type="button">Package</button><button value="cancel">Close</button></div>
+            <div class="legacy-dialog-actions"><button id="package-create" class="dialog-primary" type="button" disabled>Package</button><button value="cancel">Close</button></div>
           </form>
         </dialog>
 
@@ -1044,7 +1070,7 @@
           <form method="dialog">
             <div class="legacy-dialog-titlebar"><h2 id="classic-command-dialog-title">Insert Command</h2><button value="cancel" aria-label="Close">×</button></div>
             <div class="legacy-dialog-body classic-program-dialog-body">
-              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="summarize">Summarize</option><option value="graph">Graph</option><option value="set-missing">Set</option><option value="quality">NEW BRANCH — Quality Profile</option></select></label>
+              <label>Command<select id="classic-command-dialog-kind"><option value="read">Read</option><option value="relate">Relate</option><option value="write">Write (Export)</option><option value="merge">Merge</option><option value="delete-table">Delete File/Table</option><option value="delete-records">Delete Records</option><option value="undelete-records">Undelete Records</option><option value="define">Define</option><option value="define-group">DefineGroup</option><option value="undefine">Undefine</option><option value="assign">Assign</option><option value="recode">Recode</option><option value="display">Display</option><option value="select">Select</option><option value="cancel-select">Cancel Select</option><option value="if">If</option><option value="sort">Sort</option><option value="cancel-sort">Cancel Sort</option><option value="list">List</option><option value="frequency">Frequencies</option><option value="means">Means</option><option value="tables">Tables</option><option value="summarize">Summarize</option><option value="graph">Graph</option><option value="header">Header</option><option value="typeout">Type</option><option value="routeout">RouteOut</option><option value="closeout">CloseOut</option><option value="printout">PrintOut</option><option value="dialog">Dialog</option><option value="set-missing">Set</option><option value="quality">NEW BRANCH — Quality Profile</option></select></label>
               <label id="classic-command-dialog-source-label" hidden>Project form<select id="classic-command-dialog-source"></select></label>
               <fieldset id="classic-command-dialog-relate" hidden>
                 <legend>Relate tables</legend>
@@ -1173,6 +1199,50 @@
                 <label>Y-axis title<input id="classic-command-dialog-graph-y-title" value="Case Status" autocomplete="off"></label>
                 <p class="method-note">Bar preserves the familiar horizontal orientation, Column uses vertical columns, and Pie shows category shares. All reviewed one-variable branches retain an auditable data table; unsupported variants remain visible gaps.</p>
               </fieldset>
+              <fieldset id="classic-command-dialog-header" hidden>
+                <legend>Output header</legend>
+                <label>Level 1 header<input id="classic-command-dialog-header-text" maxlength="4000" value="Foodborne outbreak analysis" autocomplete="off"></label>
+                <p class="method-note">Produces <code>HEADER 1 "text"</code>. Font, size, color, bold, italic, and underline remain named parity gaps.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-typeout" hidden>
+                <legend>Type into Output</legend>
+                <label>Literal text<textarea id="classic-command-dialog-typeout-text" maxlength="4000" rows="5">Canonical foodborne outbreak analysis.</textarea></label>
+                <p class="method-note">Produces safe literal <code>TYPEOUT "text"</code>. File input and formatting variants remain fail-closed.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-routeout" hidden>
+                <legend>Route Output</legend>
+                <label>Browser report name<input id="classic-command-dialog-routeout-file" value="foodborne-report.html" autocomplete="off"></label>
+                <label>Write mode<select id="classic-command-dialog-routeout-mode"><option value="APPEND">Append</option><option value="REPLACE">Replace</option></select></label>
+                <p class="method-note">The browser creates or reopens an in-session HTML report. <code>CLOSEOUT</code> finalizes it and enables an explicit download; operating-system paths remain unavailable.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-closeout" hidden>
+                <legend>Close routed Output</legend>
+                <p>Finalize the active in-session report and make its HTML file available to download.</p>
+                <p class="method-note">CLOSEOUT fails closed when no ROUTEOUT destination is active.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-printout" hidden>
+                <legend>Print Output</legend>
+                <p>Prepare the current Output document for the browser print dialog.</p>
+                <p class="method-note">After the program reaches PRINTOUT, select the familiar Output Print action. The legacy external-file argument remains fail-closed; open a file in the sandboxed Output viewer first.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-dialog" hidden>
+                <legend>Dialog</legend>
+                <label>Prompt<textarea id="classic-command-dialog-dialog-prompt" maxlength="4000" rows="5">Review the foodborne outbreak analysis results.</textarea></label>
+                <label>Title (optional)<input id="classic-command-dialog-dialog-title" maxlength="200" value="Foodborne outbreak review" autocomplete="off"></label>
+                <label>Legacy variant<select id="classic-command-dialog-dialog-variant"><option value="message">Message only</option><option value="numeric-implicit">Numeric input (implicit)</option><option value="numeric">Numeric input</option><option value="text">Text input</option><option value="yes-no">Yes / No</option><option value="date">Date</option><option value="time">Time</option><option value="datetime">Date and time</option><option value="choices">Fixed choices</option><option value="db-values">Values from project form</option><option value="db-views">Project forms</option><option value="databases">Projects</option><option value="db-variables">Defined variables</option><option value="read-file">Choose file</option><option value="write-file">Choose output name</option></select></label>
+                <label id="classic-command-dialog-dialog-target-label" hidden>Standard target variable<select id="classic-command-dialog-dialog-target"></select></label>
+                <label id="classic-command-dialog-dialog-mask-label" hidden>Mask (optional)<input id="classic-command-dialog-dialog-mask" maxlength="200" autocomplete="off"></label>
+                <label id="classic-command-dialog-dialog-filter-label" hidden>File filter (optional)<input id="classic-command-dialog-dialog-filter" maxlength="200" placeholder="*.csv" autocomplete="off"></label>
+                <label id="classic-command-dialog-dialog-choices-label" hidden>Choices (one per line)<textarea id="classic-command-dialog-dialog-choices" rows="5">Confirmed&#10;Probable&#10;Suspected</textarea></label>
+                <label id="classic-command-dialog-dialog-table-label" hidden>Project form<select id="classic-command-dialog-dialog-table"></select></label>
+                <label id="classic-command-dialog-dialog-field-label" hidden>Form field<select id="classic-command-dialog-dialog-field"></select></label>
+                <p id="classic-command-dialog-dialog-note" class="method-note">Displays an audited message and does not assign a variable.</p>
+              </fieldset>
+              <fieldset id="classic-command-dialog-beep" hidden>
+                <legend>Beep</legend>
+                <p>There are no options for this command.</p>
+                <p class="method-note">The browser synthesizes a short local notification tone. If audio is unavailable or blocked, visible audited feedback is retained and the program continues.</p>
+              </fieldset>
               <fieldset id="classic-command-dialog-set-missing" hidden>
                 <legend>Missing values</legend>
                 <label class="checkbox-row"><input id="classic-command-dialog-include-missing" type="checkbox"> Include missing values in analyses</label>
@@ -1207,6 +1277,44 @@
               <button id="classic-command-dialog-insert" class="dialog-primary" type="button">Insert at Cursor</button>
               <button value="cancel">Cancel</button>
             </div>
+          </form>
+        </dialog>
+
+        <dialog id="classic-runtime-dialog" class="legacy-dialog" aria-labelledby="classic-runtime-dialog-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-runtime-dialog-title">Epi Info</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p id="classic-runtime-dialog-prompt"></p>
+              <label id="classic-runtime-dialog-input-label" hidden>Value<input id="classic-runtime-dialog-input" autocomplete="off"></label>
+              <label id="classic-runtime-dialog-select-label" hidden>Choose a value<select id="classic-runtime-dialog-select"></select></label>
+              <label id="classic-runtime-dialog-file-label" hidden>Choose a file<input id="classic-runtime-dialog-file" type="file"></label>
+              <p id="classic-runtime-dialog-mask" class="dialog-note" hidden></p>
+              <p id="classic-runtime-dialog-feedback" class="inline-feedback" role="alert"></p>
+            </div>
+            <div class="legacy-dialog-actions"><button id="classic-runtime-dialog-cancel" value="cancel" hidden>Cancel</button><button class="dialog-primary" value="ok">OK</button></div>
+          </form>
+        </dialog>
+        <dialog id="classic-output-settings-dialog" class="legacy-dialog" aria-labelledby="classic-output-settings-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-output-settings-title">Storing Output</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p class="compatibility-note">Legacy folders are represented by browser-scoped storage. Settings persist on this device; routed reports remain session-only until explicitly downloaded.</p>
+              <label>Output File Prefix<input id="classic-output-settings-prefix" maxlength="64" autocomplete="off"></label>
+              <label>Output File Sequence<input id="classic-output-settings-sequence" type="number" min="0" max="999999" step="1"></label>
+              <label>Results Folder<input value="Browser session results" readonly></label>
+              <div class="form-actions"><button id="classic-output-settings-view-results" class="secondary-button" type="button">View...</button><button type="button" disabled title="The legacy C# Archive handler is empty; browser archival is not implemented.">Archive...</button><button type="button" disabled title="The legacy C# Delete handler is empty; browser deletion is not implemented.">Delete...</button></div>
+              <label>Archive Folder<input value="Project Files archive — planned" readonly></label>
+              <div class="form-actions"><button type="button" disabled title="The legacy C# View Archive handler is empty.">View...</button><button type="button" disabled title="The legacy C# Delete Archive handler is empty.">Delete...</button></div>
+              <fieldset>
+                <legend>Flag Output Files Exceeding These Limits</legend>
+                <label>Age In Days<input id="classic-output-settings-age" type="number" min="0" max="36500" step="1"></label>
+                <label>Number of Results<input id="classic-output-settings-count" type="number" min="0" max="100000" step="1"></label>
+                <label>File Size (KB)<input id="classic-output-settings-size" type="number" min="0" max="1048576" step="1"></label>
+              </fieldset>
+              <div id="classic-output-settings-results" class="inline-feedback" role="status"></div>
+              <p id="classic-output-settings-feedback" class="inline-feedback" role="status"></p>
+            </div>
+            <div class="legacy-dialog-actions"><button id="classic-output-settings-apply" type="button">Apply</button><button id="classic-output-settings-ok" class="dialog-primary" type="button">OK</button><button value="cancel">Cancel</button></div>
           </form>
         </dialog>
 
@@ -1289,6 +1397,15 @@
           <div class="panel-heading"><div><p class="step-label">DISPLAY output</p><h2 id="classic-display-output-title">Variables</h2></div><span id="classic-display-output-count" class="calculation-time"></span></div>
           <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Page Number</th><th>Prompt</th><th>Field Type</th><th>Variable</th><th>Variable Value</th><th>Format Value</th><th>Special Info</th><th>Table</th></tr></thead><tbody id="classic-display-output-body"></tbody></table></div>
           <p class="inline-feedback">Column order follows the legacy DISPLAY DBVARIABLES output. Data-source fields do not have one record-independent value.</p>
+        </section>
+        <section id="classic-text-output" class="panel" data-module-view="classic" aria-labelledby="classic-text-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">OUTPUT</p><h2 id="classic-text-output-title">Epi Info Analysis</h2></div><span id="classic-text-output-count" class="calculation-time"></span></div>
+          <div id="classic-text-output-body" class="classic-output-text"></div>
+        </section>
+        <section id="classic-route-output" class="panel" data-module-view="classic" aria-labelledby="classic-route-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">ROUTED OUTPUT</p><h2 id="classic-route-output-title">No active destination</h2></div><span id="classic-route-output-state" class="calculation-time"></span></div>
+          <p id="classic-route-output-summary"></p>
+          <div class="form-actions"><button id="classic-route-output-download" class="secondary-button" type="button" hidden>Download routed report</button></div>
         </section>
         <section id="classic-list-output" class="panel" data-module-view="classic" aria-labelledby="classic-list-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label">LIST output</p><h2 id="classic-list-output-title">Line List</h2></div><span id="classic-list-output-count" class="calculation-time"></span></div>

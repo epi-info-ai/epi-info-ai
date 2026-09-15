@@ -79,15 +79,15 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
     command("complex-means", "Complex Sample Means", "classic-command-complex-means"),
   ] },
   { key: "output", label: "Output", commands: [
-    gap("header", "Header"), gap("type", "Type"), gap("routeout", "RouteOut"), gap("closeout", "CloseOut"),
-    gap("printout", "PrintOut"), gap("store-output", "Storing Output"),
+    command("header", "Header", "classic-command-header"), command("type", "Type", "classic-command-typeout"), command("routeout", "RouteOut", "classic-command-routeout"), command("closeout", "CloseOut", "classic-command-closeout"),
+    command("printout", "PrintOut", "classic-command-printout"), command("store-output", "Storing Output", "classic-command-store-output"),
   ] },
   { key: "user-defined", label: "User-Defined Commands", commands: [
     gap("define-command", "Define Command"), gap("user-command", "User Command"),
     gap("run-saved-program", "Run Saved Program"), gap("execute-file", "Execute File"),
   ] },
   { key: "user-interaction", label: "User Interaction", commands: [
-    gap("dialog", "Dialog"), gap("beep", "Beep"), gap("quit-program", "Quit Program"),
+    command("dialog", "Dialog", "classic-command-user-dialog"), command("beep", "Beep", "classic-command-beep"), gap("quit-program", "Quit Program"),
   ] },
   { key: "options", label: "Options", commands: [command("set", "Set", "classic-command-set")] },
   { key: "new-branches", label: "New Branches — Epi Info AI", commands: [

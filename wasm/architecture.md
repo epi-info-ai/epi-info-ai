@@ -432,6 +432,17 @@ and has no runtime dependencies or operating-system access.
 
 ### TypeScript responsibilities today
 
+Localization is a TypeScript presentation concern, not an epidemiologic or
+programming-language semantic concern. The V0.1 registry in
+`app/localization/localization.ts` validates bounded data-only catalogs, owns
+locale fallback and display formatting, and emits missing/fallback diagnostics.
+The first browser host adapter owns a versioned local locale preference and safe
+text binding; a later reviewed boundary will own external catalog import.
+Neither catalogs nor locale-aware formatting may rewrite stored values, field
+identifiers, Classic source/AST, audit payloads, or Rust kernel inputs. The
+legacy-to-browser evidence and acceptance gates are maintained in
+`docs/design/localization-parity-inventory.md`.
+
 | Responsibility | File | Status |
 |---|---|---|
 | Load, validate, and instantiate the WASM module | `demo/engine.ts` | TypeScript with a confined WASM runtime boundary |
@@ -472,6 +483,10 @@ and has no runtime dependencies or operating-system access.
 | Classic SUMMARIZE aggregate planning | `app/programming/classic-summarize.ts` + `app/programming/classic-session.ts` + `demo/app.ts` | TypeScript; one validated aggregate and optional one-field stratum create a named in-session output table rendered in familiar Output; numeric aggregates enforce Number fields, missing aggregate values are audited, and multiple aggregates/weights fail closed |
 | Classic GRAPH planning and rendering | `app/programming/classic-graph.ts` + `demo/app.ts` | TypeScript orchestration over the existing typed frequency operation; bounded legacy-shaped one-variable Bar, Column, and Pie commands render accessible SVG plus tabular Output, preserve source round-trip and the source-confirmed Bar/Column orientation distinction, while other graph types/options fail closed pending separate parity work |
 | Classic command compatibility floor | `app/programming/classic-command-parity.ts` + `docs/design/classic-command-compatibility-registry.md` | TypeScript registry plus reviewed documentation; all 49 legacy enum entries retain independent explorer/parser/dialog/selected/full-run/browser-policy state |
+| Classic bounded Output routing | `app/programming/classic-ast.ts` + `demo/app.ts` | `HEADER 1 "…"` establishes the report heading; `TYPEOUT "…"` appends escaped text; `ROUTEOUT name.html APPEND|REPLACE` captures that bounded stream until `CLOSEOUT` finalizes an explicit download; bare `PRINTOUT` prepares current Output for a separate browser Print gesture. Ambient paths, external-file printing, complete analysis-output capture, TYPEOUT file input, and font/style variants remain fail-closed gaps |
+| Classic Storing Output settings | `app/programming/classic-output-settings.ts` + `demo/app.ts` | Preserves the legacy configuration dialog as browser-local typed settings; it is not AST syntax because the legacy dialog generates no command. Folder/archive capabilities remain explicit adaptations |
+| Classic user interaction | `app/programming/classic-ast.ts` + `app/programming/classic-dialog.ts` + `app/programming/classic-command-builder.ts` + `demo/app.ts` | The complete legacy `DIALOG` grammar is typed. Message and scalar/list/project-choice prompts pause sequential execution and assign only matching pre-defined Standard variables. Browser `READ` returns an explicitly chosen file name and `WRITE` a reviewed output name; neither receives ambient filesystem authority. Entered values are excluded from command history. Exact legacy masks and Analysis-versus-Enter database behavior remain differential items. |
+| Classic audible notification | `app/programming/classic-ast.ts` + `demo/app.ts` | No-option `BEEP` synthesizes a short local Web Audio tone; policy/hardware failure becomes visible audited feedback rather than a failed program. Exact Windows system-sound identity is platform-dependent |
 | Planned browser file adapter | Project Files service (not yet implemented) | A single capability-labelled interface will provide a virtual project filesystem in origin-private storage, optional user-granted local file/folder handles, and a future managed desktop-shell implementation. Classic commands consume the adapter rather than DOM globals or ambient OS paths; downloads remain the current WRITE REPLACE transport. |
 | Typed Program Editor File/Edit/Fonts menu, legacy toolbar, and Output navigation toolbar | `app/programming/classic-program-surface.ts` + `app/programming/classic-editor.ts` | TypeScript; CodeMirror editing/navigation, saved PGM/search, bounded Run, source-only browser Print, and Output history paths are active while clipboard, bookmark, and clear operations remain explicit gaps |
 | Guarded Classic program document state, project program persistence, metadata, deletion, and `.pgm7` exchange | `app/programming/classic-program-document.ts` + `demo/form-data.ts` + `demo/app.ts` | TypeScript; project packages/local extras hold source plus Author/Comments/Created/Updated, confirmed deletion retains editor source, 1 MB text files use the official extension, and imported source never bypasses AST/allowlist execution checks |

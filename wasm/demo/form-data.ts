@@ -702,7 +702,7 @@ export function showRecordInEnter(formId: string, recordIndex: number): boolean 
   return true;
 }
 
-function schemaFromDesigner(): FormSchema {
+function schemaFromDesigner(options: { allowEmpty?: boolean } = {}): FormSchema {
   const fields: FieldDefinition[] = [...requiredElements<HTMLTableRowElement>("#field-list tr")].map((row) => {
     const field: FieldDefinition = {
       name: normalizeFieldName(requiredControl(row, '[data-part="name"]').value),
@@ -719,7 +719,7 @@ function schemaFromDesigner(): FormSchema {
     if ((checkCode.after?.length ?? 0) > 0) field.checkCode = checkCode;
     return field;
   });
-  if (fields.length === 0) {
+  if (fields.length === 0 && !options.allowEmpty) {
     throw new Error("Add at least one field to the form.");
   }
   const names = fields.map((field) => field.name);
@@ -1001,9 +1001,13 @@ function fieldRow(field: FieldDefinition = { name: "new_field", prompt: "New fie
   remove.addEventListener("click", () => {
     row.remove();
     try {
-      schema = schemaFromDesigner();
+      // An empty form is a valid in-progress design state. Save Form retains
+      // the stricter requirement that a persisted form contain a field.
+      schema = schemaFromDesigner({ allowEmpty: true });
       renderCanvas();
       renderProjectTree();
+      syncCurrentForm();
+      requiredElement("#form-status").textContent = `${field.prompt} removed. Save Form to persist the change.`;
     } catch {
       // The properties editor will show validation errors when the form is saved.
     }
@@ -1596,6 +1600,17 @@ async function reviewEncryptedCompleteProject(): Promise<void> {
   status.textContent = "Package authentication and project validation passed. Review the inventory; the current project is still unchanged.";
 }
 
+function stageEncryptedProjectForReview(file: File): void {
+  resetEncryptedProjectOpenDialog();
+  const input = requiredElement<HTMLInputElement>("#encrypted-project-open-file");
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  input.files = transfer.files;
+  requiredElement("#encrypted-project-open-status").textContent = `${file.name} selected. Enter its passphrase, then choose Review Package. The current project is unchanged.`;
+  requiredElement<HTMLDialogElement>("#encrypted-project-open-dialog").showModal();
+  queueMicrotask(() => requiredElement<HTMLInputElement>("#encrypted-project-open-passphrase").focus());
+}
+
 async function openProjectPackage(file: File): Promise<void> {
   if (file.size > MAX_PROJECT_ARCHIVE_BYTES) throw new Error("Project packages are limited to 150 MiB in this prototype.");
   const binary = await isBinaryProjectArchive(file);
@@ -1735,6 +1750,49 @@ function openPackageTransportDialog(): void {
   );
   requiredElement<HTMLSelectElement>("#package-filter-operator").value = "equals";
   requiredElement<HTMLDialogElement>("#package-transport-dialog").showModal();
+  updatePackageTransportPreview();
+}
+
+function updatePackageTransportPreview(): void {
+  const name = requiredElement<HTMLInputElement>("#package-name").value.trim();
+  const timestamp = requiredElement<HTMLInputElement>("#package-append-timestamp").checked;
+  requiredElement("#package-file-preview").textContent = name
+    ? `Output: ${safeFileStem(name)}${timestamp ? "-YYYY-MM-DDTHH-MM-SS" : ""}${ENCRYPTED_PROJECT_EXTENSION}`
+    : "Enter a package name.";
+
+  const fieldSelect = requiredElement<HTMLSelectElement>("#package-filter-field");
+  const operator = requiredElement<HTMLSelectElement>("#package-filter-operator");
+  const value = requiredElement<HTMLInputElement>("#package-filter-value");
+  const field = schema.fields.find(({ name: fieldName }) => fieldName === fieldSelect.value);
+  operator.disabled = !field;
+  value.disabled = !field;
+  if (!field) value.value = "";
+  const contains = operator.querySelector<HTMLOptionElement>('option[value="contains"]');
+  const textLike = Boolean(field && ["text", "text-uppercase", "multiline", "unique-id", "phone", "option"].includes(field.type));
+  if (contains) contains.disabled = !textLike;
+  if (!textLike && operator.value === "contains") operator.value = "equals";
+  value.type = field?.type === "number" ? "number" : field?.type === "date" ? "date" : field?.type === "time" ? "time" : "text";
+  value.step = field?.type === "number" ? "any" : "";
+  const values = field ? [...new Set(records.map((record) => String(record[field.name] ?? "").trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, "en-US", { numeric: true, sensitivity: "base" })).slice(0, 250) : [];
+  requiredElement<HTMLDataListElement>("#package-filter-values").replaceChildren(...values.map((item) => new Option(item)));
+  const selectedCount = selectedTransportRecords().length;
+  const removedCount = requiredElement<HTMLSelectElement>("#package-remove-fields").selectedOptions.length;
+  requiredElement("#package-filter-summary").textContent = `${selectedCount.toLocaleString()} of ${records.length.toLocaleString()} records will be included; ${removedCount} field${removedCount === 1 ? "" : "s"} will be blanked.`;
+
+  const passphrase = requiredElement<HTMLInputElement>("#package-passphrase");
+  const verification = requiredElement<HTMLInputElement>("#package-passphrase-verify");
+  const hasMinimum = passphrase.value.length >= 12;
+  const matches = hasMinimum && passphrase.value === verification.value;
+  passphrase.setAttribute("aria-invalid", String(passphrase.value.length > 0 && !hasMinimum));
+  verification.setAttribute("aria-invalid", String(verification.value.length > 0 && !matches));
+  requiredElement("#package-security-status").textContent = !passphrase.value
+    ? "Enter and verify a passphrase to enable Package."
+    : !hasMinimum ? `${12 - passphrase.value.length} more character${12 - passphrase.value.length === 1 ? "" : "s"} required.`
+    : !verification.value ? "Re-enter the passphrase for verification."
+    : !matches ? "Passphrases do not match."
+    : "Passphrase verified. Ready to encrypt.";
+  requiredElement<HTMLButtonElement>("#package-create").disabled = !name || selectedCount === 0 || !matches;
 }
 
 function selectedTransportRecords(): EpiRecord[] {
@@ -2030,7 +2088,10 @@ export function initializeFormDataDemo() {
     if (!file) return;
     requiredElement("#main-menu-status").textContent = `Opening ${file.name}...`;
     try {
-      await openProjectPackage(file);
+      if (/\.epiax$/i.test(file.name) || file.type === "application/vnd.epi-info-ai.encrypted-project" || await isEncryptedProjectArchive(file)) {
+        stageEncryptedProjectForReview(file);
+        requiredElement("#main-menu-status").textContent = `${file.name} requires its passphrase and review before opening.`;
+      } else await openProjectPackage(file);
     } catch (error) {
       requiredElement("#main-menu-status").textContent = error instanceof Error ? error.message : "Unable to open this project package.";
     } finally {
@@ -2072,6 +2133,12 @@ export function initializeFormDataDemo() {
     try { await createTransportPackage(); }
     catch (error) { requiredElement("#package-transport-status").textContent = error instanceof Error ? error.message : "Unable to create the encrypted data package."; }
   });
+  for (const selector of ["#package-name", "#package-filter-value", "#package-passphrase", "#package-passphrase-verify"]) {
+    requiredElement<HTMLInputElement>(selector).addEventListener("input", updatePackageTransportPreview);
+  }
+  for (const selector of ["#package-append-timestamp", "#package-remove-fields", "#package-filter-field", "#package-filter-operator"]) {
+    requiredElement<HTMLInputElement | HTMLSelectElement>(selector).addEventListener("change", updatePackageTransportPreview);
+  }
   requiredElement("#data-package-review").addEventListener("click", async () => {
     try { await reviewEncryptedDataPackage(); }
     catch (error) { requiredElement("#data-package-import-status").textContent = error instanceof Error ? error.message : "Unable to review the encrypted data package."; }
