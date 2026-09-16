@@ -1,0 +1,10 @@
+*** Epi Info AI MATCH zero-discordant-cell boundary exercise
+*** Dataset: case-control-database-example.xlsx (130 records; 65 matched pairs)
+*** School has b=16 and c=0 across 29 complete pairs, so the matched OR is +infinity.
+*** Another 36 pairs are excluded because School is missing for one or both members.
+
+FREQ school
+
+TABLES school caco
+
+MATCH school caco MATCHVAR=matched_pairs

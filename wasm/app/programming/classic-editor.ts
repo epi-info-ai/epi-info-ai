@@ -7,6 +7,7 @@ import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { minimalSetup } from "codemirror";
 import type { FieldDefinition } from "../contracts/core.js";
 import { ClassicSyntaxError, parseClassicProgram } from "./classic-ast.js";
+import { resolveExecutableClassicMatchCommand } from "./classic-match.js";
 import { ClassicProgramDiagnostic, parseBoundedClassicProgram } from "./classic-program.js";
 
 export interface ClassicProgramEditor {
@@ -202,11 +203,13 @@ export function createClassicProgramEditor(
         && ast.body[0]?.type === "DefineStatement"
         && ast.body[1]?.type === "RecodeStatement"
         && ast.body[2]?.type === "FrequencyStatement";
+      const executableMatch = ast.body.length === 1 && ast.body[0]?.type === "MatchStatement";
       if (executableShape) parseBoundedClassicProgram(source, getFields());
+      if (executableMatch) resolveExecutableClassicMatchCommand(source, getFields());
       onLintStatus?.({
         valid: true,
-        message: executableShape
-          ? "Program syntax is valid, and fields are valid for the safe V0.1 executor."
+        message: executableShape || executableMatch
+          ? `Program syntax and fields are valid for the ${executableMatch ? "bounded 1:1 MATCH" : "safe V0.1"} executor.`
           : `Program syntax is valid AST ${ast.astVersion}; execution remains disabled for this command sequence.`,
       });
       return [];

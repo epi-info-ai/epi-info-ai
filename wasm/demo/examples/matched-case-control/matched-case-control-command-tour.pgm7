@@ -1,0 +1,13 @@
+*** Epi Info AI matched case-control command tour
+*** Dataset: case-control-database-example.xlsx (130 records; 65 matched pairs)
+*** PB is incomplete in five pairs; MATCH reports those exclusions explicitly.
+*** Browser-verified candidate; historical desktop field-user comparison pending.
+*** Run Commands executes all four commands in source order and retains each output.
+
+LIST matched_pairs caco pb
+
+FREQ caco
+
+TABLES pb caco
+
+MATCH pb caco MATCHVAR=matched_pairs

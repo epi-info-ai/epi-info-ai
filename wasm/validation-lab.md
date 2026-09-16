@@ -475,8 +475,9 @@ discrepancy to its detailed evidence record.
   exposure-reversal reciprocity.
 - The notebook calls the deployed Rust/WebAssembly V0.16 MATCH exports and
   compares every candidate value with the independent SciPy calculation.
-  Passing validates this bounded candidate and fixture, not Program Editor
-  execution readiness or legacy desktop parity.
+  The Program Editor executes the same exports for its bounded 1:1 path.
+  Passing validates this browser candidate and fixture, not legacy desktop
+  parity; experienced field-user workflow review remains pending.
 
 ### Classic TABLES V0.11 validation
 

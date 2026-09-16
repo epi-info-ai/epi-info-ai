@@ -30,8 +30,9 @@ runs.
 
 ## Status legend
 
-- **BV** — browser-verified with a checked-in foodborne `.pgm` and asserted
-  expected output.
+- **BV** — browser-verified with a checked-in `.pgm`/`.pgm7`, compatible test
+  data, and asserted expected output. Commands are dataset-independent; example
+  catalogs only determine which teaching programs the editor offers.
 - **Candidate** — typed parser/dialog and some execution exist, but the full
   browser/legacy evidence gate is incomplete.
 - **Gap** — the command remains inventoried but does not yet have a typed port.
@@ -65,7 +66,7 @@ runs.
 | Statistics | List | `LIST` | Typed parser/dialog; selected execution | BV |
 | Statistics | Frequencies | `FREQ` | Typed parser/dialog; selected and bounded program execution | BV |
 | Statistics | Tables | `TABLES` | Typed parser/dialog; selected and bounded program execution | BV |
-| Statistics | Match | `MATCH` | Typed AST covers all five retained grammar forms and options; revival dialog authors the dormant exposure/outcome form; Program Editor execution remains fail-closed because the shipped interpreter says “NOT yet implemented”; [archived sources and candidate corpora](wasm/docs/research/match-command-sources-and-data.md), a [proposed bounded 1:1 method contract](wasm/docs/validation/matched-pairs-method-contract.md), bounded typed record-to-pair derivation, V0.16 Rust/WASM statistics, cancellable Worker, and an [independent JupyterLite comparison](wasm/validation-lab/content/validate-match.ipynb) are implemented | Bounded revival candidate; desktop differential and Program Editor execution gaps |
+| Statistics | Match | `MATCH` | Typed AST preserves all five retained grammar forms and options; the Program Editor executes the explicit unweighted `MATCH exposure outcome MATCHVAR=id` 1:1 boundary through typed record-to-pair derivation, the V0.16 Rust/WASM statistics Worker, visible Output, common history, dataset-bound multi-command tours, explicit infinity/no-discordance boundary programs, and fingerprinted aggregate-only field-review JSON export; [archived sources and candidate corpora](wasm/docs/research/match-command-sources-and-data.md), the [bounded method contract](wasm/docs/validation/matched-pairs-method-contract.md), and an [independent JupyterLite comparison](wasm/validation-lab/content/validate-match.ipynb) govern it | Browser-verified bounded revival; field-user legacy workflow comparison pending; wildcard, weight, multiple-match-field, variable-ratio, and SET-option execution gaps preserved |
 | Statistics | Means | `MEANS` | Typed parser/dialog; selected execution | BV |
 | Statistics | Summarize | `SUMMARIZE` | Typed parser/dialog; selected execution | BV |
 | Statistics | Graph | `GRAPH` | Typed parser/dialog; selected execution | BV |

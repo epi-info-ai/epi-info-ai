@@ -65,6 +65,14 @@ surface allows manual markers, text, and zones at a clicked/right-clicked point;
 the inspected manual and C# do not establish click-map-to-record-field harvesting.
 A future browser point picker must therefore be registered as a new branch.
 
+The legacy **Case Cluster** name is cartographic, not inferential. The inspected
+provider places record coordinates in an ESRI `GraphicsLayer` and assigns a
+`FlareClusterer` with a fixed display radius; the clusters split as the user
+zooms and can flare into their member dots. A whole-source and User Guide search
+found no built-in Getis-Ord, global or local Moran's I/LISA, k-means, DBSCAN, or
+HDBSCAN analysis. Those methods must be registered and validated as new spatial
+analysis branches rather than attributed to legacy Case Cluster parity.
+
 ## Capability comparison
 
 | Gap | Legacy capability | Evidence in C# / manual | Browser prototype | Decision |
@@ -91,6 +99,8 @@ A future browser point picker must therefore be registered as a new branch.
 | LEGACY-MAPS-016 | Click map to populate record coordinates | No inspected desktop manual/code equivalent; clicks support marker/text/zone placement | Not implemented | Optional future new branch only; do not substitute it for the legacy Geo-location/GEOCODE and Case Cluster field-selection workflows |
 | LEGACY-MAPS-017 | Browser-local offline map package | No inspected desktop equivalent; legacy Street/Satellite providers are online mechanisms | New Project PMTiles v3 import validates signature/version, section bounds, WGS 84 coverage, zoom range, size, attribution, license, and SHA-256, then writes only an applied archive to OPFS and stores typed provenance. Maps re-verifies and renders raster packages through Leaflet or MVT through a local-protocol MapLibre canvas while suppressing Street requests. Save Project As embeds the raw archive in a bounded `.epia` backup; Open Project verifies and restores it under a new OPFS path. Missing/corrupt storage fails to blank and offers backup restore, exact-digest re-import, or detach | New branch. Browser-verified bounded raster/vector, backup/restore, and reactive eviction-recovery candidate; cartographic style review, exhaustive archive validation, proactive quota-pressure warning, and network-disabled field acceptance remain open |
 | LEGACY-MAPS-018 | Classic Analysis `MAP` programming command revival | Grammar defines thematic `AVG`, `CASE_BASED`, `SUM`, `COUNT`, `MIN`, and `MAX` forms plus denominator, output-table, title, template, and silent options; the shipped Command Explorer calls “feature not implemented” and interpreter cases do not execute | Not implemented | Revival/new branch backlog. Preserve the dormant familiar `MAP` spelling and grammar where safe, establish legacy intent with programs/output evidence, and route results into typed map layers. Modern GeoJSON, H3, GeoTIFF, offline-package, and spatial-analysis syntax must be separately labeled new branches rather than silently attributed to the legacy command. |
+
+| LEGACY-MAPS-019 | Inferential spatial clustering and unsupervised point clustering | No built-in Getis-Ord, global/local Moran's I (LISA), k-means, DBSCAN, or HDBSCAN implementation found in the inspected Community Edition source or User Guide. Case Cluster uses display-scale flare aggregation only. | Not implemented | New-branch family. Define each method's unit of analysis, spatial weights/distance model, null hypothesis or clustering objective, multiple-testing treatment, privacy boundary, reproducibility controls, and independent validation. SaTScan interoperability is tracked separately for spatial/temporal scan statistics. |
 
 ## TypeScript layer model
 

@@ -1,9 +1,9 @@
 # Matched case-control examples
 
-This bundle supports the `MATCH` revival work. Execution currently remains
-disabled because the checked-in Epi Info 7 interpreter retains the command
-syntax but reports MATCH as not implemented. The included program therefore
-tests authoring and syntax only until the method contract is approved.
+This bundle supports the `MATCH` revival work. The explicit unweighted 1:1
+boundary executes through the browser candidate; retained legacy syntax outside
+that boundary remains fail-closed. Historical desktop comparison by experienced
+field users is still required before claiming legacy parity.
 
 ## Legacy teaching workbook
 
@@ -12,8 +12,14 @@ copy of the Community Edition sample workbook. Its main worksheet contains 130
 observations and 121 fields. `CaCo` contains 65 cases and 65 controls, and
 `Matched pairs` identifies 65 complete one-case/one-control sets.
 
+For the initial `PB` exposure exercise, 60 sets have complete binary exposure
+values and five otherwise valid sets are excluded because one or both exposure
+values are missing. Executable Output reports that distinction rather than
+describing all 65 structural pairs as analyzed.
+
 - Initial normal exposure candidate: `PB`
-- Initial zero-discordance boundary candidate: `School`
+- Initial one-sided zero-discordant-cell boundary candidate: `School` (`b=16`,
+  `c=0` across 29 complete pairs; this is not the same as no discordance)
 - SHA-256:
   `c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48`
 
@@ -37,6 +43,19 @@ materialize CRLF line endings and therefore has a different byte digest.
 
 ## Program
 
+[`case-control-database-example.programs.json`](case-control-database-example.programs.json)
+binds the teaching workbook to the Program Editor example picker. Its
+[`matched-case-control-command-tour.pgm7`](matched-case-control-command-tour.pgm7)
+counterpart runs `LIST`, `FREQ`, `TABLES`, and `MATCH` together. This tests
+multi-command parsing, source-order execution, retained Output, and History on
+the same matched data used by the revival candidate. The example is offered
+only when the matching workbook fingerprint is loaded.
+
+[`match-school-zero-cell.pgm7`](match-school-zero-cell.pgm7) exercises the
+workbook's `School` exposure. Among 29 complete pairs it produces `b=16`,
+`c=0`, a positive-infinity matched odds ratio, and a finite lower/infinite upper
+exact interval; 36 pairs with missing School values are reported as excluded.
+
 [`match-pb-by-pair.pgm7`](match-pb-by-pair.pgm7) targets the normalized field
 names created when the teaching workbook is imported:
 
@@ -44,9 +63,10 @@ names created when the teaching workbook is imported:
 MATCH pb caco MATCHVAR=matched_pairs
 ```
 
-It should parse and be recorded as a rejected execution attempt today. Enabling
-analysis requires the documented method/output contract, independent numerical
-validation, and reviewed desktop differential evidence. See the complete
+The explicit unweighted 1:1 form now parses and executes through the V0.16
+Rust/WASM Worker. Broader retained forms remain rejected. Independent numerical
+validation is available now; experienced field users will supply historical
+workflow comparison evidence before any legacy-parity claim. See the complete
 [source and corpus inventory](../../../docs/research/match-command-sources-and-data.md).
 
 ## Hand-auditable contract fixture
@@ -56,14 +76,25 @@ synthetic records across ten sets: seven valid 1:1 pairs and three deliberately
 excluded edge sets. The included pairs yield three case-exposed discordances,
 two control-exposed discordances, and a matched odds ratio of `1.5`.
 
-[`match-hand-audit.pgm7`](match-hand-audit.pgm7) is its syntax-only Program
-Editor exercise. The exact expected counts, tests, limits, and exclusion reasons
+[`match-hand-audit.pgm7`](match-hand-audit.pgm7) is its bounded executable
+Program Editor exercise. The exact expected counts, tests, limits, and exclusion reasons
 are frozen in the
 [proposed V0.1 method contract](../../../docs/validation/matched-pairs-method-contract.md).
 The independent
 [`validate-match.ipynb`](../../../validation-lab/content/validate-match.ipynb)
-JupyterLite lab reconstructs these sets and tests the proposed calculations,
-boundaries, and invariants without calling a MATCH execution engine.
+JupyterLite lab reconstructs these sets and independently tests the deployed
+MATCH calculations, boundaries, and invariants.
+
+The hand-audit CSV now has its own fingerprinted program catalog, so its
+`TABLES` plus `MATCH` boundary tour appears only when that exact dataset is
+loaded. [`matched-pairs-no-discordance.csv`](matched-pairs-no-discordance.csv)
+adds the distinct concordant-only case: four valid pairs with `b=c=0`.
+[`match-no-discordance.pgm7`](match-no-discordance.pgm7) verifies that the odds
+ratio, interval, and McNemar tests remain explicitly unavailable rather than
+being replaced with invented finite values.
+
+The frozen boundary expectations are recorded in
+[`matched-pairs-boundaries-v0.1.json`](../../../tests/fixtures/algorithm-validation/matched-pairs-boundaries-v0.1.json).
 
 CSV SHA-256:
 `a8c0364bcc1ffb37a5ef29b4bf2bb36cef5652a219c51e11cfa0cef98492e518`.

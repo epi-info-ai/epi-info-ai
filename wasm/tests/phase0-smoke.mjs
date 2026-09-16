@@ -57,6 +57,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-command-builder.ts",
     "wasm/app/programming/classic-match.ts",
     "wasm/app/programming/classic-match-analysis.ts",
+    "wasm/app/programming/classic-match-review.ts",
     "wasm/app/programming/classic-selection.ts",
     "wasm/app/programming/classic-sort.ts",
     "wasm/app/programming/classic-assignment.ts",
@@ -105,14 +106,22 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/sample-case-data.csv",
     "wasm/demo/sample-map-layer.geojson",
     "wasm/demo/examples/README.md",
+    "wasm/demo/examples/program-catalogs.json",
     "wasm/demo/examples/foodborne/README.md",
     "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv",
     "wasm/demo/examples/foodborne/foodborne-dialog-tour.pgm7",
     "wasm/demo/examples/foodborne/maps/city-of-toledo-neighborhoods.geojson",
     "wasm/demo/examples/matched-case-control/README.md",
     "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx",
+    "wasm/demo/examples/matched-case-control/case-control-database-example.programs.json",
+    "wasm/demo/examples/matched-case-control/matched-case-control-command-tour.pgm7",
+    "wasm/demo/examples/matched-case-control/match-school-zero-cell.pgm7",
     "wasm/demo/examples/matched-case-control/matched-pairs-hand-audit.csv",
+    "wasm/demo/examples/matched-case-control/matched-pairs-hand-audit.programs.json",
     "wasm/demo/examples/matched-case-control/match-hand-audit.pgm7",
+    "wasm/demo/examples/matched-case-control/matched-pairs-no-discordance.csv",
+    "wasm/demo/examples/matched-case-control/matched-pairs-no-discordance.programs.json",
+    "wasm/demo/examples/matched-case-control/match-no-discordance.pgm7",
     "wasm/demo/examples/matched-case-control/matched-logistic-test-data.csv",
     "wasm/demo/examples/matched-case-control/match-pb-by-pair.pgm7",
     "wasm/demo/examples/projects/README.md",
@@ -177,6 +186,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json",
     "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json",
     "wasm/tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json",
+    "wasm/tests/fixtures/algorithm-validation/matched-pairs-boundaries-v0.1.json",
     "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.pgm",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.expected.json",
@@ -410,7 +420,7 @@ async function checkRequiredAssetsAndUi() {
   const statistics = classicContract.CLASSIC_COMMAND_GROUPS.find((group) => group.key === "statistics");
   assert.deepEqual(statistics.commands.map((entry) => entry.label), ["List", "Frequencies", "Tables", "Means", "Summarize", "Graph"]);
   const newBranches = classicContract.CLASSIC_COMMAND_GROUPS.find((group) => group.key === "new-branches");
-  assert.deepEqual(newBranches.commands.map((entry) => [entry.label, entry.newBranch]), [["MATCH revival (syntax only)", true], ["Quality Profile", true], ["Convert Access Database", true]]);
+  assert.deepEqual(newBranches.commands.map((entry) => [entry.label, entry.newBranch]), [["MATCH paired analysis (bounded 1:1)", true], ["Quality Profile", true], ["Convert Access Database", true]]);
   const programSurface = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-program-surface.ts")).href}?menu=${Date.now()}`);
   assert.deepEqual(programSurface.CLASSIC_PROGRAM_MENUS.map((menu) => menu.label), ["File", "Edit", "Fonts"]);
   assert.equal(programSurface.CLASSIC_PROGRAM_MENUS[2].entries.find((entry) => entry.kind === "command" && entry.key === "editor-font").disposition, "implemented");
@@ -471,8 +481,9 @@ async function checkRequiredAssetsAndUi() {
   assert.equal(commandParity.classicCommandParityEntry("statistics", "tables").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "match").parser, "syntax-v1.0");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "match").dialog, "typed-source-v0.1");
-  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").browserPolicy, "blocked");
-  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").parityStatus, "not-started");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").browserPolicy, "adapt-required");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").selectedExecution, "executes-v0.1");
+  assert.equal(commandParity.classicCommandParityEntry("statistics", "match").parityStatus, "browser-verified");
   assert.equal(commandParity.classicCommandParityEntry("statistics", "list").selectedExecution, "executes-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "define").dialog, "typed-source-v0.1");
   assert.equal(commandParity.classicCommandParityEntry("variables", "recode").dialog, "typed-source-v0.1");
@@ -938,10 +949,17 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(commandBuilder.buildClassicAnalysisCommand({
     kind: "match", selection: { kind: "row-column", exposure: "potato_salad", outcome: "case_status" }, matchBy: ["sex"],
   }), "MATCH potato_salad case_status MATCHVAR=sex");
-  assert.throws(
-    () => commandBuilder.resolveSelectedClassicAnalysisCommand("MATCH potato_salad case_status MATCHVAR=sex", projectSource.fields),
-    /execution remains disabled.*Rule_Match executor reports that MATCH is not yet implemented/,
+  assert.deepEqual(
+    commandBuilder.resolveSelectedClassicAnalysisCommand("MATCH potato_salad case_status MATCHVAR=sex", projectSource.fields),
+    {
+      kind: "match",
+      selection: { kind: "row-column", exposure: "potato_salad", outcome: "case_status" },
+      matchBy: ["sex"],
+      source: "MATCH potato_salad case_status MATCHVAR=sex",
+    },
   );
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("MATCH * case_status MATCHVAR=sex", projectSource.fields), /wildcard and EXCEPT forms remain syntax-only/);
+  assert.throws(() => commandBuilder.resolveSelectedClassicAnalysisCommand("MATCH potato_salad case_status MATCHVAR=sex WEIGHTVAR=age", projectSource.fields), /WEIGHTVAR remains syntax-only/);
 
   const readExpected = JSON.parse(await readFile(repositoryPath(
     "wasm/tests/fixtures/classic-command-parity/foodborne-read-current-form.expected.json",
@@ -1962,6 +1980,15 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(session.groups().length, 0, "READ must clear GROUPVAR definitions");
 
   const examples = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-examples.ts")).href}?examples=${Date.now()}`);
+  const catalogIndexValue = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/program-catalogs.json"), "utf8"));
+  const catalogIndex = examples.validateClassicProgramCatalogIndex(catalogIndexValue);
+  assert.deepEqual(catalogIndex.catalogs.map(({ datasetId }) => datasetId), [
+    "foodborne-outbreak-investigation", "case-control-database-example", "matched-pairs-hand-audit", "matched-pairs-no-discordance",
+  ]);
+  assert.throws(() => examples.validateClassicProgramCatalogIndex({
+    schemaVersion: 1,
+    catalogs: [{ datasetId: "unsafe", datasetSha256: "0".repeat(64), catalog: "../unsafe.programs.json" }],
+  }), /safe relative/);
   const catalogValue = JSON.parse(await readFile(repositoryPath(
     "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.programs.json",
   ), "utf8"));
@@ -2028,6 +2055,32 @@ FREQ AgeGroup STRATAVAR=Sex`;
     recordCount: imported.records.length,
   });
   assert.match(wrongType.programs.find((program) => program.example.id === "age-decades").issues.join(" "), /must be number/i);
+
+  const teaching = await import(`${pathToFileURL(repositoryPath("wasm/app/teaching/repository.ts")).href}?teaching=${Date.now()}`);
+  const teachingManifestValue = JSON.parse(await readFile(repositoryPath(
+    "wasm/demo/examples/foodborne/epi-info-teaching.json",
+  ), "utf8"));
+  const teachingManifest = teaching.validateTeachingRepositoryManifest(teachingManifestValue);
+  assert.equal(teachingManifest.id, "org.epi-info-ai.foodborne-outbreak");
+  assert.equal(teachingManifest.source.revision, "4dccfbaa79e62f7bee4c9c9c8a84e00453ed3b48");
+  assert.deepEqual(teachingManifest.artifacts.map(({ role }) => role), ["dataset", "program-catalog", "program", "lesson"]);
+  for (const artifact of teachingManifest.artifacts) {
+    const bytes = await readFile(repositoryPath(artifact.path));
+    assert.equal(bytes.length, artifact.bytes, `${artifact.path} teaching byte length must remain pinned`);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), artifact.sha256, `${artifact.path} teaching digest must remain pinned`);
+  }
+  assert.equal(
+    teaching.teachingArtifactUrl(teachingManifest, teachingManifest.artifacts[0]).href,
+    `https://raw.githubusercontent.com/epi-info-ai/epi-info-ai/${teachingManifest.source.revision}/${teachingManifest.artifacts[0].path}`,
+  );
+  assert.throws(() => teaching.validateTeachingRepositoryManifest({
+    ...teachingManifestValue,
+    source: { ...teachingManifestValue.source, revision: "main" },
+  }), /immutable Git commit SHA/);
+  assert.throws(() => teaching.validateTeachingRepositoryManifest({
+    ...teachingManifestValue,
+    artifacts: [{ ...teachingManifestValue.artifacts[0], path: "../private.csv" }],
+  }), /safe relative repository path/);
 }
 
 async function checkMeansContract() {
@@ -2219,6 +2272,75 @@ async function checkMatchedPairsContractFixture() {
   assert.equal(invalidBinary.totals.excludedRecords, 2);
   assert.throws(() => deriveMatchedPairs([], derived.input), /at least one active record/);
   assert.throws(() => deriveMatchedPairs(records, { ...derived.input, matchField: derived.input.exposureField }), /three different/);
+  const boundaryFixture = JSON.parse(await readFile(repositoryPath(
+    "wasm/tests/fixtures/algorithm-validation/matched-pairs-boundaries-v0.1.json",
+  ), "utf8"));
+  const noDiscordanceCase = boundaryFixture.cases.find(({ id }) => id === "concordant-only-no-discordance");
+  const noDiscordanceBytes = await readFile(repositoryPath(noDiscordanceCase.dataset.file));
+  assert.equal(createHash("sha256").update(noDiscordanceBytes).digest("hex"), noDiscordanceCase.dataset.sha256);
+  const [noDiscordanceHeaders, ...noDiscordanceRows] = parseCsv(noDiscordanceBytes.toString("utf8"));
+  const noDiscordanceRecords = noDiscordanceRows.map((row) => Object.fromEntries(noDiscordanceHeaders.map((header, index) => [header, row[index] ?? ""])));
+  const noDiscordance = deriveMatchedPairs(noDiscordanceRecords, {
+    exposureField: "exposure", outcomeField: "outcome", matchField: "set_id", confidenceLevel: 0.95,
+  });
+  assert.equal(noDiscordance.totals.sourceSets, noDiscordanceCase.expected.sourceSets);
+  assert.equal(noDiscordance.totals.includedSets, noDiscordanceCase.expected.includedSets);
+  assert.deepEqual(noDiscordance.pairs, {
+    caseExposedControlUnexposed: 0,
+    caseUnexposedControlExposed: 0,
+    bothExposed: 2,
+    neitherExposed: 2,
+    discordant: 0,
+    concordant: 4,
+  });
+  const matchReview = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-match-review.ts")).href}?matched-review=${Date.now()}`);
+  const reviewResult = {
+    schemaVersion: "0.1.0",
+    operation: "epi.match.paired",
+    engine: { id: "epi-core-wasm", version: "0.16.0", operation: "epi.match.paired" },
+    input: derived.kernelInput,
+    methods: {
+      oddsRatio: "discordant-pairs-b-over-c",
+      confidenceInterval: "conditional-exact-central-clopper-pearson-odds-transform",
+      mcnemar: "discordant-pairs-chi-square-df1",
+      exact: "two-sided-doubled-binomial-tail",
+      midP: "two-sided-binomial-tail-minus-half-observed",
+    },
+    estimate: { state: fixture.expected.matchedOddsRatio.state, value: fixture.expected.matchedOddsRatio.value },
+    confidenceInterval: {
+      confidenceLevel: fixture.expected.matchedOddsRatio.confidenceLevel,
+      lower: { state: "finite", value: fixture.expected.matchedOddsRatio.conditionalExactCentral.lower },
+      upper: { state: "finite", value: fixture.expected.matchedOddsRatio.conditionalExactCentral.upper },
+    },
+    tests: {
+      uncorrected: { method: "mcnemar-uncorrected", degreesOfFreedom: 1, value: fixture.expected.mcnemar.uncorrected.chiSquare, pValue: fixture.expected.mcnemar.uncorrected.pValue },
+      continuityCorrected: { method: "mcnemar-continuity-corrected", degreesOfFreedom: 1, value: fixture.expected.mcnemar.continuityCorrected.chiSquare, pValue: fixture.expected.mcnemar.continuityCorrected.pValue },
+      exactTwoSidedPValue: fixture.expected.mcnemar.exactTwoSidedPValue,
+      exactTwoSidedMidPValue: fixture.expected.mcnemar.exactTwoSidedMidPValue,
+    },
+    diagnostics: { warnings: [] },
+  };
+  const reviewInput = {
+    projectName: "Hand audit",
+    formName: "Matched pairs",
+    dataset: { id: "matched-pairs-hand-audit", file: "matched-pairs-hand-audit.csv", sha256: fixture.dataset.sha256 },
+    derivation: derived,
+    result: reviewResult,
+  };
+  const evidence = await matchReview.createClassicMatchReviewEvidence(reviewInput, {
+    reviewer: "Field reviewer 01",
+    reviewedOn: "2026-09-15",
+    disposition: "browser-reviewed",
+    notes: "Independent browser review.",
+  }, new Date("2026-09-15T14:00:00.000Z"));
+  assert.equal(evidence.schemaVersion, "0.1.0");
+  assert.equal(evidence.review.parityEffect, "none");
+  assert.equal(evidence.fingerprints.datasetSha256, fixture.dataset.sha256);
+  assert.match(evidence.fingerprints.commandSha256, /^[a-f0-9]{64}$/);
+  assert.match(evidence.fingerprints.aggregateResultSha256, /^[a-f0-9]{64}$/);
+  assert.equal(Object.hasOwn(evidence.aggregateResult.exclusions, "sets"), false, "review evidence must omit matched-set identifiers");
+  assert.equal((await matchReview.fingerprintClassicMatchReview(reviewInput)).aggregateResultSha256, evidence.fingerprints.aggregateResultSha256);
+  assert.throws(() => matchReview.validateClassicMatchReview("Reviewer", "2026-09-15", "agrees-with-legacy", ""), /legacy Epi Info version/);
   const rustSource = await readFile(repositoryPath("wasm/engine-rust/src/lib.rs"), "utf8");
   for (const exportName of [
     "matched_odds_ratio",
@@ -3373,6 +3495,7 @@ async function checkEpiAssistProposalBoundary() {
 async function checkClassicProgramAst() {
   const parser = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-ast.ts")).href}?ast=${Date.now()}`);
   const matchCommands = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-match.ts")).href}?match=${Date.now()}`);
+  const examples = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-examples.ts")).href}?matched-examples=${Date.now()}`);
   const source = `READ {Projects\\Sample\\Sample.prj}:Oswego
 DEFINE AgeGroup TEXTINPUT
 ASSIGN AgeGroup = "Unknown"
@@ -3440,7 +3563,25 @@ CANCEL SORT`;
   assert.throws(() => matchCommands.parseClassicMatchCommand("MATCH potato_salad case_status\nMATCH hamburger case_status"), /exactly one complete MATCH/);
   assert.throws(() => parser.parseClassicProgram("MATCH potato_salad case_status STATISTICS=FISHER"), /accepts NONE only/);
   assert.throws(() => parser.parseClassicProgram("MATCH potato_salad case_status MATCHVAR=Sex MATCHVAR=Age"), /may appear only once/);
-  assert.throws(() => matchCommands.matchExecutionUnavailable(), /Rule_Match executor reports that MATCH is not yet implemented/);
+  assert.deepEqual(matchCommands.resolveExecutableClassicMatchCommand(
+    "MATCH potato_salad case_status MATCHVAR=Sex",
+    [{ name: "potato_salad" }, { name: "case_status" }, { name: "Sex" }],
+  ), { selection: { kind: "row-column", exposure: "potato_salad", outcome: "case_status" }, matchBy: ["Sex"] });
+  const matchVariableFields = [
+    { name: "record_id", prompt: "Record ID", type: "text" },
+    { name: "set_id", prompt: "Matched Set ID", type: "text" },
+    { name: "sex", prompt: "Sex", type: "text" },
+    { name: "exposure", prompt: "Exposure", type: "number" },
+  ];
+  const matchVariableRecords = [
+    { record_id: "R1", set_id: "S1", sex: "Female", exposure: 1 },
+    { record_id: "R2", set_id: "S1", sex: "Female", exposure: 0 },
+    { record_id: "R3", set_id: "S2", sex: "Male", exposure: 1 },
+    { record_id: "R4", set_id: "S2", sex: "Male", exposure: 0 },
+    { record_id: "R5", set_id: "S3", sex: "Female", exposure: 1 },
+    { record_id: "R6", set_id: "S3", sex: "Male", exposure: 0 },
+  ];
+  assert.deepEqual(matchCommands.plausibleClassicMatchVariables(matchVariableFields, matchVariableRecords).map(({ name }) => name), ["set_id"]);
   const matchedCaseControlTourSource = await readFile(repositoryPath("wasm/demo/examples/matched-case-control/match-pb-by-pair.pgm7"), "utf8");
   const matchedCaseControlTour = parser.parseClassicProgram(matchedCaseControlTourSource);
   assert.equal(matchedCaseControlTour.body.length, 1);
@@ -3455,6 +3596,22 @@ CANCEL SORT`;
   assert.equal(matchedHandTour.body[0].selection.exposure.name, "exposure");
   assert.equal(matchedHandTour.body[0].selection.outcome.name, "outcome");
   assert.deepEqual(matchedHandTour.body[0].matchBy.map(({ name }) => name), ["set_id"]);
+  const matchedCommandTourSource = await readFile(repositoryPath("wasm/demo/examples/matched-case-control/matched-case-control-command-tour.pgm7"), "utf8");
+  const matchedCommandTour = parser.parseClassicProgram(matchedCommandTourSource);
+  assert.deepEqual(matchedCommandTour.body.map(({ type }) => type), [
+    "ListStatement", "FrequencyStatement", "TablesStatement", "MatchStatement",
+  ]);
+  assert.equal(matchedCommandTour.body[0].selection.fields[0].name, "matched_pairs");
+  assert.equal(matchedCommandTour.body[2].exposure.name, "pb");
+  assert.equal(matchedCommandTour.body[2].outcome.name, "caco");
+  assert.deepEqual(matchedCommandTour.body[3].matchBy.map(({ name }) => name), ["matched_pairs"]);
+  const matchedCatalogValue = JSON.parse(await readFile(repositoryPath(
+    "wasm/demo/examples/matched-case-control/case-control-database-example.programs.json",
+  ), "utf8"));
+  const matchedCatalog = examples.validateClassicProgramExampleCatalog(matchedCatalogValue);
+  assert.equal(matchedCatalog.dataset.sha256, "c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48");
+  assert.deepEqual(matchedCatalog.programs.map(({ id }) => id), ["matched-case-control-command-tour", "match-pb-by-pair", "match-school-zero-cell"]);
+  assert.equal(matchedCatalog.programs[0].source, "LIST matched_pairs caco pb\n\nFREQ caco\n\nTABLES pb caco\n\nMATCH pb caco MATCHVAR=matched_pairs");
   const commandTourSource = await readFile(repositoryPath("wasm/demo/examples/foodborne/foodborne-classic-command-tour.pgm7"), "utf8");
   const commandTour = parser.parseClassicProgram(commandTourSource);
   assert.deepEqual(commandTour.body.map(({ type }) => type), [

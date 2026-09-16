@@ -142,17 +142,20 @@ recognizable second corpus.
    and missing-value conventions.
 3. Use `MatchedLogisticTestData.csv` for 1:2 set handling and bounded stress
    tests, scoped explicitly to conditional logistic regression where applicable.
-4. Recover the Rely records and capture reviewed output from a working desktop
-   Epi Info version for differential evidence.
+4. Recover the Rely records if possible and collect structured workflow review
+   from experienced historical desktop Epi Info field users. Use the MATCH
+   Output evidence export so command, dataset, aggregate result, reviewer, and
+   comparison notes remain fingerprinted and portable without record-level data.
 5. Independently reproduce set counts, discordant pairs, matched odds ratio,
    confidence limits, association test, and all warnings in the validation lab.
-6. Promote the checked-in syntax-only `.pgm7` to executable status through the
-   real Program Editor after the implementation gate. Preserve command source,
+6. Keep the checked-in bounded `.pgm7` executable through the real Program
+   Editor. Preserve command source,
    engine version, input digest, exclusions, warnings, and output in common
    history.
 
 No MATCH implementation should be labeled legacy parity merely because it
-agrees with one reconstructed formula. The final gate requires an explicit
-method contract, independent numerical checks, browser tests, and reviewed
-desktop differential output—or a documented reason why that output cannot be
-recovered.
+agrees with one reconstructed formula. The legacy-parity gate requires an
+explicit method contract, independent numerical checks, browser tests, and
+reviewed historical workflow evidence. A documented inability to reinstall
+desktop Epi Info does not block an explicitly labeled browser candidate, but it
+must remain visible in the registry.

@@ -1,6 +1,6 @@
 *** Epi Info AI hand-auditable matched-pairs contract fixture
 *** Dataset: matched-pairs-hand-audit.csv (21 records; 10 source sets)
 *** V0.1 includes seven complete 1:1 sets and excludes three documented edge sets.
-*** SYNTAX-ONLY: execution remains blocked until implementation and independent validation.
+*** Browser-verified bounded 1:1 execution; historical desktop field-user comparison pending.
 
 MATCH exposure outcome MATCHVAR=set_id

@@ -39,6 +39,10 @@ const command = (key: string, label: string, domId: string, state: FormDesignerM
   kind: "command", key, label, domId, state, ...(shortcut ? { shortcut } : {}), disposition: "implemented",
 });
 
+const newBranchCommand = (key: string, label: string, domId: string, state: FormDesignerMenuState = "always"): FormDesignerMenuCommand => ({
+  kind: "command", key, label, domId, state, disposition: "new-branch",
+});
+
 const separator: FormDesignerMenuSeparator = { kind: "separator" };
 
 export const FORM_DESIGNER_MENUS: readonly FormDesignerTopMenu[] = [
@@ -127,7 +131,9 @@ export const FORM_DESIGNER_MENUS: readonly FormDesignerTopMenu[] = [
   },
   {
     key: "help", label: "Help", entries: [
-      gap("contents", "Contents", "always"), gap("about", "About Epi Info 7", "always"),
+      gap("contents", "Contents", "always"),
+      newBranchCommand("teaching-repositories", "Teaching Repositories...", "designer-help-teaching-repositories"),
+      gap("about", "About Epi Info 7", "always"),
     ],
   },
 ] as const;

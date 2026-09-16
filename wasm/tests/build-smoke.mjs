@@ -46,7 +46,9 @@ const requiredFiles = [
   "sample-case-data.csv",
   "sample-map-layer.geojson",
   "examples/README.md",
+  "examples/program-catalogs.json",
   "examples/foodborne/README.md",
+  "examples/foodborne/epi-info-teaching.json",
   "examples/foodborne/foodborne-outbreak-investigation.csv",
   "examples/foodborne/foodborne-outbreak-investigation.xlsx",
   "examples/foodborne/foodborne-outbreak-investigation.programs.json",
@@ -55,8 +57,15 @@ const requiredFiles = [
   "examples/foodborne/maps/worldpop-toledo-population-density.tif",
   "examples/matched-case-control/README.md",
   "examples/matched-case-control/case-control-database-example.xlsx",
+  "examples/matched-case-control/case-control-database-example.programs.json",
+  "examples/matched-case-control/matched-case-control-command-tour.pgm7",
+  "examples/matched-case-control/match-school-zero-cell.pgm7",
   "examples/matched-case-control/matched-pairs-hand-audit.csv",
+  "examples/matched-case-control/matched-pairs-hand-audit.programs.json",
   "examples/matched-case-control/match-hand-audit.pgm7",
+  "examples/matched-case-control/matched-pairs-no-discordance.csv",
+  "examples/matched-case-control/matched-pairs-no-discordance.programs.json",
+  "examples/matched-case-control/match-no-discordance.pgm7",
   "examples/matched-case-control/matched-logistic-test-data.csv",
   "examples/matched-case-control/match-pb-by-pair.pgm7",
   "examples/projects/README.md",
@@ -77,6 +86,7 @@ const requiredFiles = [
   "validation-fixtures/cohort-cross-sectional-v0.13.json",
   "validation-fixtures/unmatched-case-control-v0.14.json",
   "validation-fixtures/matched-pairs-contract-v0.1.json",
+  "validation-fixtures/matched-pairs-boundaries-v0.1.json",
   "validation-fixtures/chi-square-trend-v0.15.json",
   "validation-fixtures/foodborne-tables-stratified-v0.3.json",
   "validation-fixtures/foodborne-tables-unstratified-v0.3.json",
@@ -103,8 +113,9 @@ assert.equal(createHash("sha256").update(engineBytes).digest("hex"), engineManif
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
-assert.match(html, /src=["']app\.js\?v=106["']/);
-assert.match(html, /href=["']styles\.css\?v=61["']/);
+assert.match(html, /src=["']app\.js\?v=108["']/);
+assert.match(html, /href=["']styles\.css\?v=62["']/);
+assert.match(html, /id=["']teaching-repository-dialog["']/);
 assert.match(html, /id=["']study-area-dialog["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);

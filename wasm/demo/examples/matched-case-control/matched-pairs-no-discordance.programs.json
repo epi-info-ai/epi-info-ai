@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "dataset": {
+    "id": "matched-pairs-no-discordance",
+    "file": "matched-pairs-no-discordance.csv",
+    "sha256": "6caacb7d1af402569004aef1529959557f69fea2a0e9305aba9ee8a51e65cf85",
+    "recordCount": 8,
+    "fieldTypes": {
+      "set_id": "text",
+      "outcome": "number",
+      "exposure": "number"
+    }
+  },
+  "programs": [
+    {
+      "id": "match-no-discordance",
+      "title": "MATCH with no discordant pairs",
+      "description": "Runs LIST, TABLES, and MATCH over four concordant pairs; the matched odds ratio, interval, and McNemar tests must remain explicitly unavailable.",
+      "requiredFields": ["set_id", "outcome", "exposure"],
+      "source": "LIST set_id outcome exposure\n\nTABLES exposure outcome\n\nMATCH exposure outcome MATCHVAR=set_id"
+    }
+  ]
+}

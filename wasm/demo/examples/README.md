@@ -7,7 +7,7 @@ this directory tree unchanged to GitLab Pages and GitHub Pages.
 | Bundle | Purpose | Contents |
 |---|---|---|
 | [`foodborne/`](foodborne/) | Canonical outbreak-investigation demonstration and regression harness | Synthetic line list in CSV/XLSX, Program Editor tours, program catalog, Toledo neighborhood polygons, and WorldPop population-density raster |
-| [`matched-case-control/`](matched-case-control/) | `MATCH` revival and matched-analysis validation | Legacy 65-pair teaching workbook, synthetic 1:2 stress data, and syntax-only MATCH program |
+| [`matched-case-control/`](matched-case-control/) | `MATCH` revival and matched-analysis validation | Legacy 65-pair teaching workbook, scalable dataset-bound catalogs, command tours, hand-audit and zero-cell/no-discordance boundary data, and bounded executable MATCH programs |
 | [`projects/`](projects/) | Whole-project migration examples | Browser-native conversion of the legacy Epi Info Sample project |
 
 ## Organization rules
@@ -24,3 +24,9 @@ this directory tree unchanged to GitLab Pages and GitHub Pages.
 
 The examples are published for testing and demonstration. Their presence does
 not establish command parity or approve a statistical method.
+
+[`program-catalogs.json`](program-catalogs.json) is the validated discovery
+index used by the Program Editor. To add another dataset family, place its files
+in a use-case folder, add a fingerprinted `.programs.json` catalog, and register
+that catalog in the index. No command implementation should contain the dataset
+identifier; catalogs govern teaching-program visibility only.

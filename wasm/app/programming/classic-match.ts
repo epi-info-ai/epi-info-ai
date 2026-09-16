@@ -1,3 +1,4 @@
+import type { EpiRecord, FieldDefinition } from "../contracts/core.ts";
 import { parseClassicProgram, type ClassicMatchStatement } from "./classic-ast.ts";
 
 export interface ClassicMatchInput {
@@ -10,6 +11,81 @@ export interface ClassicMatchInput {
   weightBy?: string;
   matchBy?: string[];
   settings?: Array<{ name: string; value: string }>;
+}
+
+export interface ExecutableClassicMatchInput {
+  selection: { kind: "row-column"; exposure: string; outcome: string };
+  matchBy: [string];
+}
+
+export interface PlausibleClassicMatchVariable {
+  name: string;
+  prompt: string;
+  populatedRecords: number;
+  distinctSets: number;
+  repeatedSets: number;
+  singletonSets: number;
+  maximumSetSize: number;
+  exactPairSets: number;
+}
+
+function observedMatchKey(value: EpiRecord[string] | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized ? `${typeof value}:${normalized}` : null;
+}
+
+/**
+ * Suggest fields whose observed values look like matched-set identifiers.
+ * Unique record IDs have no repeated sets; broad categorical fields have groups
+ * larger than the bounded pair/1:2 review surface. Both are excluded.
+ */
+export function plausibleClassicMatchVariables(
+  fields: readonly FieldDefinition[],
+  records: readonly EpiRecord[],
+): PlausibleClassicMatchVariable[] {
+  return fields.flatMap((field, fieldIndex) => {
+    if (field.type === "command-button") return [];
+    const counts = new Map<string, number>();
+    for (const record of records) {
+      const key = observedMatchKey(record[field.name]);
+      if (key !== null) counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const sizes = [...counts.values()];
+    const populatedRecords = sizes.reduce((total, size) => total + size, 0);
+    const repeatedSets = sizes.filter((size) => size >= 2).length;
+    const singletonSets = sizes.filter((size) => size === 1).length;
+    const maximumSetSize = Math.max(0, ...sizes);
+    const exactPairSets = sizes.filter((size) => size === 2).length;
+    const maximumSingletons = Math.max(1, Math.floor(sizes.length * 0.1));
+    const identifierHint = /(?:match|pair|set|strat|group|cluster|household|identifier|(?:^|[_\s])id(?:$|[_\s]))/i.test(`${field.name} ${field.prompt}`);
+    const plausible = populatedRecords >= 2
+      && identifierHint
+      && sizes.length >= 1
+      && repeatedSets >= 1
+      && maximumSetSize <= 3
+      && singletonSets <= maximumSingletons
+      && sizes.length / populatedRecords >= 0.25;
+    if (!plausible) return [];
+    return [{
+      name: field.name,
+      prompt: field.prompt,
+      populatedRecords,
+      distinctSets: sizes.length,
+      repeatedSets,
+      singletonSets,
+      maximumSetSize,
+      exactPairSets,
+      fieldIndex,
+    }];
+  }).sort((left, right) => {
+    const leftExact = left.exactPairSets / left.distinctSets;
+    const rightExact = right.exactPairSets / right.distinctSets;
+    if (leftExact !== rightExact) return rightExact - leftExact;
+    const leftHint = /(?:match|pair|set)/i.test(`${left.name} ${left.prompt}`) ? 1 : 0;
+    const rightHint = /(?:match|pair|set)/i.test(`${right.name} ${right.prompt}`) ? 1 : 0;
+    return rightHint - leftHint || left.fieldIndex - right.fieldIndex;
+  }).map(({ fieldIndex: _fieldIndex, ...candidate }) => candidate);
 }
 
 const token = (value: string): string => {
@@ -51,6 +127,28 @@ export function parseClassicMatchCommand(source: string): ClassicMatchStatement 
   return ast.body[0];
 }
 
-export function matchExecutionUnavailable(): never {
-  throw new RangeError("MATCH syntax is available for revival review, but execution remains disabled: the inspected Epi Info 7 Rule_Match executor reports that MATCH is not yet implemented.");
+function resolvedField(fields: readonly FieldDefinition[], requested: string): string {
+  const field = fields.find((candidate) => candidate.name.toLocaleLowerCase("en-US") === requested.toLocaleLowerCase("en-US"));
+  if (!field) throw new RangeError(`${requested} is not a field in the current form.`);
+  return field.name;
+}
+
+export function resolveExecutableClassicMatchCommand(
+  source: string,
+  fields: readonly FieldDefinition[],
+): ExecutableClassicMatchInput {
+  const statement = parseClassicMatchCommand(source);
+  if (statement.selection.kind !== "row-column") {
+    throw new RangeError("MATCH V0.1 execution requires one explicit exposure field and one explicit outcome field; wildcard and EXCEPT forms remain syntax-only.");
+  }
+  if (statement.weightBy) throw new RangeError("MATCH WEIGHTVAR remains syntax-only in the bounded 1:1 executor.");
+  if (statement.matchBy.length !== 1) throw new RangeError("MATCH V0.1 execution requires exactly one MATCHVAR identifier field.");
+  if (statement.settings.length) throw new RangeError("MATCH retained SET-clause options remain syntax-only in the bounded 1:1 executor.");
+  const exposure = resolvedField(fields, statement.selection.exposure.name);
+  const outcome = resolvedField(fields, statement.selection.outcome.name);
+  const matchBy = resolvedField(fields, statement.matchBy[0]!.name);
+  if (new Set([exposure, outcome, matchBy].map((name) => name.toLocaleLowerCase("en-US"))).size !== 3) {
+    throw new RangeError("MATCH exposure, outcome, and MATCHVAR must use three different fields.");
+  }
+  return { selection: { kind: "row-column", exposure, outcome }, matchBy: [matchBy] };
 }

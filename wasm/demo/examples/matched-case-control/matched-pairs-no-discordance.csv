@@ -1,0 +1,9 @@
+record_id,set_id,outcome,exposure,note
+N001,N01,1,1,Concordant both exposed
+N002,N01,0,1,Concordant both exposed
+N003,N02,1,1,Concordant both exposed
+N004,N02,0,1,Concordant both exposed
+N005,N03,1,0,Concordant neither exposed
+N006,N03,0,0,Concordant neither exposed
+N007,N04,1,0,Concordant neither exposed
+N008,N04,0,0,Concordant neither exposed

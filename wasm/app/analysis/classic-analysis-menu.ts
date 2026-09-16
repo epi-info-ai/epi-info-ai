@@ -50,7 +50,11 @@ export const CLASSIC_ANALYSIS_MENUS: readonly ClassicTopMenu[] = [
     gap("logs", "Epi Info Logs..."),
   ] },
   { key: "tools", label: "Tools", commands: [gap("options", "Options...")] },
-  { key: "help", label: "Help", commands: [gap("contents", "Contents", "F1"), gap("about", "About Epi Info 7")] },
+  { key: "help", label: "Help", commands: [
+    gap("contents", "Contents", "F1"),
+    newBranchCommand("teaching-repositories", "Teaching Repositories...", "classic-help-teaching-repositories"),
+    gap("about", "About Epi Info 7"),
+  ] },
 ] as const;
 
 // Order and labels follow the visible CommandExplorer.resx tree. Commands present
@@ -91,7 +95,7 @@ export const CLASSIC_COMMAND_GROUPS: readonly ClassicCommandGroup[] = [
   ] },
   { key: "options", label: "Options", commands: [command("set", "Set", "classic-command-set")] },
   { key: "new-branches", label: "New Branches — Epi Info AI", commands: [
-    newBranchCommand("match-revival", "MATCH revival (syntax only)", "classic-command-match"),
+    newBranchCommand("match-revival", "MATCH paired analysis (bounded 1:1)", "classic-command-match"),
     newBranchCommand("quality", "Quality Profile", "classic-command-quality"),
     newBranchCommand("file-convert", "Convert Access Database", "classic-command-file-convert"),
   ] },

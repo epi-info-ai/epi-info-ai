@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "org.epi-info-ai.foodborne-outbreak",
+  "title": "Foodborne outbreak investigation",
+  "version": "1.0.0",
+  "license": "CC0-1.0",
+  "description": "Synthetic foodborne line-list teaching data, visible Classic Analysis programs, and lesson notes for Epi Info AI.",
+  "source": {
+    "repository": "https://github.com/epi-info-ai/epi-info-ai",
+    "revision": "4dccfbaa79e62f7bee4c9c9c8a84e00453ed3b48"
+  },
+  "artifacts": [
+    {
+      "path": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv",
+      "mediaType": "text/csv",
+      "sha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+      "bytes": 12295,
+      "role": "dataset"
+    },
+    {
+      "path": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.programs.json",
+      "mediaType": "application/json",
+      "sha256": "ea345e4504a83b8e5bac94fa95b2c52e79ce4cc35453a29e4209d88313c59318",
+      "bytes": 4888,
+      "role": "program-catalog",
+      "dataset": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv"
+    },
+    {
+      "path": "wasm/demo/examples/foodborne/foodborne-classic-command-tour.pgm7",
+      "mediaType": "text/plain",
+      "sha256": "6b94ced0f8eb5281e0602a5b428945018195ac8d43f56abffbfcee8db17ff0fc",
+      "bytes": 2951,
+      "role": "program",
+      "dataset": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv"
+    },
+    {
+      "path": "wasm/demo/examples/foodborne/README.md",
+      "mediaType": "text/markdown",
+      "sha256": "3c15ecc9f045c6b86bffb900e63abc4547c140489751fe6aa52c31859d1a98bc",
+      "bytes": 2743,
+      "role": "lesson"
+    }
+  ]
+}

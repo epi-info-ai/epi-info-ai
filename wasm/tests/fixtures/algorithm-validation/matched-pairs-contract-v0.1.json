@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "operation": "epi.match.paired",
   "operationVersion": "0.1.0",
-  "status": "contract-only",
+  "status": "browser-verified-candidate",
   "dataset": {
     "file": "wasm/demo/examples/matched-case-control/matched-pairs-hand-audit.csv",
     "sha256": "a8c0364bcc1ffb37a5ef29b4bf2bb36cef5652a219c51e11cfa0cef98492e518",
@@ -57,6 +57,6 @@
   "provenance": {
     "fixtureKind": "hand-auditable-design-anchor",
     "confidenceInterval": "Clopper-Pearson interval for p=b/(b+c), transformed by p/(1-p)",
-    "warning": "This fixture freezes the proposed bounded 1:1 contract. It is not reviewed desktop Epi Info output and does not authorize MATCH execution."
+    "warning": "This fixture authorizes only the browser-verified bounded 1:1 candidate. It is not reviewed desktop Epi Info output and does not establish legacy parity."
   }
 }

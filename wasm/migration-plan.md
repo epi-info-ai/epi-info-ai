@@ -61,6 +61,10 @@ delivery work needed to make those migrations safe.
     ordering, context-sensitive state, command semantics, state transitions, and
     feedback. A same-named button is not parity by itself; additions are labeled
     new branches and all changes are recorded in the menu compatibility registry.
+13. **Keep commands dataset-independent.** Resolve commands against the active
+    project schema and records; never branch command semantics on a demo filename,
+    project name, or catalog. Fingerprinted catalogs may expose compatible teaching
+    programs, while hand-auditable and realistic datasets test the same contract.
 
 ## Current baseline
 
@@ -1394,10 +1398,10 @@ found; `MERGE ... MATCHING` remains an unrelated record-join operation.
 **MATCH syntax revival V0.1 complete:** the versioned typed AST now preserves
 all five retained grammar forms, `WEIGHTVAR`, `MATCHVAR`, and the applicable
 SET-clause spellings. A clearly labeled revival dialog authors the dormant
-exposure/outcome form with foodborne fields, while selected execution fails
-closed and records the rejected attempt in common command history. The next
-slice is a written matched-analysis semantics/output contract and independent
-validation corpus; no statistical execution or parity claim exists yet.
+exposure/outcome form. The explicit unweighted row-column form with exactly one
+`MATCHVAR` now executes for bounded complete 1:1 sets; all broader retained
+forms still fail closed. This remains a browser revival candidate, not a legacy
+parity claim.
 
 **MATCH source and corpus discovery complete:** the
 [evidence archive](docs/research/match-command-sources-and-data.md) links the
@@ -1418,9 +1422,13 @@ mapping, 1:1 set composition, exclusion accounting, source limits, and the
 case/control orientation passed to the kernel. V0.16 Rust exports now calculate
 the paired odds ratio, conditional exact limits, McNemar statistics, exact p,
 and mid-p; a dedicated Worker provides time limits, cancellation, termination,
-and recovery. The JupyterLite notebook compares those deployed exports with
-independent SciPy calculations. Desktop differential evidence remains required
-before a parity claim or Program Editor execution is enabled.
+and recovery. The Program Editor now derives pairs, executes the Worker, renders
+auditable Output, and records common history. The JupyterLite notebook compares
+those same deployed exports with independent SciPy calculations. Because a new
+desktop installation is no longer practical, experienced historical Epi Info
+field users will supply workflow review evidence. That evidence remains required
+before a legacy-parity claim, but no longer blocks this explicitly labeled
+bounded browser candidate.
 
 **Ordinary TABLES browser candidate complete at V0.11:** the tested floor now
 includes unstratified and Cartesian-strata categorical M×N counts, percentages,

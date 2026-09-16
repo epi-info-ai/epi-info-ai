@@ -12,10 +12,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=61" />
+    <link rel="stylesheet" href="styles.css?v=62" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=106"></script>
+    <script type="module" src="app.js?v=108"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -81,6 +81,7 @@
         <summary aria-haspopup="menu" data-i18n="menu.help.label">Help</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="Help">
           <button id="help-runbooks" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Automated Runbooks...</button>
+          <button id="help-teaching-repositories" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Teaching Repositories...</button>
           <div class="legacy-menu-separator" role="separator"></div>
           <button type="button" role="menuitem" disabled title="Not yet included in the browser demo">User Guide</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Help Videos</button>
@@ -124,6 +125,43 @@
           <p class="dialog-note"><strong>You stay in control.</strong> A runbook may navigate between modules, but it never imports data or executes analysis without your action.</p>
         </div>
         <div class="legacy-dialog-actions"><button id="runbook-start" class="dialog-primary" type="button">Start Runbook</button><button value="cancel">Cancel</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="teaching-repository-dialog" class="legacy-dialog teaching-repository-dialog" aria-labelledby="teaching-repository-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar"><h2 id="teaching-repository-title">Teaching Repositories</h2><button value="cancel" aria-label="Close">&times;</button></div>
+        <div class="legacy-dialog-body">
+          <p><span class="new-branch-tag">New branch</span> Preview and install a checksummed teaching release for offline use. Installation never executes a program.</p>
+          <label for="teaching-repository-url">Manifest URL</label>
+          <input id="teaching-repository-url" type="url" spellcheck="false" value="https://raw.githubusercontent.com/epi-info-ai/epi-info-ai/main/wasm/demo/examples/foodborne/epi-info-teaching.json">
+          <div class="inline-actions">
+            <button id="teaching-repository-preview" type="button">Preview GitHub manifest</button>
+            <button id="teaching-repository-preview-bundled" type="button">Preview bundled fixture</button>
+          </div>
+          <p id="teaching-repository-status" class="inline-feedback" role="status">No repository previewed.</p>
+          <section id="teaching-repository-preview-panel" hidden>
+            <h3 id="teaching-repository-preview-title"></h3>
+            <p id="teaching-repository-preview-description"></p>
+            <dl class="package-context">
+              <div><dt>Version</dt><dd id="teaching-repository-preview-version"></dd></div>
+              <div><dt>Publisher</dt><dd id="teaching-repository-preview-source"></dd></div>
+              <div><dt>Pinned revision</dt><dd><code id="teaching-repository-preview-revision"></code></dd></div>
+              <div><dt>License</dt><dd id="teaching-repository-preview-license"></dd></div>
+              <div><dt>Download</dt><dd id="teaching-repository-preview-size"></dd></div>
+            </dl>
+            <h4>Declared artifacts</h4>
+            <ul id="teaching-repository-artifacts"></ul>
+            <button id="teaching-repository-install" class="dialog-primary" type="button">Verify and install offline</button>
+          </section>
+          <section id="teaching-repository-installed" hidden>
+            <h3>Installed teaching material</h3>
+            <p id="teaching-repository-installed-summary"></p>
+            <div id="teaching-repository-downloads" class="inline-actions"></div>
+            <p class="dialog-note">Download an installed dataset and import it through Enter Data. Its compatible programs then appear in the Program Editor for review.</p>
+          </section>
+        </div>
+        <div class="legacy-dialog-actions"><button value="cancel">Close</button></div>
       </form>
     </dialog>
 
@@ -1202,7 +1240,7 @@
               </fieldset>
               <fieldset id="classic-command-dialog-match" hidden>
                 <legend><span class="new-branch-label">REVIVAL</span> Match syntax</legend>
-                <p class="inline-feedback">Authors the dormant legacy dialog form: exposure, outcome, and one MATCHVAR. The command remains deliberately non-executable because the inspected desktop Rule_Match executor reports “NOT yet implemented.”</p>
+                <p class="inline-feedback">Runs the browser-verified bounded 1:1 form: one binary exposure, one binary case/control outcome, and one MATCHVAR identifier. Match-variable choices are limited to observed small repeated-set patterns; unique record IDs and broad categorical fields are excluded. Wildcards, weights, multiple match fields, variable-ratio sets, and retained SET options remain syntax-only. Historical desktop comparison will be completed by experienced field users.</p>
               </fieldset>
               <fieldset id="classic-command-dialog-header" hidden>
                 <legend>Output header</legend>
@@ -1427,6 +1465,32 @@
           <div id="classic-graph-output-plot" class="classic-graph-output-plot"></div>
           <details><summary>View graph data</summary><div class="results-table-scroll"><table class="results-table"><thead><tr><th>Value</th><th>Frequency</th><th>Percent</th></tr></thead><tbody id="classic-graph-output-body"></tbody></table></div></details>
           <p id="classic-graph-output-note" class="inline-feedback"></p>
+        </section>
+        <section id="classic-match-output" class="panel" data-module-view="classic" aria-labelledby="classic-match-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">MATCH output</p><h2 id="classic-match-output-title">Matched Pair Case-Control Analysis</h2></div><span id="classic-match-output-count" class="calculation-time"></span></div>
+          <p id="classic-match-output-summary"></p>
+          <p><code id="classic-match-output-command"></code></p>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Case exposure</th><th>Control exposure</th><th>Interpretation</th><th>Pairs</th></tr></thead><tbody id="classic-match-output-pairs"></tbody></table></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Estimate</th><th>Value</th><th>95% confidence interval</th></tr></thead><tbody><tr><th>Matched odds ratio</th><td id="classic-match-output-or"></td><td id="classic-match-output-ci"></td></tr></tbody></table></div>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>McNemar method</th><th>Chi-square</th><th>2-tailed p</th></tr></thead><tbody id="classic-match-output-tests"></tbody></table></div>
+          <p id="classic-match-output-exclusions" class="method-note"></p>
+          <p id="classic-match-output-warning" class="warnings"></p>
+          <p class="compatibility-note"><strong>Revival status:</strong> Browser-verified bounded 1:1 implementation. Field-user comparison with historical desktop workflows remains pending; no legacy-parity claim is made.</p>
+          <form id="classic-match-review-form" class="classic-match-review">
+            <fieldset>
+              <legend>Field-user MATCH review evidence</legend>
+              <p class="method-note">Export an aggregate-only review record for comparison with historical Epi Info. Exporting evidence does not automatically establish parity.</p>
+              <div class="classic-variable-grid">
+                <label>Reviewer name or identifier<input id="classic-match-reviewer" type="text" maxlength="120" autocomplete="name" required></label>
+                <label>Review date<input id="classic-match-reviewed-on" type="date" required></label>
+                <label>Review disposition<select id="classic-match-review-disposition" required><option value="browser-reviewed">Browser result reviewed only</option><option value="agrees-with-legacy">Agrees with legacy Epi Info</option><option value="differs-from-legacy">Differs from legacy Epi Info</option></select></label>
+              </div>
+              <label>Comparison notes<textarea id="classic-match-review-notes" rows="3" maxlength="2000" placeholder="For a legacy comparison, identify the Epi Info version, program/data used, and observed agreement or difference."></textarea></label>
+              <p id="classic-match-review-fingerprints" class="method-note">Run MATCH to prepare review fingerprints.</p>
+              <div class="form-actions"><button id="classic-match-review-export" type="submit" disabled>Export MATCH review JSON</button></div>
+              <p id="classic-match-review-status" class="inline-feedback" role="status" aria-live="polite">No MATCH result is ready for review.</p>
+            </fieldset>
+          </form>
         </section>
         <section id="classic-quality-output" class="panel new-branch-output" data-module-view="classic" aria-labelledby="classic-quality-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> QUALITY output</p><h2 id="classic-quality-output-title">Line-list quality profile</h2></div><span id="classic-quality-output-count" class="calculation-time"></span></div>

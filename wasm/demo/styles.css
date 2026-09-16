@@ -4634,6 +4634,25 @@ body.map-fullscreen-fallback {
   width: min(620px, calc(100vw - 2rem));
 }
 
+.teaching-repository-dialog {
+  width: min(760px, calc(100vw - 2rem));
+}
+
+.teaching-repository-dialog input[type="url"] {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0.35rem 0 0.7rem;
+}
+
+.teaching-repository-dialog code {
+  overflow-wrap: anywhere;
+}
+
+.teaching-repository-dialog h3,
+.teaching-repository-dialog h4 {
+  margin-bottom: 0.35rem;
+}
+
 .runbook-library-dialog select {
   width: 100%;
   margin-top: 0.35rem;

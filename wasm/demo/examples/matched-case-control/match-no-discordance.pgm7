@@ -1,0 +1,9 @@
+*** Epi Info AI MATCH no-discordance boundary exercise
+*** Dataset: matched-pairs-no-discordance.csv (8 records; 4 complete pairs)
+*** All pairs are concordant: b=0 and c=0. OR, interval, and tests are unavailable.
+
+LIST set_id outcome exposure
+
+TABLES exposure outcome
+
+MATCH exposure outcome MATCHVAR=set_id

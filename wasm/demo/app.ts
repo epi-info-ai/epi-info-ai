@@ -21,6 +21,7 @@ import {
   testSupabaseConnection,
 } from "./form-data.js";
 import { initializeMaps } from "./maps.js";
+import { calculateMatchedPairsInWorker } from "./matched-worker-client.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
@@ -54,13 +55,17 @@ import { applyEpiAiQualityProfile, resolveEpiAiQualityCommand } from "../app/pro
 import { convertAccessFile, resolveFileConvertCommand } from "../app/programming/file-convert.js";
 import { parseClassicOutputSettings, validateClassicOutputSettings, type ClassicOutputSettings } from "../app/programming/classic-output-settings.js";
 import { resolveClassicDialogCommand, validateClassicDialogValue, type ClassicDialogCommandInput, type ClassicDialogPlan } from "../app/programming/classic-dialog.js";
+import { deriveMatchedPairs } from "../app/programming/classic-match-analysis.js";
+import { createClassicMatchReviewEvidence, fingerprintClassicMatchReview, type ClassicMatchReviewInput } from "../app/programming/classic-match-review.js";
+import { plausibleClassicMatchVariables } from "../app/programming/classic-match.js";
 import type { DataQualityReport } from "../app/forms/data-quality.js";
 import { renderClassicProgramSurface } from "../app/programming/classic-program-surface.js";
 import { ClassicProgramDocumentService, normalizeClassicProgramName, readClassicProgramFile, safeClassicProgramFileName } from "../app/programming/classic-program-document.js";
-import { assessClassicProgramCatalog, loadClassicProgramExampleCatalog, type ClassicProgramExample, type ClassicProgramExampleCatalog } from "../app/programming/classic-examples.js";
+import { assessClassicProgramCatalog, loadClassicProgramCatalogIndex, loadClassicProgramExampleCatalog, validateClassicProgramExampleCatalog, type ClassicProgramCatalogIndex, type ClassicProgramCatalogReference, type ClassicProgramExample, type ClassicProgramExampleCatalog } from "../app/programming/classic-examples.js";
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
-import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, StratifiedTable2x2Result, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
+import { installTeachingRepository, listInstalledTeachingRepositories, previewTeachingRepository, readInstalledTeachingArtifact, type InstalledTeachingRepository, type TeachingRepositoryPreview } from "../app/teaching/repository.js";
+import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MatchedPairsDerivation, MatchedPairsResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, StratifiedTable2x2Result, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 import type { EpiCurveResult } from "../app/contracts/dashboard.js";
 import type { EpiRecord, FieldDefinition } from "../app/contracts/core.js";
 import type { ProjectProgram } from "../app/contracts/project-package.js";
@@ -612,10 +617,10 @@ const classicProgramExampleSelect = requiredElement<HTMLSelectElement>("#classic
 const classicProgramExampleDescription = requiredElement<HTMLElement>("#classic-program-example-description");
 const classicProgramLoadExampleButton = requiredElement<HTMLButtonElement>("#classic-program-load-example");
 const classicProgramExamplesFieldset = requiredElement<HTMLFieldSetElement>(".classic-program-examples");
-const FOODBORNE_DATASET_ID = "foodborne-outbreak-investigation";
-const FOODBORNE_DATASET_SHA256 = "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5";
 let classicProgramExamples: readonly ClassicProgramExample[] = [];
-let classicProgramCatalog: ClassicProgramExampleCatalog | null = null;
+let classicProgramCatalogIndex: ClassicProgramCatalogIndex | null = null;
+const classicProgramCatalogs = new Map<string, ClassicProgramExampleCatalog>();
+let installedClassicProgramCatalogReferences: ClassicProgramCatalogReference[] = [];
 let classicProgramAvailability = new Map<string, { compatible: boolean; issues: string[] }>();
 let classicExampleSourceLoaded = false;
 const classicProgramDocument = new ClassicProgramDocumentService();
@@ -660,6 +665,72 @@ const classicProgramAssistTaskLabel = requiredElement<HTMLElement>("#classic-pro
 const classicProgramAssistPreview = requiredElement<HTMLButtonElement>("#classic-program-assist-preview");
 const classicProgramAssistStatus = requiredElement<HTMLElement>("#classic-program-assist-status");
 const classicProgramAssistPrompt = requiredElement<HTMLTextAreaElement>("#classic-program-assist-prompt");
+const classicMatchReviewForm = requiredElement<HTMLFormElement>("#classic-match-review-form");
+const classicMatchReviewer = requiredElement<HTMLInputElement>("#classic-match-reviewer");
+const classicMatchReviewedOn = requiredElement<HTMLInputElement>("#classic-match-reviewed-on");
+const classicMatchReviewDisposition = requiredElement<HTMLSelectElement>("#classic-match-review-disposition");
+const classicMatchReviewNotes = requiredElement<HTMLTextAreaElement>("#classic-match-review-notes");
+const classicMatchReviewFingerprints = requiredElement<HTMLElement>("#classic-match-review-fingerprints");
+const classicMatchReviewExport = requiredElement<HTMLButtonElement>("#classic-match-review-export");
+const classicMatchReviewStatus = requiredElement<HTMLElement>("#classic-match-review-status");
+let currentClassicMatchReviewInput: ClassicMatchReviewInput | null = null;
+
+function localIsoDate(date = new Date()): string {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+}
+
+async function prepareClassicMatchReview(input: ClassicMatchReviewInput): Promise<void> {
+  currentClassicMatchReviewInput = input;
+  classicMatchReviewForm.reset();
+  classicMatchReviewedOn.value = localIsoDate();
+  classicMatchReviewDisposition.value = "browser-reviewed";
+  classicMatchReviewExport.disabled = true;
+  classicMatchReviewFingerprints.textContent = "Computing command and aggregate-result fingerprints...";
+  classicMatchReviewStatus.textContent = "MATCH result ready; preparing its review identity.";
+  try {
+    const fingerprints = await fingerprintClassicMatchReview(input);
+    if (currentClassicMatchReviewInput !== input) return;
+    const dataset = fingerprints.datasetSha256 ? fingerprints.datasetSha256.slice(0, 16) : "not available";
+    classicMatchReviewFingerprints.textContent = `Dataset SHA-256: ${dataset}${fingerprints.datasetSha256 ? "..." : ""} · Command: ${fingerprints.commandSha256.slice(0, 16)}... · Aggregate result: ${fingerprints.aggregateResultSha256.slice(0, 16)}...`;
+    classicMatchReviewExport.disabled = false;
+    classicMatchReviewStatus.textContent = "Enter the reviewer and disposition, then export the aggregate-only evidence record.";
+  } catch (error) {
+    classicMatchReviewStatus.textContent = error instanceof Error ? error.message : "MATCH review fingerprints could not be prepared.";
+  }
+}
+
+classicMatchReviewForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = currentClassicMatchReviewInput;
+  if (!input) {
+    classicMatchReviewStatus.textContent = "Run MATCH before exporting review evidence.";
+    return;
+  }
+  classicMatchReviewExport.disabled = true;
+  try {
+    const evidence = await createClassicMatchReviewEvidence(input, {
+      reviewer: classicMatchReviewer.value,
+      reviewedOn: classicMatchReviewedOn.value,
+      disposition: classicMatchReviewDisposition.value,
+      notes: classicMatchReviewNotes.value,
+    });
+    const safeProject = input.projectName.trim().replace(/[^a-z0-9._-]+/gi, "-").replace(/^-+|-+$/g, "") || "project";
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([`${JSON.stringify(evidence, null, 2)}\n`], { type: "application/json;charset=utf-8" }));
+    link.download = `${safeProject}-match-review-${evidence.review.reviewedOn}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    classicMatchReviewStatus.textContent = evidence.review.parityEffect === "none"
+      ? "Browser-review evidence exported. It does not establish legacy parity."
+      : evidence.review.parityEffect === "candidate-agreement"
+        ? "Legacy-agreement candidate exported for evidence review; parity status was not changed automatically."
+        : "Legacy discrepancy exported for investigation; parity status was not changed.";
+  } catch (error) {
+    classicMatchReviewStatus.textContent = error instanceof Error ? error.message : "MATCH review evidence could not be exported.";
+  } finally {
+    classicMatchReviewExport.disabled = false;
+  }
+});
 
 function setClassicProgramAssistOpen(open: boolean): void {
   classicProgramAssistWorkbench.dataset.assistOpen = String(open);
@@ -1549,7 +1620,21 @@ function updateClassicCommandDialog(): void {
   );
   if ([...classicCommandDialogExposure.options].some(({ value }) => value === previousExposure)) classicCommandDialogExposure.value = previousExposure;
   classicCommandDialogOutcome.replaceChildren(...allOptions.map((option) => option.cloneNode(true)));
-  classicCommandDialogStrata.replaceChildren(new Option("Do not stratify", ""), ...allOptions.map((option) => option.cloneNode(true)));
+  const matchCandidates = match ? plausibleClassicMatchVariables(source.fields, source.records) : [];
+  if (match) {
+    const previousMatchVariable = classicCommandDialogStrata.value;
+    const matchOptions = matchCandidates.map((candidate) => new Option(
+      `${candidate.prompt} (${candidate.distinctSets} sets; max ${candidate.maximumSetSize} records/set)`,
+      candidate.name,
+    ));
+    classicCommandDialogStrata.replaceChildren(...(matchOptions.length
+      ? matchOptions
+      : [new Option("No plausible matched-set identifier found", "")]));
+    if (matchCandidates.some(({ name }) => name === previousMatchVariable)) classicCommandDialogStrata.value = previousMatchVariable;
+    else classicCommandDialogStrata.value = matchCandidates[0]?.name ?? "";
+  } else {
+    classicCommandDialogStrata.replaceChildren(new Option("Do not stratify", ""), ...allOptions.map((option) => option.cloneNode(true)));
+  }
   const previousWeight = classicCommandDialogWeight.value;
   const weightOptions = source.fields.filter(({ type }) => type === "number");
   classicCommandDialogWeight.replaceChildren(new Option("Do not weight", ""), ...weightOptions.map((field) => new Option(`${field.prompt} (${field.name})`, field.name)));
@@ -1696,7 +1781,8 @@ function updateClassicCommandDialog(): void {
   if (match) {
     classicCommandDialogExposure.value = byHint(/potato.?salad|expos/) ?? classicCommandDialogExposure.value;
     classicCommandDialogOutcome.value = byHint(/case.?status|outcome|ill/, new Set([classicCommandDialogExposure.value])) ?? classicCommandDialogOutcome.value;
-    classicCommandDialogStrata.value = byHint(/^sex| sex|gender/, new Set([classicCommandDialogExposure.value, classicCommandDialogOutcome.value])) ?? "";
+    classicCommandDialogStrata.value = matchCandidates.find(({ name, prompt }) => /match|pair|set/i.test(`${name} ${prompt}`))?.name
+      ?? matchCandidates[0]?.name ?? "";
     classicCommandDialogWeight.value = "";
   }
   try {
@@ -1733,7 +1819,7 @@ function updateClassicCommandDialog(): void {
     if (input.kind === "tables" || input.kind === "frequency" || input.kind === "means") resolveSelectedClassicAnalysisCommand(command, source.fields, projectSources, sessionVariables, sessionGroups);
     requiredElement("#classic-command-dialog-preview").textContent = command;
     requiredElement("#classic-command-dialog-feedback").textContent = input.kind === "match"
-      ? "Ready to insert reviewed MATCH source. Execution remains disabled because the inspected desktop executor is unfinished."
+      ? "Ready to insert the bounded 1:1 MATCH command. Execution uses the browser-verified Rust/WASM candidate; field-user comparison with historical desktop workflows remains pending."
       : "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = false;
   } catch (error) {
@@ -1751,7 +1837,7 @@ function showClassicCommandDialog(kind: ClassicAnalysisCommandKind = "frequency"
   classicCommandDialogKind.value = kind;
   if (kind === "recode" && classicCommandDialogRecodeRows.rows.length === 0) resetClassicRecodeRanges();
   if (kind === "sort") resetClassicSortRows();
-  const title = complexTables ? "Complex Sample Tables" : kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "match" ? "REVIVAL — Match" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "dialog" ? "Dialog" : kind === "beep" ? "Beep" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
+  const title = complexTables ? "Complex Sample Tables" : kind === "read" ? "Read" : kind === "relate" ? "Relate" : kind === "write" ? "Write (Export)" : kind === "merge" ? "Merge" : kind === "delete-table" ? "Delete File/Table" : kind === "delete-records" ? "Delete Records" : kind === "undelete-records" ? "Undelete Records" : kind === "define" ? "Define" : kind === "define-group" ? "DefineGroup" : kind === "undefine" ? "Undefine" : kind === "assign" ? "Assign" : kind === "recode" ? "Recode" : kind === "display" ? "Display" : kind === "select" ? "Select" : kind === "cancel-select" ? "Cancel Select" : kind === "if" ? "If" : kind === "sort" ? "Sort" : kind === "cancel-sort" ? "Cancel Sort" : kind === "list" ? "List" : kind === "frequency" ? "Frequencies" : kind === "means" ? "Means" : kind === "match" ? "REVIVAL — Matched Pair Analysis" : kind === "summarize" ? "Summarize" : kind === "graph" ? "Graph" : kind === "dialog" ? "Dialog" : kind === "beep" ? "Beep" : kind === "quality" ? "NEW BRANCH — Quality Profile" : kind === "file-convert" ? "NEW BRANCH — Convert Access Database" : "Tables";
   requiredElement("#classic-command-dialog-title").textContent = `${complexFrequency ? "Complex Sample Frequencies" : complexMeans ? "Complex Sample Means" : title} Command`;
   updateClassicCommandDialog();
   classicCommandDialog.showModal();
@@ -1811,9 +1897,11 @@ function refreshClassicCommandDialogPreview(): void {
     if (input.kind === "select" || input.kind === "cancel-select") resolveClassicSelectionCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
     if (input.kind === "if") resolveClassicIfCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, classicProgramSession.variables());
     if (input.kind === "sort" || input.kind === "cancel-sort") resolveClassicSortCommand(command, classicProgramSession.current(getCurrentProjectData()).fields);
-    if (input.kind === "tables") resolveSelectedClassicAnalysisCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, getProjectDataSources(), classicProgramSession.variables(), classicProgramSession.groups());
+    if (input.kind === "tables" || input.kind === "match") resolveSelectedClassicAnalysisCommand(command, classicProgramSession.current(getCurrentProjectData()).fields, getProjectDataSources(), classicProgramSession.variables(), classicProgramSession.groups());
     requiredElement("#classic-command-dialog-preview").textContent = command;
-    requiredElement("#classic-command-dialog-feedback").textContent = "Ready to insert visible source at the current selection or cursor.";
+    requiredElement("#classic-command-dialog-feedback").textContent = input.kind === "match"
+      ? "Ready to insert the bounded 1:1 MATCH command. Execution uses the browser-verified Rust/WASM candidate; field-user comparison with historical desktop workflows remains pending."
+      : "Ready to insert visible source at the current selection or cursor.";
     requiredElement<HTMLButtonElement>("#classic-command-dialog-insert").disabled = Object.values(input).some((value) => value === "");
   } catch (error) {
     requiredElement("#classic-command-dialog-feedback").textContent = error instanceof Error ? error.message : "Choose valid command fields.";
@@ -1899,7 +1987,7 @@ classicProgramToolbarCancel.addEventListener("click", () => {
   classicProgramCommandStatus.textContent = "Cancellation requested; the current statement will finish safely.";
 });
 
-const classicOutputTargets = ["#classic-program-output", "#classic-sequential-output", "#classic-route-output", "#classic-text-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
+const classicOutputTargets = ["#classic-program-output", "#classic-sequential-output", "#classic-route-output", "#classic-text-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-match-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
 const classicOutputBrowser = requiredElement<HTMLElement>("#classic-output-browser");
 for (const selector of classicOutputTargets) {
   const output = document.querySelector<HTMLElement>(selector);
@@ -2115,16 +2203,29 @@ function hideClassicProgramExamples(message: string): void {
 
 async function refreshClassicProgramExamples(): Promise<void> {
   const source = getCurrentProjectData();
-  const isFoodborneDataset = source.dataset?.id === FOODBORNE_DATASET_ID || source.dataset?.sha256 === FOODBORNE_DATASET_SHA256;
-  if (!isFoodborneDataset || source.records.length === 0) {
+  if (!source.dataset || source.records.length === 0) {
     hideClassicProgramExamples(source.records.length === 0
       ? "Import a recognized example dataset before choosing its programs."
       : "The current dataset has no packaged Program Editor examples.");
     return;
   }
   try {
-    classicProgramCatalog ??= await loadClassicProgramExampleCatalog(new URL("./examples/foodborne/foodborne-outbreak-investigation.programs.json", import.meta.url));
-    const availability = assessClassicProgramCatalog(classicProgramCatalog, {
+    classicProgramCatalogIndex ??= await loadClassicProgramCatalogIndex(new URL("./examples/program-catalogs.json", import.meta.url));
+    const catalogSpec = [...installedClassicProgramCatalogReferences, ...classicProgramCatalogIndex.catalogs].find((candidate) =>
+      source.dataset?.id === candidate.datasetId || source.dataset?.sha256 === candidate.datasetSha256);
+    if (!catalogSpec) {
+      hideClassicProgramExamples("The current dataset has no packaged Program Editor examples.");
+      return;
+    }
+    let catalog = classicProgramCatalogs.get(catalogSpec.datasetId);
+    if (!catalog) {
+      catalog = await loadClassicProgramExampleCatalog(new URL(`./examples/${catalogSpec.catalog}`, import.meta.url));
+      if (catalog.dataset.id !== catalogSpec.datasetId || catalog.dataset.sha256 !== catalogSpec.datasetSha256) {
+        throw new Error(`Program catalog ${catalogSpec.catalog} does not match its indexed dataset identity.`);
+      }
+      classicProgramCatalogs.set(catalogSpec.datasetId, catalog);
+    }
+    const availability = assessClassicProgramCatalog(catalog, {
       ...(source.dataset ? { dataset: source.dataset } : {}),
       fields: source.fields,
       recordCount: source.records.length,
@@ -2133,7 +2234,7 @@ async function refreshClassicProgramExamples(): Promise<void> {
       hideClassicProgramExamples(availability.message);
       return;
     }
-    classicProgramExamples = classicProgramCatalog.programs;
+    classicProgramExamples = catalog.programs;
     classicProgramAvailability = new Map(availability.programs.map((program) => [program.example.id, { compatible: program.compatible, issues: program.issues }]));
     const options = availability.programs.map((program) => {
       const option = new Option(program.example.title, program.example.id);
@@ -2149,14 +2250,167 @@ async function refreshClassicProgramExamples(): Promise<void> {
     if (firstCompatible && !classicExampleSourceLoaded) loadSelectedClassicProgramExample(false);
     classicProgramFeedback.textContent = availability.message;
   } catch (error) {
-    classicProgramExampleSelect.replaceChildren(new Option("Foodborne program catalog unavailable", ""));
-    classicProgramExampleDescription.textContent = error instanceof Error ? error.message : "Unable to load the foodborne program catalog.";
+    classicProgramExampleSelect.replaceChildren(new Option("Program catalog unavailable", ""));
+    classicProgramExampleDescription.textContent = error instanceof Error ? error.message : "Unable to load the dataset program catalog.";
     classicProgramExampleSelect.disabled = true;
     classicProgramLoadExampleButton.disabled = true;
   }
 }
 
 void refreshClassicProgramExamples();
+
+const teachingRepositoryDialog = requiredElement<HTMLDialogElement>("#teaching-repository-dialog");
+const teachingRepositoryUrl = requiredElement<HTMLInputElement>("#teaching-repository-url");
+const teachingRepositoryStatus = requiredElement<HTMLElement>("#teaching-repository-status");
+const teachingRepositoryPreviewPanel = requiredElement<HTMLElement>("#teaching-repository-preview-panel");
+const teachingRepositoryInstall = requiredElement<HTMLButtonElement>("#teaching-repository-install");
+const teachingRepositoryInstalled = requiredElement<HTMLElement>("#teaching-repository-installed");
+let currentTeachingRepositoryPreview: TeachingRepositoryPreview | null = null;
+
+function formatTeachingBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function renderTeachingRepositoryPreview(preview: TeachingRepositoryPreview): void {
+  const { manifest } = preview;
+  requiredElement("#teaching-repository-preview-title").textContent = manifest.title;
+  requiredElement("#teaching-repository-preview-description").textContent = manifest.description;
+  requiredElement("#teaching-repository-preview-version").textContent = manifest.version;
+  requiredElement("#teaching-repository-preview-source").textContent = manifest.source.repository;
+  requiredElement("#teaching-repository-preview-revision").textContent = manifest.source.revision;
+  requiredElement("#teaching-repository-preview-license").textContent = manifest.license;
+  requiredElement("#teaching-repository-preview-size").textContent = `${formatTeachingBytes(preview.totalBytes)} across ${manifest.artifacts.length} artifacts`;
+  requiredElement("#teaching-repository-artifacts").replaceChildren(...manifest.artifacts.map((artifact) => {
+    const item = document.createElement("li");
+    item.textContent = `${artifact.role}: ${artifact.path.split("/").at(-1)} (${formatTeachingBytes(artifact.bytes)})`;
+    return item;
+  }));
+  teachingRepositoryPreviewPanel.hidden = false;
+  teachingRepositoryInstall.disabled = false;
+}
+
+async function registerInstalledTeachingCatalogs(repositories: readonly InstalledTeachingRepository[]): Promise<number> {
+  const references = new Map<string, ClassicProgramCatalogReference>();
+  let count = 0;
+  for (const installed of repositories) {
+    for (const artifact of installed.manifest.artifacts.filter((candidate) => candidate.role === "program-catalog")) {
+      try {
+        const file = await readInstalledTeachingArtifact(installed, artifact.path);
+        const catalog = validateClassicProgramExampleCatalog(JSON.parse(await file.text()) as unknown);
+        classicProgramCatalogs.set(catalog.dataset.id, catalog);
+        references.set(catalog.dataset.id, {
+          datasetId: catalog.dataset.id,
+          datasetSha256: catalog.dataset.sha256,
+          catalog: artifact.path,
+        });
+        count += 1;
+      } catch {
+        // A missing or corrupt installed catalog grants no Program Editor source.
+      }
+    }
+  }
+  installedClassicProgramCatalogReferences = [...references.values()];
+  return count;
+}
+
+function downloadInstalledTeachingArtifact(installed: InstalledTeachingRepository, path: string): void {
+  void (async () => {
+    try {
+      const file = await readInstalledTeachingArtifact(installed, path);
+      const href = URL.createObjectURL(file);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = path.split("/").at(-1) ?? "teaching-artifact";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(href), 0);
+      teachingRepositoryStatus.textContent = `Verified and downloaded ${anchor.download} from browser storage.`;
+    } catch (error) {
+      teachingRepositoryStatus.textContent = error instanceof Error ? error.message : "Unable to read the installed teaching artifact.";
+    }
+  })();
+}
+
+function renderInstalledTeachingRepositories(repositories = listInstalledTeachingRepositories()): void {
+  const downloads = requiredElement("#teaching-repository-downloads");
+  if (!repositories.length) {
+    teachingRepositoryInstalled.hidden = true;
+    downloads.replaceChildren();
+    return;
+  }
+  teachingRepositoryInstalled.hidden = false;
+  const latest = repositories.at(-1)!;
+  requiredElement("#teaching-repository-installed-summary").textContent = `${repositories.length} teaching release${repositories.length === 1 ? "" : "s"} installed. Latest: ${latest.manifest.title} ${latest.manifest.version}, pinned at ${latest.manifest.source.revision.slice(0, 12)}.`;
+  downloads.replaceChildren(...repositories.flatMap((installed) => installed.manifest.artifacts
+    .filter((artifact) => artifact.role === "dataset" || artifact.role === "program")
+    .map((artifact) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = `Download ${artifact.path.split("/").at(-1)}`;
+      button.addEventListener("click", () => downloadInstalledTeachingArtifact(installed, artifact.path));
+      return button;
+    })));
+}
+
+async function previewTeachingRepositoryFrom(url: URL | string): Promise<void> {
+  currentTeachingRepositoryPreview = null;
+  teachingRepositoryPreviewPanel.hidden = true;
+  teachingRepositoryInstall.disabled = true;
+  teachingRepositoryStatus.textContent = "Retrieving and validating the teaching manifest…";
+  try {
+    const preview = await previewTeachingRepository(url);
+    currentTeachingRepositoryPreview = preview;
+    renderTeachingRepositoryPreview(preview);
+    teachingRepositoryStatus.textContent = `Manifest verified. Review ${preview.manifest.artifacts.length} declared artifacts before installation.`;
+  } catch (error) {
+    teachingRepositoryStatus.textContent = error instanceof Error ? error.message : "Unable to preview the teaching repository.";
+  }
+}
+
+const teachingRepositoryTriggerSelector = [
+  "#help-teaching-repositories",
+  "#designer-help-teaching-repositories",
+  "#enter-help-teaching-repositories",
+  "#classic-help-teaching-repositories",
+].join(", ");
+
+document.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element) || !event.target.closest(teachingRepositoryTriggerSelector)) return;
+  renderInstalledTeachingRepositories();
+  teachingRepositoryDialog.showModal();
+});
+requiredElement("#teaching-repository-preview").addEventListener("click", () => {
+  void previewTeachingRepositoryFrom(teachingRepositoryUrl.value);
+});
+requiredElement("#teaching-repository-preview-bundled").addEventListener("click", () => {
+  void previewTeachingRepositoryFrom(new URL("./examples/foodborne/epi-info-teaching.json", import.meta.url));
+});
+teachingRepositoryInstall.addEventListener("click", () => {
+  if (!currentTeachingRepositoryPreview) return;
+  teachingRepositoryInstall.disabled = true;
+  teachingRepositoryStatus.textContent = "Downloading pinned artifacts and verifying SHA-256 checksums…";
+  void (async () => {
+    try {
+      const installed = await installTeachingRepository(currentTeachingRepositoryPreview!);
+      const repositories = listInstalledTeachingRepositories();
+      const catalogCount = await registerInstalledTeachingCatalogs(repositories);
+      renderInstalledTeachingRepositories(repositories);
+      await refreshClassicProgramExamples();
+      teachingRepositoryStatus.textContent = `${installed.manifest.title} ${installed.manifest.version} installed offline; ${catalogCount} verified program catalog${catalogCount === 1 ? "" : "s"} registered.`;
+    } catch (error) {
+      teachingRepositoryStatus.textContent = error instanceof Error ? error.message : "Teaching repository installation failed.";
+      teachingRepositoryInstall.disabled = false;
+    }
+  })();
+});
+
+void (async () => {
+  const repositories = listInstalledTeachingRepositories();
+  await registerInstalledTeachingCatalogs(repositories);
+  renderInstalledTeachingRepositories(repositories);
+  if (repositories.length) await refreshClassicProgramExamples();
+})();
 
 function renderClassicProgramPreferences(): void {
   classicProgramLineNumbersButton.setAttribute("aria-checked", String(classicProgramPreferences.lineNumbers));
@@ -2706,7 +2960,7 @@ function assertClassicProgramNotCancelled(signal?: AbortSignal): void {
 }
 
 function isClassicProgramCancellation(error: unknown): boolean {
-  return error instanceof ClassicProgramCancelledError;
+  return error instanceof ClassicProgramCancelledError || (error instanceof DOMException && error.name === "AbortError");
 }
 
 async function yieldClassicProgramTurn(signal?: AbortSignal): Promise<void> {
@@ -3582,6 +3836,58 @@ async function showClassicRuntimeInput(plan: ClassicDialogPlan): Promise<{ accep
 
 type ClassicBeepResult = "played" | "unavailable" | "blocked";
 
+function renderClassicMatchOutput(
+  project: { projectName: string; formName: string; dataset?: ClassicMatchReviewInput["dataset"] },
+  derivation: MatchedPairsDerivation,
+  result: MatchedPairsResult,
+  durationMs: number,
+): void {
+  requiredElement("#classic-match-output-title").textContent = `${derivation.input.exposureField} by ${derivation.input.outcomeField} — Matched Pair Case-Control Analysis`;
+  requiredElement("#classic-match-output-count").textContent = `${derivation.totals.includedSets} included sets · ${durationMs.toFixed(1)} ms Worker`;
+  requiredElement("#classic-match-output-command").textContent = derivation.command;
+  requiredElement("#classic-match-output-summary").textContent = `${derivation.totals.includedRecords} of ${derivation.totals.sourceRecords} records formed ${derivation.totals.includedSets} complete 1:1 matched sets; ${derivation.totals.excludedSets} sets (${derivation.totals.excludedRecords} records) were excluded.`;
+  const pairRows: Array<[string, string, string, number]> = [
+    ["1", "0", "Case exposed, control unexposed (b)", derivation.pairs.caseExposedControlUnexposed],
+    ["0", "1", "Case unexposed, control exposed (c)", derivation.pairs.caseUnexposedControlExposed],
+    ["1", "1", "Concordant exposed", derivation.pairs.bothExposed],
+    ["0", "0", "Concordant unexposed", derivation.pairs.neitherExposed],
+  ];
+  requiredElement("#classic-match-output-pairs").replaceChildren(...pairRows.map((values) => {
+    const row = document.createElement("tr");
+    for (const value of values) {
+      const cell = document.createElement("td"); cell.textContent = String(value); row.append(cell);
+    }
+    return row;
+  }));
+  requiredElement("#classic-match-output-or").textContent = boundaryLabel(result.estimate);
+  requiredElement("#classic-match-output-ci").textContent = `${boundaryLabel(result.confidenceInterval.lower)}–${boundaryLabel(result.confidenceInterval.upper)} (conditional exact central)`;
+  const testRows: Array<[string, number | null, number | null]> = [
+    ["Uncorrected", result.tests.uncorrected?.value ?? null, result.tests.uncorrected?.pValue ?? null],
+    ["Continuity corrected", result.tests.continuityCorrected?.value ?? null, result.tests.continuityCorrected?.pValue ?? null],
+    ["Exact binomial", null, result.tests.exactTwoSidedPValue],
+    ["Exact mid-p", null, result.tests.exactTwoSidedMidPValue],
+  ];
+  requiredElement("#classic-match-output-tests").replaceChildren(...testRows.map(([label, statistic, probability]) => {
+    const row = document.createElement("tr");
+    for (const value of [label, statistic === null ? "—" : number(statistic, 4), pValue(probability)]) {
+      const cell = document.createElement("td"); cell.textContent = value; row.append(cell);
+    }
+    return row;
+  }));
+  requiredElement("#classic-match-output-exclusions").textContent = `Excluded sets — missing analysis value: ${derivation.exclusions.missingAnalysisValueSets}; invalid binary value: ${derivation.exclusions.invalidAnalysisValueSets}; invalid case/control composition: ${derivation.exclusions.invalidCaseControlCompositionSets}; unsupported variable ratio: ${derivation.exclusions.unsupportedVariableRatioSets}.`;
+  const warning = requiredElement<HTMLElement>("#classic-match-output-warning");
+  const warnings = [...derivation.diagnostics.warnings, ...result.diagnostics.warnings];
+  warning.textContent = warnings.join(" "); warning.hidden = warnings.length === 0;
+  requiredElement<HTMLElement>("#classic-match-output").hidden = false;
+  void prepareClassicMatchReview({
+    projectName: project.projectName,
+    formName: project.formName,
+    ...(project.dataset ? { dataset: project.dataset } : {}),
+    derivation,
+    result,
+  });
+}
+
 async function playClassicBrowserBeep(): Promise<ClassicBeepResult> {
   const AudioContextConstructor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextConstructor) return "unavailable";
@@ -4167,6 +4473,32 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       });
       return;
     }
+    if (command.kind === "match") {
+      const exposure = command.selection.exposure;
+      const outcome = command.selection.outcome;
+      const matchField = command.matchBy[0];
+      const derivation = deriveMatchedPairs(project.records, {
+        exposureField: exposure,
+        outcomeField: outcome,
+        matchField,
+        confidenceLevel: 0.95,
+      });
+      classicProgramCommandStatus.textContent = `Calculating MATCH for ${derivation.totals.includedSets} complete 1:1 sets in the Rust/WASM Worker...`;
+      const calculated = await calculateMatchedPairsInWorker(derivation.kernelInput, signal ? { signal } : {});
+      assertClassicProgramNotCancelled(signal);
+      renderClassicMatchOutput(project, derivation, calculated.result, calculated.durationMs);
+      requiredElement("#classic-match-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `MATCH analyzed ${derivation.totals.includedSets} complete 1:1 sets and produced a matched odds ratio of ${boundaryLabel(calculated.result.estimate)}. ${derivation.totals.excludedSets} set${derivation.totals.excludedSets === 1 ? " was" : "s were"} excluded and retained in diagnostics.`;
+      classicProgramCommandStatus.textContent = "Selected MATCH command completed through the browser-verified V0.16 Rust/WASM paired-analysis candidate; field-user legacy comparison remains pending.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: "classic-match-paired-v0.1.0", astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: buildClassicAnalysisCommand(command),
+        summary: `MATCH included ${derivation.totals.includedSets} of ${derivation.totals.sourceSets} sets; matched OR ${boundaryLabel(calculated.result.estimate)} with conditional exact 95% CI ${boundaryLabel(calculated.result.confidenceInterval.lower)}–${boundaryLabel(calculated.result.confidenceInterval.upper)}.`,
+        diagnostics: [...derivation.diagnostics.warnings, ...calculated.result.diagnostics.warnings, "Historical desktop field-user comparison remains pending; this is not a legacy-parity claim."],
+      });
+      return;
+    }
     if (command.kind === "quality") {
       const plan = resolveEpiAiQualityCommand(selectedSource, project.fields);
       const report = applyEpiAiQualityProfile(project, plan);
@@ -4307,6 +4639,7 @@ function sequentialOutputSource(statement: ReturnType<typeof parseClassicProgram
   if (statement.type === "TablesStatement") return requiredElement<HTMLElement>("#classic-tables-categorical-output");
   if (statement.type === "SummarizeStatement") return requiredElement<HTMLElement>("#classic-summarize-output");
   if (statement.type === "GraphStatement") return requiredElement<HTMLElement>("#classic-graph-output");
+  if (statement.type === "MatchStatement") return requiredElement<HTMLElement>("#classic-match-output");
   if (statement.type === "DisplayStatement") return requiredElement<HTMLElement>("#classic-display-output");
   if (statement.type === "HeaderStatement" || statement.type === "TypeoutStatement") return requiredElement<HTMLElement>("#classic-text-output");
   if (statement.type === "RouteoutStatement" || statement.type === "CloseoutStatement") return requiredElement<HTMLElement>("#classic-route-output");

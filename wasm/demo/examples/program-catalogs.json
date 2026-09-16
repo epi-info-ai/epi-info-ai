@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "catalogs": [
+    {
+      "datasetId": "foodborne-outbreak-investigation",
+      "datasetSha256": "b6e855c8cc6990abb4c25c4a1d9ee5ddea3c0016567bfc30f372faaa07df9cf5",
+      "catalog": "foodborne/foodborne-outbreak-investigation.programs.json"
+    },
+    {
+      "datasetId": "case-control-database-example",
+      "datasetSha256": "c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48",
+      "catalog": "matched-case-control/case-control-database-example.programs.json"
+    },
+    {
+      "datasetId": "matched-pairs-hand-audit",
+      "datasetSha256": "a8c0364bcc1ffb37a5ef29b4bf2bb36cef5652a219c51e11cfa0cef98492e518",
+      "catalog": "matched-case-control/matched-pairs-hand-audit.programs.json"
+    },
+    {
+      "datasetId": "matched-pairs-no-discordance",
+      "datasetSha256": "6caacb7d1af402569004aef1529959557f69fea2a0e9305aba9ee8a51e65cf85",
+      "catalog": "matched-case-control/matched-pairs-no-discordance.programs.json"
+    }
+  ]
+}

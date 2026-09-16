@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "dataset": {
+    "id": "case-control-database-example",
+    "file": "case-control-database-example.xlsx",
+    "sha256": "c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48",
+    "recordCount": 130,
+    "fieldTypes": {
+      "matched_pairs": "number",
+      "caco": "number",
+      "pb": "number",
+      "school": "number"
+    }
+  },
+  "programs": [
+    {
+      "id": "matched-case-control-command-tour",
+      "title": "Matched case-control command tour",
+      "description": "Runs LIST, FREQ, TABLES, and the bounded 1:1 MATCH candidate in source order against the legacy teaching workbook.",
+      "requiredFields": ["matched_pairs", "caco", "pb"],
+      "source": "LIST matched_pairs caco pb\n\nFREQ caco\n\nTABLES pb caco\n\nMATCH pb caco MATCHVAR=matched_pairs"
+    },
+    {
+      "id": "match-pb-by-pair",
+      "title": "PB matched-pair analysis",
+      "description": "Runs only the bounded 1:1 MATCH candidate so its paired counts and exclusions can be reviewed directly.",
+      "requiredFields": ["matched_pairs", "caco", "pb"],
+      "source": "MATCH pb caco MATCHVAR=matched_pairs"
+    },
+    {
+      "id": "match-school-zero-cell",
+      "title": "School exposure zero-cell boundary",
+      "description": "Runs FREQ, TABLES, and MATCH where one discordant direction is zero, producing a positive-infinity matched odds ratio with an explicit boundary state.",
+      "requiredFields": ["matched_pairs", "caco", "school"],
+      "source": "FREQ school\n\nTABLES school caco\n\nMATCH school caco MATCHVAR=matched_pairs"
+    }
+  ]
+}

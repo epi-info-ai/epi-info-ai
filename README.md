@@ -500,12 +500,13 @@ The detailed cumulative changes and validation increments follow.
   join supports composite keys, one-to-many output, matched-only or retained
   unmatched parent records, collision-safe related fields, and auditable active
   table replacement. External data sources remain mediated browser adapters.
-- Revived the retained `MATCH` language surface as syntax-only: the typed AST
-  accepts all five legacy grammar forms and retained options, while a clearly
-  labeled editor dialog authors the dormant exposure/outcome form. Execution
-  fails closed because the inspected Epi Info 7 `Rule_Match` implementation
-  itself reports the command as not implemented; epidemiologic semantics and
-  validation remain the next MATCH slice.
+- Revived the retained `MATCH` language surface: the typed AST preserves all
+  five legacy grammar forms and retained options, while the Program Editor now
+  executes the explicit, unweighted, single-`MATCHVAR` 1:1 boundary through the
+  V0.16 Rust/WASM Worker. Output reports pair orientation, exclusions, matched
+  odds ratio, conditional exact limits, and McNemar results. Broader syntax
+  remains fail-closed, and experienced field users will compare the historical
+  workflow before any legacy-parity claim is made.
 - Added familiar `WRITE REPLACE "Text" destination fields` authoring and
   selected execution as an explicit UTF-8 CSV download. The foodborne fixture
   verifies 96 exported records and selected-field order. Legacy APPEND remains
@@ -641,7 +642,32 @@ The detailed cumulative changes and validation increments follow.
 
 ## TODO
 
-- **Complete the `MATCH` execution gates without lowering the parity floor.** The
+- **Teaching Repositories V0.1 candidate.** The
+  [teaching repository contract](wasm/docs/design/teaching-repository-contract.md)
+  and **Help > Teaching Repositories** now preview the public foodborne manifest,
+  pin downloads to a full GitHub commit SHA, verify declared lengths and hashes,
+  install artifacts into OPFS, re-verify offline reads, and register the installed
+  dataset-bound Program Editor catalog. Installation never executes source or
+  ingests repository scripts. Next add GitLab/generic static-host adapters,
+  locally imported teaching archives, uninstall/update/quota workflows, private
+  repository identity, and a curated signed/revocable index.
+
+- **Add governed space-time cluster detection as a new branch.** Use the
+  open-source [SaTScan repository](https://github.com/scanstatistics/satscan)
+  as a reference implementation and interoperability target; perform a formal
+  license and architecture review before reusing its C/C++ implementation.
+  Define an
+  epidemiologically reviewed workflow for event date/time, point or area
+  location, population-at-risk/expected counts, study extent, temporal window,
+  and scanning parameters. Start with a named, independently reproducible
+  retrospective method; report observed/expected counts, relative risk,
+  statistical significance, uncertainty, exclusions, and parameter provenance.
+  Keep exploratory map animation distinct from inferential cluster detection,
+  protect precise locations in exports, support offline project map assets, and
+  require synthetic known-cluster fixtures plus independent validation before
+  enabling operational use. Do not present it as legacy command parity.
+
+- **Complete field-user validation and expand `MATCH` without lowering the parity floor.** The
   [source and dataset inventory](wasm/docs/research/match-command-sources-and-data.md)
   recovers the historical command intent and identifies the legacy
   [`Case Control DatabaseExample.xlsx` workbook](wasm/demo/examples/matched-case-control/)
@@ -651,15 +677,19 @@ The detailed cumulative changes and validation increments follow.
   hand-auditable edge-case CSV, and Program Editor `.pgm7` now freeze the first
   acceptance target. The independent
   [`validate-match.ipynb`](wasm/validation-lab/content/validate-match.ipynb)
-  lab now reconstructs the sets and verifies the paired odds ratio, exact
-  interval, McNemar tests, exclusions, boundary states, and metamorphic
-  properties without calling a MATCH engine. A bounded typed adapter now groups
-  active records, validates the explicit binary domain, classifies complete 1:1
-  pairs, and accounts for every excluded set without calculating statistics.
-  Next recover the Rely/Toxic Shock Syndrome data, capture reviewed desktop
-  differential output, complete CI review of the V0.16 Rust/WASM kernel and
-  cancellable Worker, and then wire reviewed Output/history before enabling
-  Program Editor execution or making any statistical parity claim.
+  lab reconstructs the sets and independently verifies the paired odds ratio,
+  exact interval, McNemar tests, exclusions, boundary states, and metamorphic
+  properties against the deployed MATCH engine. The Program Editor now runs the
+  bounded 1:1 adapter and V0.16 Worker with visible Output and common history.
+  MATCH Output also exports a versioned, aggregate-only field-review JSON record
+  with reviewer context and dataset, command, and result fingerprints; exporting
+  an agreement never changes parity status automatically.
+  Experienced field users will validate it against remembered or still
+  accessible historical workflows because new desktop installation is no
+  longer practical. Next recover the Rely/Toxic Shock Syndrome data and add
+  reviewed observations before expanding variable-ratio, weight, wildcard,
+  multiple-match-field, or retained-option execution. Do not make a
+  legacy-parity claim until that review exists.
 
 - **Continue localization as a governed parity workstream.** The inspected
   legacy floor and browser target are now captured in

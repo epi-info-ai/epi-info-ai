@@ -120,10 +120,10 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
     expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-tables-stratified-two-by-two.expected.json",
   }),
   entry("statistics", "match", "Match", "MATCH", {
-    explorer: "legacy-enum-only", parser: "syntax-v1.0", dialog: "typed-source-v0.1", browserPolicy: "blocked",
-    validationProgram: "wasm/tests/fixtures/classic-command-parity/foodborne-match-syntax.pgm",
-    expectedOutput: "wasm/tests/fixtures/classic-command-parity/foodborne-match-syntax.expected.json",
-    evidence: "Typed syntax covers all five EpiInfoGrammar.txt Match_* productions plus WEIGHTVAR, MATCHVAR, and SET-clause options; the browser revival dialog authors the dormant MatchDialog row-column form. CommandExplorer.cs keeps its route disabled and Rule_Match.cs explicitly returns NOT yet implemented, so execution remains fail-closed.",
+    explorer: "legacy-enum-only", parser: "syntax-v1.0", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1", browserPolicy: "adapt-required", parityStatus: "browser-verified",
+    validationProgram: "wasm/demo/examples/matched-case-control/match-hand-audit.pgm7",
+    expectedOutput: "wasm/tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json",
+    evidence: "Typed syntax preserves all five EpiInfoGrammar.txt Match_* productions plus WEIGHTVAR, MATCHVAR, and SET-clause options. The browser executes only the explicit row-column, single-MATCHVAR, unweighted 1:1 boundary through the V0.16 Rust/WASM candidate. The inspected Rule_Match.cs reports NOT yet implemented, so experienced field users will perform historical workflow comparison; browser-verified is not legacy-parity-verified.",
   }),
   entry("statistics", "means", "Means", "MEANS", {
     parser: "syntax-v0.8", dialog: "typed-source-v0.1", selectedExecution: "executes-v0.1", parityStatus: "browser-verified",

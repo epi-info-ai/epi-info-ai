@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "operation": "epi.match.paired",
+  "operationVersion": "0.1.0",
+  "status": "browser-verified-candidate",
+  "cases": [
+    {
+      "id": "legacy-workbook-school-zero-cell",
+      "dataset": {
+        "file": "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx",
+        "sha256": "c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48",
+        "records": 130
+      },
+      "command": "MATCH school caco MATCHVAR=matched_pairs",
+      "expected": {
+        "sourceSets": 65,
+        "includedSets": 29,
+        "excludedSets": 36,
+        "missingAnalysisValueSets": 36,
+        "caseExposedControlUnexposed": 16,
+        "caseUnexposedControlExposed": 0,
+        "bothExposed": 2,
+        "neitherExposed": 11,
+        "oddsRatioState": "positive-infinity",
+        "exactLower": 3.8565564050159873,
+        "exactUpperState": "positive-infinity",
+        "exactTwoSidedPValue": 0.000030517578125000014,
+        "exactTwoSidedMidPValue": 0.000015258789062500007
+      }
+    },
+    {
+      "id": "concordant-only-no-discordance",
+      "dataset": {
+        "file": "wasm/demo/examples/matched-case-control/matched-pairs-no-discordance.csv",
+        "sha256": "6caacb7d1af402569004aef1529959557f69fea2a0e9305aba9ee8a51e65cf85",
+        "records": 8
+      },
+      "command": "MATCH exposure outcome MATCHVAR=set_id",
+      "expected": {
+        "sourceSets": 4,
+        "includedSets": 4,
+        "excludedSets": 0,
+        "caseExposedControlUnexposed": 0,
+        "caseUnexposedControlExposed": 0,
+        "bothExposed": 2,
+        "neitherExposed": 2,
+        "oddsRatioState": "unavailable",
+        "exactLowerState": "unavailable",
+        "exactUpperState": "unavailable",
+        "testsState": "unavailable"
+      }
+    }
+  ],
+  "provenance": {
+    "fixtureKind": "boundary-state-anchor",
+    "warning": "These expected values validate browser boundary behavior and do not establish legacy parity."
+  }
+}

@@ -4,9 +4,9 @@
 
 This document defines the first independently testable execution boundary for
 the revived `MATCH exposure outcome MATCHVAR=...` command. The bounded typed
-record-to-pair derivation is implemented, but this remains a **candidate
-contract**: no statistical execution is enabled, no result is approved, and no
-legacy-parity claim is made.
+record-to-pair derivation and V0.16 Rust/WASM execution are implemented. This
+remains a **browser candidate contract**: the bounded result is independently
+validated and executable, but no legacy-parity claim is made.
 
 The inspected Epi Info 7 grammar and dialog retain MATCH, but
 `Rule_Match.Execute()` explicitly reports that it is not implemented. An older,
@@ -30,6 +30,13 @@ MATCH <exposure> <outcome> MATCHVAR=<set identifier>
 - A nonblank match identifier defines membership in one matched set. Its
   display value is preserved in diagnostics; comparison follows the current
   field's typed equality rather than locale-aware display sorting.
+- The MATCH dialog suggests only plausible set identifiers. A candidate must
+  have identifier/set/pair/stratum/group/cluster/household semantics in its
+  field name or prompt, contain repeated nonblank values, and form mostly small
+  sets (at least two records and no more than three in this bounded heuristic).
+  Unique row identifiers and broad categorical fields are excluded from the
+  dropdown. This is a workflow guardrail, not a change to command syntax:
+  expert-authored source remains subject to the semantic validation below.
 - Active `SELECT` filtering occurs before set formation and its effect is
   recorded. A partially selected set is then incomplete and excluded with that
   reason.
@@ -92,10 +99,10 @@ Zero-cell results use explicit states: `b=0,c>0` gives estimate zero;
 not replace those states with arbitrary large values or add an unrequested
 continuity correction. The exact interval and mid-p labels must remain distinct.
 
-These are proposed independent paired-analysis semantics. Before implementation,
-they must be reconciled with any recoverable working Epi Info MATCH output and
-the precise legacy confidence-limit labels; historical wording alone is not a
-numerical oracle.
+These are independent paired-analysis semantics. The browser candidate is
+enabled against the frozen fixtures and JupyterLite calculation. Experienced
+field users will review its workflow and labels against historical practice;
+historical wording alone is not a numerical oracle.
 
 ## Required output
 
@@ -114,6 +121,20 @@ One immutable Output document must contain:
 
 Nothing is written back to source records. `OUTTABLE` behavior remains blocked
 until its legacy schema and replacement rules are independently recovered.
+
+### Portable field-review evidence
+
+MATCH Output includes an aggregate-only field-review form. Its versioned JSON
+export binds the reviewer, date, disposition, notes, project/form identity,
+dataset digest when available, canonical command, plan/result/engine versions,
+paired counts, aggregate exclusions, statistics, and SHA-256 fingerprints of
+the command and aggregate result. Per-set identifiers and source records are
+deliberately omitted.
+
+The dispositions distinguish a browser-only review from agreement or difference
+observed against historical Epi Info. A legacy comparison requires notes that
+identify the comparison context. Exporting an agreement is evidence for later
+review; it never changes the command registry or establishes parity automatically.
 
 ## Hand-auditable acceptance fixture
 
@@ -137,18 +158,28 @@ probabilities rather than copying these expected values. It also exercises
 boundary states and metamorphic properties and compares the deployed V0.16
 Rust/WebAssembly candidate with those independent results.
 
-## Validation gates before execution
+The separate
+[`matched-pairs-boundaries-v0.1.json`](../../tests/fixtures/algorithm-validation/matched-pairs-boundaries-v0.1.json)
+freezes two UI/program boundaries. The legacy workbook's `School` exposure has
+`b=16`, `c=0` among 29 complete pairs, so the estimate and upper interval limit
+are positive infinity; it is a zero-cell case, not a no-discordance case. The
+eight-record concordant-only CSV has `b=c=0`, so the estimate, interval, and
+tests are unavailable. Both states must remain explicit in Output and exported
+review evidence.
+
+## Validation and field-review gates
 
 - Confirm formula and label identity against official archived manuals.
-- Capture reviewed output from a working historical implementation, or record
-  that no working implementation can be recovered.
+- Record that a new working desktop installation cannot currently be recovered;
+  collect and export structured review from experienced historical Epi Info
+  field users using the aggregate-only evidence form.
 - Keep the independent JupyterLite calculation and boundary/metamorphic checks
   green as the future engine candidate is introduced.
 - Promote the 65-pair workbook only after provenance and value-code review.
 - Specify variable-ratio matched sets and multiple match fields separately.
 - Keep the typed V0.16 Rust/WASM result and cancellable Worker green in CI and
   preserve explicit zero/infinity/unavailable states.
-- Test selected command, full-program sequencing, output, history, and failure
-  recovery in the browser.
-- Complete statistical and implementation review before changing candidate
-  status or making a parity claim.
+- Keep selected command, full-program sequencing, output, history, cancellation,
+  and failure recovery green in browser acceptance tests.
+- Candidate execution is permitted under this explicit boundary. Complete field
+  review before expanding the boundary or making a legacy-parity claim.

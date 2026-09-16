@@ -1,6 +1,18 @@
 import type { DatasetProvenance, FieldDefinition, FieldType } from "../contracts/core.js";
 
 export const CLASSIC_PROGRAM_CATALOG_VERSION = 1 as const;
+export const CLASSIC_PROGRAM_CATALOG_INDEX_VERSION = 1 as const;
+
+export interface ClassicProgramCatalogReference {
+  datasetId: string;
+  datasetSha256: string;
+  catalog: string;
+}
+
+export interface ClassicProgramCatalogIndex {
+  schemaVersion: typeof CLASSIC_PROGRAM_CATALOG_INDEX_VERSION;
+  catalogs: ClassicProgramCatalogReference[];
+}
 
 export interface ClassicProgramExample {
   id: string;
@@ -39,6 +51,34 @@ export class ClassicProgramCatalogError extends Error {
     super(message);
     this.name = "ClassicProgramCatalogError";
   }
+}
+
+export function validateClassicProgramCatalogIndex(value: unknown): ClassicProgramCatalogIndex {
+  const index = objectValue(value, "index");
+  if (index.schemaVersion !== CLASSIC_PROGRAM_CATALOG_INDEX_VERSION) {
+    throw new ClassicProgramCatalogError(`index.schemaVersion must be ${CLASSIC_PROGRAM_CATALOG_INDEX_VERSION}.`);
+  }
+  if (!Array.isArray(index.catalogs) || index.catalogs.length === 0) {
+    throw new ClassicProgramCatalogError("index.catalogs must contain at least one catalog reference.");
+  }
+  const ids = new Set<string>();
+  const digests = new Set<string>();
+  const catalogs = index.catalogs.map((item, itemIndex): ClassicProgramCatalogReference => {
+    const reference = objectValue(item, `index.catalogs[${itemIndex}]`);
+    const datasetId = stringValue(reference.datasetId, `index.catalogs[${itemIndex}].datasetId`);
+    const datasetSha256 = stringValue(reference.datasetSha256, `index.catalogs[${itemIndex}].datasetSha256`).toLowerCase();
+    const catalog = stringValue(reference.catalog, `index.catalogs[${itemIndex}].catalog`);
+    if (!/^[a-f0-9]{64}$/.test(datasetSha256)) throw new ClassicProgramCatalogError(`index.catalogs[${itemIndex}].datasetSha256 must be a SHA-256 digest.`);
+    if (ids.has(datasetId)) throw new ClassicProgramCatalogError(`index.catalogs contains duplicate datasetId ${JSON.stringify(datasetId)}.`);
+    if (digests.has(datasetSha256)) throw new ClassicProgramCatalogError(`index.catalogs contains duplicate datasetSha256 ${JSON.stringify(datasetSha256)}.`);
+    if (catalog.startsWith("/") || catalog.includes("..") || !/^[a-z0-9][a-z0-9./-]*\.programs\.json$/i.test(catalog)) {
+      throw new ClassicProgramCatalogError(`index.catalogs[${itemIndex}].catalog must be a safe relative .programs.json path.`);
+    }
+    ids.add(datasetId);
+    digests.add(datasetSha256);
+    return { datasetId, datasetSha256, catalog };
+  });
+  return { schemaVersion: CLASSIC_PROGRAM_CATALOG_INDEX_VERSION, catalogs };
 }
 
 function objectValue(value: unknown, path: string): Record<string, unknown> {
@@ -154,4 +194,10 @@ export async function loadClassicProgramExampleCatalog(url: URL | string): Promi
   const response = await fetch(url);
   if (!response.ok) throw new ClassicProgramCatalogError(`Unable to load example program catalog (${response.status}).`);
   return validateClassicProgramExampleCatalog(await response.json() as unknown);
+}
+
+export async function loadClassicProgramCatalogIndex(url: URL | string): Promise<ClassicProgramCatalogIndex> {
+  const response = await fetch(url);
+  if (!response.ok) throw new ClassicProgramCatalogError(`Unable to load the example program index (${response.status}).`);
+  return validateClassicProgramCatalogIndex(await response.json() as unknown);
 }

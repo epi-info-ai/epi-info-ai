@@ -1050,34 +1050,47 @@ test("Classic Analysis preserves its four-menu shell and Command Explorer", asyn
   await page.locator("#classic-command-dialog button", { hasText: "Cancel" }).click();
 });
 
-test("MATCH revival authors retained syntax and fails closed before execution", async ({ page }) => {
+test("MATCH revival authors and executes the bounded 1:1 paired analysis", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
-  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv");
-  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/matched-case-control/matched-pairs-hand-audit.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 5 fields and imported 21 records");
   await page.locator('[data-module="classic"]').click();
 
   const tree = page.getByRole("tree", { name: "Classic Analysis commands" });
   await tree.locator("summary").filter({ hasText: /^New Branches — Epi Info AI$/ }).click();
   await page.locator("#classic-command-match").click();
-  await expect(page.locator("#classic-command-dialog-title")).toHaveText("REVIVAL — Match Command");
+  await expect(page.locator("#classic-command-dialog-title")).toHaveText("REVIVAL — Matched Pair Analysis Command");
   await expect(page.locator("#classic-command-dialog-match")).toBeVisible();
   await expect(page.locator("#classic-command-dialog-strata-label")).toContainText("Match variable");
-  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("MATCH potato_salad case_status MATCHVAR=sex");
-  await expect(page.locator("#classic-command-dialog-feedback")).toContainText("Execution remains disabled");
+  await expect(page.locator("#classic-command-dialog-strata option")).toHaveCount(1);
+  await expect(page.locator("#classic-command-dialog-strata option")).toHaveText("Set ID (10 sets; max 3 records/set)");
+  await expect(page.locator("#classic-command-dialog-strata option")).not.toContainText("Record ID");
+  await expect(page.locator("#classic-command-dialog-strata option")).not.toContainText("Outcome");
+  await expect(page.locator("#classic-command-dialog-strata option")).not.toContainText("Exposure");
+  await page.locator("#classic-command-dialog-exposure").selectOption("exposure");
+  await page.locator("#classic-command-dialog-outcome").selectOption("outcome");
+  await page.locator("#classic-command-dialog-strata").selectOption("set_id");
+  await expect(page.locator("#classic-command-dialog-preview")).toHaveText("MATCH exposure outcome MATCHVAR=set_id");
+  await expect(page.locator("#classic-command-dialog-feedback")).toContainText("browser-verified Rust/WASM candidate");
   await page.locator("#classic-command-dialog-insert").click();
 
   const editor = page.locator("#classic-program-source .cm-content");
-  await expect(editor).toContainText("MATCH potato_salad case_status MATCHVAR=sex");
-  await editor.fill("MATCH potato_salad case_status MATCHVAR=sex");
+  await expect(editor).toContainText("MATCH exposure outcome MATCHVAR=set_id");
+  await editor.fill("MATCH exposure outcome MATCHVAR=set_id");
   await editor.press("Control+A");
   await page.locator("#classic-program-run-selection").click();
-  await expect(page.locator("#classic-program-feedback")).toContainText("MATCH syntax is available for revival review, but execution remains disabled");
+  await expect(page.locator("#classic-program-feedback")).toContainText("MATCH analyzed 7 complete 1:1 sets");
+  await expect(page.locator("#classic-match-output")).toBeVisible();
+  await expect(page.locator("#classic-match-output-or")).toHaveText("1.50");
+  await expect(page.locator("#classic-match-output-ci")).toContainText("0.17–17.96");
+  await expect(page.locator("#classic-match-output-pairs")).toContainText("Case exposed, control unexposed (b)3");
+  await expect(page.locator("#classic-match-output-tests")).toContainText("Exact mid-p—0.6875");
   await expect(page.locator("#classic-program-history-count")).toHaveText("1");
-  await expect(page.locator("#classic-program-history")).toContainText("Selected command rejected before execution");
+  await expect(page.locator("#classic-program-history")).toContainText("MATCH included 7 of 10 sets");
 });
 
-test("MATCH teaching workbook and program compose through the real editor", async ({ page }) => {
+test("MATCH teaching workbook exposes and runs a dataset-bound multi-command tour", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
   await page.locator("#form-csv-import").setInputFiles(
@@ -1085,12 +1098,90 @@ test("MATCH teaching workbook and program compose through the real editor", asyn
   );
   await expect(page.locator("#csv-form-status")).toContainText("Created 121 fields and imported 130 records");
   await page.locator('[data-module="classic"]').click();
-  await page.locator("#classic-program-file").setInputFiles(
-    "wasm/demo/examples/matched-case-control/match-pb-by-pair.pgm7",
-  );
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(page.locator(".classic-program-examples")).toBeVisible();
+  await expect(page.locator("#classic-program-example option")).toHaveCount(3);
+  await expect(page.locator("#classic-program-example")).toHaveValue("matched-case-control-command-tour");
+  await expect(page.locator("#classic-program-example-description")).toContainText("LIST, FREQ, TABLES, and the bounded 1:1 MATCH");
+  await page.locator("#classic-program-load-example").click();
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("LIST matched_pairs caco pb");
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("MATCH pb caco MATCHVAR=matched_pairs");
   await page.locator("#classic-program-run").click();
-  await expect(page.locator("#classic-program-feedback")).toContainText("MATCH syntax is available for revival review, but execution remains disabled");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 4 commands in source order");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(4);
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(0)).toHaveText("LIST matched_pairs caco pb");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(1)).toHaveText("FREQ caco");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(2)).toHaveText("TABLES pb caco");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(3)).toHaveText("MATCH pb caco MATCHVAR=matched_pairs");
+  await expect(page.locator("#classic-match-output")).toBeVisible();
+  await expect(page.locator("#classic-match-output-summary")).toContainText("60 complete 1:1 matched sets; 5 sets (10 records) were excluded");
+  await expect(page.locator("#classic-match-review-fingerprints")).toContainText("Aggregate result:");
+  await page.locator("#classic-match-reviewer").fill("Field reviewer 01");
+  await page.locator("#classic-match-review-disposition").selectOption("agrees-with-legacy");
+  await page.locator("#classic-match-review-export").click();
+  await expect(page.locator("#classic-match-review-status")).toContainText("Describe the legacy Epi Info version");
+  await page.locator("#classic-match-review-notes").fill("Epi Info 7 field comparison using the checked-in teaching workbook; aggregate results agreed.");
+  const reviewDownloadPromise = page.waitForEvent("download");
+  await page.locator("#classic-match-review-export").click();
+  const reviewDownload = await reviewDownloadPromise;
+  expect(reviewDownload.suggestedFilename()).toMatch(/^browser-project-match-review-\d{4}-\d{2}-\d{2}\.json$/i);
+  const reviewPath = await reviewDownload.path();
+  const reviewEvidence = JSON.parse(await readFile(reviewPath, "utf8"));
+  expect(reviewEvidence.kind).toBe("epi-info-ai.match-review");
+  expect(reviewEvidence.review).toMatchObject({ reviewer: "Field reviewer 01", disposition: "agrees-with-legacy", parityEffect: "candidate-agreement" });
+  expect(reviewEvidence.context.dataset.sha256).toBe("c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48");
+  expect(reviewEvidence.execution.command).toBe("MATCH pb caco MATCHVAR=matched_pairs");
+  expect(reviewEvidence.aggregateResult.totals).toMatchObject({ sourceRecords: 130, includedSets: 60, excludedSets: 5 });
+  expect(reviewEvidence.aggregateResult.exclusions.sets).toBeUndefined();
+  expect(reviewEvidence.fingerprints.commandSha256).toMatch(/^[a-f0-9]{64}$/);
+  expect(reviewEvidence.fingerprints.aggregateResultSha256).toMatch(/^[a-f0-9]{64}$/);
+  await expect(page.locator("#classic-match-review-status")).toContainText("parity status was not changed automatically");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("5");
+});
+
+test("MATCH teaching workbook preserves the one-sided zero-cell infinity boundary", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles(
+    "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx",
+  );
+  await expect(page.locator("#csv-form-status")).toContainText("Created 121 fields and imported 130 records");
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(page.locator("#classic-program-example option")).toHaveCount(3);
+  await page.locator("#classic-program-example").selectOption("match-school-zero-cell");
+  await page.locator("#classic-program-load-example").click();
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 3 commands in source order");
+  await expect(page.locator("#classic-match-output-command")).toHaveText("MATCH school caco MATCHVAR=matched_pairs");
+  await expect(page.locator("#classic-match-output-summary")).toContainText("29 complete 1:1 matched sets; 36 sets (72 records) were excluded");
+  await expect(page.locator("#classic-match-output-pairs")).toContainText("Case exposed, control unexposed (b)16");
+  await expect(page.locator("#classic-match-output-pairs")).toContainText("Case unexposed, control exposed (c)0");
+  await expect(page.locator("#classic-match-output-or")).toHaveText("Infinity");
+  await expect(page.locator("#classic-match-output-ci")).toContainText("3.86–Infinity");
+  await expect(page.locator("#classic-match-output-warning")).toContainText("matched odds ratio is positive infinity");
+});
+
+test("MATCH concordant-only fixture reports no-discordance results as unavailable", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles(
+    "wasm/demo/examples/matched-case-control/matched-pairs-no-discordance.csv",
+  );
+  await expect(page.locator("#csv-form-status")).toContainText("Created 5 fields and imported 8 records");
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(page.locator("#classic-program-example")).toHaveValue("match-no-discordance");
+  await page.locator("#classic-program-load-example").click();
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 3 commands in source order");
+  await expect(page.locator("#classic-match-output-summary")).toContainText("8 of 8 records formed 4 complete 1:1 matched sets; 0 sets");
+  await expect(page.locator("#classic-match-output-pairs")).toContainText("Case exposed, control unexposed (b)0");
+  await expect(page.locator("#classic-match-output-pairs")).toContainText("Case unexposed, control exposed (c)0");
+  await expect(page.locator("#classic-match-output-or")).toHaveText("Unavailable");
+  await expect(page.locator("#classic-match-output-ci")).toContainText("Unavailable–Unavailable");
+  await expect(page.locator("#classic-match-output-tests")).toContainText("Uncorrected—Undefined");
+  await expect(page.locator("#classic-match-output-warning")).toContainText("No discordant pairs remain");
 });
 
 test("Form Designer preserves nested legacy Tools menu branches", async ({ page }) => {
@@ -1737,6 +1828,7 @@ test("Program Editor does not expose foodborne programs without their dataset", 
   await expect(page.locator(".classic-program-examples")).toBeHidden();
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("Enter an Epi Info program for the current project");
   expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/foodborne/foodborne-outbreak-investigation.programs.json", location.href).href).length)).toBe(0);
+  expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/matched-case-control/case-control-database-example.programs.json", location.href).href).length)).toBe(0);
 
   await page.locator('[data-module="forms"]').click();
   await page.locator("#import-rows-with-form").check();
@@ -1749,6 +1841,7 @@ test("Program Editor does not expose foodborne programs without their dataset", 
   await page.locator('[data-module="classic"]').click();
   await expect(page.locator(".classic-program-examples")).toBeHidden();
   expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/foodborne/foodborne-outbreak-investigation.programs.json", location.href).href).length)).toBe(0);
+  expect(await page.evaluate(() => performance.getEntriesByName(new URL("examples/matched-case-control/case-control-database-example.programs.json", location.href).href).length)).toBe(0);
 });
 
 test("Program Editor and Output preserve the legacy menus and toolbar order", async ({ page }) => {
@@ -1881,7 +1974,7 @@ test("foodborne DIALOG tour exercises every supported variant without recording 
   await expect(page.locator("#classic-program-example-description")).toContainText("all 14 supported DIALOG types");
   await page.locator("#classic-program-load-example").click();
   await expect(programDialog).toBeHidden();
-  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax and fields are valid");
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("DATETIMEFORMAT");
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("DBVALUES [Foodborne Outbreak Investigation Submissions Export Form] case_status");
 
@@ -2091,7 +2184,7 @@ test("Program Editor opens and runs the demo foodborne PGM through visible Outpu
   await expect(editor).toContainText("DEFINE AgeGroup TEXTINPUT");
   await expect(editor).toContainText("FREQ AgeGroup STRATAVAR=Sex");
   await expect(page.locator("#classic-program-document-state")).toHaveText("foodborne-age-groups-by-sex · saved");
-  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax and fields are valid");
   await page.locator("#classic-program-run").click();
 
   await expect(page.locator("#classic-program-output-title")).toHaveText("Age group by Sex");
@@ -3254,7 +3347,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await page.locator('[data-module="classic"]').click();
   await expect(page.locator("#classic-program-source-name")).toContainText("96 records");
   await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeVisible();
-  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax and fields are valid");
   await page.locator("#view-menu summary").click();
   await page.locator("#view-program-line-numbers").click();
   await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeHidden();
@@ -3311,7 +3404,7 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await expect(page.locator("#classic-program-example-description")).toContainText("Case Status");
   await page.locator("#classic-program-load-example").click();
   await expect(editor).toContainText("DEFINE BroadAgeGroup TEXTINPUT");
-  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid");
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax and fields are valid");
   await page.locator("#classic-program-run").click();
   await expect(page.locator("#classic-program-feedback")).toContainText("Executed DEFINE → RECODE → FREQ for 96 records");
   await expect(page.locator("#classic-program-output-title")).toHaveText("Broad age group by Case Status");
@@ -3729,6 +3822,12 @@ test("integrated project, foodborne, mapping, and MATCH examples are downloadabl
   expect(createHash("sha256").update(matchWorkbook).digest("hex")).toBe(
     "c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48",
   );
+  const matchCatalogResponse = await request.get("/examples/matched-case-control/case-control-database-example.programs.json");
+  expect(matchCatalogResponse.ok()).toBe(true);
+  expect((await matchCatalogResponse.json()).programs.map(({ id }) => id)).toContain("matched-case-control-command-tour");
+  const matchTourResponse = await request.get("/examples/matched-case-control/matched-case-control-command-tour.pgm7");
+  expect(matchTourResponse.ok()).toBe(true);
+  expect(await matchTourResponse.text()).toContain("TABLES pb caco\n\nMATCH pb caco MATCHVAR=matched_pairs");
 
   const matchedStressResponse = await request.get("/examples/matched-case-control/matched-logistic-test-data.csv");
   expect(matchedStressResponse.ok()).toBe(true);
@@ -3837,4 +3936,58 @@ test("Program Editor Epi Assist hands its prompt to the model-backed dialog", as
   await expect(page.locator("#epi-assist-prompt")).toHaveValue("Show gender distribution by status");
   await expect(page.locator("#epi-assist-status")).toContainText("not loaded");
   await expect(page.locator("#epi-assist-ask")).toBeDisabled();
+});
+
+test("GitHub teaching repository installs the pinned foodborne dataset and programs offline", async ({ page }) => {
+  const revision = "4dccfbaa79e62f7bee4c9c9c8a84e00453ed3b48";
+  await page.route("https://raw.githubusercontent.com/epi-info-ai/epi-info-ai/**", async (route) => {
+    const url = new URL(route.request().url());
+    const prefix = "/epi-info-ai/epi-info-ai/";
+    const remainder = decodeURIComponent(url.pathname.slice(prefix.length));
+    const slash = remainder.indexOf("/");
+    const ref = remainder.slice(0, slash);
+    const path = remainder.slice(slash + 1);
+    expect(["main", revision]).toContain(ref);
+    const body = await readFile(path);
+    const contentType = path.endsWith(".json") ? "application/json" : path.endsWith(".csv") ? "text/csv" : "text/plain";
+    await route.fulfill({ status: 200, contentType, body });
+  });
+
+  await page.locator("#help-menu summary").click();
+  await page.locator("#help-teaching-repositories").click();
+  await page.locator("#teaching-repository-preview").click();
+  await expect(page.locator("#teaching-repository-preview-title")).toHaveText("Foodborne outbreak investigation");
+  await expect(page.locator("#teaching-repository-preview-revision")).toHaveText(revision);
+  await expect(page.locator("#teaching-repository-artifacts li")).toHaveCount(4);
+  await page.locator("#teaching-repository-install").click();
+  await expect(page.locator("#teaching-repository-status")).toContainText("installed offline; 1 verified program catalog registered");
+  await expect(page.locator("#teaching-repository-installed-summary")).toContainText("pinned at 4dccfbaa79e6");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download foodborne-outbreak-investigation.csv" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("foodborne-outbreak-investigation.csv");
+  const downloadPath = await download.path();
+  expect(downloadPath).toBeTruthy();
+
+  await page.getByRole("dialog", { name: "Teaching Repositories" }).getByRole("button", { name: "Close" }).last().click();
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles({
+    name: download.suggestedFilename(),
+    mimeType: "text/csv",
+    buffer: await readFile(downloadPath),
+  });
+  await expect(page.locator("#csv-form-status")).toContainText("Created 27 fields and imported 96 records");
+  await page.locator('[data-module="classic"]').click();
+  await page.getByRole("button", { name: "Open Pgm" }).click();
+  await expect(page.locator("#classic-program-example option")).toHaveCount(7);
+  await expect(page.locator("#classic-program-example")).toContainText("Life-stage age groups by sex");
+});
+
+test("Classic Analysis Help opens Teaching Repositories", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Classic" }).click();
+  await page.locator("#classic-analysis-menu").getByText("Help", { exact: true }).click();
+  await page.locator("#classic-help-teaching-repositories").click();
+  await expect(page.getByRole("dialog", { name: "Teaching Repositories" })).toBeVisible();
 });

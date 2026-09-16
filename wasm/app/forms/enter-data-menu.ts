@@ -107,6 +107,7 @@ export const ENTER_DATA_MENUS: readonly EnterDataTopMenu[] = [
   {
     key: "help", label: "Help", entries: [
       gap("contents", "Contents", "always"),
+      command("teaching-repositories", "Teaching Repositories...", "enter-help-teaching-repositories", "always", undefined, "new-branch"),
       gap("about", "About Epi Info 7", "always"),
     ],
   },

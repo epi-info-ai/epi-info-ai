@@ -18,7 +18,7 @@ import { buildClassicGraphCommand, resolveClassicGraphCommand, type ClassicGraph
 import { buildEpiAiQualityCommand, resolveEpiAiQualityCommand } from "./epi-ai-quality.ts";
 import { buildFileConvertCommand, resolveFileConvertCommand } from "./file-convert.ts";
 import { buildClassicDialogCommand, resolveClassicDialogCommand, type ClassicDialogCommandInput } from "./classic-dialog.ts";
-import { buildClassicMatchCommand, matchExecutionUnavailable, type ClassicMatchInput } from "./classic-match.ts";
+import { buildClassicMatchCommand, resolveExecutableClassicMatchCommand, type ClassicMatchInput, type ExecutableClassicMatchInput } from "./classic-match.ts";
 
 export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "match" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "file-convert";
 
@@ -65,7 +65,7 @@ export type ClassicAnalysisCommandInput =
   | { kind: "tables"; exposure: string; exposures?: string[]; outcome: string; stratifyBy?: string[]; weightBy?: string; psuBy?: string; statistics?: "NONE" | "FISHER"; outputTable?: string; oneIsYes?: boolean; noWrap?: boolean; columnSize?: number }
   | ({ kind: "match" } & ClassicMatchInput);
 
-type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" } | { kind: "match" }>;
+type SelectedExecutableClassicCommandInput = Exclude<ClassicAnalysisCommandInput, { kind: "recode" } | { kind: "match" }> | ({ kind: "match" } & ExecutableClassicMatchInput);
 export type ResolvedClassicAnalysisCommand = SelectedExecutableClassicCommandInput & { source: string };
 export const CLASSIC_TABLES_EXPANSION_PLAN_VERSION = "classic-tables-expansion-v0.1.0" as const;
 
@@ -188,7 +188,7 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       ...(plan.target ? { target: plan.target.name } : {}), input: plan.input, source,
     };
   }
-  if (statement.type === "MatchStatement") return matchExecutionUnavailable();
+  if (statement.type === "MatchStatement") return { kind: "match", ...resolveExecutableClassicMatchCommand(source, fields), source };
   if (statement.type === "BeepStatement") return { kind: "beep", source };
   if (statement.type === "SetStatement") return statement.option === "MISSING"
     ? { kind: "set-missing", enabled: statement.enabled, source }
@@ -384,5 +384,5 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       ...(statement.options.columnSize !== undefined ? { columnSize: statement.options.columnSize } : {}),
     };
   }
-  throw new RangeError("Only selected READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, SUMMARIZE, GRAPH, and SET MISSING commands are enabled in this slice.");
+  throw new RangeError("Only selected READ, RELATE, WRITE, MERGE, DELETE TABLES, DELETE RECORDS, UNDELETE RECORDS, DEFINE, DEFINE GROUPVAR, UNDEFINE, ASSIGN, DISPLAY, SELECT, CANCEL SELECT, IF, SORT, CANCEL SORT, LIST, FREQ, MEANS, TABLES, MATCH, SUMMARIZE, GRAPH, and SET MISSING commands are enabled in this slice.");
 }
