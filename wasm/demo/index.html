@@ -638,6 +638,7 @@
               <span class="map-toolbar-divider" aria-hidden="true"></span>
               <button id="map-current-location" type="button">Current Location</button>
               <button id="map-fit-points" type="button">Fit Layers</button>
+              <button id="map-cluster-tour-open" type="button" aria-controls="map-cluster-tour-controls" aria-pressed="false" hidden>Story Tour</button>
               <span id="map-status" role="status">Map ready</span>
               <span id="map-basemap-status" class="map-basemap-status" role="status" aria-live="polite"></span>
               <div id="map-offline-recovery" class="map-offline-recovery" data-state="available" hidden>
@@ -1522,6 +1523,11 @@
           <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> CLUSTER output</p><h2 id="classic-cluster-output-title">Space-Time Cluster Detection</h2></div><span id="classic-cluster-output-count" class="calculation-time"></span></div>
           <p id="classic-cluster-output-summary"></p>
           <p><code id="classic-cluster-output-command"></code></p>
+          <details id="classic-cluster-parameters" class="classic-cluster-parameters" open>
+            <summary>Analysis parameters and validation crosswalk</summary>
+            <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Parameter</th><th>Epi Info AI value</th><th>SaTScan-equivalent setting</th></tr></thead><tbody id="classic-cluster-parameters-body"></tbody></table></div>
+            <p id="classic-cluster-parameters-note" class="method-note"></p>
+          </details>
           <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Rank</th><th>Period</th><th>Observed</th><th>Expected</th><th>O/E</th><th>Log likelihood ratio</th><th>Monte Carlo p</th><th>Locations</th><th>Cases</th></tr></thead><tbody id="classic-cluster-output-body"></tbody></table></div>
           <section id="classic-cluster-map" class="classic-cluster-map" aria-labelledby="classic-cluster-map-title" hidden>
             <div class="panel-heading"><div><p class="step-label">LOCAL RESULT MAP</p><h3 id="classic-cluster-map-title">Ranked cluster windows</h3></div><button id="classic-cluster-open-maps" class="secondary-button classic-cluster-open-maps" data-cluster-open-maps type="button" disabled>Open in Maps</button></div>

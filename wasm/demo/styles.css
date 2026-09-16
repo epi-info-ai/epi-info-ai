@@ -4305,6 +4305,10 @@ body.map-fullscreen-fallback {
 .classic-cluster-map-hotspot:focus-visible::after { display: block; }
 .classic-cluster-map .method-note { margin: 0; padding: 0.65rem 0.8rem; }
 .classic-cluster-map-attribution { margin: 0; padding: 0 0.8rem 0.65rem; color: var(--text-muted); font-size: 0.72rem; }
+.classic-cluster-parameters { margin: 0.75rem 0; border: 1px solid #9fb6c2; background: #f8fbfc; }
+.classic-cluster-parameters > summary { padding: 0.55rem 0.7rem; color: #17384c; font-weight: 700; cursor: pointer; }
+.classic-cluster-parameters .results-table-scroll { margin: 0; border-inline: 0; }
+.classic-cluster-parameters .method-note { margin: 0; padding: 0.55rem 0.7rem; }
 .classic-quality-mini-bar { display: grid; grid-template-columns: minmax(5rem, 1fr) auto; gap: 0.5rem; align-items: center; }
 .classic-quality-mini-bar > span:first-child { height: 0.65rem; overflow: hidden; border-radius: 999px; background: #d8e3e9; }
 .classic-quality-mini-bar > span:first-child > span { display: block; height: 100%; background: #c34a36; }

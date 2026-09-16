@@ -3466,11 +3466,42 @@ function elapsedLabel(milliseconds: number): string {
 
 function renderSpaceTimeClusterOutput(result: SpaceTimeClusterInferenceResult, durationMs: number): void {
   const output = requiredElement<HTMLElement>("#classic-cluster-output");
+  const plan = result.plan;
+  const percentage = (value: number): string => `${number(value * 100, 2)}%`;
+  const effectiveMaximumTemporalUnits = Math.max(1, Math.min(plan.maxTimeUnits, Math.floor(result.totals.timeBins * plan.maxTimeFraction)));
   requiredElement("#classic-cluster-output-title").textContent = `Space-Time Cluster Detection — ${result.plan.resultName}`;
   requiredElement("#classic-cluster-output-count").textContent = `${result.clusters.length} ranked clusters · ${result.inference.replications} replications · ${elapsedLabel(durationMs)}`;
   requiredElement("#classic-cluster-output-summary").textContent =
     `${result.totals.eligibleRecords} eligible of ${result.totals.sourceRecords} source records; ${result.totals.candidateWindows.toLocaleString("en-US")} candidate windows per replication; seed ${result.inference.seed}.`;
   requiredElement("#classic-cluster-output-command").textContent = result.plan.canonicalSource;
+  const parameterRows: Array<[string, string, string]> = [
+    ["Analysis type", "Retrospective space-time", "AnalysisType=3"],
+    ["Probability model", "Space-time permutation", "ModelType=2"],
+    ["Scan direction", "High clusters", "ScanAreas=1"],
+    ["Identifier field", plan.idField, "Case-file event identity"],
+    ["Event-date field", plan.dateField, "Case-file date/time column"],
+    ["Coordinate fields", `${plan.latitudeField}, ${plan.longitudeField}`, "CoordinatesType=1 (latitude/longitude)"],
+    ["Coordinate reference", plan.coordinateSystem, "Latitude/longitude WGS 84"],
+    ["Study period", `${plan.studyStart} through ${plan.studyEnd}`, `StartDate=${plan.studyStart.replaceAll("-", "/")}; EndDate=${plan.studyEnd.replaceAll("-", "/")}`],
+    ["Time precision", `${plan.timeUnit}, aggregated in units of ${plan.timeLength}`, `PrecisionCaseTimes=${plan.timeUnit === "DAY" ? 3 : plan.timeUnit === "MONTH" ? 2 : "day-based week adaptation"}; TimeAggregationLength=${plan.timeLength}`],
+    ["Spatial window", `${plan.spatialShape}; maximum ${number(plan.maxDistanceKm, 3)} km`, `SpatialWindowShapeType=0; UseDistanceFromCenterOption=y; MaxSpatialSizeInDistanceFromCenter=${number(plan.maxDistanceKm, 3)}`],
+    ["Maximum spatial case fraction", percentage(plan.maxCaseFraction), `MaxSpatialSizeInPopulationAtRisk=${number(plan.maxCaseFraction * 100, 2)}`],
+    ["Maximum temporal window", `${effectiveMaximumTemporalUnits} ${plan.timeUnit.toLocaleLowerCase("en-US")} unit${effectiveMaximumTemporalUnits === 1 ? "" : "s"} effective; bounds ${plan.maxTimeUnits} units and ${percentage(plan.maxTimeFraction)} of ${result.totals.timeBins} bins`, `MaxTemporalSizeInterpretation=1; MaxTemporalSize=${effectiveMaximumTemporalUnits}`],
+    ["Monte Carlo inference", `${result.inference.replications} fixed replications; maximum-statistic LLR`, `MonteCarloReps=${result.inference.replications}; PValueReportType=1`],
+    ["P-value formula", "(1 + exceedances) / (1 + replications)", "Standard Monte Carlo rank p-value"],
+    ["Random generator and seed", `${result.inference.randomGenerator}; ${result.inference.seed}`, "Implementation-specific; record separately for reproducibility"],
+    ["Candidate windows", `${result.totals.spatialWindows} spatial × ${result.totals.temporalWindows} temporal = ${result.totals.candidateWindows.toLocaleString("en-US")}`, "Confirm candidate-window totals independently"],
+    ["Engine contracts", `plan ${plan.version}; scoring ${result.version}`, "Record validation-tool name and version"],
+  ];
+  requiredElement("#classic-cluster-parameters-body").replaceChildren(...parameterRows.map(([parameter, epiValue, crosswalk]) => {
+    const row = document.createElement("tr");
+    for (const value of [parameter, epiValue, crosswalk]) {
+      const cell = document.createElement("td"); cell.textContent = value; row.append(cell);
+    }
+    return row;
+  }));
+  requiredElement("#classic-cluster-parameters-note").textContent =
+    "This crosswalk exposes the intended configuration for differential validation. Matching parameter labels do not by themselves establish numerical parity: candidate-window generation, randomization streams, stopping rules, and software versions must also be compared.";
   requiredElement("#classic-cluster-output-body").replaceChildren(...result.clusters.map((cluster) => {
     const row = document.createElement("tr");
     for (const value of [
@@ -4985,6 +5016,10 @@ function appendSequentialCommandOutput(
   if (output && !output.hidden) {
     const result = document.createElement("div"); result.className = "classic-sequential-command-result";
     result.append(retainedSequentialOutput(output)); article.append(result);
+    // RENDER uses the live CLUSTER document as a staging surface. Once its
+    // retained program result exists, hide that staging copy so the Output
+    // browser presents one static map rather than the original plus its clone.
+    if (statement.type === "EpiAiClusterRenderStatement") output.hidden = true;
   }
   requiredElement("#classic-sequential-output-body").append(article);
   requiredElement("#classic-sequential-output-count").textContent = `${index} of ${total} commands retained`;

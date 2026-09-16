@@ -2194,7 +2194,45 @@ FREQ AgeGroup STRATAVAR=Sex`;
   });
   assert.equal(availableClusterPrograms.datasetMatches, true);
   assert.ok(availableClusterPrograms.programs.every(({ compatible }) => compatible), "the imported CLUSTER CSV must expose its dataset-bound command tour");
-  assert.match(await readFile(repositoryPath("wasm/demo/examples/cluster/README.md"), "utf8"), /nyccommunicable/);
+  const clusterReadme = await readFile(repositoryPath("wasm/demo/examples/cluster/README.md"), "utf8");
+  assert.match(clusterReadme, /nyccommunicable/);
+  assert.match(clusterReadme, /satscan\//);
+  const satscanDirectory = "wasm/demo/examples/cluster/satscan";
+  const satscanCaseRows = (await readFile(repositoryPath(`${satscanDirectory}/space-time-cluster.cas`), "utf8"))
+    .trim().split(/\r?\n/).map((row) => row.trim().split(/\s+/));
+  const satscanPopulationRows = (await readFile(repositoryPath(`${satscanDirectory}/space-time-cluster.pop`), "utf8"))
+    .trim().split(/\r?\n/).map((row) => row.trim().split(/\s+/));
+  const satscanGeographyRows = (await readFile(repositoryPath(`${satscanDirectory}/space-time-cluster.geo`), "utf8"))
+    .trim().split(/\r?\n/).map((row) => row.trim().split(/\s+/));
+  assert.equal(satscanCaseRows.length, 30, "SaTScan differential input must preserve one visible row per source case");
+  assert.equal(satscanCaseRows.reduce((total, [, count]) => total + Number(count), 0), 30);
+  assert.equal(satscanPopulationRows.reduce((total, [, , population]) => total + Number(population), 0), 60000);
+  assert.equal(satscanGeographyRows.length, 6);
+  const satscanGeography = new Map(satscanGeographyRows.map(([location, latitude, longitude]) => [location, { latitude, longitude }]));
+  assert.deepEqual(
+    [...new Set([...satscanCaseRows.map(([location]) => location), ...satscanPopulationRows.map(([location]) => location)])].sort(),
+    [...satscanGeography.keys()].sort(),
+    "every SaTScan case/population location must have one coordinate row",
+  );
+  for (const [location, { latitude, longitude }] of satscanGeography) {
+    assert.match(latitude, /^[+-]?\d+\.\d{5,}$/, `${location} SaTScan latitude must preserve five decimal places`);
+    assert.match(longitude, /^[+-]?\d+\.\d{5,}$/, `${location} SaTScan longitude must preserve five decimal places`);
+  }
+  const sourceClusterRows = clusterDemoCsv.trim().split(/\r?\n/).slice(1).map((row) => row.split(","));
+  const sourceLocations = new Map(sourceClusterRows.map((row) => [row[2], { latitude: row[3], longitude: row[4] }]));
+  assert.deepEqual(satscanGeography, sourceLocations, "SaTScan coordinates must exactly match the source CSV");
+  const sourceCaseCounts = new Map();
+  for (const row of sourceClusterRows) {
+    const key = `${row[2]}|${row[1].replaceAll("-", "/")}`;
+    sourceCaseCounts.set(key, (sourceCaseCounts.get(key) ?? 0) + 1);
+  }
+  const satscanCaseCounts = new Map();
+  for (const [location, count, date] of satscanCaseRows) {
+    const key = `${location}|${date}`;
+    satscanCaseCounts.set(key, (satscanCaseCounts.get(key) ?? 0) + Number(count));
+  }
+  assert.deepEqual(satscanCaseCounts, sourceCaseCounts, "SaTScan case rows must be an exact location/date aggregation of the source CSV");
+  assert.match(await readFile(repositoryPath(`${satscanDirectory}/README.md`), "utf8"), /not.*direct validation/is);
 
   const teaching = await import(`${pathToFileURL(repositoryPath("wasm/app/teaching/repository.ts")).href}?teaching=${Date.now()}`);
   const teachingManifestValue = JSON.parse(await readFile(repositoryPath(

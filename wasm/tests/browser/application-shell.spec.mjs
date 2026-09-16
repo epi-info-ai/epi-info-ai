@@ -1126,6 +1126,18 @@ test("EPIAI CLUSTER runs in a Worker and renders its named result inline", async
   await expect(rendered.locator(".classic-cluster-map-hotspot")).toHaveCount(10);
   await expect(rendered.locator(".classic-cluster-map-hotspot").first()).toHaveAttribute("data-tooltip", /observed .* expected .* O\/E .* LLR .* p .* locations .* cases/);
   await expect(rendered).toContainText("OpenStreetMap basemap loaded");
+  const parameters = rendered.locator(".classic-cluster-parameters");
+  await expect(parameters).toContainText("Analysis parameters and validation crosswalk");
+  await expect(parameters).toContainText("Retrospective space-time");
+  await expect(parameters).toContainText("AnalysisType=3");
+  await expect(parameters).toContainText("ModelType=2");
+  await expect(parameters).toContainText("MaxSpatialSizeInDistanceFromCenter=5");
+  await expect(parameters).toContainText("MaxTemporalSize=7");
+  await expect(parameters).toContainText("MonteCarloReps=999; PValueReportType=1");
+  await expect(parameters).toContainText("mulberry32-v1; 20260916");
+  await expect(parameters).toContainText("Matching parameter labels do not by themselves establish numerical parity");
+  await expect(page.locator("#classic-output-browser .classic-cluster-map:visible")).toHaveCount(1);
+  await expect(page.locator("#classic-cluster-output")).toBeHidden();
   const openMaps = rendered.getByRole("button", { name: "Open in Maps" });
   await expect(openMaps).toBeEnabled();
   await openMaps.click();
@@ -1135,6 +1147,15 @@ test("EPIAI CLUSTER runs in a Worker and renders its named result inline", async
   await page.locator("#map-cluster-tour-next").click();
   await expect(page.locator("#map-cluster-tour-rank")).toHaveText("Rank 2 of 10");
   await expect(page.locator("#map-cluster-tour-detail")).toContainText("observed");
+  await expect(page.locator("#map-cluster-tour-open")).toBeVisible();
+  await expect(page.locator("#map-cluster-tour-open")).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#map-cluster-tour-close").click();
+  await expect(page.locator("#map-cluster-tour-controls")).toBeHidden();
+  await expect(page.locator("#map-cluster-tour-open")).toBeVisible();
+  await expect(page.locator("#map-cluster-tour-open")).toHaveAttribute("aria-pressed", "false");
+  await page.locator("#map-cluster-tour-open").click();
+  await expect(page.locator("#map-cluster-tour-controls")).toBeVisible();
+  await expect(page.locator("#map-cluster-tour-rank")).toHaveText("Rank 2 of 10");
   await expect(page.locator("#classic-program-history")).toContainText("without rerunning inference");
 });
 

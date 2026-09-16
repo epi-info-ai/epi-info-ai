@@ -68,6 +68,13 @@ Defaults may be proposed in the UI but never hidden in execution or history.
 V0.1 rejects prospective scanning, low-rate scanning, elliptic/flexible shapes,
 covariates, multiple datasets, and population-based risk models.
 
+The aggregate Output document presents these values in an expanded analysis-
+parameter table with a SaTScan parameter-name crosswalk. It also exposes the
+plan and scoring contract versions, candidate-window count, Monte Carlo method,
+replication count, p-value formula, random generator, and seed. The crosswalk
+is an audit aid; matching labels do not establish numerical parity when window
+enumeration, random streams, stopping rules, or product versions differ.
+
 ## Result contract
 
 Each reported cluster includes:
@@ -164,6 +171,23 @@ partial cluster result is returned as final. The Program Editor exposes this as
 an explicitly labeled candidate preview with replication progress, elapsed
 time, cancellation, aggregate-only Output, and aggregate-only history. This
 does not promote the method to validated epidemiologic output.
+
+## Initial SaTScan differential evidence
+
+On September 16, 2026, an external SaTScan 10.1.3 retrospective space-time
+permutation run independently selected the same leading spatial and temporal
+window as the synthetic candidate: locations N1/N2, January 10–14, 2026. The
+external run reported 10 observed, 4.29 expected, test statistic 3.510273, and
+`p=0.027`; Epi Info AI reported 12 observed, 5.60 expected, LLR 3.669876, and
+seeded `p=0.013`.
+
+The external summary loaded 28 rather than 30 cases, accounting for the two-
+case observed difference and the expected-count change. The distributable
+SaTScan fixture now retains one count-1 row per source case—including duplicate
+location/date rows—to make its 30-case reconciliation explicit. This evidence
+supports methodological consistency of the selected window, not exact product
+parity. A repeated external run with all 30 cases remains the exact numerical
+comparison target.
 
 ## Implementation order
 

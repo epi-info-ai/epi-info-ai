@@ -711,10 +711,9 @@ async function toggleMapFullscreen() {
 }
 
 function resetMapWorkspace() {
-  closeClusterTour();
   ensureMap();
   closeTimeLapse(false);
-  closeClusterTour();
+  clearClusterTour();
   recordLayer.clearLayers();
   locationLayer.clearLayers();
   for (const entry of geoJsonLayers.values()) {
@@ -1325,11 +1324,17 @@ function renderClusterTourStep(index: number): void {
   requiredElement("#map-status").textContent = `Cluster story tour: rank ${cluster.rank} from ${cluster.start} to ${cluster.end}.`;
 }
 
-function closeClusterTour(): void {
+function dismissClusterTour(): void {
   pauseClusterTour();
-  clusterTourState = null;
   const controls = document.querySelector<HTMLElement>("#map-cluster-tour-controls");
   if (controls) controls.hidden = true;
+  requiredElement<HTMLButtonElement>("#map-cluster-tour-open").setAttribute("aria-pressed", "false");
+}
+
+function clearClusterTour(): void {
+  dismissClusterTour();
+  clusterTourState = null;
+  requiredElement<HTMLButtonElement>("#map-cluster-tour-open").hidden = true;
 }
 
 function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler): void {
@@ -1343,7 +1348,7 @@ function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler):
 
   ensureMap();
   closeTimeLapse(false);
-  closeClusterTour();
+  clearClusterTour();
   const mappedRecords = extractMapPoints(data.records, latitudeField, longitudeField);
   activeData = data;
   activeRecordPoints = mappedRecords;
@@ -1371,6 +1376,7 @@ export function renderSpaceTimeClusterResult(
 ): void {
   ensureMap();
   closeTimeLapse(false);
+  clearClusterTour();
   recordLayer.clearLayers();
   activeData = null;
   activeRecordPoints = [];
@@ -1432,6 +1438,9 @@ export function renderSpaceTimeClusterResult(
       index: 0,
       timer: null,
     };
+    const tourButton = requiredElement<HTMLButtonElement>("#map-cluster-tour-open");
+    tourButton.hidden = false;
+    tourButton.setAttribute("aria-pressed", "true");
     requiredElement<HTMLElement>("#map-cluster-tour-controls").hidden = false;
     renderClusterTourStep(0);
   }
@@ -1811,9 +1820,15 @@ export function initializeMaps(
     }, 2500);
   });
   requiredElement("#map-cluster-tour-close").addEventListener("click", () => {
-    closeClusterTour();
+    dismissClusterTour();
     if (lastBounds?.isValid()) map.fitBounds(lastBounds.pad(0.12), { maxZoom: 14 });
-    requiredElement("#map-status").textContent = "Cluster story tour closed; all ranked windows remain visible.";
+    requiredElement("#map-status").textContent = "Cluster story tour closed; all ranked windows remain visible. Select Story Tour to reopen it.";
+  });
+  requiredElement("#map-cluster-tour-open").addEventListener("click", () => {
+    if (!clusterTourState) return;
+    requiredElement<HTMLElement>("#map-cluster-tour-controls").hidden = false;
+    requiredElement<HTMLButtonElement>("#map-cluster-tour-open").setAttribute("aria-pressed", "true");
+    renderClusterTourStep(clusterTourState.index);
   });
   requiredElement("#map-add-h3").addEventListener("click", () => {
     requiredElement("#map-add-layer-menu").open = false;

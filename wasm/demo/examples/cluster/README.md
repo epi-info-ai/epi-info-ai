@@ -15,6 +15,9 @@ product.
   `EPIAI CLUSTER RENDER` of its named result.
 - `space-time-cluster-synthetic-v0.1.programs.json` — dataset-bound Program
   Editor discovery catalog.
+- `satscan/` — a SaTScan-ready case file, shared case/population coordinate
+  file, explicitly synthetic population file, and a protocol separating the
+  direct case-only validation from the supplemental Poisson comparison.
 
 Cases `P013`–`P024` form the planted acceptance cluster at locations N1 and N2
 from January 10–14. The candidate implementation ranks that window first and,
@@ -41,6 +44,8 @@ The CSV SHA-256 is
 `1b70344d46257cb156f2487caa0e7e2b0a05912ce89237d2ab15804144577041`.
 The independent acceptance manifest and JupyterLite oracle remain under
 `wasm/tests/fixtures/algorithm-validation` and `wasm/validation-lab/content`.
+The `satscan/` bundle supports an additional differential run in desktop
+SaTScan; its README records the model distinction and denominator assumption.
 
 ## Attributed external candidate
 
