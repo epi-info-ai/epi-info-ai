@@ -102,16 +102,20 @@ At minimum, automated tests must verify:
 - a JupyterLite notebook independently reconstructs the core metrics from the
   synthetic files and exported results.
 
-## First bounded implementation slice
+## Bounded implementation slices
 
-V0.1 now defines the typed `EPIAI RECORDLINK` AST and resolver plus two CSV
-sources, exact and realistic-duplicate scenarios, a candidate cap, complete
-truth links, canonical source, and pinned upstream/license provenance. It is a
-fail-closed contract preview: candidate generation, comparison, classification,
-manual review, clustering, and merge do not execute yet.
+V0.1 defined the typed `EPIAI RECORDLINK` AST and resolver plus two CSV sources,
+exact and realistic-duplicate scenarios, a candidate cap, complete truth links,
+canonical source, and pinned upstream/license provenance.
 
-The next slice implements deterministic cross-source blocking and reports the
-candidate count, reduction ratio, per-rule diagnostics, and candidate recall
-against complete truth. Defer learned models, multi-source clusters, very large
-populations, and production privacy/security claims until the complete vertical
-slice is browser-tested and independently validated.
+V0.2 implements deterministic cross-source blocking. It validates unique source
+identifiers, normalizes nonmissing blocking values, enforces the candidate cap
+after every progressive blocking rule, and reports candidate count, pair-space
+reduction, per-rule counts, and optional recall against an explicitly named
+truth form. Candidate identities stay in memory and are omitted from Output and
+history. Comparison, classification, manual review, clustering, and merge still
+do not execute.
+
+Defer learned models, multi-source clusters, very large populations, and
+production privacy/security claims until the complete vertical slice is
+browser-tested and independently validated.

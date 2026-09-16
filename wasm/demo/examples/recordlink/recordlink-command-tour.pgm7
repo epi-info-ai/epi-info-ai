@@ -2,7 +2,7 @@
 *** Datasets: patient-registry-a.csv and surveillance-b.csv (entirely synthetic)
 *** Purpose: inspect both sources before proposing cross-source patient links.
 *** New branch; not the legacy matched case-control MATCH command.
-*** V0.1 executes the descriptive commands but stops safely at RECORDLINK.
+*** V0.2 executes aggregate candidate diagnostics but no comparison or linkage.
 
 HEADER 1 "Synthetic patient record-linkage teaching workflow"
 TYPEOUT "Two fictional eight-record sources use different schemas and contain five known truth links."
@@ -26,7 +26,7 @@ TABLES site_code SEX
 
 HEADER 1 "Reviewed cross-source linkage plan"
 TYPEOUT "Block on facility/site; compare date, sex, and ART code exactly; compare names and address fuzzily."
-EPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks
+EPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id TRUTH=true_links TRUTHA=source_a_id TRUTHB=source_b_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks
 
-*** Future governed slices continue with candidate diagnostics, explainable scores,
+*** Future governed slices continue with explainable scores,
 *** clerical review, conflict-aware person clusters, and an explicitly reviewed MERGE.

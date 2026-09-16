@@ -55,6 +55,8 @@ import { applyClassicComplexMeans, classicComplexMeansOutTable, resolveClassicCo
 import { applyEpiAiQualityProfile, resolveEpiAiQualityCommand } from "../app/programming/epi-ai-quality.js";
 import { resolveSpaceTimeClusterCommand, resolveSpaceTimeClusterRenderCommand } from "../app/programming/epi-ai-space-time-cluster.js";
 import type { SpaceTimeClusterInferenceResult } from "../app/programming/epi-ai-space-time-cluster-analysis.js";
+import { resolveRecordLinkCommand } from "../app/programming/epi-ai-recordlink.js";
+import { generateRecordLinkCandidateDiagnostics, type RecordLinkCandidateDiagnostics } from "../app/programming/epi-ai-recordlink-analysis.js";
 import { convertAccessFile, resolveFileConvertCommand } from "../app/programming/file-convert.js";
 import { parseClassicOutputSettings, validateClassicOutputSettings, type ClassicOutputSettings } from "../app/programming/classic-output-settings.js";
 import { resolveClassicDialogCommand, validateClassicDialogValue, type ClassicDialogCommandInput, type ClassicDialogPlan } from "../app/programming/classic-dialog.js";
@@ -3460,6 +3462,33 @@ function renderEpiAiQualityOutput(report: DataQualityReport): void {
   requiredElement<HTMLElement>("#classic-quality-output").hidden = false;
 }
 
+function renderRecordLinkCandidateDiagnostics(result: RecordLinkCandidateDiagnostics, canonicalSource: string): void {
+  const candidates = result.candidatePairs.length;
+  requiredElement("#classic-recordlink-output-title").textContent = `Candidate-pair diagnostics — ${result.resultName}`;
+  requiredElement("#classic-recordlink-output-count").textContent = `${candidates.toLocaleString("en-US")} candidates · ${result.reductionPercent.toFixed(1)}% reduction`;
+  requiredElement("#classic-recordlink-output-summary").textContent =
+    `${result.sourceARecords.toLocaleString("en-US")} × ${result.sourceBRecords.toLocaleString("en-US")} records produced ${result.possiblePairs.toLocaleString("en-US")} possible cross-source pairs; blocking retained ${candidates.toLocaleString("en-US")} within the reviewed cap of ${result.maximumCandidates.toLocaleString("en-US")}.`;
+  requiredElement("#classic-recordlink-output-command").textContent = canonicalSource;
+  requiredElement("#classic-recordlink-output-body").replaceChildren(...result.blockingStages.map((stage, index) => {
+    const row = document.createElement("tr");
+    for (const value of [
+      `Block ${index + 1}`,
+      `${stage.pair.sourceA} = ${stage.pair.sourceB}`,
+      stage.candidatePairs.toLocaleString("en-US"),
+      `${stage.reductionPercent.toFixed(1)}%`,
+    ]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  }));
+  requiredElement("#classic-recordlink-output-truth").textContent = result.truth
+    ? `Truth evaluation: blocking retained ${result.truth.retainedTruthPairs} of ${result.truth.truthPairs} known links (${(result.truth.candidateRecall * 100).toFixed(1)}% candidate recall). Truth identifiers remain hidden.`
+    : "No truth source was declared; candidate recall was not evaluated.";
+  requiredElement<HTMLElement>("#classic-recordlink-output").hidden = false;
+}
+
 function elapsedLabel(milliseconds: number): string {
   return milliseconds < 1000 ? `${Math.round(milliseconds)} ms` : `${(milliseconds / 1000).toFixed(1)} s`;
 }
@@ -4770,6 +4799,23 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       });
       return;
     }
+    if (command.kind === "recordlink") {
+      const dataSources = getProjectDataSources();
+      const plan = resolveRecordLinkCommand(selectedSource, dataSources.map((candidate) => ({ id: candidate.formName, fields: candidate.fields })));
+      const diagnostics = generateRecordLinkCandidateDiagnostics(plan, dataSources.map((candidate) => ({ id: candidate.formName, fields: candidate.fields, records: candidate.records })));
+      renderRecordLinkCandidateDiagnostics(diagnostics, plan.canonicalSource);
+      requiredElement("#classic-recordlink-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `RECORDLINK reduced ${diagnostics.possiblePairs.toLocaleString("en-US")} possible pairs to ${diagnostics.candidatePairs.length.toLocaleString("en-US")} blocked candidates. No comparisons, classifications, or data changes occurred.`;
+      classicProgramCommandStatus.textContent = "NEW BRANCH EPIAI RECORDLINK candidate diagnostics completed; scoring and linkage remain disabled.";
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: diagnostics.sourceARecords + diagnostics.sourceBRecords,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `RECORDLINK blocking retained ${diagnostics.candidatePairs.length} of ${diagnostics.possiblePairs} possible pairs (${diagnostics.reductionPercent.toFixed(1)}% reduction)${diagnostics.truth ? ` and ${diagnostics.truth.retainedTruthPairs} of ${diagnostics.truth.truthPairs} truth links` : ""}.`,
+        diagnostics: ["Candidate diagnostics only; fuzzy comparison, classification, person clustering, and MERGE were not executed.", "Pair identifiers and record values were omitted from Output and history."],
+      });
+      return;
+    }
     if (command.kind === "cluster-space-time") {
       const plan = resolveSpaceTimeClusterCommand(selectedSource, project.fields);
       const started = performance.now();
@@ -4978,6 +5024,7 @@ function sequentialOutputSource(statement: ReturnType<typeof parseClassicProgram
   if (statement.type === "HeaderStatement" || statement.type === "TypeoutStatement") return requiredElement<HTMLElement>("#classic-text-output");
   if (statement.type === "RouteoutStatement" || statement.type === "CloseoutStatement") return requiredElement<HTMLElement>("#classic-route-output");
   if (statement.type === "EpiAiQualityStatement") return requiredElement<HTMLElement>("#classic-quality-output");
+  if (statement.type === "EpiAiRecordLinkStatement") return requiredElement<HTMLElement>("#classic-recordlink-output");
   if (statement.type === "EpiAiSpaceTimeClusterStatement") return requiredElement<HTMLElement>("#classic-cluster-output");
   if (statement.type === "EpiAiClusterRenderStatement") return requiredElement<HTMLElement>("#classic-cluster-output");
   if (statement.type === "FileConvertStatement") return requiredElement<HTMLElement>("#classic-file-convert-output");

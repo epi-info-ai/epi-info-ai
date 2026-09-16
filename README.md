@@ -727,10 +727,11 @@ The detailed cumulative changes and validation increments follow.
   candidate set, preserve human decisions and provenance in history, and test
   against synthetic truth links. Permission to use the upstream has been
   confirmed by its owner, and the pinned commit now aligns the root `LICENSE`
-  and `pyproject.toml` on Apache-2.0. The first typed AST/resolver and independent
-  [synthetic example bundle](wasm/demo/examples/recordlink/) are checked in;
-  execution remains disabled until the next bounded blocking slice reports
-  candidate reduction and recall against the complete truth links.
+  and `pyproject.toml` on Apache-2.0. The typed V0.2 AST/resolver and independent
+  [synthetic example bundle](wasm/demo/examples/recordlink/) now execute bounded
+  candidate generation and report progressive blocking reduction plus truth-link
+  recall. Comparison, classification, pair-level disclosure, clustering, and
+  source mutation remain fail-closed.
 
 - **Complete field-user validation and expand `MATCH` without lowering the parity floor.** The
   [source and dataset inventory](wasm/docs/research/match-command-sources-and-data.md)

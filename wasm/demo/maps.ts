@@ -1678,6 +1678,18 @@ export function initializeMaps(
     const mapsView = requiredElement<HTMLElement>('[data-module-view="maps"]');
     if (!mapsView.hidden) void prepareOfflineBasemap(getProjectSnapshot());
   });
+  globalThis.addEventListener("epi-info-project-activated", () => {
+    const snapshot = getProjectSnapshot();
+    mapContext = "standalone";
+    if (map) resetMapWorkspace();
+    setMapHeading();
+    requiredElement("#map-empty-state").textContent = "Select Add Data Layer > Case Cluster, then choose a project form.";
+    requiredElement("#map-status").textContent = snapshot
+      ? `Opened ${snapshot.name}; derived map output from the previous project was cleared.`
+      : "The project was closed; derived map output was cleared.";
+    const mapsView = requiredElement<HTMLElement>('[data-module-view="maps"]');
+    if (!mapsView.hidden && map && snapshot) void restoreProjectMapLayers(snapshot);
+  });
   for (const button of requiredElements('[data-module="maps"], [data-open-module="maps"]')) {
     button.addEventListener("click", () => {
       const context: MapLaunchContext = button.dataset.mapContext === "current-form" ? "current-form" : "standalone";

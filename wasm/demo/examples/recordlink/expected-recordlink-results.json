@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "state": "contract-only-no-execution",
+  "state": "candidate-diagnostics-only",
   "commandTour": {
     "statementCount": 20,
     "sourceAProfileCommands": 5,
@@ -10,17 +10,22 @@
   },
   "sourceCounts": {
     "patient_registry_a": 8,
-    "surveillance_b": 8
+    "surveillance_b": 8,
+    "possiblePairs": 64,
+    "blockedCandidatePairs": 7,
+    "pairSpaceReductionPercent": 89.0625
   },
   "truth": {
     "linkedPairs": 5,
+    "retainedLinkedPairs": 5,
+    "candidateRecall": 1,
     "unlinkedSourceA": 3,
     "unlinkedSourceB": 3,
     "reviewScenario": ["A004", "B004"]
   },
   "acceptanceBoundary": {
     "parserAndResolver": true,
-    "candidateGeneration": false,
+    "candidateGeneration": true,
     "comparisonAndClassification": false,
     "clericalReview": false,
     "personClustering": false,

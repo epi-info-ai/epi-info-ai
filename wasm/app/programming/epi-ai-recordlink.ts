@@ -1,7 +1,7 @@
 import type { FieldDefinition } from "../contracts/core.ts";
 import { parseClassicProgram, type EpiAiRecordLinkFieldPair } from "./classic-ast.ts";
 
-export const RECORDLINK_PLAN_VERSION = "0.1.0" as const;
+export const RECORDLINK_PLAN_VERSION = "0.2.0" as const;
 
 export interface RecordLinkFieldPair {
   sourceA: string;
@@ -18,6 +18,9 @@ export interface RecordLinkCommandInput {
   sourceB: string;
   idA: string;
   idB: string;
+  truthSource?: string;
+  truthIdA?: string;
+  truthIdB?: string;
   blockPairs: readonly RecordLinkFieldPair[];
   exactPairs: readonly RecordLinkFieldPair[];
   fuzzyPairs: readonly RecordLinkFieldPair[];
@@ -32,7 +35,7 @@ export interface RecordLinkPlan extends RecordLinkCommandInput {
   version: typeof RECORDLINK_PLAN_VERSION;
   mode: "two-source-cross-file";
   comparison: "deterministic-exact-and-jaro-winkler";
-  execution: "disabled-contract-preview";
+  execution: "candidate-diagnostics-only";
   canonicalSource: string;
   provenance: {
     upstream: "jkariuki7/pt_matching_app";
@@ -55,6 +58,9 @@ export function buildRecordLinkCommand(input: RecordLinkCommandInput): string {
     "EPIAI RECORDLINK",
     `SOURCEA=${identifierToken(input.sourceA)}`, `SOURCEB=${identifierToken(input.sourceB)}`,
     `IDA=${identifierToken(input.idA)}`, `IDB=${identifierToken(input.idB)}`,
+    ...(input.truthSource && input.truthIdA && input.truthIdB
+      ? [`TRUTH=${identifierToken(input.truthSource)}`, `TRUTHA=${identifierToken(input.truthIdA)}`, `TRUTHB=${identifierToken(input.truthIdB)}`]
+      : []),
     `BLOCK=${input.blockPairs.map(pairToken).join(",")}`,
     `EXACT=${input.exactPairs.map(pairToken).join(",")}`,
     `FUZZY=${input.fuzzyPairs.map(pairToken).join(",")}`,
@@ -117,6 +123,16 @@ export function resolveRecordLinkCommand(source: string, sources: readonly Recor
   if (sourceA === sourceB) throw new RangeError("SOURCEA and SOURCEB must be different project sources.");
   const idA = resolveField(sourceA, statement.idA.name, "IDA");
   const idB = resolveField(sourceB, statement.idB.name, "IDB");
+  let truth: { source: RecordLinkSourceDefinition; idA: FieldDefinition; idB: FieldDefinition } | undefined;
+  if (statement.truthSource && statement.truthIdA && statement.truthIdB) {
+    const truthSource = resolveSource(sources, statement.truthSource.name, "TRUTH");
+    if (truthSource === sourceA || truthSource === sourceB) throw new RangeError("TRUTH must be a separate project source.");
+    truth = {
+      source: truthSource,
+      idA: resolveField(truthSource, statement.truthIdA.name, "TRUTHA"),
+      idB: resolveField(truthSource, statement.truthIdB.name, "TRUTHB"),
+    };
+  }
   const blockPairs = resolvePairs(statement.blockPairs, sourceA, sourceB, "blocking");
   const exactPairs = resolvePairs(statement.exactPairs, sourceA, sourceB, "exact comparison");
   const fuzzyPairs = resolvePairs(statement.fuzzyPairs, sourceA, sourceB, "fuzzy comparison");
@@ -129,13 +145,14 @@ export function resolveRecordLinkCommand(source: string, sources: readonly Recor
   if (statement.maxCandidates < 1 || statement.maxCandidates > 1_000_000) throw new RangeError("MAXCANDIDATES must be an integer from 1 through 1000000.");
   const input: RecordLinkCommandInput = {
     sourceA: sourceA.id, sourceB: sourceB.id, idA: idA.name, idB: idB.name,
+    ...(truth ? { truthSource: truth.source.id, truthIdA: truth.idA.name, truthIdB: truth.idB.name } : {}),
     blockPairs, exactPairs, fuzzyPairs, fuzzyThreshold: statement.fuzzyThreshold,
     reviewThreshold: statement.reviewThreshold, matchThreshold: statement.matchThreshold,
     maxCandidates: statement.maxCandidates, resultName: statement.resultName.name,
   };
   return {
     version: RECORDLINK_PLAN_VERSION, mode: "two-source-cross-file",
-    comparison: "deterministic-exact-and-jaro-winkler", execution: "disabled-contract-preview",
+    comparison: "deterministic-exact-and-jaro-winkler", execution: "candidate-diagnostics-only",
     ...input, canonicalSource: buildRecordLinkCommand(input),
     provenance: {
       upstream: "jkariuki7/pt_matching_app",

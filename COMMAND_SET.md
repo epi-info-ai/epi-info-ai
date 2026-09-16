@@ -114,7 +114,7 @@ The detailed authority is the
 | Command | Intended role | Current state |
 |---|---|---|
 | `EPIAI CLUSTER RENDER RESULT=name` | Render a previously calculated named cluster result without rerunning inference or overloading legacy `MAP` | Typed AST; session/project-bound lookup; static OpenStreetMap raster with baked-in overlays, per-cluster hover/focus details, and offline fallback; interactive Maps handoff with matching tooltips and rank-by-rank story tour; no inference rerun |
-| `EPIAI RECORDLINK` | Explainable, reviewed patient-record linkage and deduplication across two sources | Typed V0.1 AST/resolver and synthetic two-source command tour; execution remains fail-closed until bounded blocking is implemented |
+| `EPIAI RECORDLINK` | Explainable, reviewed patient-record linkage and deduplication across two sources | Typed V0.2 AST/resolver and synthetic project tour execute bounded blocking diagnostics: pair-space reduction, progressive rule counts, candidate cap enforcement, and optional truth-link recall. Pair identifiers, comparison, classification, clustering, source mutation, and MERGE remain fail-closed |
 
 The retained legacy `MAP` command remains a separate parity/revival item. New
 geospatial commands must use explicit `EPIAI` names rather than silently

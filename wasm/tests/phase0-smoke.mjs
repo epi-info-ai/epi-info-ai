@@ -84,6 +84,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/epi-ai-space-time-cluster.ts",
     "wasm/app/programming/epi-ai-space-time-cluster-analysis.ts",
     "wasm/app/programming/epi-ai-recordlink.ts",
+    "wasm/app/programming/epi-ai-recordlink-analysis.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
@@ -1613,6 +1614,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.throws(() => quality.resolveEpiAiQualityCommand("EPIAI QUALITY Age", imported.schema.fields), /QUALITY \* only/);
   const cluster = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-space-time-cluster.ts")).href}?cluster=${Date.now()}`);
   const recordlink = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink.ts")).href}?recordlink=${Date.now()}`);
+  const recordlinkAnalysis = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-analysis.ts")).href}?recordlinkAnalysis=${Date.now()}`);
   const clusterFixture = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json"), "utf8"));
   const clusterCsv = await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv"), "utf8");
   assert.equal(createHash("sha256").update(clusterCsv).digest("hex"), clusterFixture.dataset.sha256);
@@ -1729,16 +1731,25 @@ FREQ AgeGroup STRATAVAR=Sex`;
         { name: "family_name", prompt: "Family name", type: "text", required: false },
       ],
     },
+    {
+      id: "true_links",
+      fields: [
+        { name: "source_a_id", prompt: "Source A ID", type: "text", required: true },
+        { name: "source_b_id", prompt: "Source B ID", type: "text", required: true },
+        { name: "scenario", prompt: "Scenario", type: "text", required: false },
+      ],
+    },
   ];
   const recordLinkPlan = recordlink.resolveRecordLinkCommand(recordLinkSource, recordLinkSources);
-  assert.equal(recordLinkPlan.version, "0.1.0");
-  assert.equal(recordLinkPlan.execution, "disabled-contract-preview");
+  assert.equal(recordLinkPlan.version, "0.2.0");
+  assert.equal(recordLinkPlan.execution, "candidate-diagnostics-only");
   assert.equal(recordLinkPlan.mode, "two-source-cross-file");
   assert.equal(recordLinkPlan.provenance.license, "Apache-2.0");
   assert.equal(recordLinkPlan.provenance.reviewedCommit, "9be01cba65572a374f788242a635f3e57df44f25");
   assert.deepEqual(recordLinkPlan.blockPairs, [{ sourceA: "facility_code", sourceB: "site_code" }]);
   assert.deepEqual(recordLinkPlan.exactPairs.map(({ sourceA, sourceB }) => `${sourceA}:${sourceB}`), ["date_of_birth:DOB", "sex:SEX", "art_code:ART_CODE"]);
   assert.deepEqual(recordLinkPlan.fuzzyPairs.map(({ sourceA, sourceB }) => `${sourceA}:${sourceB}`), ["first_name:given_name", "last_name:family_name", "patient_address:Address"]);
+  assert.deepEqual([recordLinkPlan.truthSource, recordLinkPlan.truthIdA, recordLinkPlan.truthIdB], ["true_links", "source_a_id", "source_b_id"]);
   assert.equal(recordlink.buildRecordLinkCommand(recordLinkPlan), recordLinkPlan.canonicalSource);
   const recordLinkManifest = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/recordlink/generation-manifest.json"), "utf8"));
   for (const sourceEntry of recordLinkManifest.sources) {
@@ -1758,12 +1769,21 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(recordLinkProject.version, 2);
   const recordLinkPackageContract = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?recordlinkPackage=${Date.now()}`);
   assert.equal(recordLinkPackageContract.validateProjectPackage(recordLinkProject).project.name, "Synthetic Patient Record Linkage");
-  assert.deepEqual(recordLinkProject.project.forms.map(({ schema }) => schema.name), ["patient_registry_a", "surveillance_b"]);
-  assert.deepEqual(recordLinkProject.project.forms.map(({ records }) => records.length), [8, 8]);
+  assert.deepEqual(recordLinkProject.project.forms.map(({ schema }) => schema.name), ["patient_registry_a", "surveillance_b", "true_links"]);
+  assert.deepEqual(recordLinkProject.project.forms.map(({ records }) => records.length), [8, 8, 5]);
   assert.deepEqual(recordLinkProject.programs.map(({ name }) => name), ["recordlink-command-tour"]);
   const packagedRecordLinkAst = classicAst.parseClassicProgram(recordLinkProject.programs[0].source);
   assert.deepEqual(packagedRecordLinkAst.body.map(({ type }) => type), recordLinkAst.body.map(({ type }) => type));
   assert.equal(packagedRecordLinkAst.body.filter(({ type }) => type === "ListStatement").length, 2);
+  const recordLinkDiagnostics = recordlinkAnalysis.generateRecordLinkCandidateDiagnostics(recordLinkPlan, recordLinkProject.project.forms.map((form) => ({ id: form.schema.name, fields: form.schema.fields, records: form.records })));
+  assert.equal(recordLinkDiagnostics.possiblePairs, 64);
+  assert.equal(recordLinkDiagnostics.candidatePairs.length, 7);
+  assert.equal(recordLinkDiagnostics.blockingStages[0].candidatePairs, 7);
+  assert.equal(recordLinkDiagnostics.truth.truthPairs, 5);
+  assert.equal(recordLinkDiagnostics.truth.retainedTruthPairs, 5);
+  assert.equal(recordLinkDiagnostics.truth.candidateRecall, 1);
+  assert.deepEqual(recordLinkDiagnostics.governance, { comparisonExecuted: false, classificationExecuted: false, mergeExecuted: false, identifiersExposedInOutput: false });
+  assert.throws(() => recordlinkAnalysis.generateRecordLinkCandidateDiagnostics({ ...recordLinkPlan, maxCandidates: 6 }, recordLinkProject.project.forms.map((form) => ({ id: form.schema.name, fields: form.schema.fields, records: form.records }))), /exceeding MAXCANDIDATES=6/);
   assert.throws(() => classicAst.parseClassicProgram(recordLinkPlan.canonicalSource.replace(" RESULT=PatientLinks", " UNKNOWN=1 RESULT=PatientLinks")), /Unsupported EPIAI RECORDLINK option UNKNOWN/);
   assert.throws(() => classicAst.parseClassicProgram(recordLinkPlan.canonicalSource.replace("BLOCK=facility_code:site_code", "BLOCK=facility_code")), /sourceA:sourceB field pairs/);
   assert.throws(() => recordlink.resolveRecordLinkCommand(recordLinkPlan.canonicalSource.replace("FUZZYTHRESHOLD=0.85", "FUZZYTHRESHOLD=1.5"), recordLinkSources), /FUZZYTHRESHOLD/);

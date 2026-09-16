@@ -16,9 +16,9 @@ the same person.
 - `recordlink-command-tour.pgm7` — a 20-statement visible workflow that
   describes the exercise, profiles both sources, and ends at the typed linkage
   plan.
-- `recordlink-synthetic-project.epia.json` — an openable two-form browser
-  project containing both sources and the saved command tour, so `READ` and
-  `LIST` can be exercised without assembling the project by hand.
+- `recordlink-synthetic-project.epia.json` — an openable three-form browser
+  project containing both sources, the truth links, and the saved command tour,
+  so the workflow can be exercised without assembling the project by hand.
 - `generation-manifest.json` — counts, hashes, provenance, and the explicit
   statement that no upstream code or fixture rows were copied.
 - `expected-recordlink-results.json` — the current acceptance boundary and
@@ -38,8 +38,10 @@ described as a production matching evaluation.
 4. Compare the two `LIST` outputs: the deliberately varied names, dates, and
    addresses explain why exact identifiers alone are insufficient.
 
-The final `EPIAI RECORDLINK` statement is a reviewed, typed plan in this slice;
-it remains fail-closed until candidate generation is implemented.
+The final `EPIAI RECORDLINK` statement executes bounded candidate diagnostics:
+64 possible cross-source pairs are reduced to 7 candidates, while all 5 known
+truth links remain represented. Comparison, classification, pair-level Output,
+person clustering, source changes, and `MERGE` remain fail-closed.
 
 ## Current slice
 
@@ -53,10 +55,10 @@ workflow:
 3. `READ surveillance_b`, repeat the same quality and aggregate review using
    that source's differently named fields.
 4. Display the reviewed blocking and comparison rationale.
-5. End at the explicit V0.1 command contract:
+5. End at the explicit V0.2 candidate-diagnostics command:
 
 ```text
-EPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks
+EPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id TRUTH=true_links TRUTHA=source_a_id TRUTHB=source_b_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks
 ```
 
 The resolver requires two distinct named project sources, validates every field
@@ -64,13 +66,12 @@ pair against its own schema, requires compatible types, restricts fuzzy
 comparison to text-compatible fields, bounds thresholds and candidate count,
 and emits canonical source plus version/license provenance.
 
-The descriptive commands are existing Epi Info AI commands and can run once
-both named sources are forms in the current browser project. Execution stops
-safely at `EPIAI RECORDLINK` in this slice. Opening or running the program does
-not generate candidates, reveal record values in history, classify a pair,
-modify a source, or run `MERGE`. The next slice will generate cross-source
-candidates through the visible block and reconcile candidate recall against the
-complete truth file before comparison/classification is enabled.
+The descriptive commands are existing Epi Info AI commands. The openable
+project supplies both sources plus a separate truth form. RECORDLINK generates
+only in-memory candidate indexes and aggregate diagnostics; it does not reveal
+pair identities or record values in Output/history, score or classify a pair,
+modify a source, or run `MERGE`. The next governed slice can add explainable
+comparison scores without widening this authority boundary.
 
 The two `LIST` commands intentionally show matching fields so users can inspect
 the controlled differences before seeing proposed links. This is appropriate

@@ -257,6 +257,9 @@ export interface EpiAiRecordLinkStatement extends ClassicNode {
   sourceB: ClassicIdentifier;
   idA: ClassicIdentifier;
   idB: ClassicIdentifier;
+  truthSource?: ClassicIdentifier;
+  truthIdA?: ClassicIdentifier;
+  truthIdB?: ClassicIdentifier;
   blockPairs: EpiAiRecordLinkFieldPair[];
   exactPairs: EpiAiRecordLinkFieldPair[];
   fuzzyPairs: EpiAiRecordLinkFieldPair[];
@@ -933,7 +936,7 @@ class ProgramParser {
         if (settings.has(parsed.key)) throw new ClassicSyntaxError(line.line, 1, `EPIAI RECORDLINK repeats ${parsed.key}.`);
         settings.set(parsed.key, parsed.value);
       }
-      const allowed = new Set(["SOURCEA", "SOURCEB", "IDA", "IDB", "BLOCK", "EXACT", "FUZZY", "FUZZYTHRESHOLD", "REVIEWTHRESHOLD", "MATCHTHRESHOLD", "MAXCANDIDATES", "RESULT"]);
+      const allowed = new Set(["SOURCEA", "SOURCEB", "IDA", "IDB", "TRUTH", "TRUTHA", "TRUTHB", "BLOCK", "EXACT", "FUZZY", "FUZZYTHRESHOLD", "REVIEWTHRESHOLD", "MATCHTHRESHOLD", "MAXCANDIDATES", "RESULT"]);
       for (const key of settings.keys()) if (!allowed.has(key)) throw new ClassicSyntaxError(line.line, 1, `Unsupported EPIAI RECORDLINK option ${key}.`);
       const required = (key: string): string => {
         const value = settings.get(key);
@@ -959,10 +962,17 @@ class ProgramParser {
           return { sourceA: identifier(raw.slice(0, separator), line), sourceB: identifier(raw.slice(separator + 1), line) };
         });
       };
+      const truthValues = [settings.get("TRUTH"), settings.get("TRUTHA"), settings.get("TRUTHB")];
+      if (truthValues.some((value) => value !== undefined) && truthValues.some((value) => value === undefined)) {
+        throw new ClassicSyntaxError(line.line, 1, "EPIAI RECORDLINK requires TRUTH, TRUTHA, and TRUTHB together.");
+      }
       return {
         type: "EpiAiRecordLinkStatement",
         sourceA: identifier(required("SOURCEA"), line), sourceB: identifier(required("SOURCEB"), line),
         idA: identifier(required("IDA"), line), idB: identifier(required("IDB"), line),
+        ...(truthValues[0] !== undefined ? {
+          truthSource: identifier(truthValues[0], line), truthIdA: identifier(truthValues[1]!, line), truthIdB: identifier(truthValues[2]!, line),
+        } : {}),
         blockPairs: pairs("BLOCK"), exactPairs: pairs("EXACT"), fuzzyPairs: pairs("FUZZY"),
         fuzzyThreshold: finite("FUZZYTHRESHOLD"), reviewThreshold: finite("REVIEWTHRESHOLD"),
         matchThreshold: finite("MATCHTHRESHOLD"), maxCandidates: integer("MAXCANDIDATES"),

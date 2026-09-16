@@ -397,6 +397,11 @@ function activateProject(recentId: string | null = null): void {
   renderProjectLifecycle();
 }
 
+function dispatchProjectActivated(): void {
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-activated"));
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+}
+
 function openRecentProject(id: string): void {
   const entry = recentProjects.find((candidate) => candidate.id === id);
   if (!entry) return;
@@ -641,6 +646,7 @@ export function applyHostedProjectSnapshot(snapshot: unknown, remote: HostedProj
   requiredElement("#form-status").textContent = issues.length > 0
     ? `Hosted project opened with ${issues.length} saved-record validation issue${issues.length === 1 ? "" : "s"}. Open Enter Data > Data Quality to review.`
     : "Hosted project opened and its saved records passed validation.";
+  dispatchProjectActivated();
 }
 
 function applyLocalProjectSnapshot(snapshot: unknown): void {
@@ -665,7 +671,7 @@ function applyLocalProjectSnapshot(snapshot: unknown): void {
   requiredElement("#form-status").textContent = issues.length > 0
     ? `Project opened with ${issues.length} saved-record validation issue${issues.length === 1 ? "" : "s"}. Open Enter Data > Data Quality to review.`
     : "Project opened and its saved records passed validation.";
-  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+  dispatchProjectActivated();
 }
 
 export function showRecordInEnter(formId: string, recordIndex: number): boolean {
@@ -2525,6 +2531,7 @@ export function initializeFormDataDemo() {
     requiredElement("#form-status").textContent = storageType === "supabase"
       ? `${projectName} created with a verified Supabase connection and local working copy.${areaStatus}`
       : `${projectName} created.${areaStatus}`;
+    dispatchProjectActivated();
     pendingStudyArea = null;
   });
 

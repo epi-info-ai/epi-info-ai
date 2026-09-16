@@ -17,12 +17,13 @@ import { buildClassicSummarizeCommand, resolveClassicSummarizeCommand, type Clas
 import { buildClassicGraphCommand, resolveClassicGraphCommand, type ClassicGraphInput } from "./classic-graph.ts";
 import { buildEpiAiQualityCommand, resolveEpiAiQualityCommand } from "./epi-ai-quality.ts";
 import { buildSpaceTimeClusterCommand, buildSpaceTimeClusterRenderCommand, resolveSpaceTimeClusterCommand, resolveSpaceTimeClusterRenderCommand, type SpaceTimeClusterCommandInput } from "./epi-ai-space-time-cluster.ts";
+import { buildRecordLinkCommand, resolveRecordLinkCommand, type RecordLinkCommandInput } from "./epi-ai-recordlink.ts";
 import { buildFileConvertCommand, resolveFileConvertCommand } from "./file-convert.ts";
 import { buildClassicDialogCommand, resolveClassicDialogCommand, type ClassicDialogCommandInput } from "./classic-dialog.ts";
 import { buildClassicMatchCommand, resolveExecutableClassicMatchCommand, type ClassicMatchInput, type ExecutableClassicMatchInput } from "./classic-match.ts";
 import { resolveClassicConditionalLogisticCommand, type ClassicConditionalLogisticPlan } from "./classic-logistic.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "match" | "logistic" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "cluster-space-time" | "cluster-render" | "file-convert";
+export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "match" | "logistic" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "cluster-space-time" | "cluster-render" | "recordlink" | "file-convert";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -48,6 +49,7 @@ export type ClassicAnalysisCommandInput =
   | { kind: "quality" }
   | ({ kind: "cluster-space-time" } & SpaceTimeClusterCommandInput)
   | { kind: "cluster-render"; resultName: string }
+  | ({ kind: "recordlink" } & RecordLinkCommandInput)
   | { kind: "file-convert"; inputFile: string; outputFile: string }
   | { kind: "set-missing"; enabled: boolean }
   | { kind: "set-missing-label"; value: string }
@@ -119,6 +121,7 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "quality") return buildEpiAiQualityCommand({ mode: "profile" });
   if (input.kind === "cluster-space-time") return buildSpaceTimeClusterCommand(input);
   if (input.kind === "cluster-render") return buildSpaceTimeClusterRenderCommand(input.resultName);
+  if (input.kind === "recordlink") return buildRecordLinkCommand(input);
   if (input.kind === "file-convert") return buildFileConvertCommand(input.inputFile, input.outputFile);
   if (input.kind === "set-missing") return `SET MISSING=${input.enabled ? "ON" : "OFF"}`;
   if (input.kind === "set-missing-label") {
@@ -306,6 +309,18 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
   if (statement.type === "EpiAiClusterRenderStatement") {
     const plan = resolveSpaceTimeClusterRenderCommand(source);
     return { kind: "cluster-render", resultName: plan.resultName, source };
+  }
+  if (statement.type === "EpiAiRecordLinkStatement") {
+    const plan = resolveRecordLinkCommand(source, dataSources.map((candidate) => ({ id: candidate.formName, fields: candidate.fields })));
+    return {
+      kind: "recordlink",
+      sourceA: plan.sourceA, sourceB: plan.sourceB, idA: plan.idA, idB: plan.idB,
+      ...(plan.truthSource && plan.truthIdA && plan.truthIdB ? { truthSource: plan.truthSource, truthIdA: plan.truthIdA, truthIdB: plan.truthIdB } : {}),
+      blockPairs: plan.blockPairs, exactPairs: plan.exactPairs, fuzzyPairs: plan.fuzzyPairs,
+      fuzzyThreshold: plan.fuzzyThreshold, reviewThreshold: plan.reviewThreshold,
+      matchThreshold: plan.matchThreshold, maxCandidates: plan.maxCandidates,
+      resultName: plan.resultName, source,
+    };
   }
   if (statement.type === "FileConvertStatement") {
     const plan = resolveFileConvertCommand(source);

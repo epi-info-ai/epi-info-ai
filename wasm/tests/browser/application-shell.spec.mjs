@@ -1157,6 +1157,36 @@ test("EPIAI CLUSTER runs in a Worker and renders its named result inline", async
   await expect(page.locator("#map-cluster-tour-controls")).toBeVisible();
   await expect(page.locator("#map-cluster-tour-rank")).toHaveText("Rank 2 of 10");
   await expect(page.locator("#classic-program-history")).toContainText("without rerunning inference");
+
+  await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/recordlink/recordlink-synthetic-project.epia.json");
+  await expect(page.locator("#main-menu-status")).toContainText("Opened Synthetic Patient Record Linkage");
+  await expect(page.locator("#map-cluster-tour-controls")).toBeHidden();
+  await expect(page.locator("#map-layer-count")).toHaveText("0");
+  await expect(page.locator("#map-project-name")).toHaveText("Standalone map - no data source selected");
+  await expect(page.locator("#map-status")).toContainText("derived map output from the previous project was cleared");
+});
+
+test("RECORDLINK tour reports governed candidate diagnostics without scoring or mutation", async ({ page }) => {
+  await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/recordlink/recordlink-synthetic-project.epia.json");
+  await expect(page.locator("#main-menu-status")).toContainText("Opened Synthetic Patient Record Linkage");
+  await page.getByRole("button", { name: "Classic", exact: true }).click();
+  await page.locator("#classic-program-toolbar-open").click();
+  await page.locator("#classic-program-dialog-project").selectOption("recordlink-command-tour");
+  await page.locator("#classic-program-dialog-primary").click();
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("TRUTH=true_links");
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 20 commands in source order");
+  const retained = page.locator("#classic-sequential-output-body .classic-sequential-command").last();
+  await expect(retained).toContainText("RECORDLINK blocking retained 7 of 64 possible pairs");
+  await expect(retained).toContainText("Candidate-pair diagnostics — PatientLinks");
+  await expect(retained).toContainText("7 candidates · 89.1% reduction");
+  await expect(retained).toContainText("blocking retained 5 of 5 known links (100.0% candidate recall)");
+  await expect(retained).toContainText("does not calculate fuzzy similarities");
+  await expect(page.locator("#classic-program-history")).toContainText("RECORDLINK blocking retained 7 of 64 possible pairs");
+  await expect(page.locator("#classic-program-history")).not.toContainText("A001");
+  await expect(page.locator("#classic-program-history")).not.toContainText("B001");
+  await page.getByRole("button", { name: "Enter Data", exact: true }).click();
+  await expect(page.locator("#record-count")).toContainText("8");
 });
 
 test("MATCH teaching workbook exposes and runs a dataset-bound multi-command tour", async ({ page }) => {
