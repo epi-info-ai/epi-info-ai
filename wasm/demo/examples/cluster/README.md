@@ -8,7 +8,8 @@ product.
 ## Contents
 
 - `space-time-cluster-synthetic-v0.1.csv` — 30 synthetic fever/rash events at
-  six fictionalized coordinate points from January 1–28, 2026.
+  six fictionalized coordinate points from January 1–28, 2026. Coordinates are
+  serialized to five decimal places for geographic-tool differential testing.
 - `space-time-cluster-command-tour.pgm7` — one explicit, reproducible analysis
   using 999 Monte Carlo replications and seed `20260916`, followed by a typed
   `EPIAI CLUSTER RENDER` of its named result.
@@ -37,7 +38,7 @@ That is a software regression target, not a real epidemiologic finding.
    play through ranks 1–10 with each period, observed/expected count, and p-value.
 
 The CSV SHA-256 is
-`8eed0a8681415e9f055a219eb811a1c5252b405ca809904ed76c6e0cd74b818c`.
+`1b70344d46257cb156f2487caa0e7e2b0a05912ce89237d2ab15804144577041`.
 The independent acceptance manifest and JupyterLite oracle remain under
 `wasm/tests/fixtures/algorithm-validation` and `wasm/validation-lab/content`.
 

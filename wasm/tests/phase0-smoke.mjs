@@ -2174,6 +2174,11 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const clusterCatalog = examples.validateClassicProgramExampleCatalog(clusterCatalogValue);
   const clusterDemoCsv = await readFile(repositoryPath("wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.csv"), "utf8");
   assert.equal(createHash("sha256").update(clusterDemoCsv).digest("hex"), clusterCatalog.dataset.sha256);
+  for (const [index, row] of clusterDemoCsv.trim().split(/\r?\n/).slice(1).entries()) {
+    const columns = row.split(",");
+    assert.match(columns[3], /^[+-]?\d+\.\d{5,}$/, `CLUSTER row ${index + 2} latitude must preserve at least five decimal places`);
+    assert.match(columns[4], /^[+-]?\d+\.\d{5,}$/, `CLUSTER row ${index + 2} longitude must preserve at least five decimal places`);
+  }
   assert.equal(clusterCatalog.dataset.sha256, clusterFixture.dataset.sha256);
   assert.equal(clusterCatalog.dataset.recordCount, 30);
   assert.equal(clusterCatalog.programs.length, 1);
