@@ -246,6 +246,27 @@ export interface EpiAiClusterRenderStatement extends ClassicNode {
   resultName: ClassicIdentifier;
 }
 
+export interface EpiAiRecordLinkFieldPair {
+  sourceA: ClassicIdentifier;
+  sourceB: ClassicIdentifier;
+}
+
+export interface EpiAiRecordLinkStatement extends ClassicNode {
+  type: "EpiAiRecordLinkStatement";
+  sourceA: ClassicIdentifier;
+  sourceB: ClassicIdentifier;
+  idA: ClassicIdentifier;
+  idB: ClassicIdentifier;
+  blockPairs: EpiAiRecordLinkFieldPair[];
+  exactPairs: EpiAiRecordLinkFieldPair[];
+  fuzzyPairs: EpiAiRecordLinkFieldPair[];
+  fuzzyThreshold: number;
+  reviewThreshold: number;
+  matchThreshold: number;
+  maxCandidates: number;
+  resultName: ClassicIdentifier;
+}
+
 export interface FileConvertStatement extends ClassicNode {
   type: "FileConvertStatement";
   inputFile: string;
@@ -404,6 +425,7 @@ export type ClassicStatement =
   | EpiAiQualityStatement
   | EpiAiSpaceTimeClusterStatement
   | EpiAiClusterRenderStatement
+  | EpiAiRecordLinkStatement
   | FileConvertStatement
   | ClassicDefineStatement
   | ClassicDefineGroupStatement
@@ -890,7 +912,7 @@ class ProgramParser {
     return { type: "BeepStatement", span: lineSpan(line) };
   }
 
-  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement | EpiAiSpaceTimeClusterStatement | EpiAiClusterRenderStatement {
+  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement | EpiAiSpaceTimeClusterStatement | EpiAiClusterRenderStatement | EpiAiRecordLinkStatement {
     const tokens = words(rest);
     if (tokens[0]?.toUpperCase() === "QUALITY") {
       if (tokens.length === 2 && tokens[1] === "*") return { type: "EpiAiQualityStatement", span: lineSpan(line) };
@@ -902,8 +924,53 @@ class ProgramParser {
       if (result.key !== "RESULT" || result.next !== tokens.length) throw new ClassicSyntaxError(line.line, 1, "EPIAI CLUSTER RENDER requires exactly RESULT=name.");
       return { type: "EpiAiClusterRenderStatement", resultName: identifier(result.value, line), span: lineSpan(line) };
     }
+    if (tokens[0]?.toUpperCase() === "RECORDLINK") {
+      const settings = new Map<string, string>();
+      let cursor = 1;
+      while (cursor < tokens.length) {
+        const parsed = optionValue(tokens, cursor, line);
+        cursor = parsed.next;
+        if (settings.has(parsed.key)) throw new ClassicSyntaxError(line.line, 1, `EPIAI RECORDLINK repeats ${parsed.key}.`);
+        settings.set(parsed.key, parsed.value);
+      }
+      const allowed = new Set(["SOURCEA", "SOURCEB", "IDA", "IDB", "BLOCK", "EXACT", "FUZZY", "FUZZYTHRESHOLD", "REVIEWTHRESHOLD", "MATCHTHRESHOLD", "MAXCANDIDATES", "RESULT"]);
+      for (const key of settings.keys()) if (!allowed.has(key)) throw new ClassicSyntaxError(line.line, 1, `Unsupported EPIAI RECORDLINK option ${key}.`);
+      const required = (key: string): string => {
+        const value = settings.get(key);
+        if (value === undefined) throw new ClassicSyntaxError(line.line, 1, `EPIAI RECORDLINK requires ${key}.`);
+        return value;
+      };
+      const finite = (key: string): number => {
+        const value = Number(required(key));
+        if (!Number.isFinite(value)) throw new ClassicSyntaxError(line.line, 1, `${key} must be a finite number.`);
+        return value;
+      };
+      const integer = (key: string): number => {
+        const value = finite(key);
+        if (!Number.isInteger(value)) throw new ClassicSyntaxError(line.line, 1, `${key} must be an integer.`);
+        return value;
+      };
+      const pairs = (key: string): EpiAiRecordLinkFieldPair[] => {
+        const rawPairs = required(key).split(",");
+        if (!rawPairs.length || rawPairs.some((value) => !value)) throw new ClassicSyntaxError(line.line, 1, `${key} requires one or more sourceA:sourceB field pairs.`);
+        return rawPairs.map((raw) => {
+          const separator = raw.indexOf(":");
+          if (separator <= 0 || separator !== raw.lastIndexOf(":") || separator === raw.length - 1) throw new ClassicSyntaxError(line.line, 1, `${key} entries must use sourceA:sourceB field pairs.`);
+          return { sourceA: identifier(raw.slice(0, separator), line), sourceB: identifier(raw.slice(separator + 1), line) };
+        });
+      };
+      return {
+        type: "EpiAiRecordLinkStatement",
+        sourceA: identifier(required("SOURCEA"), line), sourceB: identifier(required("SOURCEB"), line),
+        idA: identifier(required("IDA"), line), idB: identifier(required("IDB"), line),
+        blockPairs: pairs("BLOCK"), exactPairs: pairs("EXACT"), fuzzyPairs: pairs("FUZZY"),
+        fuzzyThreshold: finite("FUZZYTHRESHOLD"), reviewThreshold: finite("REVIEWTHRESHOLD"),
+        matchThreshold: finite("MATCHTHRESHOLD"), maxCandidates: integer("MAXCANDIDATES"),
+        resultName: identifier(required("RESULT"), line), span: lineSpan(line),
+      };
+    }
     if (tokens[0]?.toUpperCase() !== "CLUSTER" || tokens[1]?.toUpperCase() !== "SPACE_TIME") {
-      throw new ClassicSyntaxError(line.line, 1, "This new-branch AST slice supports EPIAI QUALITY, EPIAI CLUSTER SPACE_TIME, and EPIAI CLUSTER RENDER.");
+      throw new ClassicSyntaxError(line.line, 1, "This new-branch AST slice supports EPIAI QUALITY, EPIAI CLUSTER SPACE_TIME, EPIAI CLUSTER RENDER, and EPIAI RECORDLINK.");
     }
     const settings = new Map<string, string>();
     let cursor = 2;

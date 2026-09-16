@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "state": "contract-only-no-execution",
+  "commandTour": {
+    "statementCount": 20,
+    "sourceAProfileCommands": 5,
+    "sourceBProfileCommands": 5,
+    "syntheticLineLists": 2,
+    "stopsSafelyAt": "EPIAI RECORDLINK"
+  },
+  "sourceCounts": {
+    "patient_registry_a": 8,
+    "surveillance_b": 8
+  },
+  "truth": {
+    "linkedPairs": 5,
+    "unlinkedSourceA": 3,
+    "unlinkedSourceB": 3,
+    "reviewScenario": ["A004", "B004"]
+  },
+  "acceptanceBoundary": {
+    "parserAndResolver": true,
+    "candidateGeneration": false,
+    "comparisonAndClassification": false,
+    "clericalReview": false,
+    "personClustering": false,
+    "merge": false
+  }
+}

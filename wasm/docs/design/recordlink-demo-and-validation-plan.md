@@ -4,13 +4,14 @@
 
 Demonstrate a complete patient-record-linkage workflow without real patient
 data, while retaining known truth links so every matching result can be scored.
-`RECORDLINK` is an Epi Info AI new branch; it is not the legacy matched-analysis
+`EPIAI RECORDLINK` is an Epi Info AI new branch; it is not the legacy matched-analysis
 `MATCH` command.
 
 ## Upstream design input
 
-The authorized `jkariuki7/pt_matching_app` checkout was reviewed at commit
-`0097d8c406437c2f2980caab279c0f4ca28a03dc`. That revision contains:
+The authorized `jkariuki7/pt_matching_app` checkout was reviewed through commit
+`9be01cba65572a374f788242a635f3e57df44f25`. The preceding implementation
+revision contains:
 
 - two small differently shaped patient files and a corresponding true-link
   file under `tests/fixtures/`;
@@ -22,14 +23,16 @@ The authorized `jkariuki7/pt_matching_app` checkout was reviewed at commit
   outputs and expose record count, duplicate rate, evaluation fraction, random
   seed, basename, scenario, and destination.
 
-The generator implementation itself is not present in the reviewed revision;
-only its requirements and the small truth-labeled fixture are present. Confirm
-the notebook location/revision with the upstream owner before porting it.
-The revision adds a full root Apache-2.0 `LICENSE`, compatible with Epi Info
-AI, but its `pyproject.toml` still declares `license = { text = "Proprietary" }`.
-Ask the owner to reconcile that metadata before copying or redistributing code
-or fixtures. Epi Info AI may independently implement the documented behavior
-and must retain provenance for any imported artifacts.
+The generator implementation itself was not found in the reviewed revision;
+its requirements and the small truth-labeled fixture are present. Confirm the
+notebook location/revision with the upstream owner before porting it. Commit
+`9be01cb` reconciles the prior metadata conflict: both the root `LICENSE` and
+`pyproject.toml` now declare Apache-2.0, compatible with Epi Info AI. Retain
+commit-level provenance and attribution for any imported artifacts.
+
+The first checked-in Epi Info AI bundle is independently authored under
+`wasm/demo/examples/recordlink`. It contains no copied upstream code or fixture
+rows and records that fact in its generation manifest.
 
 ## Synthetic teaching package
 
@@ -60,7 +63,7 @@ explicitly labeled.
 2. Preview and confirm source-to-standard field mappings.
 3. Run `EPIAI QUALITY` on each source and disclose missingness and invalid
    fields before matching.
-4. Run `RECORDLINK` with a visible configuration: blocking fields, comparison
+4. Run `EPIAI RECORDLINK` with a visible configuration: blocking fields, comparison
    methods, thresholds, candidate cap, and random/generator provenance.
 5. Show candidate reduction and candidate recall against the full truth set.
 6. Inspect an explainable pair: original values, normalized values, per-field
@@ -101,8 +104,14 @@ At minimum, automated tests must verify:
 
 ## First bounded implementation slice
 
-Start with two CSV sources, deterministic rule/weighted comparison, exact plus
-one realistic-duplicate scenario, a bounded candidate set, complete truth
-links, and manual review. Defer learned models, multi-source clusters, very
-large populations, and production privacy/security claims until this complete
-vertical slice is browser-tested and independently validated.
+V0.1 now defines the typed `EPIAI RECORDLINK` AST and resolver plus two CSV
+sources, exact and realistic-duplicate scenarios, a candidate cap, complete
+truth links, canonical source, and pinned upstream/license provenance. It is a
+fail-closed contract preview: candidate generation, comparison, classification,
+manual review, clustering, and merge do not execute yet.
+
+The next slice implements deterministic cross-source blocking and reports the
+candidate count, reduction ratio, per-rule diagnostics, and candidate recall
+against complete truth. Defer learned models, multi-source clusters, very large
+populations, and production privacy/security claims until the complete vertical
+slice is browser-tested and independently validated.

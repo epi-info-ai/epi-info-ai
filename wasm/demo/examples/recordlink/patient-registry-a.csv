@@ -1,0 +1,9 @@
+record_id,date_of_birth,sex,patient_address,art_code,facility_code,first_name,middle_name,last_name
+A001,1980-01-15,Female,100 Main Street,ART-001,FAC-01,Ana,Marie,Lopez
+A002,1975-04-20,Male,200 Oak Avenue,ART-002,FAC-01,Ben,,Carter
+A003,1990-07-11,Female,300 Pine Road,ART-003,FAC-02,Cara,Lin,Nguyen
+A004,1988-12-01,Male,400 Cedar Lane,ART-004,FAC-03,David,James,Smith
+A005,1995-05-22,Female,55 Market Street,ART-005,FAC-05,Grace,N,Adu
+A006,2001-09-09,Female,18 Lake View Road,ART-006,FAC-06,Amina,S,Yusuf
+A007,1970-02-14,Male,7 Hill Boulevard,ART-007,FAC-07,John,P,Okafor
+A008,1983-11-30,Female,88 South Road,ART-008,FAC-08,Maria,L,Santos

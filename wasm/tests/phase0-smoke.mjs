@@ -83,6 +83,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/epi-ai-quality.ts",
     "wasm/app/programming/epi-ai-space-time-cluster.ts",
     "wasm/app/programming/epi-ai-space-time-cluster-analysis.ts",
+    "wasm/app/programming/epi-ai-recordlink.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
@@ -124,6 +125,14 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.csv",
     "wasm/demo/examples/cluster/space-time-cluster-command-tour.pgm7",
     "wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.programs.json",
+    "wasm/demo/examples/recordlink/README.md",
+    "wasm/demo/examples/recordlink/patient-registry-a.csv",
+    "wasm/demo/examples/recordlink/surveillance-b.csv",
+    "wasm/demo/examples/recordlink/true-links.csv",
+    "wasm/demo/examples/recordlink/recordlink-command-tour.pgm7",
+    "wasm/demo/examples/recordlink/recordlink-synthetic-project.epia.json",
+    "wasm/demo/examples/recordlink/generation-manifest.json",
+    "wasm/demo/examples/recordlink/expected-recordlink-results.json",
     "wasm/demo/examples/matched-case-control/README.md",
     "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx",
     "wasm/demo/examples/matched-case-control/case-control-database-example.programs.json",
@@ -1603,6 +1612,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(qualityReport.fields.find(({ fieldName }) => fieldName === "hospitalization_date").missing, 74);
   assert.throws(() => quality.resolveEpiAiQualityCommand("EPIAI QUALITY Age", imported.schema.fields), /QUALITY \* only/);
   const cluster = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-space-time-cluster.ts")).href}?cluster=${Date.now()}`);
+  const recordlink = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink.ts")).href}?recordlink=${Date.now()}`);
   const clusterFixture = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json"), "utf8"));
   const clusterCsv = await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv"), "utf8");
   assert.equal(createHash("sha256").update(clusterCsv).digest("hex"), clusterFixture.dataset.sha256);
@@ -1682,6 +1692,84 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.match(clusterWorkerClientSource, /60 seconds/);
   assert.match(clusterWorkerClientSource, /cancelSpaceTimeClusterCalculations/);
   assert.throws(() => clusterAnalysis.scoreSpaceTimeClusterCandidates([...clusterRecords, { ...clusterRecords[0] }], clusterPlan), /unique IDs/);
+  const recordLinkTour = await readFile(repositoryPath("wasm/demo/examples/recordlink/recordlink-command-tour.pgm7"), "utf8");
+  const recordLinkAst = classicAst.parseClassicProgram(recordLinkTour);
+  assert.deepEqual(recordLinkAst.body.map(({ type }) => type), [
+    "HeaderStatement", "TypeoutStatement", "TypeoutStatement",
+    "ReadStatement", "HeaderStatement", "EpiAiQualityStatement", "ListStatement", "FrequencyStatement", "FrequencyStatement", "TablesStatement",
+    "ReadStatement", "HeaderStatement", "EpiAiQualityStatement", "ListStatement", "FrequencyStatement", "FrequencyStatement", "TablesStatement",
+    "HeaderStatement", "TypeoutStatement", "EpiAiRecordLinkStatement",
+  ]);
+  const recordLinkSource = recordLinkTour.split(/\r?\n/).find((line) => line.startsWith("EPIAI RECORDLINK "));
+  assert.ok(recordLinkSource, "the RECORDLINK tour must contain one visible EPIAI RECORDLINK command");
+  const recordLinkSources = [
+    {
+      id: "patient_registry_a",
+      fields: [
+        { name: "record_id", prompt: "Record ID", type: "unique-id", required: true },
+        { name: "date_of_birth", prompt: "Date of birth", type: "date", required: true },
+        { name: "sex", prompt: "Sex", type: "option", required: true },
+        { name: "patient_address", prompt: "Address", type: "text", required: false },
+        { name: "art_code", prompt: "ART code", type: "text", required: false },
+        { name: "facility_code", prompt: "Facility", type: "text", required: false },
+        { name: "first_name", prompt: "First name", type: "text", required: false },
+        { name: "last_name", prompt: "Last name", type: "text", required: false },
+      ],
+    },
+    {
+      id: "surveillance_b",
+      fields: [
+        { name: "client_id", prompt: "Client ID", type: "unique-id", required: true },
+        { name: "DOB", prompt: "Date of birth", type: "date", required: true },
+        { name: "SEX", prompt: "Sex", type: "option", required: true },
+        { name: "Address", prompt: "Address", type: "text", required: false },
+        { name: "ART_CODE", prompt: "ART code", type: "text", required: false },
+        { name: "site_code", prompt: "Site", type: "text", required: false },
+        { name: "given_name", prompt: "Given name", type: "text", required: false },
+        { name: "family_name", prompt: "Family name", type: "text", required: false },
+      ],
+    },
+  ];
+  const recordLinkPlan = recordlink.resolveRecordLinkCommand(recordLinkSource, recordLinkSources);
+  assert.equal(recordLinkPlan.version, "0.1.0");
+  assert.equal(recordLinkPlan.execution, "disabled-contract-preview");
+  assert.equal(recordLinkPlan.mode, "two-source-cross-file");
+  assert.equal(recordLinkPlan.provenance.license, "Apache-2.0");
+  assert.equal(recordLinkPlan.provenance.reviewedCommit, "9be01cba65572a374f788242a635f3e57df44f25");
+  assert.deepEqual(recordLinkPlan.blockPairs, [{ sourceA: "facility_code", sourceB: "site_code" }]);
+  assert.deepEqual(recordLinkPlan.exactPairs.map(({ sourceA, sourceB }) => `${sourceA}:${sourceB}`), ["date_of_birth:DOB", "sex:SEX", "art_code:ART_CODE"]);
+  assert.deepEqual(recordLinkPlan.fuzzyPairs.map(({ sourceA, sourceB }) => `${sourceA}:${sourceB}`), ["first_name:given_name", "last_name:family_name", "patient_address:Address"]);
+  assert.equal(recordlink.buildRecordLinkCommand(recordLinkPlan), recordLinkPlan.canonicalSource);
+  const recordLinkManifest = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/recordlink/generation-manifest.json"), "utf8"));
+  for (const sourceEntry of recordLinkManifest.sources) {
+    const bytes = await readFile(repositoryPath(`wasm/demo/examples/recordlink/${sourceEntry.file}`));
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), sourceEntry.sha256, `${sourceEntry.file} must retain its declared RECORDLINK hash`);
+  }
+  const recordLinkTruth = (await readFile(repositoryPath("wasm/demo/examples/recordlink/true-links.csv"), "utf8")).trim().split(/\r?\n/).slice(1);
+  assert.equal(recordLinkTruth.length, 5);
+  const recordLinkExpected = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/recordlink/expected-recordlink-results.json"), "utf8"));
+  assert.equal(recordLinkAst.body.length, recordLinkExpected.commandTour.statementCount);
+  assert.equal(recordLinkAst.body.filter(({ type }) => type === "EpiAiQualityStatement").length, 2);
+  assert.equal(recordLinkAst.body.filter(({ type }) => type === "ListStatement").length, recordLinkExpected.commandTour.syntheticLineLists);
+  assert.equal(recordLinkAst.body.filter(({ type }) => type === "FrequencyStatement").length, 4);
+  assert.equal(recordLinkAst.body.filter(({ type }) => type === "TablesStatement").length, 2);
+  const recordLinkProject = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/recordlink/recordlink-synthetic-project.epia.json"), "utf8"));
+  assert.equal(recordLinkProject.format, "epi-info-ai-project");
+  assert.equal(recordLinkProject.version, 2);
+  const recordLinkPackageContract = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?recordlinkPackage=${Date.now()}`);
+  assert.equal(recordLinkPackageContract.validateProjectPackage(recordLinkProject).project.name, "Synthetic Patient Record Linkage");
+  assert.deepEqual(recordLinkProject.project.forms.map(({ schema }) => schema.name), ["patient_registry_a", "surveillance_b"]);
+  assert.deepEqual(recordLinkProject.project.forms.map(({ records }) => records.length), [8, 8]);
+  assert.deepEqual(recordLinkProject.programs.map(({ name }) => name), ["recordlink-command-tour"]);
+  const packagedRecordLinkAst = classicAst.parseClassicProgram(recordLinkProject.programs[0].source);
+  assert.deepEqual(packagedRecordLinkAst.body.map(({ type }) => type), recordLinkAst.body.map(({ type }) => type));
+  assert.equal(packagedRecordLinkAst.body.filter(({ type }) => type === "ListStatement").length, 2);
+  assert.throws(() => classicAst.parseClassicProgram(recordLinkPlan.canonicalSource.replace(" RESULT=PatientLinks", " UNKNOWN=1 RESULT=PatientLinks")), /Unsupported EPIAI RECORDLINK option UNKNOWN/);
+  assert.throws(() => classicAst.parseClassicProgram(recordLinkPlan.canonicalSource.replace("BLOCK=facility_code:site_code", "BLOCK=facility_code")), /sourceA:sourceB field pairs/);
+  assert.throws(() => recordlink.resolveRecordLinkCommand(recordLinkPlan.canonicalSource.replace("FUZZYTHRESHOLD=0.85", "FUZZYTHRESHOLD=1.5"), recordLinkSources), /FUZZYTHRESHOLD/);
+  assert.throws(() => recordlink.resolveRecordLinkCommand(recordLinkPlan.canonicalSource.replace("MAXCANDIDATES=10000", "MAXCANDIDATES=0"), recordLinkSources), /MAXCANDIDATES/);
+  assert.throws(() => recordlink.resolveRecordLinkCommand(recordLinkPlan.canonicalSource.replace("SOURCEB=surveillance_b", "SOURCEB=patient_registry_a"), recordLinkSources), /must be different/);
+  assert.throws(() => recordlink.resolveRecordLinkCommand(recordLinkPlan.canonicalSource.replace("FUZZY=first_name:given_name", "FUZZY=date_of_birth:DOB"), recordLinkSources), /text-compatible/);
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "file-convert", inputFile: "Sample.mdb", outputFile: "Sample.sqlite" }), 'FILE CONVERT "Sample.mdb" TO "Sample.sqlite"');
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('FILE CONVERT "Sample.mdb" TO "Sample.sqlite"', imported.schema.fields), {
     kind: "file-convert", inputFile: "Sample.mdb", outputFile: "Sample.sqlite", source: 'FILE CONVERT "Sample.mdb" TO "Sample.sqlite"',

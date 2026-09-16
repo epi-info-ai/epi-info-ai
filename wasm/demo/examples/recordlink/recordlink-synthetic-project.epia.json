@@ -1,0 +1,81 @@
+{
+  "format": "epi-info-ai-project",
+  "version": 2,
+  "exportedAt": "2026-09-16T12:00:00.000Z",
+  "project": {
+    "version": 1,
+    "name": "Synthetic Patient Record Linkage",
+    "currentFormId": "patient-registry-a",
+    "storage": { "type": "browser" },
+    "forms": [
+      {
+        "id": "patient-registry-a",
+        "schema": {
+          "name": "patient_registry_a",
+          "fields": [
+            { "name": "record_id", "prompt": "Record ID", "type": "unique-id", "required": true, "tabStop": true },
+            { "name": "date_of_birth", "prompt": "Date of birth", "type": "date", "required": false, "tabStop": true },
+            { "name": "sex", "prompt": "Sex", "type": "text", "required": false, "tabStop": true },
+            { "name": "patient_address", "prompt": "Patient address", "type": "text", "required": false, "tabStop": true },
+            { "name": "art_code", "prompt": "ART code", "type": "text", "required": false, "tabStop": true },
+            { "name": "facility_code", "prompt": "Facility code", "type": "text", "required": false, "tabStop": true },
+            { "name": "first_name", "prompt": "First name", "type": "text", "required": false, "tabStop": true },
+            { "name": "middle_name", "prompt": "Middle name", "type": "text", "required": false, "tabStop": true },
+            { "name": "last_name", "prompt": "Last name", "type": "text", "required": false, "tabStop": true }
+          ]
+        },
+        "records": [
+          { "record_id": "A001", "date_of_birth": "1980-01-15", "sex": "Female", "patient_address": "100 Main Street", "art_code": "ART-001", "facility_code": "FAC-01", "first_name": "Ana", "middle_name": "Marie", "last_name": "Lopez" },
+          { "record_id": "A002", "date_of_birth": "1975-04-20", "sex": "Male", "patient_address": "200 Oak Avenue", "art_code": "ART-002", "facility_code": "FAC-01", "first_name": "Ben", "middle_name": "", "last_name": "Carter" },
+          { "record_id": "A003", "date_of_birth": "1990-07-11", "sex": "Female", "patient_address": "300 Pine Road", "art_code": "ART-003", "facility_code": "FAC-02", "first_name": "Cara", "middle_name": "Lin", "last_name": "Nguyen" },
+          { "record_id": "A004", "date_of_birth": "1988-12-01", "sex": "Male", "patient_address": "400 Cedar Lane", "art_code": "ART-004", "facility_code": "FAC-03", "first_name": "David", "middle_name": "James", "last_name": "Smith" },
+          { "record_id": "A005", "date_of_birth": "1995-05-22", "sex": "Female", "patient_address": "55 Market Street", "art_code": "ART-005", "facility_code": "FAC-05", "first_name": "Grace", "middle_name": "N", "last_name": "Adu" },
+          { "record_id": "A006", "date_of_birth": "2001-09-09", "sex": "Female", "patient_address": "18 Lake View Road", "art_code": "ART-006", "facility_code": "FAC-06", "first_name": "Amina", "middle_name": "S", "last_name": "Yusuf" },
+          { "record_id": "A007", "date_of_birth": "1970-02-14", "sex": "Male", "patient_address": "7 Hill Boulevard", "art_code": "ART-007", "facility_code": "FAC-07", "first_name": "John", "middle_name": "P", "last_name": "Okafor" },
+          { "record_id": "A008", "date_of_birth": "1983-11-30", "sex": "Female", "patient_address": "88 South Road", "art_code": "ART-008", "facility_code": "FAC-08", "first_name": "Maria", "middle_name": "L", "last_name": "Santos" }
+        ],
+        "dataset": { "id": "recordlink-patient-registry-a", "file": "patient-registry-a.csv", "sha256": "8cd6b0671554513b019752d9b5bb23fd93123d6339aaa1e4bf84e155d77512b9" }
+      },
+      {
+        "id": "surveillance-b",
+        "schema": {
+          "name": "surveillance_b",
+          "fields": [
+            { "name": "client_id", "prompt": "Client ID", "type": "unique-id", "required": true, "tabStop": true },
+            { "name": "DOB", "prompt": "Date of birth", "type": "date", "required": false, "tabStop": true },
+            { "name": "SEX", "prompt": "Sex", "type": "text", "required": false, "tabStop": true },
+            { "name": "Address", "prompt": "Address", "type": "text", "required": false, "tabStop": true },
+            { "name": "ART_CODE", "prompt": "ART code", "type": "text", "required": false, "tabStop": true },
+            { "name": "site_code", "prompt": "Site code", "type": "text", "required": false, "tabStop": true },
+            { "name": "given_name", "prompt": "Given name", "type": "text", "required": false, "tabStop": true },
+            { "name": "middle", "prompt": "Middle name", "type": "text", "required": false, "tabStop": true },
+            { "name": "family_name", "prompt": "Family name", "type": "text", "required": false, "tabStop": true }
+          ]
+        },
+        "records": [
+          { "client_id": "B001", "DOB": "1980-01-15", "SEX": "Female", "Address": "100 Main St", "ART_CODE": "ART-001", "site_code": "FAC-01", "given_name": "Ana", "middle": "M", "family_name": "Lopez" },
+          { "client_id": "B002", "DOB": "1975-04-20", "SEX": "Male", "Address": "200 Oak Ave", "ART_CODE": "ART-002", "site_code": "FAC-01", "given_name": "Ben", "middle": "", "family_name": "Carter" },
+          { "client_id": "B003", "DOB": "1992-03-09", "SEX": "Female", "Address": "900 River Road", "ART_CODE": "ART-009", "site_code": "FAC-04", "given_name": "Elena", "middle": "K", "family_name": "Moore" },
+          { "client_id": "B004", "DOB": "1988-12-02", "SEX": "Male", "Address": "400 Cedar Lane", "ART_CODE": "ART-004", "site_code": "FAC-03", "given_name": "David", "middle": "J", "family_name": "Smith" },
+          { "client_id": "B005", "DOB": "1995-05-22", "SEX": "Female", "Address": "55 Market St", "ART_CODE": "ART-005", "site_code": "FAC-05", "given_name": "Grace", "middle": "Nana", "family_name": "Adu" },
+          { "client_id": "B006", "DOB": "2001-09-09", "SEX": "Female", "Address": "18 Lakeview Rd", "ART_CODE": "ART-006", "site_code": "FAC-06", "given_name": "Ameena", "middle": "S", "family_name": "Yusuf" },
+          { "client_id": "B007", "DOB": "1966-06-06", "SEX": "Male", "Address": "10 Forest Drive", "ART_CODE": "ART-010", "site_code": "FAC-09", "given_name": "Peter", "middle": "T", "family_name": "Moyo" },
+          { "client_id": "B008", "DOB": "1984-10-10", "SEX": "Female", "Address": "42 North Avenue", "ART_CODE": "ART-011", "site_code": "FAC-10", "given_name": "Rosa", "middle": "M", "family_name": "Diaz" }
+        ],
+        "dataset": { "id": "recordlink-surveillance-b", "file": "surveillance-b.csv", "sha256": "f641c2968caed93b9dbe417eb11a4d4b1daa09afc63a8aba7116f2ced6ae15f6" }
+      }
+    ]
+  },
+  "programs": [
+    {
+      "name": "recordlink-command-tour",
+      "language": "classic-analysis",
+      "author": "Epi Info AI",
+      "comment": "Synthetic teaching workflow; RECORDLINK execution remains fail-closed in V0.1.",
+      "createdAt": "2026-09-16T12:00:00.000Z",
+      "modifiedAt": "2026-09-16T12:00:00.000Z",
+      "source": "*** Epi Info AI RECORDLINK end-to-end command tour\n*** Datasets: patient-registry-a.csv and surveillance-b.csv (entirely synthetic)\n*** Purpose: inspect both sources before proposing cross-source patient links.\n*** New branch; not the legacy matched case-control MATCH command.\n*** V0.1 executes the descriptive commands but stops safely at RECORDLINK.\n\nHEADER 1 \"Synthetic patient record-linkage teaching workflow\"\nTYPEOUT \"Two fictional eight-record sources use different schemas and contain five known truth links.\"\nTYPEOUT \"Review source quality and aggregate distributions before evaluating any proposed link.\"\n\nREAD patient_registry_a\nHEADER 1 \"Source A - synthetic patient registry\"\nEPIAI QUALITY *\nLIST record_id date_of_birth sex art_code facility_code first_name last_name patient_address\nFREQ facility_code\nFREQ sex\nTABLES facility_code sex\n\nREAD surveillance_b\nHEADER 1 \"Source B - synthetic surveillance line list\"\nEPIAI QUALITY *\nLIST client_id DOB SEX ART_CODE site_code given_name family_name Address\nFREQ site_code\nFREQ SEX\nTABLES site_code SEX\n\nHEADER 1 \"Reviewed cross-source linkage plan\"\nTYPEOUT \"Block on facility/site; compare date, sex, and ART code exactly; compare names and address fuzzily.\"\nEPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks\n\n*** Future governed slices continue with candidate diagnostics, explainable scores,\n*** clerical review, conflict-aware person clusters, and an explicitly reviewed MERGE."
+    }
+  ],
+  "codeTables": []
+}

@@ -712,25 +712,25 @@ The detailed cumulative changes and validation increments follow.
   expected counts, O/E, likelihood ratio, p-value, locations, and cases. This is not a validation or parity
   claim, and the retained legacy `MAP` command is not overloaded.
 
-- **Resume governed patient record linkage after its upstream license metadata
-  is reconciled.** Treat
-  `RECORDLINK` as a new branch distinct from the legacy statistical `MATCH`
+- **Continue governed patient record linkage as a typed new branch.** Treat
+  `EPIAI RECORDLINK` as distinct from the legacy statistical `MATCH`
   command. The
   [end-to-end synthetic demo and validation plan](wasm/docs/design/recordlink-demo-and-validation-plan.md)
   uses known truth links so candidate generation, classification, clerical
   review, person clustering, and final outputs can be measured without real
   patient data. Use the authorized
   [`pt_matching_app`](https://github.com/jkariuki7/pt_matching_app) workflow at
-  pinned commit `0097d8c406437c2f2980caab279c0f4ca28a03dc` as design and test input:
+  pinned commit `9be01cba65572a374f788242a635f3e57df44f25` as design and test input:
   source mapping and harmonization, candidate blocking, explainable comparison
   scores, classification, clerical review, conflict-aware person clusters, and
   reviewed `MERGE`/deduplicated outputs. Keep record values local, bound every
   candidate set, preserve human decisions and provenance in history, and test
   against synthetic truth links. Permission to use the upstream has been
-  confirmed by its owner, and the pinned commit adds a root Apache-2.0
-  `LICENSE`. Its `pyproject.toml` still declares `Proprietary`; reconcile that
-  contradictory package metadata before copying or redistributing source or
-  fixtures. This does not block Space-Time Cluster Detection.
+  confirmed by its owner, and the pinned commit now aligns the root `LICENSE`
+  and `pyproject.toml` on Apache-2.0. The first typed AST/resolver and independent
+  [synthetic example bundle](wasm/demo/examples/recordlink/) are checked in;
+  execution remains disabled until the next bounded blocking slice reports
+  candidate reduction and recall against the complete truth links.
 
 - **Complete field-user validation and expand `MATCH` without lowering the parity floor.** The
   [source and dataset inventory](wasm/docs/research/match-command-sources-and-data.md)

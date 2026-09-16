@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "generator": "hand-authored-recordlink-contract-v0.1",
+  "seed": null,
+  "synthetic": true,
+  "createdFor": "Epi Info AI RECORDLINK new-branch validation",
+  "sources": [
+    { "id": "patient_registry_a", "file": "patient-registry-a.csv", "records": 8, "sha256": "8cd6b0671554513b019752d9b5bb23fd93123d6339aaa1e4bf84e155d77512b9" },
+    { "id": "surveillance_b", "file": "surveillance-b.csv", "records": 8, "sha256": "f641c2968caed93b9dbe417eb11a4d4b1daa09afc63a8aba7116f2ced6ae15f6" },
+    { "id": "true_links", "file": "true-links.csv", "records": 5, "sha256": "973f148d2f54eca3541897656c20abefa365f577ce3bd2379e3bcac4b94ba0f9" }
+  ],
+  "upstreamDesignInput": {
+    "repository": "https://github.com/jkariuki7/pt_matching_app",
+    "reviewedCommit": "9be01cba65572a374f788242a635f3e57df44f25",
+    "license": "Apache-2.0",
+    "copiedCode": false,
+    "copiedFixtureRows": false
+  }
+}

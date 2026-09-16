@@ -1,0 +1,9 @@
+client_id,DOB,SEX,Address,ART_CODE,site_code,given_name,middle,family_name
+B001,1980-01-15,Female,100 Main St,ART-001,FAC-01,Ana,M,Lopez
+B002,1975-04-20,Male,200 Oak Ave,ART-002,FAC-01,Ben,,Carter
+B003,1992-03-09,Female,900 River Road,ART-009,FAC-04,Elena,K,Moore
+B004,1988-12-02,Male,400 Cedar Lane,ART-004,FAC-03,David,J,Smith
+B005,1995-05-22,Female,55 Market St,ART-005,FAC-05,Grace,Nana,Adu
+B006,2001-09-09,Female,18 Lakeview Rd,ART-006,FAC-06,Ameena,S,Yusuf
+B007,1966-06-06,Male,10 Forest Drive,ART-010,FAC-09,Peter,T,Moyo
+B008,1984-10-10,Female,42 North Avenue,ART-011,FAC-10,Rosa,M,Diaz
