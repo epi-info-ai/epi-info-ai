@@ -673,6 +673,15 @@
                   <span id="map-time-lapse-count"></span>
                   <button id="map-time-lapse-close" type="button" aria-label="Close time lapse">Close</button>
                 </section>
+                <section id="map-cluster-tour-controls" class="map-time-lapse-controls map-cluster-tour-controls" aria-label="Cluster story tour controls" hidden>
+                  <strong>Cluster Story Tour</strong>
+                  <button id="map-cluster-tour-previous" type="button" aria-label="Previous cluster">Previous</button>
+                  <button id="map-cluster-tour-play" type="button" aria-label="Play cluster story tour">Play</button>
+                  <button id="map-cluster-tour-next" type="button" aria-label="Next cluster">Next</button>
+                  <output id="map-cluster-tour-rank"></output>
+                  <span id="map-cluster-tour-detail"></span>
+                  <button id="map-cluster-tour-close" type="button" aria-label="Close cluster story tour">Close</button>
+                </section>
                 <details id="map-layer-panel" class="map-layer-drawer">
                   <summary id="map-layer-panel-toggle" aria-label="Maximize map layers" title="Maximize map layers">
                     <span>Map Layers (<span id="map-layer-count">0</span>)</span>
@@ -1515,9 +1524,10 @@
           <p><code id="classic-cluster-output-command"></code></p>
           <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Rank</th><th>Period</th><th>Observed</th><th>Expected</th><th>O/E</th><th>Log likelihood ratio</th><th>Monte Carlo p</th><th>Locations</th><th>Cases</th></tr></thead><tbody id="classic-cluster-output-body"></tbody></table></div>
           <section id="classic-cluster-map" class="classic-cluster-map" aria-labelledby="classic-cluster-map-title" hidden>
-            <div class="panel-heading"><div><p class="step-label">LOCAL RESULT MAP</p><h3 id="classic-cluster-map-title">Ranked cluster windows</h3></div><button id="classic-cluster-open-maps" class="secondary-button" type="button" disabled>Open in Maps</button></div>
+            <div class="panel-heading"><div><p class="step-label">LOCAL RESULT MAP</p><h3 id="classic-cluster-map-title">Ranked cluster windows</h3></div><button id="classic-cluster-open-maps" class="secondary-button classic-cluster-open-maps" data-cluster-open-maps type="button" disabled>Open in Maps</button></div>
             <div id="classic-cluster-map-plot" class="classic-cluster-map-plot"></div>
             <p id="classic-cluster-map-note" class="method-note"></p>
+            <p class="classic-cluster-map-attribution">Basemap © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.</p>
           </section>
           <p id="classic-cluster-output-note" class="method-note"></p>
           <p class="compatibility-note"><strong>Candidate status:</strong> Aggregate space-time permutation output from a local cancellable Worker. It is a new branch, not legacy parity or external-product parity. Precise coordinates and case identifiers are omitted from this Output and command history.</p>

@@ -1105,6 +1105,8 @@ test("MATCH revival authors and executes the bounded 1:1 paired analysis", async
 });
 
 test("EPIAI CLUSTER runs in a Worker and renders its named result inline", async ({ page }) => {
+  const tile = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEAQH/2p6rWQAAAABJRU5ErkJggg==", "base64");
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.fulfill({ status: 200, contentType: "image/png", headers: { "access-control-allow-origin": "*" }, body: tile }));
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
   await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.csv");
@@ -1120,9 +1122,19 @@ test("EPIAI CLUSTER runs in a Worker and renders its named result inline", async
   const rendered = page.locator("#classic-sequential-output-body .classic-sequential-command").nth(1);
   await expect(rendered).toContainText("Rendered 10 ranked windows inline");
   await expect(rendered.locator(".classic-cluster-map")).toBeVisible();
-  await expect(rendered.locator(".classic-cluster-window")).toHaveCount(10);
-  await expect(rendered.locator(".classic-cluster-window.significant")).not.toHaveCount(0);
-  await expect(rendered.locator(".classic-cluster-location")).not.toHaveCount(0);
+  await expect(rendered.locator(".classic-cluster-map-plot img")).toHaveAttribute("src", /^data:image\/png;base64,/);
+  await expect(rendered.locator(".classic-cluster-map-hotspot")).toHaveCount(10);
+  await expect(rendered.locator(".classic-cluster-map-hotspot").first()).toHaveAttribute("data-tooltip", /observed .* expected .* O\/E .* LLR .* p .* locations .* cases/);
+  await expect(rendered).toContainText("OpenStreetMap basemap loaded");
+  const openMaps = rendered.getByRole("button", { name: "Open in Maps" });
+  await expect(openMaps).toBeEnabled();
+  await openMaps.click();
+  await expect(page.locator("#maps-title")).toBeVisible();
+  await expect(page.locator("#map-cluster-tour-controls")).toBeVisible();
+  await expect(page.locator("#map-cluster-tour-rank")).toHaveText("Rank 1 of 10");
+  await page.locator("#map-cluster-tour-next").click();
+  await expect(page.locator("#map-cluster-tour-rank")).toHaveText("Rank 2 of 10");
+  await expect(page.locator("#map-cluster-tour-detail")).toContainText("observed");
   await expect(page.locator("#classic-program-history")).toContainText("without rerunning inference");
 });
 

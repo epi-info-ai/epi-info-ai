@@ -99,7 +99,12 @@ EPIAI CLUSTER RENDER RESULT=FeverRashClusters
 cluster rows plus map-ready center, radius, member geometry, and time interval.
 `RENDER` consumes that artifact and does not rerun the analysis. The bare legacy
 `MAP` command remains reserved for its own parity/revival work and is not
-overloaded by Cluster Detection.
+overloaded by Cluster Detection. Its Output document is a static raster: it
+composites attributed OpenStreetMap tiles with ranked circles and aggregate
+top-window locations, then freezes the result as an image so sequential Program
+Output can retain it. Tile failure is explicit and leaves the analytical
+overlays visible on a blank background. **Open in Maps** creates the interactive
+layer and exposes a Previous/Next/Play story tour from rank 1 through n.
 
 ## Synthetic acceptance corpus
 

@@ -119,6 +119,14 @@ interface TimeLapseState {
   totalPoints: number;
 }
 
+interface ClusterTourState {
+  resultName: string;
+  clusters: SpaceTimeClusterInferenceResult["clusters"];
+  circles: LeafletLayer[];
+  index: number;
+  timer: ReturnType<typeof setInterval> | null;
+}
+
 type Point2D = [number, number];
 type PolygonRings = Point2D[][];
 type H3Indexer = (latitude: number, longitude: number, resolution: number) => string;
@@ -146,6 +154,7 @@ let activeRecordPoints: MapPoint[] = [];
 let activeRecordLabelField = "";
 let activeRecordOpenHandler: OpenRecordHandler | null = null;
 let timeLapseState: TimeLapseState | null = null;
+let clusterTourState: ClusterTourState | null = null;
 const geoJsonLayers = new Map<string, GeoJsonLayerEntry>();
 const h3Layers = new Map<string, H3LayerEntry>();
 const rasterLayers = new Map<string, RasterLayerEntry>();
@@ -702,8 +711,10 @@ async function toggleMapFullscreen() {
 }
 
 function resetMapWorkspace() {
+  closeClusterTour();
   ensureMap();
   closeTimeLapse(false);
+  closeClusterTour();
   recordLayer.clearLayers();
   locationLayer.clearLayers();
   for (const entry of geoJsonLayers.values()) {
@@ -1290,6 +1301,37 @@ function closeTimeLapse(restoreRecords = true) {
   }
 }
 
+function pauseClusterTour(): void {
+  if (!clusterTourState) return;
+  if (clusterTourState.timer) clearInterval(clusterTourState.timer);
+  clusterTourState.timer = null;
+  requiredElement("#map-cluster-tour-play").textContent = "Play";
+  requiredElement("#map-cluster-tour-play").setAttribute("aria-label", "Play cluster story tour");
+}
+
+function renderClusterTourStep(index: number): void {
+  if (!clusterTourState) return;
+  const bounded = Math.max(0, Math.min(index, clusterTourState.clusters.length - 1));
+  clusterTourState.index = bounded;
+  const cluster = clusterTourState.clusters[bounded];
+  const circle = clusterTourState.circles[bounded];
+  if (!cluster || !circle) return;
+  map.fitBounds(circle.getBounds().pad(0.4), { maxZoom: 14 });
+  circle.openPopup();
+  requiredElement("#map-cluster-tour-rank").textContent = `Rank ${cluster.rank} of ${clusterTourState.clusters.length}`;
+  requiredElement("#map-cluster-tour-detail").textContent = `${cluster.start} to ${cluster.end} · observed ${cluster.observed} · expected ${cluster.expected.toFixed(2)} · p ${cluster.pValue === null ? "not calculated" : cluster.pValue.toFixed(4)}`;
+  requiredElement<HTMLButtonElement>("#map-cluster-tour-previous").disabled = bounded === 0;
+  requiredElement<HTMLButtonElement>("#map-cluster-tour-next").disabled = bounded === clusterTourState.clusters.length - 1;
+  requiredElement("#map-status").textContent = `Cluster story tour: rank ${cluster.rank} from ${cluster.start} to ${cluster.end}.`;
+}
+
+function closeClusterTour(): void {
+  pauseClusterTour();
+  clusterTourState = null;
+  const controls = document.querySelector<HTMLElement>("#map-cluster-tour-controls");
+  if (controls) controls.hidden = true;
+}
+
 function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler): void {
   const latitudeField = requiredElement("#map-latitude-field").value;
   const longitudeField = requiredElement("#map-longitude-field").value;
@@ -1301,6 +1343,7 @@ function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler):
 
   ensureMap();
   closeTimeLapse(false);
+  closeClusterTour();
   const mappedRecords = extractMapPoints(data.records, latitudeField, longitudeField);
   activeData = data;
   activeRecordPoints = mappedRecords;
@@ -1334,6 +1377,7 @@ export function renderSpaceTimeClusterResult(
   activeRecordOpenHandler = null;
   lastBounds = L.latLngBounds([]);
   const rendered = result.clusters.slice(0, 10);
+  const circlesByRank = new Map<number, LeafletLayer>();
   for (const cluster of [...rendered].reverse()) {
     const significant = cluster.pValue !== null && cluster.pValue <= 0.05;
     const color = significant ? "#9f221b" : "#a15c00";
@@ -1351,7 +1395,8 @@ export function renderSpaceTimeClusterResult(
     const detail = document.createElement("p");
     detail.textContent = `${cluster.start} to ${cluster.end}; observed ${cluster.observed}, expected ${cluster.expected.toFixed(2)}, p ${cluster.pValue === null ? "not calculated" : cluster.pValue.toFixed(4)}.`;
     popup.append(heading, detail);
-    circle.bindPopup(popup).addTo(recordLayer);
+    circle.bindPopup(popup).bindTooltip(`Rank ${cluster.rank} · ${cluster.start} to ${cluster.end} · observed ${cluster.observed} · expected ${cluster.expected.toFixed(2)} · O/E ${cluster.observedExpectedRatio.toFixed(2)} · LLR ${cluster.logLikelihoodRatio.toFixed(3)} · p ${cluster.pValue === null ? "not calculated" : cluster.pValue.toFixed(4)} · ${cluster.locationCount} locations · ${cluster.caseCount} cases`, { sticky: true }).addTo(recordLayer);
+    circlesByRank.set(cluster.rank, circle);
     lastBounds.extend(circle.getBounds());
   }
   const top = rendered[0];
@@ -1379,6 +1424,17 @@ export function renderSpaceTimeClusterResult(
     ? `Rendered ${rendered.length} ranked cluster window${rendered.length === 1 ? "" : "s"}; markers show aggregate locations in the top-ranked window.`
     : `Named result ${result.plan.resultName} contains no cluster windows to render.`;
   if (lastBounds.isValid()) map.fitBounds(lastBounds.pad(0.12), { maxZoom: 14 });
+  if (rendered.length) {
+    clusterTourState = {
+      resultName: result.plan.resultName,
+      clusters: rendered,
+      circles: rendered.map((cluster) => circlesByRank.get(cluster.rank)!),
+      index: 0,
+      timer: null,
+    };
+    requiredElement<HTMLElement>("#map-cluster-tour-controls").hidden = false;
+    renderClusterTourStep(0);
+  }
 }
 
 function captureLocation() {
@@ -1728,6 +1784,37 @@ export function initializeMaps(
     renderTimeLapseStep(Number(eventControl(event).value));
   });
   requiredElement("#map-time-lapse-close").addEventListener("click", () => closeTimeLapse(true));
+  requiredElement("#map-cluster-tour-previous").addEventListener("click", () => {
+    pauseClusterTour();
+    if (clusterTourState) renderClusterTourStep(clusterTourState.index - 1);
+  });
+  requiredElement("#map-cluster-tour-next").addEventListener("click", () => {
+    pauseClusterTour();
+    if (clusterTourState) renderClusterTourStep(clusterTourState.index + 1);
+  });
+  requiredElement("#map-cluster-tour-play").addEventListener("click", () => {
+    if (!clusterTourState) return;
+    if (clusterTourState.timer) {
+      pauseClusterTour();
+      return;
+    }
+    requiredElement("#map-cluster-tour-play").textContent = "Pause";
+    requiredElement("#map-cluster-tour-play").setAttribute("aria-label", "Pause cluster story tour");
+    if (clusterTourState.index >= clusterTourState.clusters.length - 1) renderClusterTourStep(0);
+    clusterTourState.timer = setInterval(() => {
+      if (!clusterTourState) return;
+      if (clusterTourState.index >= clusterTourState.clusters.length - 1) {
+        pauseClusterTour();
+        return;
+      }
+      renderClusterTourStep(clusterTourState.index + 1);
+    }, 2500);
+  });
+  requiredElement("#map-cluster-tour-close").addEventListener("click", () => {
+    closeClusterTour();
+    if (lastBounds?.isValid()) map.fitBounds(lastBounds.pad(0.12), { maxZoom: 14 });
+    requiredElement("#map-status").textContent = "Cluster story tour closed; all ranked windows remain visible.";
+  });
   requiredElement("#map-add-h3").addEventListener("click", () => {
     requiredElement("#map-add-layer-menu").open = false;
     if (!caseClusterAdded || activeRecordPoints.length === 0) {

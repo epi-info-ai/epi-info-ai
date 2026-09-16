@@ -691,10 +691,15 @@ The detailed cumulative changes and validation increments follow.
   stale-instance rejection, a visible-failure timeout, and final-result-only
   resolution. The Program Editor now exposes an explicitly labeled candidate
   preview with replication progress, elapsed time, cancellation, aggregate-only
-  Output/history, and a locally named result. This is not a validation or parity
-  claim. A later
-  `EPIAI CLUSTER RENDER RESULT=...` operation will display
-  a named result without overloading the retained legacy `MAP` command.
+  Output/history, and a locally named result. `EPIAI CLUSTER RENDER RESULT=...`
+  now produces a static OpenStreetMap raster with its ranked overlays baked into
+  the Output image; when tiles are unavailable, the same overlay renders on a
+  clearly labeled blank background. **Open in Maps** hands the result to the
+  interactive workspace, where a story tour walks ranks 1 through n with
+  Previous, Next, and Play/Pause controls. Hovering or keyboard-focusing a
+  cluster in Output—or hovering it in Maps—shows its period, observed and
+  expected counts, O/E, likelihood ratio, p-value, locations, and cases. This is not a validation or parity
+  claim, and the retained legacy `MAP` command is not overloaded.
 
 - **Resume governed patient record linkage after its upstream license metadata
   is reconciled.** Treat

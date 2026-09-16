@@ -3498,68 +3498,127 @@ function renderSpaceTimeClusterOutput(result: SpaceTimeClusterInferenceResult, d
   renderedClusterMapEntry = null;
 }
 
-function renderInlineSpaceTimeClusterMap(entry: { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult }): void {
+const STATIC_CLUSTER_MAP_WIDTH = 800;
+const STATIC_CLUSTER_MAP_HEIGHT = 440;
+const STATIC_CLUSTER_TILE_SIZE = 256;
+
+function webMercatorPixel(latitude: number, longitude: number, zoom: number): { x: number; y: number } {
+  const world = STATIC_CLUSTER_TILE_SIZE * 2 ** zoom;
+  const boundedLatitude = Math.max(-85.05112878, Math.min(85.05112878, latitude));
+  const sine = Math.sin(boundedLatitude * Math.PI / 180);
+  return {
+    x: (longitude + 180) / 360 * world,
+    y: (0.5 - Math.log((1 + sine) / (1 - sine)) / (4 * Math.PI)) * world,
+  };
+}
+
+function loadStaticMapTile(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const timeout = globalThis.setTimeout(() => resolve(null), 4000);
+    image.crossOrigin = "anonymous";
+    image.addEventListener("load", () => { globalThis.clearTimeout(timeout); resolve(image); }, { once: true });
+    image.addEventListener("error", () => { globalThis.clearTimeout(timeout); resolve(null); }, { once: true });
+    image.src = url;
+  });
+}
+
+async function renderInlineSpaceTimeClusterMap(entry: { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult }): Promise<void> {
   const { result } = entry;
   const clusters = result.clusters.slice(0, 10);
   if (!clusters.length) throw new RangeError(`Named result ${result.plan.resultName} contains no cluster windows to render.`);
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 800 440");
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-labelledby", "classic-cluster-map-svg-title classic-cluster-map-svg-description");
-  const title = document.createElementNS(ns, "title");
-  title.id = "classic-cluster-map-svg-title";
-  title.textContent = `Ranked windows for ${result.plan.resultName}`;
-  const description = document.createElementNS(ns, "desc");
-  description.id = "classic-cluster-map-svg-description";
-  description.textContent = "Basemap-free local overview of the ten highest ranked space-time cluster windows; red indicates Monte Carlo p at or below 0.05.";
-  svg.append(title, description);
-  const points = clusters.flatMap((cluster) => [cluster.center, ...cluster.memberPoints]);
-  const latitudes = points.map(({ latitude }) => latitude);
-  const longitudes = points.map(({ longitude }) => longitude);
-  const minLat = Math.min(...latitudes); const maxLat = Math.max(...latitudes);
-  const minLon = Math.min(...longitudes); const maxLon = Math.max(...longitudes);
-  const latitudeSpan = Math.max(0.002, maxLat - minLat);
-  const longitudeSpan = Math.max(0.002, maxLon - minLon);
-  const x = (longitude: number) => 45 + (longitude - minLon) / longitudeSpan * 710;
-  const y = (latitude: number) => 395 - (latitude - minLat) / latitudeSpan * 350;
-  const latitudeCenter = (minLat + maxLat) / 2;
-  const kilometersPerLongitudeDegree = Math.max(1, 111.32 * Math.cos(latitudeCenter * Math.PI / 180));
-  const scalePixelsPerKm = Math.min(350 / (latitudeSpan * 111.32), 710 / (longitudeSpan * kilometersPerLongitudeDegree));
-  const frame = document.createElementNS(ns, "rect");
-  frame.setAttribute("x", "1"); frame.setAttribute("y", "1"); frame.setAttribute("width", "798"); frame.setAttribute("height", "438"); frame.setAttribute("class", "classic-cluster-map-frame");
-  svg.append(frame);
+  const canvas = document.createElement("canvas");
+  canvas.width = STATIC_CLUSTER_MAP_WIDTH;
+  canvas.height = STATIC_CLUSTER_MAP_HEIGHT;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("This browser cannot create the static cluster map canvas.");
+  const extents = clusters.flatMap((cluster) => {
+    const latitudeRadius = cluster.radiusKm / 111.32;
+    const longitudeRadius = cluster.radiusKm / Math.max(1, 111.32 * Math.cos(cluster.center.latitude * Math.PI / 180));
+    return [
+      { latitude: cluster.center.latitude - latitudeRadius, longitude: cluster.center.longitude - longitudeRadius },
+      { latitude: cluster.center.latitude + latitudeRadius, longitude: cluster.center.longitude + longitudeRadius },
+      ...cluster.memberPoints,
+    ];
+  });
+  const minLat = Math.min(...extents.map(({ latitude }) => latitude));
+  const maxLat = Math.max(...extents.map(({ latitude }) => latitude));
+  const minLon = Math.min(...extents.map(({ longitude }) => longitude));
+  const maxLon = Math.max(...extents.map(({ longitude }) => longitude));
+  let zoom = 1;
+  for (let candidate = 14; candidate >= 1; candidate--) {
+    const northWest = webMercatorPixel(maxLat, minLon, candidate);
+    const southEast = webMercatorPixel(minLat, maxLon, candidate);
+    if (southEast.x - northWest.x <= STATIC_CLUSTER_MAP_WIDTH * 0.78 && southEast.y - northWest.y <= STATIC_CLUSTER_MAP_HEIGHT * 0.72) { zoom = candidate; break; }
+  }
+  const northWest = webMercatorPixel(maxLat, minLon, zoom);
+  const southEast = webMercatorPixel(minLat, maxLon, zoom);
+  const centerWorld = { x: (northWest.x + southEast.x) / 2, y: (northWest.y + southEast.y) / 2 };
+  const viewport = { left: centerWorld.x - STATIC_CLUSTER_MAP_WIDTH / 2, top: centerWorld.y - STATIC_CLUSTER_MAP_HEIGHT / 2 };
+  context.fillStyle = "#dce7ec";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const firstTileX = Math.floor(viewport.left / STATIC_CLUSTER_TILE_SIZE);
+  const lastTileX = Math.floor((viewport.left + canvas.width) / STATIC_CLUSTER_TILE_SIZE);
+  const firstTileY = Math.floor(viewport.top / STATIC_CLUSTER_TILE_SIZE);
+  const lastTileY = Math.floor((viewport.top + canvas.height) / STATIC_CLUSTER_TILE_SIZE);
+  const tileCount = 2 ** zoom;
+  const requests: Array<Promise<{ image: HTMLImageElement | null; x: number; y: number }>> = [];
+  for (let tileY = firstTileY; tileY <= lastTileY; tileY++) {
+    if (tileY < 0 || tileY >= tileCount) continue;
+    for (let tileX = firstTileX; tileX <= lastTileX; tileX++) {
+      const wrappedX = ((tileX % tileCount) + tileCount) % tileCount;
+      requests.push(loadStaticMapTile(`https://tile.openstreetmap.org/${zoom}/${wrappedX}/${tileY}.png`).then((image) => ({ image, x: tileX, y: tileY })));
+    }
+  }
+  const tiles = await Promise.all(requests);
+  let loadedTiles = 0;
+  for (const tile of tiles) {
+    if (!tile.image) continue;
+    context.drawImage(tile.image, tile.x * STATIC_CLUSTER_TILE_SIZE - viewport.left, tile.y * STATIC_CLUSTER_TILE_SIZE - viewport.top, STATIC_CLUSTER_TILE_SIZE, STATIC_CLUSTER_TILE_SIZE);
+    loadedTiles++;
+  }
+  const plot = (latitude: number, longitude: number) => {
+    const world = webMercatorPixel(latitude, longitude, zoom);
+    return { x: world.x - viewport.left, y: world.y - viewport.top };
+  };
+  const hotspots: HTMLSpanElement[] = [];
   for (const cluster of [...clusters].reverse()) {
-    const circle = document.createElementNS(ns, "circle");
-    circle.setAttribute("cx", String(x(cluster.center.longitude)));
-    circle.setAttribute("cy", String(y(cluster.center.latitude)));
-    circle.setAttribute("r", String(Math.max(7, Math.min(180, cluster.radiusKm * scalePixelsPerKm))));
-    circle.setAttribute("class", cluster.pValue !== null && cluster.pValue <= 0.05 ? "classic-cluster-window significant" : "classic-cluster-window");
-    const tooltip = document.createElementNS(ns, "title");
-    tooltip.textContent = `Rank ${cluster.rank}: ${cluster.start} to ${cluster.end}; observed ${cluster.observed}; expected ${cluster.expected.toFixed(2)}; p ${cluster.pValue === null ? "not calculated" : cluster.pValue.toFixed(4)}`;
-    circle.append(tooltip);
-    svg.append(circle);
-    const rank = document.createElementNS(ns, "text");
-    rank.setAttribute("x", String(x(cluster.center.longitude)));
-    rank.setAttribute("y", String(y(cluster.center.latitude) + 4));
-    rank.setAttribute("class", "classic-cluster-rank");
-    rank.textContent = String(cluster.rank);
-    svg.append(rank);
+    const center = plot(cluster.center.latitude, cluster.center.longitude);
+    const metersPerPixel = 156543.03392 * Math.cos(cluster.center.latitude * Math.PI / 180) / 2 ** zoom;
+    const radius = Math.max(7, Math.min(180, cluster.radiusKm * 1000 / metersPerPixel));
+    const significant = cluster.pValue !== null && cluster.pValue <= 0.05;
+    context.beginPath(); context.arc(center.x, center.y, radius, 0, Math.PI * 2);
+    context.fillStyle = significant ? "rgba(223,41,30,0.18)" : "rgba(240,162,2,0.13)";
+    context.strokeStyle = significant ? "#9f221b" : "#a15c00";
+    context.lineWidth = cluster.rank === 1 ? 4 : 2; context.fill(); context.stroke();
+    context.fillStyle = "#263f4e"; context.font = "bold 13px system-ui, sans-serif"; context.textAlign = "center"; context.textBaseline = "middle";
+    context.fillText(String(cluster.rank), center.x, center.y);
+    const hotspot = document.createElement("span");
+    hotspot.className = "classic-cluster-map-hotspot";
+    hotspot.tabIndex = 0;
+    const tooltip = `Rank ${cluster.rank} · ${cluster.start} to ${cluster.end} · observed ${cluster.observed} · expected ${cluster.expected.toFixed(2)} · O/E ${cluster.observedExpectedRatio.toFixed(2)} · LLR ${cluster.logLikelihoodRatio.toFixed(3)} · p ${cluster.pValue === null ? "not calculated" : cluster.pValue.toFixed(4)} · ${cluster.locationCount} locations · ${cluster.caseCount} cases`;
+    hotspot.dataset.tooltip = tooltip;
+    hotspot.setAttribute("aria-label", tooltip);
+    hotspot.style.left = `${center.x / STATIC_CLUSTER_MAP_WIDTH * 100}%`;
+    hotspot.style.top = `${center.y / STATIC_CLUSTER_MAP_HEIGHT * 100}%`;
+    hotspot.style.width = `${Math.max(20, radius * 2) / STATIC_CLUSTER_MAP_WIDTH * 100}%`;
+    hotspot.style.height = `${Math.max(20, radius * 2) / STATIC_CLUSTER_MAP_HEIGHT * 100}%`;
+    hotspots.push(hotspot);
   }
   for (const point of clusters[0]!.memberPoints) {
-    const marker = document.createElementNS(ns, "circle");
-    marker.setAttribute("cx", String(x(point.longitude)));
-    marker.setAttribute("cy", String(y(point.latitude)));
-    marker.setAttribute("r", String(Math.min(10, 3 + Math.sqrt(point.cases) * 1.8)));
-    marker.setAttribute("class", "classic-cluster-location");
-    const tooltip = document.createElementNS(ns, "title");
-    tooltip.textContent = `${point.cases} case${point.cases === 1 ? "" : "s"} at this aggregate top-window location`;
-    marker.append(tooltip);
-    svg.append(marker);
+    const location = plot(point.latitude, point.longitude);
+    context.beginPath(); context.arc(location.x, location.y, Math.min(10, 3 + Math.sqrt(point.cases) * 1.8), 0, Math.PI * 2);
+    context.fillStyle = "#dc2626"; context.strokeStyle = "#7f1d1d"; context.lineWidth = 2; context.fill(); context.stroke();
   }
-  requiredElement("#classic-cluster-map-plot").replaceChildren(svg);
+  context.fillStyle = "rgba(255,255,255,0.88)"; context.fillRect(8, 8, 210, 26);
+  context.fillStyle = "#263f4e"; context.font = "600 13px system-ui, sans-serif"; context.textAlign = "left"; context.textBaseline = "middle";
+  context.fillText(`Top ${clusters.length} ranked windows · z${zoom}`, 16, 21);
+  const image = document.createElement("img");
+  image.src = canvas.toDataURL("image/png");
+  image.alt = `Static OpenStreetMap view of ${clusters.length} ranked windows for ${result.plan.resultName}; red windows have Monte Carlo p at or below 0.05.`;
+  requiredElement("#classic-cluster-map-plot").replaceChildren(image, ...hotspots);
   requiredElement("#classic-cluster-map-title").textContent = `${result.plan.resultName} — ranked cluster windows`;
-  requiredElement("#classic-cluster-map-note").textContent = `Basemap-free browser rendering of ${clusters.length} ranked windows. Red windows have Monte Carlo p ≤ 0.05; red points are aggregate locations from rank 1. Open in Maps for pan, zoom, and the configured online or offline basemap.`;
+  requiredElement("#classic-cluster-map-note").textContent = `${loadedTiles === tiles.length ? "OpenStreetMap basemap loaded" : loadedTiles ? `Partial OpenStreetMap basemap loaded (${loadedTiles} of ${tiles.length} tiles)` : "Basemap unavailable; cluster overlays remain visible"}. Red windows have Monte Carlo p ≤ 0.05; red points are aggregate locations from rank 1. Open in Maps for interactive pan and zoom.`;
   requiredElement<HTMLElement>("#classic-cluster-map").hidden = false;
   requiredElement<HTMLButtonElement>("#classic-cluster-open-maps").disabled = false;
   renderedClusterMapEntry = entry;
@@ -4740,7 +4799,7 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
         throw new RangeError(`Named CLUSTER result ${plan.resultName} belongs to ${stored.projectName} / ${stored.formName}, not the active project form.`);
       }
       assertClassicProgramNotCancelled(signal);
-      renderInlineSpaceTimeClusterMap(stored);
+      await renderInlineSpaceTimeClusterMap(stored);
       requiredElement("#classic-cluster-output").scrollIntoView({ behavior: "smooth", block: "start" });
       classicProgramFeedback.textContent = `Rendered named CLUSTER result ${plan.resultName} inline without rerunning inference.`;
       classicProgramCommandStatus.textContent = `Output shows up to 10 ranked windows from ${plan.resultName}; use Open in Maps for interactive exploration.`;
@@ -4901,7 +4960,9 @@ function retainedSequentialOutput(source: HTMLElement): HTMLElement {
   clone.removeAttribute("aria-labelledby");
   clone.removeAttribute("data-module-view");
   for (const element of clone.querySelectorAll<HTMLElement>("[id]")) element.removeAttribute("id");
-  for (const control of clone.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement>("input, button, select, textarea")) control.disabled = true;
+  for (const control of clone.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement>("input, button, select, textarea")) {
+    if (!(control instanceof HTMLButtonElement && control.matches("[data-cluster-open-maps]"))) control.disabled = true;
+  }
   return clone;
 }
 
@@ -5398,7 +5459,8 @@ classicProgramExampleSelect.addEventListener("change", renderClassicProgramExamp
 classicProgramLoadExampleButton.addEventListener("click", () => loadSelectedClassicProgramExample());
 requiredElement("#classic-program-verify").addEventListener("click", () => void startClassicProgramTask((signal) => runClassicProgram(true, signal)));
 requiredElement("#classic-program-run").addEventListener("click", () => void startClassicProgramTask((signal) => runClassicProgram(false, signal)));
-requiredElement("#classic-cluster-open-maps").addEventListener("click", () => {
+document.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element) || !event.target.closest("[data-cluster-open-maps]")) return;
   const entry = renderedClusterMapEntry;
   if (!entry) return;
   const mapsButton = document.querySelector<HTMLButtonElement>('[data-module="maps"]');

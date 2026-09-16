@@ -113,7 +113,7 @@ The detailed authority is the
 
 | Command | Intended role | Current state |
 |---|---|---|
-| `EPIAI CLUSTER RENDER RESULT=name` | Render a previously calculated named cluster result without rerunning inference or overloading legacy `MAP` | Typed AST; session/project-bound lookup; inline basemap-free ranked-window map plus opt-in interactive Maps handoff; no inference rerun |
+| `EPIAI CLUSTER RENDER RESULT=name` | Render a previously calculated named cluster result without rerunning inference or overloading legacy `MAP` | Typed AST; session/project-bound lookup; static OpenStreetMap raster with baked-in overlays, per-cluster hover/focus details, and offline fallback; interactive Maps handoff with matching tooltips and rank-by-rank story tour; no inference rerun |
 | `RECORDLINK` | Explainable, reviewed patient-record linkage and deduplication across two sources | Paused until upstream license metadata is internally consistent |
 
 The retained legacy `MAP` command remains a separate parity/revival item. New

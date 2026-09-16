@@ -30,8 +30,11 @@ That is a software regression target, not a real epidemiologic finding.
    Worker without retaining a partial result.
 6. Review aggregate Output and command history. They deliberately omit case IDs
    and precise coordinates.
-7. Review the inline, basemap-free ranked-window map. Select **Open in Maps**
-   only when you want the interactive online or packaged-offline basemap view.
+7. Review the static OpenStreetMap image with baked-in ranked windows. If tiles
+   are unavailable, the overlays remain visible on a labeled blank background.
+   Hover or keyboard-focus a ranked circle to inspect its characteristics.
+8. Select **Open in Maps**, then use the Cluster Story Tour controls to step or
+   play through ranks 1–10 with each period, observed/expected count, and p-value.
 
 The CSV SHA-256 is
 `8eed0a8681415e9f055a219eb811a1c5252b405ca809904ed76c6e0cd74b818c`.

@@ -3145,6 +3145,9 @@ body.map-fullscreen-fallback {
   white-space: nowrap;
 }
 
+.map-cluster-tour-controls { border-color: #d69e00; }
+.map-cluster-tour-controls #map-cluster-tour-detail { min-width: min(24rem, 45vw); }
+
 .map-canvas-wrap.time-lapse-active .map-layer-drawer[open] {
   bottom: 5rem;
 }
@@ -4294,14 +4297,14 @@ body.map-fullscreen-fallback {
 .new-branch-output { border-left: 4px solid #f2c400; }
 .classic-cluster-map { margin: 1rem 0; border: 1px solid #9fb6c2; background: #f6fafc; }
 .classic-cluster-map .panel-heading { padding: 0.65rem 0.8rem; }
-.classic-cluster-map-plot { overflow-x: auto; border-block: 1px solid #bdcbd2; background: #edf4f7; }
-.classic-cluster-map-plot svg { display: block; width: 100%; min-width: 34rem; max-height: 30rem; }
-.classic-cluster-map-frame { fill: #edf4f7; stroke: #8ca5b1; }
-.classic-cluster-window { fill: #f0a202; fill-opacity: 0.11; stroke: #a15c00; stroke-width: 2; vector-effect: non-scaling-stroke; }
-.classic-cluster-window.significant { fill: #df291e; fill-opacity: 0.16; stroke: #9f221b; }
-.classic-cluster-rank { fill: #263f4e; font: 700 12px system-ui, sans-serif; text-anchor: middle; pointer-events: none; }
-.classic-cluster-location { fill: #dc2626; stroke: #7f1d1d; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.classic-cluster-map-plot { position: relative; min-width: 34rem; overflow: visible; border-block: 1px solid #bdcbd2; background: #edf4f7; }
+.classic-cluster-map-plot img { display: block; width: 100%; height: auto; max-height: 30rem; object-fit: contain; }
+.classic-cluster-map-hotspot { position: absolute; z-index: 2; transform: translate(-50%, -50%); min-width: 1.25rem; min-height: 1.25rem; border: 1px dashed rgba(127, 29, 29, 0.45); border-radius: 50%; cursor: help; }
+.classic-cluster-map-hotspot::after { content: attr(data-tooltip); position: absolute; z-index: 5; left: 50%; bottom: calc(100% + 0.4rem); display: none; width: max-content; max-width: min(28rem, 70vw); padding: 0.45rem 0.55rem; transform: translateX(-50%); border: 1px solid #718895; border-radius: 0.2rem; background: #fff; color: #17384c; box-shadow: 0 0.2rem 0.7rem rgba(18, 48, 66, 0.25); font: 0.75rem/1.35 system-ui, sans-serif; text-align: left; white-space: normal; }
+.classic-cluster-map-hotspot:hover::after,
+.classic-cluster-map-hotspot:focus-visible::after { display: block; }
 .classic-cluster-map .method-note { margin: 0; padding: 0.65rem 0.8rem; }
+.classic-cluster-map-attribution { margin: 0; padding: 0 0.8rem 0.65rem; color: var(--text-muted); font-size: 0.72rem; }
 .classic-quality-mini-bar { display: grid; grid-template-columns: minmax(5rem, 1fr) auto; gap: 0.5rem; align-items: center; }
 .classic-quality-mini-bar > span:first-child { height: 0.65rem; overflow: hidden; border-radius: 999px; background: #d8e3e9; }
 .classic-quality-mini-bar > span:first-child > span { display: block; height: 100%; background: #c34a36; }
