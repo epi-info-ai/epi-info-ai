@@ -186,6 +186,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
+    "wasm/docs/design/jupytergis-architecture-spike.md",
     "wasm/tests/fixtures/algorithm-validation/registry.json",
     "wasm/tests/fixtures/programming-curriculum/registry.json",
     "wasm/demo/tests/fixtures/two-by-two.json",

@@ -2054,7 +2054,8 @@ test("foodborne DIALOG tour exercises every supported variant without recording 
   await expect(page.locator("#classic-program-example-description")).toContainText("all 14 supported DIALOG types");
   await page.locator("#classic-program-load-example").click();
   await expect(programDialog).toBeHidden();
-  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax and fields are valid");
+  await expect(page.locator("#classic-program-live-status")).toHaveAttribute("data-valid", "true");
+  await expect(page.locator("#classic-program-live-status")).toContainText("Program syntax is valid AST");
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("DATETIMEFORMAT");
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("DBVALUES [Foodborne Outbreak Investigation Submissions Export Form] case_status");
 

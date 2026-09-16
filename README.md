@@ -644,6 +644,17 @@ The detailed cumulative changes and validation increments follow.
 
 ## TODO
 
+- **Evaluate JupyterGIS as a later GIS integration layer.** The bounded
+  [JupyterGIS architecture spike](wasm/docs/design/jupytergis-architecture-spike.md)
+  treats its BSD-3-Clause, browser-first GIS, `.jGIS` document model, GDAL/WASM
+  processing, and JupyterLite support as promising reusable components—not as
+  an assumed drop-in kernel or a reason to replace the current MapLibre,
+  `.epiax`, OPFS, offline-policy, and epidemiologic provenance contracts. Begin
+  with dependency/license inventory and lossless document interchange after the
+  current command-parity and record-linkage checkpoint; require measured bundle
+  cost, offline behavior, cancellation, accessibility, security, and independent
+  output validation before deeper adoption.
+
 - **Teaching Repositories V0.1 candidate.** The
   [teaching repository contract](wasm/docs/design/teaching-repository-contract.md)
   and **Help > Teaching Repositories** now preview the public foodborne manifest,
