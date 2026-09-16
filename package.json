@@ -30,7 +30,7 @@
     "@codemirror/state": "6.7.1",
     "@codemirror/view": "6.43.9",
     "@duckdb/duckdb-wasm": "1.32.0",
-    "@huggingface/transformers": "3.7.5",
+    "@huggingface/transformers": "4.3.0",
     "@sqlite.org/sqlite-wasm": "3.53.0-build1",
     "buffer": "^6.0.3",
     "codemirror": "6.0.2",

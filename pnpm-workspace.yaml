@@ -6,3 +6,8 @@ allowBuilds:
   onnxruntime-node: false
   protobufjs: false
   sharp: false
+
+minimumReleaseAgeExclude:
+  # Exact, integrity-locked security upgrade that moves transitive sharp to
+  # 0.35.4; remove this exception after the registry release-age window.
+  - '@huggingface/transformers@4.3.0'

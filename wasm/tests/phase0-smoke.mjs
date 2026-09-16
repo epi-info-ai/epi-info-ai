@@ -3705,9 +3705,14 @@ async function checkEpiAssistProposalBoundary() {
   ), /same-origin/);
 
   const workerSource = await readFile(repositoryPath("wasm/demo/epi-assist-worker.ts"), "utf8");
+  const rootPackage = JSON.parse(await readFile(repositoryPath("package.json"), "utf8"));
+  const rootLockfile = await readFile(repositoryPath("pnpm-lock.yaml"), "utf8");
+  assert.equal(rootPackage.dependencies["@huggingface/transformers"], "4.3.0", "Epi Assist must pin the reviewed Transformers security upgrade");
+  assert.match(rootLockfile, /sharp@0\.35\.4:/, "the lockfile must retain the patched sharp release");
+  assert.doesNotMatch(rootLockfile, /sharp@0\.34\.5:/, "the vulnerable sharp release must not return to the lockfile");
   for (const provenanceMarker of [
     'MODEL_REVISION = "main"',
-    'RUNTIME_VERSION = "3.7.5"',
+    'RUNTIME_VERSION = "4.3.0"',
     'SYSTEM_PROMPT_VERSION = "epi-assist-system-v2"',
     'TOOL_SCHEMA_VERSION = "epi-assist-tools-v3"',
     'required: frequencyIntent ? ["field_name", "stratify_by"] : ["field_name"]',

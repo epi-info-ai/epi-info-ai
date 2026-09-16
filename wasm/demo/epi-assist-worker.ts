@@ -5,7 +5,7 @@ import { resolveEpiAssistFrequencyIntent, type EpiAssistFrequencyIntent } from "
 import { epiAssistModel, type EpiAssistModelKey } from "../app/assistant/models.ts";
 
 const MODEL_REVISION = "main";
-const RUNTIME_VERSION = "3.7.5";
+const RUNTIME_VERSION = "4.3.0";
 const SYSTEM_PROMPT_VERSION = "epi-assist-system-v2";
 const TOOL_SCHEMA_VERSION = "epi-assist-tools-v3";
 const MAX_NEW_TOKENS = 360;
