@@ -8,6 +8,7 @@ import { minimalSetup } from "codemirror";
 import type { FieldDefinition } from "../contracts/core.js";
 import { ClassicSyntaxError, parseClassicProgram } from "./classic-ast.js";
 import { resolveExecutableClassicMatchCommand } from "./classic-match.js";
+import { resolveClassicConditionalLogisticCommand } from "./classic-logistic.js";
 import { ClassicProgramDiagnostic, parseBoundedClassicProgram } from "./classic-program.js";
 
 export interface ClassicProgramEditor {
@@ -55,7 +56,7 @@ export interface ClassicProgramLintStatus {
 const epiInfoLanguage = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
-    if (stream.match(/^(?:EPIAI|QUALITY|FILE|CONVERT|READ|RELATE|MATCH|MATCHVAR|MATCHING|ALL|EXCEPT|WEIGHTVAR|STATISTICS|NONE|LIST|FREQ|MEANS|TABLES|SUMMARIZE|GRAPH|GRAPHTYPE|TITLETEXT|XTITLE|YTITLE|RECODE|TO|DEFINE|GROUPVAR|UNDEFINE|ASSIGN|DISPLAY|DBVARIABLES|DBVIEWS|FIELDVAR|OUTTABLE|IF|THEN|ELSE|END|SELECT|SORT|CANCEL|SET|MISSING|ASC|ASCENDING|DESC|DESCENDING|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
+    if (stream.match(/^(?:EPIAI|QUALITY|CLUSTER|SPACE_TIME|FILE|CONVERT|READ|RELATE|MATCH|LOGISTIC|MATCHVAR|MATCHING|ALL|EXCEPT|WEIGHTVAR|STATISTICS|NONE|LIST|FREQ|MEANS|TABLES|SUMMARIZE|GRAPH|GRAPHTYPE|TITLETEXT|XTITLE|YTITLE|RECODE|TO|DEFINE|GROUPVAR|UNDEFINE|ASSIGN|DISPLAY|DBVARIABLES|DBVIEWS|FIELDVAR|OUTTABLE|IF|THEN|ELSE|END|SELECT|SORT|CANCEL|SET|MISSING|NOINTERCEPT|PVALUE|LINKFUNCTION|ASC|ASCENDING|DESC|DESCENDING|STANDARD|GLOBAL|PERMANENT|NUMERIC|TEXTINPUT|YN|DATEFORMAT|DATETIMEFORMAT|TIMEFORMAT)\b/i)) return "keyword";
     if (stream.match(/^(?:STRATAVAR|WEIGHTVAR|OUTTABLE|PSUVAR|STATISTICS|COLUMNSIZE)\b/i)) return "propertyName";
     if (stream.match(/^(?:LOVALUE|HIVALUE|TRUE|FALSE|YES|NO|NOWRAP|ONEISYES|FISHER|NONE)\b/i)) return "atom";
     if (stream.match(/^"(?:[^"]|"")*"?/)) return "string";
@@ -166,6 +167,7 @@ function createCompletionSource(getFields: () => readonly FieldDefinition[]) {
         { label: "GRAPH", detail: "chart active records", type: "keyword" },
         { label: "TABLES", detail: "cross-tabulation", type: "keyword" },
         { label: "MATCH", detail: "revival syntax; execution unavailable in inspected desktop code", type: "keyword" },
+        { label: "LOGISTIC", detail: "conditional logistic regression with MATCHVAR", type: "keyword" },
         { label: "SET", detail: "set Classic Analysis options", type: "keyword" },
         { label: "SELECT", detail: "filter records", type: "keyword" },
         { label: "SORT", detail: "order active records", type: "keyword" },
@@ -204,12 +206,14 @@ export function createClassicProgramEditor(
         && ast.body[1]?.type === "RecodeStatement"
         && ast.body[2]?.type === "FrequencyStatement";
       const executableMatch = ast.body.length === 1 && ast.body[0]?.type === "MatchStatement";
+      const executableLogistic = ast.body.length === 1 && ast.body[0]?.type === "LogisticStatement";
       if (executableShape) parseBoundedClassicProgram(source, getFields());
       if (executableMatch) resolveExecutableClassicMatchCommand(source, getFields());
+      if (executableLogistic) resolveClassicConditionalLogisticCommand(source, getFields());
       onLintStatus?.({
         valid: true,
-        message: executableShape || executableMatch
-          ? `Program syntax and fields are valid for the ${executableMatch ? "bounded 1:1 MATCH" : "safe V0.1"} executor.`
+        message: executableShape || executableMatch || executableLogistic
+          ? `Program syntax and fields are valid for the ${executableMatch ? "bounded 1:1 MATCH" : executableLogistic ? "conditional LOGISTIC V0.1" : "safe V0.1"} executor.`
           : `Program syntax is valid AST ${ast.astVersion}; execution remains disabled for this command sequence.`,
       });
       return [];

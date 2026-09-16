@@ -20,7 +20,8 @@ import {
   showRecordInEnter,
   testSupabaseConnection,
 } from "./form-data.js";
-import { initializeMaps } from "./maps.js";
+import { initializeMaps, renderSpaceTimeClusterResult } from "./maps.js";
+import { calculateSpaceTimeClustersInWorker } from "./cluster-worker-client.js";
 import { calculateMatchedPairsInWorker } from "./matched-worker-client.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
@@ -52,12 +53,15 @@ import { applyClassicComplexTables, classicComplexTablesOutTable, resolveClassic
 import { applyClassicComplexFrequency, classicComplexFrequencyOutTable, resolveClassicComplexFrequencyPlan, type ClassicComplexFrequencyPlan, type ClassicComplexFrequencyResult } from "../app/programming/classic-complex-frequency.js";
 import { applyClassicComplexMeans, classicComplexMeansOutTable, resolveClassicComplexMeansPlan, type ClassicComplexMeansPlan, type ClassicComplexMeansResult } from "../app/programming/classic-complex-means.js";
 import { applyEpiAiQualityProfile, resolveEpiAiQualityCommand } from "../app/programming/epi-ai-quality.js";
+import { resolveSpaceTimeClusterCommand, resolveSpaceTimeClusterRenderCommand } from "../app/programming/epi-ai-space-time-cluster.js";
+import type { SpaceTimeClusterInferenceResult } from "../app/programming/epi-ai-space-time-cluster-analysis.js";
 import { convertAccessFile, resolveFileConvertCommand } from "../app/programming/file-convert.js";
 import { parseClassicOutputSettings, validateClassicOutputSettings, type ClassicOutputSettings } from "../app/programming/classic-output-settings.js";
 import { resolveClassicDialogCommand, validateClassicDialogValue, type ClassicDialogCommandInput, type ClassicDialogPlan } from "../app/programming/classic-dialog.js";
 import { deriveMatchedPairs } from "../app/programming/classic-match-analysis.js";
 import { createClassicMatchReviewEvidence, fingerprintClassicMatchReview, type ClassicMatchReviewInput } from "../app/programming/classic-match-review.js";
 import { plausibleClassicMatchVariables } from "../app/programming/classic-match.js";
+import { applyClassicConditionalLogistic, type ClassicConditionalLogisticResult } from "../app/programming/classic-logistic.js";
 import type { DataQualityReport } from "../app/forms/data-quality.js";
 import { renderClassicProgramSurface } from "../app/programming/classic-program-surface.js";
 import { ClassicProgramDocumentService, normalizeClassicProgramName, readClassicProgramFile, safeClassicProgramFileName } from "../app/programming/classic-program-document.js";
@@ -651,6 +655,8 @@ const classicProgramCommandStatus = requiredElement<HTMLElement>("#classic-progr
 const classicProgramToolbarRun = requiredElement<HTMLButtonElement>("#classic-program-toolbar-run");
 const classicProgramToolbarCancel = requiredElement<HTMLButtonElement>("#classic-program-toolbar-cancel");
 let classicProgramRunController: AbortController | null = null;
+const classicClusterResults = new Map<string, { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult }>();
+let renderedClusterMapEntry: { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult } | null = null;
 classicProgramToolbarCancel.disabled = true;
 const classicProgramFontDialog = requiredElement<HTMLDialogElement>("#classic-program-font-dialog");
 const classicProgramFontFamily = requiredElement<HTMLSelectElement>("#classic-program-font-family");
@@ -1984,10 +1990,10 @@ classicProgramToolbarCancel.addEventListener("click", () => {
   classicProgramRunController.abort();
   if (classicRuntimeDialog.open) classicRuntimeDialog.close("abort");
   classicProgramToolbarCancel.disabled = true;
-  classicProgramCommandStatus.textContent = "Cancellation requested; the current statement will finish safely.";
+  classicProgramCommandStatus.textContent = "Cancellation requested; cancellable Workers will stop immediately and other current statements will finish safely.";
 });
 
-const classicOutputTargets = ["#classic-program-output", "#classic-sequential-output", "#classic-route-output", "#classic-text-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-match-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
+const classicOutputTargets = ["#classic-program-output", "#classic-sequential-output", "#classic-route-output", "#classic-text-output", "#classic-display-output", "#classic-list-output", "#classic-summarize-output", "#classic-graph-output", "#classic-match-output", "#classic-logistic-output", "#classic-tables-categorical-output", "#classic-quality-output", "#classic-cluster-output", "#classic-file-convert-output", "#frequency-stratified-output", "#frequency-output", "#means-output", "#classic-opened-output", "#classic-program-history-output"];
 const classicOutputBrowser = requiredElement<HTMLElement>("#classic-output-browser");
 for (const selector of classicOutputTargets) {
   const output = document.querySelector<HTMLElement>(selector);
@@ -3454,6 +3460,111 @@ function renderEpiAiQualityOutput(report: DataQualityReport): void {
   requiredElement<HTMLElement>("#classic-quality-output").hidden = false;
 }
 
+function elapsedLabel(milliseconds: number): string {
+  return milliseconds < 1000 ? `${Math.round(milliseconds)} ms` : `${(milliseconds / 1000).toFixed(1)} s`;
+}
+
+function renderSpaceTimeClusterOutput(result: SpaceTimeClusterInferenceResult, durationMs: number): void {
+  const output = requiredElement<HTMLElement>("#classic-cluster-output");
+  requiredElement("#classic-cluster-output-title").textContent = `Space-Time Cluster Detection — ${result.plan.resultName}`;
+  requiredElement("#classic-cluster-output-count").textContent = `${result.clusters.length} ranked clusters · ${result.inference.replications} replications · ${elapsedLabel(durationMs)}`;
+  requiredElement("#classic-cluster-output-summary").textContent =
+    `${result.totals.eligibleRecords} eligible of ${result.totals.sourceRecords} source records; ${result.totals.candidateWindows.toLocaleString("en-US")} candidate windows per replication; seed ${result.inference.seed}.`;
+  requiredElement("#classic-cluster-output-command").textContent = result.plan.canonicalSource;
+  requiredElement("#classic-cluster-output-body").replaceChildren(...result.clusters.map((cluster) => {
+    const row = document.createElement("tr");
+    for (const value of [
+      String(cluster.rank),
+      `${cluster.start} – ${cluster.end}`,
+      String(cluster.observed),
+      number(cluster.expected, 3),
+      number(cluster.observedExpectedRatio, 3),
+      number(cluster.logLikelihoodRatio, 4),
+      pValue(cluster.pValue),
+      String(cluster.locationCount),
+      String(cluster.caseCount),
+    ]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    return row;
+  }));
+  requiredElement("#classic-cluster-output-note").textContent =
+    `Maximum-statistic Monte Carlo inference used ${result.inference.randomGenerator}, ${result.inference.replications} replications, and ${result.inference.work.toLocaleString("en-US")} replication-window evaluations. ${result.totals.excludedRecords} records were excluded. Coordinates and case identifiers remain in the named local result only and are not shown here.`;
+  output.hidden = false;
+  requiredElement<HTMLElement>("#classic-cluster-map").hidden = true;
+  requiredElement<HTMLButtonElement>("#classic-cluster-open-maps").disabled = true;
+  renderedClusterMapEntry = null;
+}
+
+function renderInlineSpaceTimeClusterMap(entry: { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult }): void {
+  const { result } = entry;
+  const clusters = result.clusters.slice(0, 10);
+  if (!clusters.length) throw new RangeError(`Named result ${result.plan.resultName} contains no cluster windows to render.`);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 800 440");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-labelledby", "classic-cluster-map-svg-title classic-cluster-map-svg-description");
+  const title = document.createElementNS(ns, "title");
+  title.id = "classic-cluster-map-svg-title";
+  title.textContent = `Ranked windows for ${result.plan.resultName}`;
+  const description = document.createElementNS(ns, "desc");
+  description.id = "classic-cluster-map-svg-description";
+  description.textContent = "Basemap-free local overview of the ten highest ranked space-time cluster windows; red indicates Monte Carlo p at or below 0.05.";
+  svg.append(title, description);
+  const points = clusters.flatMap((cluster) => [cluster.center, ...cluster.memberPoints]);
+  const latitudes = points.map(({ latitude }) => latitude);
+  const longitudes = points.map(({ longitude }) => longitude);
+  const minLat = Math.min(...latitudes); const maxLat = Math.max(...latitudes);
+  const minLon = Math.min(...longitudes); const maxLon = Math.max(...longitudes);
+  const latitudeSpan = Math.max(0.002, maxLat - minLat);
+  const longitudeSpan = Math.max(0.002, maxLon - minLon);
+  const x = (longitude: number) => 45 + (longitude - minLon) / longitudeSpan * 710;
+  const y = (latitude: number) => 395 - (latitude - minLat) / latitudeSpan * 350;
+  const latitudeCenter = (minLat + maxLat) / 2;
+  const kilometersPerLongitudeDegree = Math.max(1, 111.32 * Math.cos(latitudeCenter * Math.PI / 180));
+  const scalePixelsPerKm = Math.min(350 / (latitudeSpan * 111.32), 710 / (longitudeSpan * kilometersPerLongitudeDegree));
+  const frame = document.createElementNS(ns, "rect");
+  frame.setAttribute("x", "1"); frame.setAttribute("y", "1"); frame.setAttribute("width", "798"); frame.setAttribute("height", "438"); frame.setAttribute("class", "classic-cluster-map-frame");
+  svg.append(frame);
+  for (const cluster of [...clusters].reverse()) {
+    const circle = document.createElementNS(ns, "circle");
+    circle.setAttribute("cx", String(x(cluster.center.longitude)));
+    circle.setAttribute("cy", String(y(cluster.center.latitude)));
+    circle.setAttribute("r", String(Math.max(7, Math.min(180, cluster.radiusKm * scalePixelsPerKm))));
+    circle.setAttribute("class", cluster.pValue !== null && cluster.pValue <= 0.05 ? "classic-cluster-window significant" : "classic-cluster-window");
+    const tooltip = document.createElementNS(ns, "title");
+    tooltip.textContent = `Rank ${cluster.rank}: ${cluster.start} to ${cluster.end}; observed ${cluster.observed}; expected ${cluster.expected.toFixed(2)}; p ${cluster.pValue === null ? "not calculated" : cluster.pValue.toFixed(4)}`;
+    circle.append(tooltip);
+    svg.append(circle);
+    const rank = document.createElementNS(ns, "text");
+    rank.setAttribute("x", String(x(cluster.center.longitude)));
+    rank.setAttribute("y", String(y(cluster.center.latitude) + 4));
+    rank.setAttribute("class", "classic-cluster-rank");
+    rank.textContent = String(cluster.rank);
+    svg.append(rank);
+  }
+  for (const point of clusters[0]!.memberPoints) {
+    const marker = document.createElementNS(ns, "circle");
+    marker.setAttribute("cx", String(x(point.longitude)));
+    marker.setAttribute("cy", String(y(point.latitude)));
+    marker.setAttribute("r", String(Math.min(10, 3 + Math.sqrt(point.cases) * 1.8)));
+    marker.setAttribute("class", "classic-cluster-location");
+    const tooltip = document.createElementNS(ns, "title");
+    tooltip.textContent = `${point.cases} case${point.cases === 1 ? "" : "s"} at this aggregate top-window location`;
+    marker.append(tooltip);
+    svg.append(marker);
+  }
+  requiredElement("#classic-cluster-map-plot").replaceChildren(svg);
+  requiredElement("#classic-cluster-map-title").textContent = `${result.plan.resultName} — ranked cluster windows`;
+  requiredElement("#classic-cluster-map-note").textContent = `Basemap-free browser rendering of ${clusters.length} ranked windows. Red windows have Monte Carlo p ≤ 0.05; red points are aggregate locations from rank 1. Open in Maps for pan, zoom, and the configured online or offline basemap.`;
+  requiredElement<HTMLElement>("#classic-cluster-map").hidden = false;
+  requiredElement<HTMLButtonElement>("#classic-cluster-open-maps").disabled = false;
+  renderedClusterMapEntry = entry;
+}
+
 function renderClassicTablesOutput(plan: ClassicTablesPlan, result: ClassicTablesResult): void {
   const output = requiredElement<HTMLElement>("#classic-tables-categorical-output");
   const formatCount = (value: number): string => Number.isInteger(value) ? String(value) : number(value, 4);
@@ -3888,6 +3999,42 @@ function renderClassicMatchOutput(
   });
 }
 
+function renderClassicConditionalLogisticOutput(result: ClassicConditionalLogisticResult): void {
+  requiredElement("#classic-logistic-output-title").textContent = result.plan.title ?? "Conditional Logistic Regression";
+  requiredElement("#classic-logistic-output-count").textContent = `${result.totals.includedSets} sets · ${result.fit.iterations} iterations`;
+  requiredElement("#classic-logistic-output-command").textContent = result.plan.canonicalSource;
+  requiredElement("#classic-logistic-output-summary").textContent = `${result.totals.includedRecords} of ${result.totals.sourceRecords} records formed ${result.totals.includedSets} analyzable matched sets; ${result.totals.excludedSets} sets (${result.totals.excludedRecords} records) were excluded.`;
+  requiredElement("#classic-logistic-output-coefficients").replaceChildren(...result.coefficients.map((coefficient) => {
+    const row = document.createElement("tr");
+    for (const value of [
+      coefficient.field,
+      number(coefficient.coefficient, 6),
+      number(coefficient.standardError, 6),
+      number(coefficient.oddsRatio, 4),
+      `${number(coefficient.confidenceInterval.lower, 4)}–${number(coefficient.confidenceInterval.upper, 4)}`,
+      number(coefficient.z, 4),
+      pValue(coefficient.pValue),
+    ]) { const cell = document.createElement("td"); cell.textContent = value; row.append(cell); }
+    return row;
+  }));
+  requiredElement("#classic-logistic-output-fit").replaceChildren(...[
+    ["Converged", result.fit.converged ? "Yes" : "No"],
+    ["Conditional log likelihood", number(result.fit.logLikelihood, 6)],
+    ["Null log likelihood", number(result.fit.nullLogLikelihood, 6)],
+    ["Likelihood-ratio χ²", number(result.fit.likelihoodRatio, 4)],
+    ["Degrees of freedom", String(result.fit.degreesOfFreedom)],
+    ["Model p-value", pValue(result.fit.pValue)],
+  ].map(([label, value]) => {
+    const row = document.createElement("tr");
+    const heading = document.createElement("th"); heading.scope = "row"; heading.textContent = label!;
+    const cell = document.createElement("td"); cell.textContent = value!; row.append(heading, cell); return row;
+  }));
+  requiredElement("#classic-logistic-output-exclusions").textContent = `Excluded sets — missing participating value or identifier: ${result.exclusions.missingValueSets}; invalid outcome: ${result.exclusions.invalidOutcomeSets}; nonnumeric predictor: ${result.exclusions.invalidPredictorSets}; not exactly one case with at least one control: ${result.exclusions.invalidCompositionSets}; more than 20 members: ${result.exclusions.oversizedSets}.`;
+  const warning = requiredElement<HTMLElement>("#classic-logistic-output-warning");
+  warning.textContent = result.diagnostics.warnings.join(" "); warning.hidden = result.diagnostics.warnings.length === 0;
+  requiredElement<HTMLElement>("#classic-logistic-output").hidden = false;
+}
+
 async function playClassicBrowserBeep(): Promise<ClassicBeepResult> {
   const AudioContextConstructor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextConstructor) return "unavailable";
@@ -3918,6 +4065,7 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
   const fallbackProject = getCurrentProjectData();
   let project = classicProgramSession.current(fallbackProject);
   const selectedSource = sourceOverride ?? classicProgramEditor.getSelectedText();
+  let clusterCancellation: { completed: number; total: number; elapsedMs: number; canonicalSource: string; planVersion: string } | null = null;
   try {
     assertClassicProgramNotCancelled(signal);
     const selectedAst = parseClassicProgram(selectedSource);
@@ -4499,6 +4647,24 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       });
       return;
     }
+    if (command.kind === "logistic") {
+      classicProgramCommandStatus.textContent = `Fitting conditional LOGISTIC across matched sets defined by ${command.matchField}...`;
+      await yieldClassicProgramTurn(signal);
+      const result = applyClassicConditionalLogistic(project.records, command);
+      assertClassicProgramNotCancelled(signal);
+      renderClassicConditionalLogisticOutput(result);
+      requiredElement("#classic-logistic-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `Conditional LOGISTIC fit ${result.coefficients.length} predictor${result.coefficients.length === 1 ? "" : "s"} across ${result.totals.includedSets} matched sets and ${result.totals.includedRecords} records.${result.totals.excludedSets ? ` ${result.totals.excludedSets} sets were excluded and reported.` : ""}`;
+      classicProgramCommandStatus.textContent = `Selected conditional LOGISTIC command ${result.fit.converged ? "converged" : "reached its iteration limit"}; review coefficients, adjusted odds ratios, fit, exclusions, and candidate-status notes.`;
+      recordProgramRun({
+        origin: "user-program", status: result.fit.converged ? "succeeded" : "failed", planVersion: result.version, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: result.plan.canonicalSource,
+        summary: `Conditional LOGISTIC used ${result.totals.includedSets} sets; likelihood-ratio χ² ${number(result.fit.likelihoodRatio, 4)} on ${result.fit.degreesOfFreedom} df (p ${pValue(result.fit.pValue)}).`,
+        diagnostics: result.diagnostics.warnings,
+      });
+      return;
+    }
     if (command.kind === "quality") {
       const plan = resolveEpiAiQualityCommand(selectedSource, project.fields);
       const report = applyEpiAiQualityProfile(project, plan);
@@ -4511,6 +4677,79 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
         projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
         source: selectedSource, canonicalSource: plan.canonicalSource,
         summary: `QUALITY found ${report.issues.length} validation issues and ${report.duplicateGroups.length} duplicate candidate groups.`, diagnostics: [],
+      });
+      return;
+    }
+    if (command.kind === "cluster-space-time") {
+      const plan = resolveSpaceTimeClusterCommand(selectedSource, project.fields);
+      const started = performance.now();
+      let completedReplications = 0;
+      let totalReplications = plan.replications;
+      const renderProgress = () => {
+        const elapsedMs = performance.now() - started;
+        const fraction = totalReplications ? completedReplications / totalReplications : 0;
+        classicProgramCommandStatus.textContent = `Space-Time Cluster Monte Carlo: ${completedReplications.toLocaleString("en-US")} of ${totalReplications.toLocaleString("en-US")} replications (${Math.floor(fraction * 100)}%) · Elapsed ${elapsedLabel(elapsedMs)}`;
+      };
+      renderProgress();
+      const timer = globalThis.setInterval(renderProgress, 250);
+      try {
+        const calculated = await calculateSpaceTimeClustersInWorker(project.records, plan, {
+          ...(signal ? { signal } : {}),
+          onProgress: (progress) => {
+            completedReplications = progress.completedReplications;
+            totalReplications = progress.totalReplications;
+            renderProgress();
+          },
+        });
+        assertClassicProgramNotCancelled(signal);
+        const result = calculated.result;
+        const elapsedMs = performance.now() - started;
+        classicClusterResults.set(plan.resultName.toLocaleLowerCase("en-US"), { projectName: project.projectName, formName: project.formName, result });
+        renderSpaceTimeClusterOutput(result, elapsedMs);
+        requiredElement("#classic-cluster-output").scrollIntoView({ behavior: "smooth", block: "start" });
+        classicProgramFeedback.textContent = `CLUSTER completed ${result.inference.replications.toLocaleString("en-US")} replications in ${elapsedLabel(elapsedMs)} and stored ${result.clusters.length} aggregate ranked results as ${plan.resultName}.`;
+        classicProgramCommandStatus.textContent = `Completed ${result.inference.replications.toLocaleString("en-US")} replications in ${elapsedLabel(elapsedMs)}. Review candidate-status and privacy notes in Output.`;
+        recordProgramRun({
+          origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION,
+          projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+          source: selectedSource, canonicalSource: plan.canonicalSource,
+          summary: `CLUSTER stored ${result.clusters.length} aggregate ranked results as ${plan.resultName}; ${result.inference.replications} replications and ${result.inference.work} replication-window evaluations completed in ${elapsedLabel(elapsedMs)}.`,
+          diagnostics: ["New-branch candidate; no legacy or external-product parity claim.", `Worker computation ${elapsedLabel(calculated.durationMs)}; total elapsed ${elapsedLabel(elapsedMs)}.`, `${result.totals.excludedRecords} source records excluded. Precise coordinates and case identifiers were omitted from history.`],
+        });
+        return;
+      } catch (error) {
+        if (isClassicProgramCancellation(error)) {
+          clusterCancellation = {
+            completed: completedReplications,
+            total: totalReplications,
+            elapsedMs: performance.now() - started,
+            canonicalSource: plan.canonicalSource,
+            planVersion: plan.version,
+          };
+        }
+        throw error;
+      } finally {
+        globalThis.clearInterval(timer);
+      }
+    }
+    if (command.kind === "cluster-render") {
+      const plan = resolveSpaceTimeClusterRenderCommand(selectedSource);
+      const stored = classicClusterResults.get(plan.resultName.toLocaleLowerCase("en-US"));
+      if (!stored) throw new RangeError(`No named CLUSTER result ${plan.resultName} exists in this browser session. Run EPIAI CLUSTER SPACE_TIME first.`);
+      if (stored.projectName !== project.projectName || stored.formName !== project.formName) {
+        throw new RangeError(`Named CLUSTER result ${plan.resultName} belongs to ${stored.projectName} / ${stored.formName}, not the active project form.`);
+      }
+      assertClassicProgramNotCancelled(signal);
+      renderInlineSpaceTimeClusterMap(stored);
+      requiredElement("#classic-cluster-output").scrollIntoView({ behavior: "smooth", block: "start" });
+      classicProgramFeedback.textContent = `Rendered named CLUSTER result ${plan.resultName} inline without rerunning inference.`;
+      classicProgramCommandStatus.textContent = `Output shows up to 10 ranked windows from ${plan.resultName}; use Open in Maps for interactive exploration.`;
+      recordProgramRun({
+        origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION,
+        projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
+        source: selectedSource, canonicalSource: plan.canonicalSource,
+        summary: `Rendered ${Math.min(10, stored.result.clusters.length)} ranked windows inline from named result ${plan.resultName} without rerunning inference.`,
+        diagnostics: ["New-branch candidate visualization; cluster-result coordinates remain local to this browser session."],
       });
       return;
     }
@@ -4604,12 +4843,16 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
     });
   } catch (error) {
     if (isClassicProgramCancellation(error)) {
-      classicProgramFeedback.textContent = "Selected command cancelled. Any previously completed output and history were retained.";
-      classicProgramCommandStatus.textContent = "Selected command cancelled by user.";
+      const cancellationSummary = clusterCancellation
+        ? `CLUSTER cancelled after ${elapsedLabel(clusterCancellation.elapsedMs)}; last reported progress was ${clusterCancellation.completed.toLocaleString("en-US")} of ${clusterCancellation.total.toLocaleString("en-US")} replications. No partial result was stored.`
+        : "Selected command cancelled by user.";
+      classicProgramFeedback.textContent = clusterCancellation ? cancellationSummary : "Selected command cancelled. Any previously completed output and history were retained.";
+      classicProgramCommandStatus.textContent = cancellationSummary;
       recordProgramRun({
-        origin: "user-program", status: "cancelled", planVersion: CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
+        origin: "user-program", status: "cancelled", planVersion: clusterCancellation?.planVersion ?? CLASSIC_SELECTED_COMMAND_PLAN_VERSION, astVersion: CLASSIC_AST_VERSION,
         projectName: project.projectName, formName: project.formName, sourceRecords: project.records.length,
-        source: selectedSource, summary: "Selected command cancelled by user.", diagnostics: [],
+        source: selectedSource, ...(clusterCancellation ? { canonicalSource: clusterCancellation.canonicalSource } : {}),
+        summary: cancellationSummary, diagnostics: clusterCancellation ? ["Worker terminated; no partial result was stored."] : [],
       });
       if (rethrow) throw error;
       return;
@@ -4640,10 +4883,13 @@ function sequentialOutputSource(statement: ReturnType<typeof parseClassicProgram
   if (statement.type === "SummarizeStatement") return requiredElement<HTMLElement>("#classic-summarize-output");
   if (statement.type === "GraphStatement") return requiredElement<HTMLElement>("#classic-graph-output");
   if (statement.type === "MatchStatement") return requiredElement<HTMLElement>("#classic-match-output");
+  if (statement.type === "LogisticStatement") return requiredElement<HTMLElement>("#classic-logistic-output");
   if (statement.type === "DisplayStatement") return requiredElement<HTMLElement>("#classic-display-output");
   if (statement.type === "HeaderStatement" || statement.type === "TypeoutStatement") return requiredElement<HTMLElement>("#classic-text-output");
   if (statement.type === "RouteoutStatement" || statement.type === "CloseoutStatement") return requiredElement<HTMLElement>("#classic-route-output");
   if (statement.type === "EpiAiQualityStatement") return requiredElement<HTMLElement>("#classic-quality-output");
+  if (statement.type === "EpiAiSpaceTimeClusterStatement") return requiredElement<HTMLElement>("#classic-cluster-output");
+  if (statement.type === "EpiAiClusterRenderStatement") return requiredElement<HTMLElement>("#classic-cluster-output");
   if (statement.type === "FileConvertStatement") return requiredElement<HTMLElement>("#classic-file-convert-output");
   return null;
 }
@@ -5152,6 +5398,17 @@ classicProgramExampleSelect.addEventListener("change", renderClassicProgramExamp
 classicProgramLoadExampleButton.addEventListener("click", () => loadSelectedClassicProgramExample());
 requiredElement("#classic-program-verify").addEventListener("click", () => void startClassicProgramTask((signal) => runClassicProgram(true, signal)));
 requiredElement("#classic-program-run").addEventListener("click", () => void startClassicProgramTask((signal) => runClassicProgram(false, signal)));
+requiredElement("#classic-cluster-open-maps").addEventListener("click", () => {
+  const entry = renderedClusterMapEntry;
+  if (!entry) return;
+  const mapsButton = document.querySelector<HTMLButtonElement>('[data-module="maps"]');
+  if (!mapsButton) {
+    classicProgramCommandStatus.textContent = "The Maps workspace launcher is unavailable.";
+    return;
+  }
+  mapsButton.click();
+  globalThis.setTimeout(() => renderSpaceTimeClusterResult(entry.result, entry.projectName, entry.formName), 0);
+});
 for (const button of document.querySelectorAll<HTMLElement>('[data-open-module="classic"], [data-module="classic"]')) {
   button.addEventListener("click", () => void refreshClassicProgramExamples());
   button.addEventListener("click", refreshClassicProgramContext);

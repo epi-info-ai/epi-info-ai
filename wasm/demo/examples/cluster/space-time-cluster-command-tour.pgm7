@@ -1,0 +1,8 @@
+*** Epi Info AI Space-Time Cluster Detection command tour
+*** Dataset: space-time-cluster-synthetic-v0.1.csv (30 entirely synthetic cases)
+*** New branch candidate; not legacy or external-product parity.
+*** Review aggregate Output. Case IDs and precise coordinates stay out of history.
+
+EPIAI CLUSTER SPACE_TIME ID=case_id DATE=event_date LATITUDE=latitude LONGITUDE=longitude RESULT=FeverRashClusters START=2026-01-01 END=2026-01-28 UNIT=DAY LENGTH=1 MAXDISTANCEKM=5 MAXCASEFRACTION=0.5 MAXTIMEUNITS=7 MAXTIMEFRACTION=0.5 REPLICATIONS=999 SEED=20260916
+
+EPIAI CLUSTER RENDER RESULT=FeverRashClusters

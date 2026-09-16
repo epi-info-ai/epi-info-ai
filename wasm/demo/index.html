@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="styles.css?v=62" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=108"></script>
+    <script type="module" src="app.js?v=110"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -496,7 +496,7 @@
               <label>Match records using
                 <select id="data-import-preview-key"></select>
               </label>
-              <p class="dialog-note">Like legacy Epi Info's GlobalRecordId workflow, matching records can be updated or ignored; only nonmatching records are appended.</p>
+              <p class="dialog-note">Like legacy Epi Info's GlobalRecordId workflow, only complete, unique identifier fields in both datasets are offered as matching keys. Repeated matched-set IDs and categorical fields are excluded.</p>
               <dl class="data-import-preview-counts">
                 <div><dt>Incoming</dt><dd id="data-import-preview-incoming">0</dd></div>
                 <div><dt>New</dt><dd id="data-import-preview-new">0</dd></div>
@@ -1492,11 +1492,35 @@
             </fieldset>
           </form>
         </section>
+        <section id="classic-logistic-output" class="panel" data-module-view="classic" aria-labelledby="classic-logistic-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label">LOGISTIC output</p><h2 id="classic-logistic-output-title">Conditional Logistic Regression</h2></div><span id="classic-logistic-output-count" class="calculation-time"></span></div>
+          <p id="classic-logistic-output-summary"></p>
+          <p><code id="classic-logistic-output-command"></code></p>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Term</th><th>Coefficient</th><th>Std. error</th><th>Adjusted odds ratio</th><th>95% confidence interval</th><th>Z</th><th>P</th></tr></thead><tbody id="classic-logistic-output-coefficients"></tbody></table></div>
+          <h3>Model fit</h3>
+          <div class="results-table-scroll"><table class="results-table"><tbody id="classic-logistic-output-fit"></tbody></table></div>
+          <p id="classic-logistic-output-exclusions" class="method-note"></p>
+          <p id="classic-logistic-output-warning" class="warnings"></p>
+          <p class="compatibility-note"><strong>Candidate status:</strong> Bounded conditional likelihood for numeric or binary predictors and one MATCHVAR. Categorical expansion, interactions, weights, OUTTABLE, Rust/WASM migration, and desktop differential validation remain pending.</p>
+        </section>
         <section id="classic-quality-output" class="panel new-branch-output" data-module-view="classic" aria-labelledby="classic-quality-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> QUALITY output</p><h2 id="classic-quality-output-title">Line-list quality profile</h2></div><span id="classic-quality-output-count" class="calculation-time"></span></div>
           <p id="classic-quality-output-summary"></p>
           <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Field</th><th>Present</th><th>Missing</th><th>Missingness</th><th>Complete</th><th>Violations</th></tr></thead><tbody id="classic-quality-output-body"></tbody></table></div>
           <p class="inline-feedback">Completeness and violations use the active form schema and records. Duplicate review remains available in Enter Data &gt; Data Quality.</p>
+        </section>
+        <section id="classic-cluster-output" class="panel new-branch-output" data-module-view="classic" aria-labelledby="classic-cluster-output-title" hidden>
+          <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> CLUSTER output</p><h2 id="classic-cluster-output-title">Space-Time Cluster Detection</h2></div><span id="classic-cluster-output-count" class="calculation-time"></span></div>
+          <p id="classic-cluster-output-summary"></p>
+          <p><code id="classic-cluster-output-command"></code></p>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Rank</th><th>Period</th><th>Observed</th><th>Expected</th><th>O/E</th><th>Log likelihood ratio</th><th>Monte Carlo p</th><th>Locations</th><th>Cases</th></tr></thead><tbody id="classic-cluster-output-body"></tbody></table></div>
+          <section id="classic-cluster-map" class="classic-cluster-map" aria-labelledby="classic-cluster-map-title" hidden>
+            <div class="panel-heading"><div><p class="step-label">LOCAL RESULT MAP</p><h3 id="classic-cluster-map-title">Ranked cluster windows</h3></div><button id="classic-cluster-open-maps" class="secondary-button" type="button" disabled>Open in Maps</button></div>
+            <div id="classic-cluster-map-plot" class="classic-cluster-map-plot"></div>
+            <p id="classic-cluster-map-note" class="method-note"></p>
+          </section>
+          <p id="classic-cluster-output-note" class="method-note"></p>
+          <p class="compatibility-note"><strong>Candidate status:</strong> Aggregate space-time permutation output from a local cancellable Worker. It is a new branch, not legacy parity or external-product parity. Precise coordinates and case identifiers are omitted from this Output and command history.</p>
         </section>
         <section id="classic-file-convert-output" class="panel new-branch-output" data-module-view="classic" aria-labelledby="classic-file-convert-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> FILE CONVERT output</p><h2 id="classic-file-convert-output-title">Access migration report</h2></div><span id="classic-file-convert-output-count" class="calculation-time"></span></div>

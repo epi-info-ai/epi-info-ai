@@ -9,7 +9,7 @@ and the evidence rules and detailed gaps are in the
 
 ## Snapshot
 
-Last reconciled: **2026-09-15**
+Last reconciled: **2026-09-16**
 
 | Measure | Count |
 |---|---:|
@@ -72,7 +72,7 @@ runs.
 | Statistics | Graph | `GRAPH` | Typed parser/dialog; selected execution | BV |
 | Statistics | Map | `MAP` | Legacy enum only | Gap |
 | Advanced Statistics | LinearRegression | `REGRESS` | Inventoried | Gap |
-| Advanced Statistics | LogisticRegression | `LOGISTIC` | Inventoried | Gap |
+| Advanced Statistics | LogisticRegression | `LOGISTIC` | Typed AST preserves the retained options; bounded execution supports simple numeric/binary predictors with exactly one `MATCHVAR`, one case and one or more controls per set, visible coefficients/adjusted odds ratios/95% Wald limits/model fit/exclusions, common history, and the matched case-control command tour. The [conditional LOGISTIC method contract](wasm/docs/validation/conditional-logistic-method-contract.md) fixes the candidate boundary and analytical checks. | Candidate only; ordinary logistic, categorical terms, interactions, weights, OUTTABLE, Rust/WASM migration, and desktop differential validation remain gaps |
 | Advanced Statistics | KaplanMeierSurvival | `KMSURVIVAL` | Inventoried | Gap |
 | Advanced Statistics | CoxProportionalHazards | `COXPH` | Inventoried | Gap |
 | Advanced Statistics | ComplexSampleFrequencies | `FREQ` | Typed `PSUVAR` branch; bounded program execution | BV |
@@ -94,6 +94,31 @@ runs.
 | User Interaction | Help | `HELP` | Legacy enum only; browser adaptation not started | Gap |
 | User Interaction | Quit | `QUIT` | Browser lifecycle adaptation not started | Gap |
 | Options | Set | `SET` | Typed parser/dialog; selected and bounded program execution | BV |
+
+## Epi Info AI new-branch commands
+
+These commands are deliberate browser-era additions. They are governed and
+tested separately and **do not count toward the legacy parity totals above**.
+The detailed authority is the
+[`new-branch command registry`](wasm/docs/design/new-branch-command-registry.md).
+
+| Command | Purpose | Current implementation | Status |
+|---|---|---|---|
+| `EPIAI QUALITY *` | Aggregate line-list completeness, validation, and duplicate-candidate review | Typed AST, selected/program execution, visible aggregate Output, missingness mini-bars, and common history | Browser-verified V0.1 |
+| `FILE CONVERT "input.mdb" TO "output.sqlite"` | Migrate readable Microsoft Access tables and data to a browser-portable SQLite file | Reviewed file grant, immutable source, checksummed manifest, reconciliation, warnings, and download | Browser-verified V0.1 |
+| `FILE CONVERT "input.mdb" TO "output.duckdb"` | Migrate readable Access tables to a DuckDB analytical file | Same reviewed migration boundary with DuckDB-Wasm output and storage-header verification | Browser-verified V0.1 |
+| `EPIAI CLUSTER SPACE_TIME ... RESULT=name` | Case-only retrospective high-cluster space-time permutation analysis | Typed plan; deterministic scoring; seeded maximum-statistic Monte Carlo inference; independent Python/JupyterLite oracle; bounded cancellable Worker; elapsed/progress UI; aggregate-only Output and history; synthetic dataset-bound command tour | Worker/UI candidate V0.4; published Run All, external differential evidence, and epidemiologist review pending |
+
+### Planned new-branch commands
+
+| Command | Intended role | Current state |
+|---|---|---|
+| `EPIAI CLUSTER RENDER RESULT=name` | Render a previously calculated named cluster result without rerunning inference or overloading legacy `MAP` | Typed AST; session/project-bound lookup; inline basemap-free ranked-window map plus opt-in interactive Maps handoff; no inference rerun |
+| `RECORDLINK` | Explainable, reviewed patient-record linkage and deduplication across two sources | Paused until upstream license metadata is internally consistent |
+
+The retained legacy `MAP` command remains a separate parity/revival item. New
+geospatial commands must use explicit `EPIAI` names rather than silently
+changing historical `MAP` semantics.
 
 ## What “full parity” requires
 

@@ -82,6 +82,14 @@ The adjacent `.xls` is retained for legacy-import testing; the `.xlsx` should be
 the first browser fixture because it avoids requiring an Access or old-Excel
 driver.
 
+The Epi Info 7 Visual Dashboard guide supplies the recoverable investigation
+context: this is a pair-matched case-control study of chicken consumption and
+illness. Its worked example selects `AnyChkn`, `CaCo`, and `Matched pairs` and
+reports 57 analyzed pairs (29 both exposed, 13 case-only exposed, eight
+control-only exposed, and seven neither exposed). The guide does not identify a
+pathogen, outbreak name, place, or study date, so those details must not be
+inferred from the workbook.
+
 Candidate binary exposures were profiled without altering or silently imputing
 their values:
 
@@ -121,6 +129,11 @@ for the LF-normalized repository and deployed asset. A Windows checkout may
 materialize CRLF line endings and therefore has a different byte digest.
 This is appropriate for conditional-logistic stress and repeatability tests,
 but not as the primary standalone MATCH teaching example.
+
+The first executable conditional `LOGISTIC` slice now accepts this 1:n set
+shape, while the primary browser command tour uses the smaller teaching
+workbook. Its algorithm and acceptance boundary are fixed in the
+[conditional LOGISTIC method contract](../validation/conditional-logistic-method-contract.md).
 
 ### Rely/Toxic Shock Syndrome recovery candidate
 

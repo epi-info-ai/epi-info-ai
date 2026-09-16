@@ -18,3 +18,28 @@ are ordinary Cargo test binaries.
   native build creates `.exe` files, stop, tell the user, and remove only the
   verified `wasm/engine-rust/target` directory after obtaining approval.
 - Never commit Cargo `target` artifacts or generated `.exe` files.
+
+## Local JavaScript runtime
+
+`node.exe` is not always added to `PATH` on this managed workstation. Before
+concluding that Node.js is unavailable, inspect the command line of the running
+preview server:
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.Name -eq "node.exe" } |
+  Select-Object ExecutablePath, CommandLine
+```
+
+The current project runtime is Node.js 24.19.0 at
+`C:\Users\cke1\AppData\Local\Temp\epi-info-ai-node-v24.19.0\node-v24.19.0-win-x64\node.exe`.
+This is a machine-local temporary path and may change after cleanup or upgrade;
+rediscover it with the command above rather than treating it as a repository
+dependency. Run repository scripts directly when package-manager shims are not
+available, for example:
+
+```powershell
+& "<node-path>" wasm/scripts/build.mjs
+& "<node-path>" wasm/tests/phase0-smoke.mjs
+& "<node-path>" wasm/tests/build-smoke.mjs
+```

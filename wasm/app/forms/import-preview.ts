@@ -35,23 +35,48 @@ function duplicateCount(keys: readonly string[]): number {
   return [...counts.values()].reduce((total, count) => total + Math.max(0, count - 1), 0);
 }
 
+function importKeyScore(field: FieldDefinition): number {
+  const normalizedName = field.name.toLocaleLowerCase("en-US");
+  const compactName = normalizedName.replace(/[^a-z0-9]/g, "");
+  const identifierLabel = `${field.name} ${field.prompt}`;
+  const identifierName = /^(?:id|uid|uuid|guid|globalrecordid)$/.test(compactName)
+    || /(?:case|record|person|patient|subject)id$/.test(compactName);
+  return (normalizedName === "globalrecordid" ? 100 : 0)
+    + (field.rules?.some((rule) => rule.kind === "unique") ? 80 : 0)
+    + (field.type === "unique-id" ? 60 : 0)
+    + (identifierName || /_id$/i.test(field.name) ? 40 : 0)
+    + (/(?:^|[_\s])identifier(?:$|[_\s])/i.test(identifierLabel) ? 20 : 0);
+}
+
+/**
+ * Return only fields that can safely identify one incoming and one destination
+ * record. A field must have identifier semantics, be complete, and be unique
+ * on both sides. This deliberately excludes categorical values, measurements,
+ * and repeated matched-set identifiers from the import merge-key selector.
+ */
+export function candidateImportKeys(
+  fields: readonly FieldDefinition[],
+  current: readonly EpiRecord[],
+  incoming: readonly EpiRecord[],
+): FieldDefinition[] {
+  return fields.map((field, index) => ({ field, index, score: importKeyScore(field) }))
+    .filter(({ field, score }) => field.type !== "command-button"
+      && score > 0
+      && incoming.length > 0
+      && incoming.every((record) => folded(record[field.name]) !== "")
+      && duplicateCount(incoming.map((record) => folded(record[field.name]))) === 0
+      && current.every((record) => folded(record[field.name]) !== "")
+      && duplicateCount(current.map((record) => folded(record[field.name]))) === 0)
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ field }) => field);
+}
+
 export function suggestedImportKey(
   fields: readonly FieldDefinition[],
   incoming: readonly EpiRecord[],
+  current: readonly EpiRecord[] = [],
 ): string | undefined {
-  const usable = fields.filter(({ type, name }) => type !== "command-button" && incoming.every((record) => folded(record[name]) !== ""));
-  const unique = usable.filter(({ name }) => duplicateCount(incoming.map((record) => folded(record[name]))) === 0);
-  const scored = unique.map((field, index) => ({
-    field,
-    index,
-    score:
-      (field.name.toLocaleLowerCase("en-US") === "globalrecordid" ? 100 : 0)
-      + (field.rules?.some((rule) => rule.kind === "unique") ? 80 : 0)
-      + (field.type === "unique-id" ? 60 : 0)
-      + (/^(?:id|.*_id|caseid|recordid)$/i.test(field.name) ? 40 : 0),
-  }));
-  scored.sort((left, right) => right.score - left.score || left.index - right.index);
-  return scored[0]?.score ? scored[0].field.name : undefined;
+  return candidateImportKeys(fields, current, incoming)[0]?.name;
 }
 
 export function buildDataImportPreview(input: {

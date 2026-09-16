@@ -32,12 +32,16 @@ async function assertFile(relativePath) {
 
 async function checkRequiredAssetsAndUi() {
   const requiredFiles = [
+    "LICENSE",
+    "package.json",
     "wasm/demo/index.html",
     "wasm/ai-lessons-learned.md",
     "wasm/demo/styles.css",
     "wasm/demo/app.ts",
     "wasm/demo/engine.ts",
     "wasm/demo/form-data.ts",
+    "wasm/demo/cluster-worker.ts",
+    "wasm/demo/cluster-worker-client.ts",
     "wasm/demo/epi-assist.ts",
     "wasm/demo/epi-assist-worker.ts",
     "wasm/app/assistant/gateway.ts",
@@ -58,6 +62,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-match.ts",
     "wasm/app/programming/classic-match-analysis.ts",
     "wasm/app/programming/classic-match-review.ts",
+    "wasm/app/programming/classic-logistic.ts",
     "wasm/app/programming/classic-selection.ts",
     "wasm/app/programming/classic-sort.ts",
     "wasm/app/programming/classic-assignment.ts",
@@ -76,6 +81,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-complex-means.ts",
     "wasm/app/programming/classic-output-settings.ts",
     "wasm/app/programming/epi-ai-quality.ts",
+    "wasm/app/programming/epi-ai-space-time-cluster.ts",
+    "wasm/app/programming/epi-ai-space-time-cluster-analysis.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
@@ -96,6 +103,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/localization/browser-localization.ts",
     "wasm/app/localization/catalogs/en-US.ts",
     "wasm/docs/design/localization-parity-inventory.md",
+    "wasm/docs/design/recordlink-demo-and-validation-plan.md",
+    "wasm/docs/design/spatial-clustering-reference-inventory.md",
     "wasm/app/forms/form-designer-menu.ts",
     "wasm/app/forms/enter-data-menu.ts",
     "wasm/app/maps/pmtiles-reader.ts",
@@ -111,6 +120,10 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv",
     "wasm/demo/examples/foodborne/foodborne-dialog-tour.pgm7",
     "wasm/demo/examples/foodborne/maps/city-of-toledo-neighborhoods.geojson",
+    "wasm/demo/examples/cluster/README.md",
+    "wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.csv",
+    "wasm/demo/examples/cluster/space-time-cluster-command-tour.pgm7",
+    "wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.programs.json",
     "wasm/demo/examples/matched-case-control/README.md",
     "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx",
     "wasm/demo/examples/matched-case-control/case-control-database-example.programs.json",
@@ -151,6 +164,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/chi-square-trend-method-contract.md",
     "wasm/docs/validation/tables-mxn-method-contract.md",
     "wasm/docs/validation/complex-sample-means-method-contract.md",
+    "wasm/docs/validation/space-time-cluster-permutation-method-contract.md",
     "wasm/docs/design/frequency-compatibility-inventory.md",
     "wasm/docs/design/programming-curriculum-corpus.md",
     "wasm/docs/design/means-compatibility-inventory.md",
@@ -167,6 +181,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/content/validate-chi-square-trend.ipynb",
     "wasm/validation-lab/content/validate-tables.ipynb",
     "wasm/validation-lab/content/validate-match.ipynb",
+    "wasm/validation-lab/content/validate-conditional-logistic.ipynb",
+    "wasm/validation-lab/content/validate-space-time-cluster.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -187,6 +203,9 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json",
     "wasm/tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json",
     "wasm/tests/fixtures/algorithm-validation/matched-pairs-boundaries-v0.1.json",
+    "wasm/tests/fixtures/algorithm-validation/conditional-logistic-v0.1.json",
+    "wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv",
+    "wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json",
     "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.pgm",
     "wasm/tests/fixtures/classic-command-parity/foodborne-tables-groupvar.expected.json",
@@ -208,6 +227,12 @@ async function checkRequiredAssetsAndUi() {
     "wasm/tests/fixtures/classic-command-parity/foodborne-match-syntax.expected.json",
   ];
   await Promise.all(requiredFiles.map(assertFile));
+
+  const packageManifest = JSON.parse(await readFile(repositoryPath("package.json"), "utf8"));
+  assert.equal(packageManifest.license, "Apache-2.0", "package.json must declare the project Apache-2.0 license");
+  const projectLicense = await readFile(repositoryPath("LICENSE"), "utf8");
+  assert.match(projectLicense, /Apache License\s+Version 2\.0, January 2004/,
+    "LICENSE must contain the Apache License 2.0 text");
 
   const html = await readFile(join(demoDirectory, "index.html"), "utf8");
   const requiredIds = [
@@ -372,6 +397,9 @@ async function checkRequiredAssetsAndUi() {
     "calculate-stratified",
     "cancel-stratified",
     "stratified-worker-status",
+    "classic-cluster-output",
+    "classic-cluster-output-count",
+    "classic-cluster-output-body",
     "project-storage-dialog",
     "project-storage-status",
   ];
@@ -449,6 +477,9 @@ async function checkRequiredAssetsAndUi() {
   assert.match(commandSet, /Typed AST\/parser branches \| 36 \|/);
   assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 28 \|/);
   assert.match(commandSet, /Legacy-parity-verified against reviewed desktop Epi Info output \| 0 \|/);
+  assert.match(commandSet, /## Epi Info AI new-branch commands/);
+  assert.match(commandSet, /`EPIAI CLUSTER SPACE_TIME \.\.\. RESULT=name`/);
+  assert.match(commandSet, /do not count toward the legacy parity totals/);
   for (const entry of commandParity.CLASSIC_COMMAND_PARITY) {
     assert.ok(["not-started", "browser-verified", "legacy-parity-verified"].includes(entry.parityStatus), `${entry.id} must declare parity status`);
     if (entry.parityStatus !== "not-started") {
@@ -536,6 +567,8 @@ async function checkRequiredAssetsAndUi() {
   const readme = await readFile(repositoryPath("README.md"), "utf8");
   assert.match(readme, /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\//);
   assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-chi-square-trend\.ipynb/);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-conditional-logistic\.ipynb/);
+  assert.match(readme, /validation-lab\/lab\/index\.html\?path=validate-space-time-cluster\.ipynb/);
 
   const localAssetReferences = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
     .map((match) => match[1])
@@ -554,7 +587,7 @@ async function checkSourceLanguageBoundary() {
     [],
     "handwritten application JavaScript must not return to the demo root",
   );
-  for (const moduleName of ["app", "engine", "form-data", "maps", "matched-worker", "matched-worker-client", "shell", "stratified-worker", "stratified-worker-client", "supabase-sync"]) {
+  for (const moduleName of ["app", "cluster-worker", "cluster-worker-client", "engine", "form-data", "maps", "matched-worker", "matched-worker-client", "shell", "stratified-worker", "stratified-worker-client", "supabase-sync"]) {
     assert.ok(rootSources.includes(`${moduleName}.ts`), `${moduleName} must remain a TypeScript source module`);
   }
 }
@@ -1568,6 +1601,86 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(qualityReport.fields.find(({ fieldName }) => fieldName === "onset_date").missing, 52);
   assert.equal(qualityReport.fields.find(({ fieldName }) => fieldName === "hospitalization_date").missing, 74);
   assert.throws(() => quality.resolveEpiAiQualityCommand("EPIAI QUALITY Age", imported.schema.fields), /QUALITY \* only/);
+  const cluster = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-space-time-cluster.ts")).href}?cluster=${Date.now()}`);
+  const clusterFixture = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json"), "utf8"));
+  const clusterCsv = await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv"), "utf8");
+  assert.equal(createHash("sha256").update(clusterCsv).digest("hex"), clusterFixture.dataset.sha256);
+  const clusterRows = clusterCsv.trim().split(/\r?\n/).slice(1).map((line) => {
+    const [caseId, eventDate, locationId, latitude, longitude] = line.split(",");
+    return { caseId, eventDate, locationId, latitude: Number(latitude), longitude: Number(longitude) };
+  });
+  assert.equal(clusterRows.length, clusterFixture.dataset.recordCount);
+  assert.equal(new Set(clusterRows.map(({ caseId }) => caseId)).size, clusterRows.length, "synthetic cluster case IDs must be unique");
+  assert.equal(new Set(clusterRows.map(({ locationId }) => locationId)).size, clusterFixture.dataset.distinctLocationCount);
+  assert.deepEqual(clusterRows.filter(({ caseId }) => clusterFixture.plantedCluster.caseIds.includes(caseId)).map(({ caseId }) => caseId), clusterFixture.plantedCluster.caseIds);
+  const clusterFields = [
+    { name: "case_id", prompt: "Case ID", type: "unique-id", required: true },
+    { name: "event_date", prompt: "Event date", type: "date", required: true },
+    { name: "latitude", prompt: "Latitude", type: "number", required: true },
+    { name: "longitude", prompt: "Longitude", type: "number", required: true },
+    { name: "bad_date", prompt: "Bad date", type: "text", required: false },
+  ];
+  const clusterPlan = cluster.resolveSpaceTimeClusterCommand(clusterFixture.command, clusterFields);
+  assert.equal(clusterPlan.canonicalSource, clusterFixture.command);
+  assert.equal(clusterPlan.execution, "candidate-preview");
+  assert.equal(clusterPlan.model, "space-time-permutation");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "cluster-space-time", ...clusterPlan }), clusterFixture.command);
+  const resolvedCluster = commandBuilder.resolveSelectedClassicAnalysisCommand(clusterFixture.command, clusterFields);
+  assert.equal(resolvedCluster.kind, "cluster-space-time");
+  assert.equal(resolvedCluster.canonicalSource, clusterFixture.command);
+  const clusterRenderSource = "EPIAI CLUSTER RENDER RESULT=FeverRashClusters";
+  const clusterRenderPlan = cluster.resolveSpaceTimeClusterRenderCommand(clusterRenderSource);
+  assert.deepEqual(clusterRenderPlan, { version: "0.1.0", resultName: "FeverRashClusters", canonicalSource: clusterRenderSource, execution: "local-named-result" });
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "cluster-render", resultName: "FeverRashClusters" }), clusterRenderSource);
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand(clusterRenderSource, clusterFields), { kind: "cluster-render", resultName: "FeverRashClusters", source: clusterRenderSource });
+  assert.throws(() => classicAst.parseClassicProgram("EPIAI CLUSTER RENDER"), /RESULT=name/);
+  assert.throws(() => cluster.resolveSpaceTimeClusterCommand(clusterFixture.command.replace("MAXCASEFRACTION=0.5", "MAXCASEFRACTION=0.75"), clusterFields), /MAXCASEFRACTION/);
+  assert.throws(() => cluster.resolveSpaceTimeClusterCommand(clusterFixture.command.replace("DATE=event_date", "DATE=bad_date"), clusterFields), /must be a Date field/);
+  assert.throws(() => classicAst.parseClassicProgram(clusterFixture.command.replace("REPLICATIONS=999", "REPLICATIONS=999 UNKNOWN=1")), /Unsupported.*UNKNOWN/);
+  const clusterAnalysis = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-space-time-cluster-analysis.ts")).href}?clusterAnalysis=${Date.now()}`);
+  const clusterRecords = clusterRows.map(({ caseId, eventDate, locationId, latitude, longitude }) => ({
+    case_id: caseId, event_date: eventDate, location_id: locationId, latitude, longitude, syndrome: "FeverRash",
+  }));
+  const scoredClusters = clusterAnalysis.scoreSpaceTimeClusterCandidates(clusterRecords, clusterPlan);
+  assert.equal(scoredClusters.state, "scored-no-inference");
+  assert.equal(scoredClusters.totals.eligibleRecords, 30);
+  assert.equal(scoredClusters.totals.distinctLocations, 6);
+  assert.ok(scoredClusters.totals.candidateWindows > 0);
+  assert.deepEqual(scoredClusters.clusters[0].caseIds, clusterFixture.plantedCluster.caseIds);
+  assert.equal(scoredClusters.clusters[0].observed, 12);
+  near(scoredClusters.clusters[0].expected, 5.6, 1e-12, "space-time planted cluster expected count");
+  assert.equal(scoredClusters.clusters[0].start, clusterFixture.plantedCluster.start);
+  assert.equal(scoredClusters.clusters[0].end, clusterFixture.plantedCluster.end);
+  assert.equal(scoredClusters.clusters[0].locationCount, 2);
+  assert.equal(scoredClusters.clusters[0].pValue, null);
+  assert.ok(scoredClusters.clusters[0].memberPoints.every(({ latitude, longitude }) => Number.isFinite(latitude) && Number.isFinite(longitude)));
+  const clusterProgress = [];
+  const inferredClusters = clusterAnalysis.inferSpaceTimeClusters(clusterRecords, clusterPlan, 20, (progress) => clusterProgress.push(progress));
+  const expectedInference = clusterFixture.expectedInference;
+  assert.equal(inferredClusters.version, "0.2.0");
+  assert.equal(inferredClusters.state, "inferred-candidate");
+  assert.equal(inferredClusters.inference.randomGenerator, expectedInference.randomGenerator);
+  assert.equal(inferredClusters.inference.replications, expectedInference.replications);
+  assert.equal(inferredClusters.inference.seed, expectedInference.seed);
+  assert.equal(inferredClusters.inference.work, expectedInference.work);
+  assert.equal(inferredClusters.clusters[0].monteCarloExceedances, expectedInference.topCluster.monteCarloExceedances);
+  assert.equal(inferredClusters.clusters[0].pValue, expectedInference.topCluster.pValue);
+  assert.deepEqual(clusterProgress[0], { completedReplications: 0, totalReplications: 999, fraction: 0 });
+  assert.deepEqual(clusterProgress.at(-1), { completedReplications: 999, totalReplications: 999, fraction: 1 });
+  assert.equal(clusterProgress.length, 1000);
+  near(inferredClusters.clusters[0].logLikelihoodRatio, expectedInference.topCluster.logLikelihoodRatio, 1e-12, "space-time inferred planted cluster likelihood ratio");
+  const repeatedInference = clusterAnalysis.inferSpaceTimeClusters([...clusterRecords].reverse(), clusterPlan);
+  assert.deepEqual(repeatedInference.clusters.map(({ caseIds, pValue, monteCarloExceedances }) => ({ caseIds, pValue, monteCarloExceedances })), inferredClusters.clusters.map(({ caseIds, pValue, monteCarloExceedances }) => ({ caseIds, pValue, monteCarloExceedances })), "space-time inference must be reproducible and row-order invariant");
+  assert.throws(() => clusterAnalysis.inferSpaceTimeClusters(clusterRecords, { ...clusterPlan, replications: 99999 }), /exceeds the reviewed limit/);
+  const clusterWorkerSource = await readFile(repositoryPath("wasm/demo/cluster-worker.ts"), "utf8");
+  const clusterWorkerClientSource = await readFile(repositoryPath("wasm/demo/cluster-worker-client.ts"), "utf8");
+  assert.match(clusterWorkerSource, /type: "progress"/);
+  assert.match(clusterWorkerSource, /inferSpaceTimeClusters/);
+  assert.match(clusterWorkerClientSource, /AbortSignal/);
+  assert.match(clusterWorkerClientSource, /worker !== instance/);
+  assert.match(clusterWorkerClientSource, /60 seconds/);
+  assert.match(clusterWorkerClientSource, /cancelSpaceTimeClusterCalculations/);
+  assert.throws(() => clusterAnalysis.scoreSpaceTimeClusterCandidates([...clusterRecords, { ...clusterRecords[0] }], clusterPlan), /unique IDs/);
   assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "file-convert", inputFile: "Sample.mdb", outputFile: "Sample.sqlite" }), 'FILE CONVERT "Sample.mdb" TO "Sample.sqlite"');
   assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('FILE CONVERT "Sample.mdb" TO "Sample.sqlite"', imported.schema.fields), {
     kind: "file-convert", inputFile: "Sample.mdb", outputFile: "Sample.sqlite", source: 'FILE CONVERT "Sample.mdb" TO "Sample.sqlite"',
@@ -1983,7 +2096,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const catalogIndexValue = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/program-catalogs.json"), "utf8"));
   const catalogIndex = examples.validateClassicProgramCatalogIndex(catalogIndexValue);
   assert.deepEqual(catalogIndex.catalogs.map(({ datasetId }) => datasetId), [
-    "foodborne-outbreak-investigation", "case-control-database-example", "matched-pairs-hand-audit", "matched-pairs-no-discordance",
+    "foodborne-outbreak-investigation", "case-control-database-example", "matched-pairs-hand-audit", "matched-pairs-no-discordance", "space-time-cluster-synthetic-v0.1",
   ]);
   assert.throws(() => examples.validateClassicProgramCatalogIndex({
     schemaVersion: 1,
@@ -2055,6 +2168,28 @@ FREQ AgeGroup STRATAVAR=Sex`;
     recordCount: imported.records.length,
   });
   assert.match(wrongType.programs.find((program) => program.example.id === "age-decades").issues.join(" "), /must be number/i);
+  const clusterCatalogValue = JSON.parse(await readFile(repositoryPath(
+    "wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.programs.json",
+  ), "utf8"));
+  const clusterCatalog = examples.validateClassicProgramExampleCatalog(clusterCatalogValue);
+  const clusterDemoCsv = await readFile(repositoryPath("wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.csv"), "utf8");
+  assert.equal(createHash("sha256").update(clusterDemoCsv).digest("hex"), clusterCatalog.dataset.sha256);
+  assert.equal(clusterCatalog.dataset.sha256, clusterFixture.dataset.sha256);
+  assert.equal(clusterCatalog.dataset.recordCount, 30);
+  assert.equal(clusterCatalog.programs.length, 1);
+  const clusterTourAst = classicAst.parseClassicProgram(clusterCatalog.programs[0].source);
+  assert.deepEqual(clusterTourAst.body.map(({ type }) => type), ["EpiAiSpaceTimeClusterStatement", "EpiAiClusterRenderStatement"]);
+  assert.equal(cluster.resolveSpaceTimeClusterCommand(clusterFixture.command, clusterFields).canonicalSource, clusterFixture.command);
+  const clusterCsvTools = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/csv.ts")).href}?clusterCatalog=${Date.now()}`);
+  const importedCluster = clusterCsvTools.inferSchemaFromRows(clusterCatalog.dataset.file, clusterCsvTools.parseCsv(clusterDemoCsv));
+  const availableClusterPrograms = examples.assessClassicProgramCatalog(clusterCatalog, {
+    dataset: { id: clusterCatalog.dataset.id, file: clusterCatalog.dataset.file, sha256: clusterCatalog.dataset.sha256 },
+    fields: importedCluster.schema.fields,
+    recordCount: importedCluster.records.length,
+  });
+  assert.equal(availableClusterPrograms.datasetMatches, true);
+  assert.ok(availableClusterPrograms.programs.every(({ compatible }) => compatible), "the imported CLUSTER CSV must expose its dataset-bound command tour");
+  assert.match(await readFile(repositoryPath("wasm/demo/examples/cluster/README.md"), "utf8"), /nyccommunicable/);
 
   const teaching = await import(`${pathToFileURL(repositoryPath("wasm/app/teaching/repository.ts")).href}?teaching=${Date.now()}`);
   const teachingManifestValue = JSON.parse(await readFile(repositoryPath(
@@ -2625,6 +2760,15 @@ async function checkCsvAndProjectFixtures() {
   const incomingRows = [{ id: "A", status: "Open" }, { id: "B", status: "Closed" }, { id: "C", status: "Open" }];
   const provenance = { id: "preview", file: "preview.csv", sha256: "a".repeat(64) };
   assert.equal(importPreview.suggestedImportKey(importFields, incomingRows), "id");
+  const candidateFields = [
+    ...importFields,
+    { name: "uid", prompt: "UID", type: "text", required: true },
+    { name: "match_group", prompt: "Matched set ID", type: "text", required: true },
+    { name: "age", prompt: "Age", type: "number", required: true },
+  ];
+  const candidateCurrent = currentRows.map((record, index) => ({ ...record, uid: `U${index + 1}`, match_group: `G${index + 1}`, age: 30 + index }));
+  const candidateIncoming = incomingRows.map((record, index) => ({ ...record, uid: `U${index + 1}`, match_group: index < 2 ? "G1" : "G2", age: 40 + index }));
+  assert.deepEqual(importPreview.candidateImportKeys(candidateFields, candidateCurrent, candidateIncoming).map(({ name }) => name), ["id", "uid"]);
   const preview = importPreview.buildDataImportPreview({ fields: importFields, current: currentRows, incoming: incomingRows, keyField: "id", provenance, priorImports: [provenance] });
   assert.deepEqual({
     incoming: preview.incoming, newRecords: preview.newRecords, matchingRecords: preview.matchingRecords,
@@ -3382,6 +3526,43 @@ async function checkValidationLabSource() {
   ]) {
     assert.ok(matchSource.includes(requiredText), `MATCH validation notebook must retain ${requiredText}`);
   }
+  const logisticNotebook = JSON.parse(await readFile(repositoryPath("wasm/validation-lab/content/validate-conditional-logistic.ipynb"), "utf8"));
+  assert.equal(logisticNotebook.nbformat, 4);
+  assert.equal(logisticNotebook.metadata?.kernelspec?.name, "python");
+  const logisticSource = logisticNotebook.cells.flatMap((cell) => cell.source || []).join("");
+  for (const requiredText of [
+    "conditional-logistic-v0.1.json",
+    "matched-logistic-test-data.csv",
+    "scipy.optimize",
+    "logsumexp",
+    "trust-exact",
+    "row-order invariance",
+    "matched-set-label invariance",
+    "browser candidate",
+  ]) {
+    assert.ok(logisticSource.includes(requiredText), `conditional LOGISTIC validation notebook must retain ${requiredText}`);
+  }
+  const clusterNotebook = JSON.parse(await readFile(repositoryPath("wasm/validation-lab/content/validate-space-time-cluster.ipynb"), "utf8"));
+  assert.equal(clusterNotebook.nbformat, 4);
+  assert.equal(clusterNotebook.metadata?.kernelspec?.name, "python");
+  const clusterSource = clusterNotebook.cells.flatMap((cell) => cell.source || []).join("");
+  for (const requiredText of [
+    "space-time-cluster-synthetic-v0.1.json",
+    "space-time-cluster-synthetic-v0.1.csv",
+    "haversine",
+    "MAXCASEFRACTION",
+    "row-order invariance",
+    "pValue",
+    "Monte Carlo",
+    "mulberry32",
+    "maximum-statistic adjustment",
+    "monteCarloExceedances",
+    "1398600",
+    "0.013",
+    "EPIAI CLUSTER RENDER",
+  ]) {
+    assert.ok(clusterSource.includes(requiredText), `space-time CLUSTER validation notebook must retain ${requiredText}`);
+  }
 }
 
 async function checkEpiAssistProposalBoundary() {
@@ -3495,6 +3676,7 @@ async function checkEpiAssistProposalBoundary() {
 async function checkClassicProgramAst() {
   const parser = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-ast.ts")).href}?ast=${Date.now()}`);
   const matchCommands = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-match.ts")).href}?match=${Date.now()}`);
+  const logistic = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-logistic.ts")).href}?logistic=${Date.now()}`);
   const examples = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/classic-examples.ts")).href}?matched-examples=${Date.now()}`);
   const source = `READ {Projects\\Sample\\Sample.prj}:Oswego
 DEFINE AgeGroup TEXTINPUT
@@ -3599,19 +3781,65 @@ CANCEL SORT`;
   const matchedCommandTourSource = await readFile(repositoryPath("wasm/demo/examples/matched-case-control/matched-case-control-command-tour.pgm7"), "utf8");
   const matchedCommandTour = parser.parseClassicProgram(matchedCommandTourSource);
   assert.deepEqual(matchedCommandTour.body.map(({ type }) => type), [
-    "ListStatement", "FrequencyStatement", "TablesStatement", "MatchStatement",
+    "EpiAiQualityStatement", "ListStatement", "FrequencyStatement", "FrequencyStatement",
+    "FrequencyStatement", "MeansStatement", "TablesStatement", "MatchStatement", "LogisticStatement",
   ]);
-  assert.equal(matchedCommandTour.body[0].selection.fields[0].name, "matched_pairs");
-  assert.equal(matchedCommandTour.body[2].exposure.name, "pb");
-  assert.equal(matchedCommandTour.body[2].outcome.name, "caco");
-  assert.deepEqual(matchedCommandTour.body[3].matchBy.map(({ name }) => name), ["matched_pairs"]);
+  assert.equal(matchedCommandTour.body[1].selection.fields[0].name, "uid");
+  assert.equal(matchedCommandTour.body[6].exposure.name, "anychkn");
+  assert.equal(matchedCommandTour.body[6].outcome.name, "caco");
+  assert.deepEqual(matchedCommandTour.body[7].matchBy.map(({ name }) => name), ["matched_pairs"]);
+  assert.equal(matchedCommandTour.body[8].outcome.name, "caco");
+  assert.deepEqual(matchedCommandTour.body[8].terms.map((term) => term.factors[0].field.name), ["anychkn", "age"]);
+  assert.equal(matchedCommandTour.body[8].matchBy.name, "matched_pairs");
+  const logisticFields = [
+    { name: "outcome", prompt: "Outcome", type: "number", required: true },
+    { name: "exposure", prompt: "Exposure", type: "number", required: true },
+    { name: "set_id", prompt: "Matched Set ID", type: "text", required: true },
+  ];
+  const logisticPlan = logistic.resolveClassicConditionalLogisticCommand("LOGISTIC outcome = exposure MATCHVAR=set_id", logisticFields);
+  assert.throws(
+    () => logistic.resolveClassicConditionalLogisticCommand("LOGISTIC outcome = exposure", logisticFields),
+    /requires MATCHVAR/,
+  );
+  assert.throws(
+    () => logistic.resolveClassicConditionalLogisticCommand("LOGISTIC outcome = (exposure) MATCHVAR=set_id", logisticFields),
+    /categorical expansion and interaction terms remain fail-closed/,
+  );
+  const logisticRecords = [];
+  for (let set = 1; set <= 21; set++) {
+    const caseExposed = set <= 13;
+    logisticRecords.push({ outcome: 1, exposure: caseExposed ? 1 : 0, set_id: `S${set}` });
+    logisticRecords.push({ outcome: 0, exposure: caseExposed ? 0 : 1, set_id: `S${set}` });
+  }
+  const logisticResult = logistic.applyClassicConditionalLogistic(logisticRecords, logisticPlan);
+  assert.equal(logisticResult.fit.converged, true);
+  assert.equal(logisticResult.totals.includedSets, 21);
+  near(logisticResult.coefficients[0].coefficient, Math.log(13 / 8), 1e-8, "conditional logistic paired coefficient");
+  near(logisticResult.coefficients[0].standardError, Math.sqrt(1 / 13 + 1 / 8), 1e-8, "conditional logistic paired standard error");
+  near(logisticResult.coefficients[0].oddsRatio, 13 / 8, 1e-8, "conditional logistic paired odds ratio");
+  const { parseCsv } = await import(`${pathToFileURL(repositoryPath("wasm/app/forms/csv.ts")).href}?conditional-logistic=${Date.now()}`);
+  const stressCsv = await readFile(repositoryPath("wasm/demo/examples/matched-case-control/matched-logistic-test-data.csv"), "utf8");
+  const [stressHeaders, ...stressRows] = parseCsv(stressCsv);
+  const stressRecords = stressRows
+    .map((row) => Object.fromEntries(stressHeaders.map((header, index) => [header, row[index] ?? ""])))
+    .filter(({ ITERATION }) => ITERATION === "0");
+  const stressPlan = logistic.resolveClassicConditionalLogisticCommand(
+    "LOGISTIC CASE = INDEPVAR1 INDEPVAR2 MATCHVAR=GROUPID",
+    stressHeaders.map((name) => ({ name, prompt: name, type: "number", required: true })),
+  );
+  const stressResult = logistic.applyClassicConditionalLogistic(stressRecords, stressPlan);
+  assert.equal(stressResult.fit.converged, true);
+  assert.equal(stressResult.totals.includedSets, 100);
+  assert.equal(stressResult.totals.includedRecords, 300);
+  assert.equal(stressResult.coefficients.length, 2);
+  assert.ok(stressResult.coefficients.every(({ coefficient, standardError }) => Number.isFinite(coefficient) && standardError > 0));
   const matchedCatalogValue = JSON.parse(await readFile(repositoryPath(
     "wasm/demo/examples/matched-case-control/case-control-database-example.programs.json",
   ), "utf8"));
   const matchedCatalog = examples.validateClassicProgramExampleCatalog(matchedCatalogValue);
   assert.equal(matchedCatalog.dataset.sha256, "c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48");
   assert.deepEqual(matchedCatalog.programs.map(({ id }) => id), ["matched-case-control-command-tour", "match-pb-by-pair", "match-school-zero-cell"]);
-  assert.equal(matchedCatalog.programs[0].source, "LIST matched_pairs caco pb\n\nFREQ caco\n\nTABLES pb caco\n\nMATCH pb caco MATCHVAR=matched_pairs");
+  assert.equal(matchedCatalog.programs[0].source, "EPIAI QUALITY *\n\nLIST uid matched_pairs caco age anychkn\n\nFREQ caco\n\nFREQ matched_pairs\n\nFREQ anychkn\n\nMEANS age\n\nTABLES anychkn caco\n\nMATCH anychkn caco MATCHVAR=matched_pairs\n\nLOGISTIC caco = anychkn age MATCHVAR=matched_pairs TITLETEXT=\"Illustrative chicken exposure model adjusted for age\"");
   const commandTourSource = await readFile(repositoryPath("wasm/demo/examples/foodborne/foodborne-classic-command-tour.pgm7"), "utf8");
   const commandTour = parser.parseClassicProgram(commandTourSource);
   assert.deepEqual(commandTour.body.map(({ type }) => type), [

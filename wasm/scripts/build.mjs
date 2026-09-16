@@ -14,6 +14,8 @@ const maintainedModules = [
   "epi-assist",
   "epi-assist-worker",
   "form-data",
+  "cluster-worker",
+  "cluster-worker-client",
   "matched-worker",
   "matched-worker-client",
   "maps",
@@ -22,7 +24,7 @@ const maintainedModules = [
   "stratified-worker-client",
   "supabase-sync",
 ];
-const bundledModules = new Set(["app", "epi-assist", "epi-assist-worker", "form-data", "maps", "matched-worker", "stratified-worker", "supabase-sync"]);
+const bundledModules = new Set(["app", "cluster-worker", "epi-assist", "epi-assist-worker", "form-data", "maps", "matched-worker", "stratified-worker", "supabase-sync"]);
 
 async function existingSource(baseName) {
   for (const extension of [".ts", ".js"]) {
@@ -110,6 +112,18 @@ await cp(
 await cp(
   join(wasmDirectory, "tests/fixtures/algorithm-validation/matched-pairs-boundaries-v0.1.json"),
   join(validationFixtureDirectory, "matched-pairs-boundaries-v0.1.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/conditional-logistic-v0.1.json"),
+  join(validationFixtureDirectory, "conditional-logistic-v0.1.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json"),
+  join(validationFixtureDirectory, "space-time-cluster-synthetic-v0.1.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv"),
+  join(validationFixtureDirectory, "space-time-cluster-synthetic-v0.1.csv"),
 );
 await cp(
   join(wasmDirectory, "tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"),

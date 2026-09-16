@@ -48,7 +48,7 @@ import {
   serializeCsv,
 } from "../app/forms/csv.ts";
 import { readTabularFile } from "../app/forms/importers.ts";
-import { applyDataImport, buildDataImportPreview, suggestedImportKey, type DataImportMode, type DataImportPreview } from "../app/forms/import-preview.ts";
+import { applyDataImport, buildDataImportPreview, candidateImportKeys, suggestedImportKey, type DataImportMode, type DataImportPreview } from "../app/forms/import-preview.ts";
 import {
   collectEntryRecord,
   initializeEntryView,
@@ -1681,11 +1681,12 @@ function openDataImportPreview(fileName: string, provenance: DatasetProvenance, 
   const validationIssues = validateRecords(currentFormId, schema, imported, []);
   const errors = validationIssues.filter((issue) => issue.severity === "error");
   const invalidRecords = new Set(errors.map(({ recordIndex }) => recordIndex)).size;
-  const key = suggestedImportKey(schema.fields, imported);
+  const keyCandidates = candidateImportKeys(schema.fields, records, imported);
+  const key = keyCandidates[0]?.name;
   const keySelect = requiredElement<HTMLSelectElement>("#data-import-preview-key");
   keySelect.replaceChildren(
     new Option("No matching key (Replace only)", ""),
-    ...schema.fields.filter(({ type }) => type !== "command-button").map((field) => new Option(`${field.prompt} (${field.name})${field.name === key ? " — suggested" : ""}`, field.name)),
+    ...keyCandidates.map((field) => new Option(`${field.prompt} (${field.name})${field.name === key ? " — suggested" : ""}`, field.name)),
   );
   keySelect.value = key ?? "";
   for (const control of requiredElements<HTMLInputElement>('input[name="data-import-mode"]')) control.checked = false;

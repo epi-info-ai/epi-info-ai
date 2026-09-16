@@ -1,10 +1,10 @@
 {
   "file": "wasm/demo/epi2x2.wasm",
-  "sha256": "a9062cc4b57376be500cb101b04e8bb505ea023be315e97e29e52c64b13c2c1e",
-  "size": 26901,
+  "sha256": "12aaecda988cf2683a582938202143931e5681aa1fe7fa37bea1c1f24d3e5c6c",
+  "size": 28495,
   "engine": {
     "id": "epi-core-wasm",
-    "version": "0.15.0",
+    "version": "0.16.0",
     "operation": "epi.table2x2",
     "schemaVersion": "0.4.0"
   },
@@ -82,6 +82,13 @@
     "trend_set_row",
     "trend_chi_square",
     "trend_p_value",
-    "trend_odds_ratio"
+    "trend_odds_ratio",
+    "matched_odds_ratio",
+    "matched_odds_ratio_exact_lower",
+    "matched_odds_ratio_exact_upper",
+    "matched_mcnemar_uncorrected",
+    "matched_mcnemar_corrected",
+    "matched_exact_two_sided",
+    "matched_exact_mid_p_two_sided"
   ]
 }

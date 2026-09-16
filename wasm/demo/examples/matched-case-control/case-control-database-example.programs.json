@@ -16,9 +16,9 @@
     {
       "id": "matched-case-control-command-tour",
       "title": "Matched case-control command tour",
-      "description": "Runs LIST, FREQ, TABLES, and the bounded 1:1 MATCH candidate in source order against the legacy teaching workbook.",
-      "requiredFields": ["matched_pairs", "caco", "pb"],
-      "source": "LIST matched_pairs caco pb\n\nFREQ caco\n\nTABLES pb caco\n\nMATCH pb caco MATCHVAR=matched_pairs"
+      "description": "Profiles completeness and descriptive statistics, reproduces the guide's AnyChkn matched-pair question, and demonstrates conditional logistic adjustment for age.",
+      "requiredFields": ["uid", "matched_pairs", "caco", "age", "anychkn"],
+      "source": "EPIAI QUALITY *\n\nLIST uid matched_pairs caco age anychkn\n\nFREQ caco\n\nFREQ matched_pairs\n\nFREQ anychkn\n\nMEANS age\n\nTABLES anychkn caco\n\nMATCH anychkn caco MATCHVAR=matched_pairs\n\nLOGISTIC caco = anychkn age MATCHVAR=matched_pairs TITLETEXT=\"Illustrative chicken exposure model adjusted for age\""
     },
     {
       "id": "match-pb-by-pair",

@@ -4292,6 +4292,16 @@ body.map-fullscreen-fallback {
 
 .new-branch-label { margin: 0 0.35rem 0 0; }
 .new-branch-output { border-left: 4px solid #f2c400; }
+.classic-cluster-map { margin: 1rem 0; border: 1px solid #9fb6c2; background: #f6fafc; }
+.classic-cluster-map .panel-heading { padding: 0.65rem 0.8rem; }
+.classic-cluster-map-plot { overflow-x: auto; border-block: 1px solid #bdcbd2; background: #edf4f7; }
+.classic-cluster-map-plot svg { display: block; width: 100%; min-width: 34rem; max-height: 30rem; }
+.classic-cluster-map-frame { fill: #edf4f7; stroke: #8ca5b1; }
+.classic-cluster-window { fill: #f0a202; fill-opacity: 0.11; stroke: #a15c00; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.classic-cluster-window.significant { fill: #df291e; fill-opacity: 0.16; stroke: #9f221b; }
+.classic-cluster-rank { fill: #263f4e; font: 700 12px system-ui, sans-serif; text-anchor: middle; pointer-events: none; }
+.classic-cluster-location { fill: #dc2626; stroke: #7f1d1d; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.classic-cluster-map .method-note { margin: 0; padding: 0.65rem 0.8rem; }
 .classic-quality-mini-bar { display: grid; grid-template-columns: minmax(5rem, 1fr) auto; gap: 0.5rem; align-items: center; }
 .classic-quality-mini-bar > span:first-child { height: 0.65rem; overflow: hidden; border-radius: 999px; background: #d8e3e9; }
 .classic-quality-mini-bar > span:first-child > span { display: block; height: 100%; background: #c34a36; }

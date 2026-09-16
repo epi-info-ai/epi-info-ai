@@ -24,6 +24,8 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-chi-square-trend.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-tables.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-match.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-conditional-logistic.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-space-time-cluster.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -34,6 +36,9 @@ POPULATION_SURVEY_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validati
 COHORT_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/cohort-cross-sectional-v0.13.json"
 UNMATCHED_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/unmatched-case-control-v0.14.json"
 MATCH_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json"
+CONDITIONAL_LOGISTIC_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/conditional-logistic-v0.1.json"
+SPACE_TIME_CLUSTER_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json"
+SPACE_TIME_CLUSTER_DATA = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv"
 TREND_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"
 TABLES_FIXTURES = [
     REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.expected.json",
@@ -143,6 +148,58 @@ def verify_notebook() -> None:
     ]:
         assert required in source
 
+    conditional_logistic = nbformat.read(NOTEBOOKS[11], as_version=4)
+    source = "\n".join(cell.source for cell in conditional_logistic.cells)
+    for required in [
+        "conditional-logistic-v0.1.json",
+        "matched-logistic-test-data.csv",
+        "scipy.optimize",
+        "logsumexp",
+        "trust-exact",
+        "row-order invariance",
+        "matched-set-label invariance",
+        "browser candidate",
+    ]:
+        assert required in source
+
+    space_time_cluster = nbformat.read(NOTEBOOKS[12], as_version=4)
+    source = "\n".join(cell.source for cell in space_time_cluster.cells)
+    for required in [
+        "space-time-cluster-synthetic-v0.1.json",
+        "space-time-cluster-synthetic-v0.1.csv",
+        "haversine",
+        "MAXCASEFRACTION",
+        "row-order invariance",
+        "pValue",
+        "Monte Carlo",
+        "mulberry32",
+        "maximum-statistic adjustment",
+        "monteCarloExceedances",
+        "1398600",
+        "0.013",
+        "EPIAI CLUSTER RENDER",
+    ]:
+        assert required in source
+
+
+def verify_space_time_cluster_fixture() -> None:
+    fixture = json.loads(SPACE_TIME_CLUSTER_FIXTURE.read_text(encoding="utf-8"))
+    data = SPACE_TIME_CLUSTER_DATA.read_bytes()
+    assert hashlib.sha256(data).hexdigest() == fixture["dataset"]["sha256"]
+    rows = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    assert len(rows) == fixture["dataset"]["recordCount"] == 30
+    planted = fixture["plantedCluster"]
+    assert planted["caseIds"] == [f"P{index:03d}" for index in range(13, 25)]
+    assert planted["start"] == "2026-01-10"
+    assert planted["end"] == "2026-01-14"
+    inference = fixture["expectedInference"]
+    assert inference["randomGenerator"] == "mulberry32-v1"
+    assert inference["replications"] == 999
+    assert inference["seed"] == 20260916
+    assert inference["work"] == 1_398_600
+    assert inference["topCluster"]["monteCarloExceedances"] == 12
+    assert inference["topCluster"]["pValue"] == 0.013
+    assert fixture["execution"] == "candidate-preview"
 
 def verify_stratified_operational_fixture() -> None:
     fixture = json.loads(STRATIFIED_OPERATIONAL_FIXTURE.read_text(encoding="utf-8"))
@@ -284,6 +341,28 @@ def verify_match_contract() -> None:
     assert len(included) == fixture["expected"]["included"]["sets"] == 7
     assert (b, c) == (3, 2)
     assert b / c == fixture["expected"]["matchedOddsRatio"]["value"] == 1.5
+
+
+def verify_conditional_logistic_contract() -> None:
+    fixture = json.loads(CONDITIONAL_LOGISTIC_FIXTURE.read_text(encoding="utf-8"))
+    data = (REPOSITORY / fixture["stressDataset"]["file"]).read_bytes()
+    normalized_data = data.replace(b"\r\n", b"\n")
+    assert hashlib.sha256(normalized_data).hexdigest() == fixture["stressDataset"]["normalizedSha256"]
+    source = list(csv.DictReader(data.decode("utf-8-sig").splitlines()))
+    spec = fixture["stressDataset"]
+    records = [row for row in source if row[spec["iterationField"]] == str(spec["iterationValue"])]
+    sets: dict[str, list[dict[str, str]]] = {}
+    for record in records:
+        sets.setdefault(record[spec["matchField"]], []).append(record)
+    assert len(records) == spec["records"] == 300
+    assert len(sets) == spec["sets"] == 100
+    assert all(len(members) == spec["membersPerSet"] == 3 for members in sets.values())
+    assert all(sum(int(member[spec["outcomeField"]]) for member in members) == 1 for members in sets.values())
+    paired = fixture["pairedIdentity"]
+    b, c = paired["discordantCaseExposed"], paired["discordantControlExposed"]
+    assert math.isclose(math.log(b / c), paired["coefficient"], abs_tol=1e-15, rel_tol=0)
+    assert math.isclose(math.sqrt(1 / b + 1 / c), paired["standardError"], abs_tol=1e-15, rel_tol=0)
+    assert b / c == paired["oddsRatio"] == 1.625
 
 
 def verify_chi_square_trend() -> None:
@@ -466,6 +545,8 @@ if __name__ == "__main__":
     verify_cohort()
     verify_unmatched()
     verify_match_contract()
+    verify_conditional_logistic_contract()
+    verify_space_time_cluster_fixture()
     verify_chi_square_trend()
     verify_foodborne_tables()
     verify_foodborne_tables_adjusted()

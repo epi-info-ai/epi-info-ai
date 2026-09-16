@@ -572,6 +572,8 @@ test("Enter Data previews and safely rejects a blind repeat-file append", async 
   const dialog = page.getByRole("dialog", { name: "Preview Data Import" });
   await expect(dialog.locator("#data-import-preview-new")).toHaveText("96");
   await expect(dialog.locator("#data-import-preview-key")).toHaveValue("id");
+  await expect(dialog.locator("#data-import-preview-key option")).toHaveCount(2);
+  expect(await dialog.locator("#data-import-preview-key option").evaluateAll((options) => options.map((option) => option.value))).toEqual(["", "id"]);
   await applyDataImportPreview(page);
   await expect(page.locator("#record-count")).toHaveText("(96)");
 
@@ -586,6 +588,18 @@ test("Enter Data previews and safely rejects a blind repeat-file append", async 
   await dialog.getByRole("button", { name: "Apply Import" }).click();
   await expect(page.locator("#record-count")).toHaveText("(96)");
   await expect(page.locator("#csv-status")).toContainText("appended 0 new and ignored 96 matching");
+});
+
+test("MATCH workbook import offers UID as its only record matching key", async ({ page }) => {
+  const file = "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx";
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#form-csv-import").setInputFiles(file);
+  await expect(page.locator("#csv-form-status")).toContainText("Created 121 fields");
+  await page.locator("#designer-enter-data").click();
+  await page.locator("#csv-import").setInputFiles(file);
+  const dialog = page.getByRole("dialog", { name: "Preview Data Import" });
+  await expect(dialog.locator("#data-import-preview-key")).toHaveValue("uid");
+  expect(await dialog.locator("#data-import-preview-key option").evaluateAll((options) => options.map((option) => option.value))).toEqual(["", "uid"]);
 });
 
 test("Data Packager creates an authenticated package and reviews it before import", async ({ page }) => {
@@ -1090,6 +1104,28 @@ test("MATCH revival authors and executes the bounded 1:1 paired analysis", async
   await expect(page.locator("#classic-program-history")).toContainText("MATCH included 7 of 10 sets");
 });
 
+test("EPIAI CLUSTER runs in a Worker and renders its named result inline", async ({ page }) => {
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("Created 6 fields and imported 30 records");
+  await page.locator('[data-module="classic"]').click();
+  await page.locator("#classic-program-toolbar-open").click();
+  await expect(page.locator("#classic-program-example")).toHaveValue("space-time-cluster-command-tour");
+  await page.locator("#classic-program-load-example").click();
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("EPIAI CLUSTER RENDER RESULT=FeverRashClusters");
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 2 commands in source order", { timeout: 60_000 });
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(2);
+  const rendered = page.locator("#classic-sequential-output-body .classic-sequential-command").nth(1);
+  await expect(rendered).toContainText("Rendered 10 ranked windows inline");
+  await expect(rendered.locator(".classic-cluster-map")).toBeVisible();
+  await expect(rendered.locator(".classic-cluster-window")).toHaveCount(10);
+  await expect(rendered.locator(".classic-cluster-window.significant")).not.toHaveCount(0);
+  await expect(rendered.locator(".classic-cluster-location")).not.toHaveCount(0);
+  await expect(page.locator("#classic-program-history")).toContainText("without rerunning inference");
+});
+
 test("MATCH teaching workbook exposes and runs a dataset-bound multi-command tour", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
@@ -1102,19 +1138,26 @@ test("MATCH teaching workbook exposes and runs a dataset-bound multi-command tou
   await expect(page.locator(".classic-program-examples")).toBeVisible();
   await expect(page.locator("#classic-program-example option")).toHaveCount(3);
   await expect(page.locator("#classic-program-example")).toHaveValue("matched-case-control-command-tour");
-  await expect(page.locator("#classic-program-example-description")).toContainText("LIST, FREQ, TABLES, and the bounded 1:1 MATCH");
+  await expect(page.locator("#classic-program-example-description")).toContainText("completeness and descriptive statistics");
   await page.locator("#classic-program-load-example").click();
-  await expect(page.locator("#classic-program-source .cm-content")).toContainText("LIST matched_pairs caco pb");
-  await expect(page.locator("#classic-program-source .cm-content")).toContainText("MATCH pb caco MATCHVAR=matched_pairs");
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("EPIAI QUALITY *");
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("MATCH anychkn caco MATCHVAR=matched_pairs");
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("LOGISTIC caco = anychkn age MATCHVAR=matched_pairs");
   await page.locator("#classic-program-run").click();
-  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 4 commands in source order");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(4);
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(0)).toHaveText("LIST matched_pairs caco pb");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(1)).toHaveText("FREQ caco");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(2)).toHaveText("TABLES pb caco");
-  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command code").nth(3)).toHaveText("MATCH pb caco MATCHVAR=matched_pairs");
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 9 commands in source order");
+  await expect(page.locator("#classic-sequential-output-body .classic-sequential-command")).toHaveCount(9);
+  const commandOutputs = page.locator("#classic-sequential-output-body .classic-sequential-command > header > code");
+  await expect(commandOutputs.nth(0)).toHaveText("EPIAI QUALITY *");
+  await expect(commandOutputs.nth(1)).toHaveText("LIST uid matched_pairs caco age anychkn");
+  await expect(commandOutputs.nth(2)).toHaveText("FREQ caco");
+  await expect(commandOutputs.nth(3)).toHaveText("FREQ matched_pairs");
+  await expect(commandOutputs.nth(4)).toHaveText("FREQ anychkn");
+  await expect(commandOutputs.nth(5)).toHaveText("MEANS age");
+  await expect(commandOutputs.nth(6)).toHaveText("TABLES anychkn caco");
+  await expect(commandOutputs.nth(7)).toHaveText("MATCH anychkn caco MATCHVAR=matched_pairs");
+  await expect(commandOutputs.nth(8)).toHaveText('LOGISTIC caco = anychkn age MATCHVAR=matched_pairs TITLETEXT="Illustrative chicken exposure model adjusted for age"');
   await expect(page.locator("#classic-match-output")).toBeVisible();
-  await expect(page.locator("#classic-match-output-summary")).toContainText("60 complete 1:1 matched sets; 5 sets (10 records) were excluded");
+  await expect(page.locator("#classic-match-output-summary")).toContainText("57 complete 1:1 matched sets; 8 sets (16 records) were excluded");
   await expect(page.locator("#classic-match-review-fingerprints")).toContainText("Aggregate result:");
   await page.locator("#classic-match-reviewer").fill("Field reviewer 01");
   await page.locator("#classic-match-review-disposition").selectOption("agrees-with-legacy");
@@ -1130,13 +1173,17 @@ test("MATCH teaching workbook exposes and runs a dataset-bound multi-command tou
   expect(reviewEvidence.kind).toBe("epi-info-ai.match-review");
   expect(reviewEvidence.review).toMatchObject({ reviewer: "Field reviewer 01", disposition: "agrees-with-legacy", parityEffect: "candidate-agreement" });
   expect(reviewEvidence.context.dataset.sha256).toBe("c35fdc3a8d7f6549533a824f0e4a68eb338c8c258656c56fd257430e3f3d0e48");
-  expect(reviewEvidence.execution.command).toBe("MATCH pb caco MATCHVAR=matched_pairs");
-  expect(reviewEvidence.aggregateResult.totals).toMatchObject({ sourceRecords: 130, includedSets: 60, excludedSets: 5 });
+  expect(reviewEvidence.execution.command).toBe("MATCH anychkn caco MATCHVAR=matched_pairs");
+  expect(reviewEvidence.aggregateResult.totals).toMatchObject({ sourceRecords: 130, includedSets: 57, excludedSets: 8 });
   expect(reviewEvidence.aggregateResult.exclusions.sets).toBeUndefined();
   expect(reviewEvidence.fingerprints.commandSha256).toMatch(/^[a-f0-9]{64}$/);
   expect(reviewEvidence.fingerprints.aggregateResultSha256).toMatch(/^[a-f0-9]{64}$/);
   await expect(page.locator("#classic-match-review-status")).toContainText("parity status was not changed automatically");
-  await expect(page.locator("#classic-program-history-count")).toHaveText("5");
+  await expect(page.locator("#classic-logistic-output")).toBeVisible();
+  await expect(page.locator("#classic-logistic-output-command")).toHaveText('LOGISTIC caco = anychkn age MATCHVAR=matched_pairs TITLETEXT="Illustrative chicken exposure model adjusted for age"');
+  await expect(page.locator("#classic-logistic-output-coefficients tr")).toHaveCount(2);
+  await expect(page.locator("#classic-logistic-output-fit")).toContainText("ConvergedYes");
+  await expect(page.locator("#classic-program-history-count")).toHaveText("10");
 });
 
 test("MATCH teaching workbook preserves the one-sided zero-cell infinity boundary", async ({ page }) => {
@@ -3827,7 +3874,12 @@ test("integrated project, foodborne, mapping, and MATCH examples are downloadabl
   expect((await matchCatalogResponse.json()).programs.map(({ id }) => id)).toContain("matched-case-control-command-tour");
   const matchTourResponse = await request.get("/examples/matched-case-control/matched-case-control-command-tour.pgm7");
   expect(matchTourResponse.ok()).toBe(true);
-  expect(await matchTourResponse.text()).toContain("TABLES pb caco\n\nMATCH pb caco MATCHVAR=matched_pairs");
+  const matchTour = await matchTourResponse.text();
+  expect(matchTour).toContain("TABLES anychkn caco\n\nMATCH anychkn caco MATCHVAR=matched_pairs");
+  expect(matchTour).toContain("LOGISTIC caco = anychkn age MATCHVAR=matched_pairs");
+  const matchDictionaryResponse = await request.get("/examples/matched-case-control/DATA_DICTIONARY.md");
+  expect(matchDictionaryResponse.ok()).toBe(true);
+  expect(await matchDictionaryResponse.text()).toContain("| `Matched pairs` | Matched-set identifier |");
 
   const matchedStressResponse = await request.get("/examples/matched-case-control/matched-logistic-test-data.csv");
   expect(matchedStressResponse.ok()).toBe(true);

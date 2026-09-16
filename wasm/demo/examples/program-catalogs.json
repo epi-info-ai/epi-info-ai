@@ -20,6 +20,11 @@
       "datasetId": "matched-pairs-no-discordance",
       "datasetSha256": "6caacb7d1af402569004aef1529959557f69fea2a0e9305aba9ee8a51e65cf85",
       "catalog": "matched-case-control/matched-pairs-no-discordance.programs.json"
+    },
+    {
+      "datasetId": "space-time-cluster-synthetic-v0.1",
+      "datasetSha256": "8eed0a8681415e9f055a219eb811a1c5252b405ca809904ed76c6e0cd74b818c",
+      "catalog": "cluster/space-time-cluster-synthetic-v0.1.programs.json"
     }
   ]
 }

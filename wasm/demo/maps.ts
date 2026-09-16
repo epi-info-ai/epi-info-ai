@@ -18,6 +18,7 @@ import type {
   TimeLapseStop,
 } from "../app/contracts/maps.js";
 import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectMapAsset, ProjectMapLayer, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
+import type { SpaceTimeClusterInferenceResult } from "../app/programming/epi-ai-space-time-cluster-analysis.js";
 import {
   openBrowserPmtiles,
   pmtilesRasterMimeType,
@@ -1318,6 +1319,66 @@ function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler):
     : "No valid coordinates were found in the selected fields.";
   lastBounds = points.length > 0 ? L.latLngBounds(points) : null;
   if (lastBounds?.isValid()) map.fitBounds(lastBounds.pad(0.18), { maxZoom: 15 });
+}
+
+export function renderSpaceTimeClusterResult(
+  result: SpaceTimeClusterInferenceResult,
+  projectName: string,
+  formName: string,
+): void {
+  ensureMap();
+  closeTimeLapse(false);
+  recordLayer.clearLayers();
+  activeData = null;
+  activeRecordPoints = [];
+  activeRecordOpenHandler = null;
+  lastBounds = L.latLngBounds([]);
+  const rendered = result.clusters.slice(0, 10);
+  for (const cluster of [...rendered].reverse()) {
+    const significant = cluster.pValue !== null && cluster.pValue <= 0.05;
+    const color = significant ? "#9f221b" : "#a15c00";
+    const circle = L.circle([cluster.center.latitude, cluster.center.longitude], {
+      pane: "epi-polygon-pane",
+      radius: cluster.radiusKm * 1000,
+      color,
+      weight: cluster.rank === 1 ? 3 : 2,
+      fillColor: significant ? "#df291e" : "#f0a202",
+      fillOpacity: cluster.rank === 1 ? 0.2 : 0.08,
+    });
+    const popup = document.createElement("div");
+    const heading = document.createElement("strong");
+    heading.textContent = `Cluster rank ${cluster.rank}`;
+    const detail = document.createElement("p");
+    detail.textContent = `${cluster.start} to ${cluster.end}; observed ${cluster.observed}, expected ${cluster.expected.toFixed(2)}, p ${cluster.pValue === null ? "not calculated" : cluster.pValue.toFixed(4)}.`;
+    popup.append(heading, detail);
+    circle.bindPopup(popup).addTo(recordLayer);
+    lastBounds.extend(circle.getBounds());
+  }
+  const top = rendered[0];
+  for (const point of top?.memberPoints ?? []) {
+    const marker = L.circleMarker([point.latitude, point.longitude], {
+      pane: "epi-point-pane", radius: Math.min(12, 4 + Math.sqrt(point.cases) * 2),
+      color: "#7f1d1d", weight: 2, fillColor: "#dc2626", fillOpacity: 0.9,
+    });
+    const popup = document.createElement("div");
+    const heading = document.createElement("strong");
+    heading.textContent = "Top-cluster location";
+    const detail = document.createElement("p");
+    detail.textContent = `${point.cases} case${point.cases === 1 ? "" : "s"}; ${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}.`;
+    popup.append(heading, detail);
+    marker.bindPopup(popup).addTo(recordLayer);
+    lastBounds.extend([point.latitude, point.longitude]);
+  }
+  setMapHeading({ projectName, formName, formId: "cluster-result", fields: [], records: [] });
+  requiredElement("#map-record-layer-name").textContent = `Detected clusters: ${result.plan.resultName}`;
+  requiredElement("#map-point-count").textContent = String(rendered.length);
+  caseClusterAdded = rendered.length > 0;
+  refreshMapEmptyState();
+  updateLayerCount();
+  requiredElement("#map-status").textContent = rendered.length
+    ? `Rendered ${rendered.length} ranked cluster window${rendered.length === 1 ? "" : "s"}; markers show aggregate locations in the top-ranked window.`
+    : `Named result ${result.plan.resultName} contains no cluster windows to render.`;
+  if (lastBounds.isValid()) map.fitBounds(lastBounds.pad(0.12), { maxZoom: 14 });
 }
 
 function captureLocation() {

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "operation": "epi.logistic.conditional",
+  "candidateVersion": "classic-conditional-logistic-v0.1.0",
+  "status": "browser-candidate-independent-validation-pending",
+  "command": "LOGISTIC CASE = INDEPVAR1 INDEPVAR2 MATCHVAR=GROUPID",
+  "pairedIdentity": {
+    "discordantCaseExposed": 13,
+    "discordantControlExposed": 8,
+    "coefficient": 0.4855078157817008,
+    "standardError": 0.4493585171364586,
+    "oddsRatio": 1.625
+  },
+  "stressDataset": {
+    "file": "wasm/demo/examples/matched-case-control/matched-logistic-test-data.csv",
+    "normalizedSha256": "eb9887feacad1dc2a22150c1e9db0cd427687c8be59b3943d14591082e142103",
+    "iterationField": "ITERATION",
+    "iterationValue": 0,
+    "matchField": "GROUPID",
+    "outcomeField": "CASE",
+    "predictorFields": ["INDEPVAR1", "INDEPVAR2"],
+    "records": 300,
+    "sets": 100,
+    "membersPerSet": 3
+  },
+  "candidateExpected": {
+    "coefficients": [
+      {
+        "field": "INDEPVAR1",
+        "coefficient": 0.5922928773537212,
+        "standardError": 0.2490850530566782,
+        "oddsRatio": 1.808129485250308,
+        "lower95": 1.1097060320692818,
+        "upper95": 2.946124596020427
+      },
+      {
+        "field": "INDEPVAR2",
+        "coefficient": -0.0037802994457683033,
+        "standardError": 0.011663324117552384,
+        "oddsRatio": 0.9962268368908529,
+        "lower95": 0.9737117198559955,
+        "upper95": 1.0192625705361054
+      }
+    ],
+    "fit": {
+      "converged": true,
+      "logLikelihood": -106.91268772181017,
+      "nullLogLikelihood": -109.86122886681082,
+      "likelihoodRatio": 5.897082290001293,
+      "degreesOfFreedom": 2
+    },
+    "totals": {
+      "sourceRecords": 300,
+      "includedRecords": 300,
+      "includedSets": 100,
+      "excludedRecords": 0,
+      "excludedSets": 0
+    }
+  },
+  "tolerance": {
+    "coefficient": 1e-8,
+    "standardError": 1e-7,
+    "oddsRatio": 1e-8,
+    "logLikelihood": 1e-8,
+    "likelihoodRatio": 1e-8
+  }
+}

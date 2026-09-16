@@ -143,7 +143,12 @@ export const CLASSIC_COMMAND_PARITY: readonly ClassicCommandParityEntry[] = [
   entry("statistics", "map", "Map", "MAP", { explorer: "legacy-enum-only" }),
 
   entry("advanced-statistics", "linear-regression", "LinearRegression", "REGRESS"),
-  entry("advanced-statistics", "logistic-regression", "LogisticRegression", "LOGISTIC"),
+  entry("advanced-statistics", "logistic-regression", "LogisticRegression", "LOGISTIC", {
+    parser: "syntax-v1.0", selectedExecution: "executes-v0.1", fullProgramExecution: "bounded-component-v0.1", browserPolicy: "adapt-required",
+    validationProgram: "wasm/demo/examples/matched-case-control/matched-case-control-command-tour.pgm7",
+    validationFixture: "wasm/demo/examples/matched-case-control/case-control-database-example.xlsx",
+    evidence: "The retained Epi Info 7 grammar and LogisticRegression dialog define outcome, terms, MATCHVAR, WEIGHTVAR, TITLETEXT, PVALUE, OUTTABLE, LINKFUNCTION, and NOINTERCEPT syntax. Browser V0.1 executes only simple numeric/binary terms with one MATCHVAR through an explicit TypeScript conditional-likelihood kernel. Ordinary logistic regression, categorical expansion, interactions, weights, OUTTABLE, Rust/WASM migration, and desktop differential output remain fail-closed; status therefore remains not-started under the strict parity gate.",
+  }),
   entry("advanced-statistics", "kaplan-meier", "KaplanMeierSurvival", "KMSURVIVAL"),
   entry("advanced-statistics", "cox", "CoxProportionalHazards", "COXPH"),
   entry("advanced-statistics", "complex-frequencies", "ComplexSampleFrequencies", "FREQ", {

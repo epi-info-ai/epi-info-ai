@@ -1,13 +1,27 @@
 *** Epi Info AI matched case-control command tour
 *** Dataset: case-control-database-example.xlsx (130 records; 65 matched pairs)
-*** PB is incomplete in five pairs; MATCH reports those exclusions explicitly.
+*** The Epi Info 7 guide frames this as chicken consumption and illness.
+*** QUALITY and FREQ expose missing/non-binary AnyChkn values before MATCH.
+*** MATCH retains 57 analyzable pairs and reports eight excluded pairs.
 *** Browser-verified candidate; historical desktop field-user comparison pending.
-*** Run Commands executes all four commands in source order and retains each output.
+*** The final LOGISTIC command demonstrates adjusted conditional regression.
+*** Age is illustrative only; the original matching protocol was not recovered.
+*** Run Commands executes all nine commands in source order and retains each output.
 
-LIST matched_pairs caco pb
+EPIAI QUALITY *
+
+LIST uid matched_pairs caco age anychkn
 
 FREQ caco
 
-TABLES pb caco
+FREQ matched_pairs
 
-MATCH pb caco MATCHVAR=matched_pairs
+FREQ anychkn
+
+MEANS age
+
+TABLES anychkn caco
+
+MATCH anychkn caco MATCHVAR=matched_pairs
+
+LOGISTIC caco = anychkn age MATCHVAR=matched_pairs TITLETEXT="Illustrative chicken exposure model adjusted for age"

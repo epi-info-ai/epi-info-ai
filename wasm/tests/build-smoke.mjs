@@ -29,6 +29,10 @@ const requiredFiles = [
   "engine.js.map",
   "form-data.js",
   "form-data.js.map",
+  "cluster-worker.js",
+  "cluster-worker.js.map",
+  "cluster-worker-client.js",
+  "cluster-worker-client.js.map",
   "maps.js",
   "maps.js.map",
   "supabase-sync.js",
@@ -55,7 +59,12 @@ const requiredFiles = [
   "examples/foodborne/foodborne-dialog-tour.pgm7",
   "examples/foodborne/maps/city-of-toledo-neighborhoods.geojson",
   "examples/foodborne/maps/worldpop-toledo-population-density.tif",
+  "examples/cluster/README.md",
+  "examples/cluster/space-time-cluster-synthetic-v0.1.csv",
+  "examples/cluster/space-time-cluster-command-tour.pgm7",
+  "examples/cluster/space-time-cluster-synthetic-v0.1.programs.json",
   "examples/matched-case-control/README.md",
+  "examples/matched-case-control/DATA_DICTIONARY.md",
   "examples/matched-case-control/case-control-database-example.xlsx",
   "examples/matched-case-control/case-control-database-example.programs.json",
   "examples/matched-case-control/matched-case-control-command-tour.pgm7",
@@ -87,6 +96,9 @@ const requiredFiles = [
   "validation-fixtures/unmatched-case-control-v0.14.json",
   "validation-fixtures/matched-pairs-contract-v0.1.json",
   "validation-fixtures/matched-pairs-boundaries-v0.1.json",
+  "validation-fixtures/conditional-logistic-v0.1.json",
+  "validation-fixtures/space-time-cluster-synthetic-v0.1.json",
+  "validation-fixtures/space-time-cluster-synthetic-v0.1.csv",
   "validation-fixtures/chi-square-trend-v0.15.json",
   "validation-fixtures/foodborne-tables-stratified-v0.3.json",
   "validation-fixtures/foodborne-tables-unstratified-v0.3.json",
@@ -113,7 +125,7 @@ assert.equal(createHash("sha256").update(engineBytes).digest("hex"), engineManif
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
-assert.match(html, /src=["']app\.js\?v=108["']/);
+assert.match(html, /src=["']app\.js\?v=110["']/);
 assert.match(html, /href=["']styles\.css\?v=62["']/);
 assert.match(html, /id=["']teaching-repository-dialog["']/);
 assert.match(html, /id=["']study-area-dialog["']/);

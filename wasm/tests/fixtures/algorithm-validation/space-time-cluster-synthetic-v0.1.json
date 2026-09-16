@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "0.1.0",
+  "state": "synthetic-plan-fixture",
+  "generator": {
+    "id": "epi-info-ai-space-time-cluster-hand-fixture",
+    "version": "0.1.0",
+    "seed": 20260916,
+    "containsRealPatientData": false
+  },
+  "dataset": {
+    "file": "space-time-cluster-synthetic-v0.1.csv",
+    "sha256": "8eed0a8681415e9f055a219eb811a1c5252b405ca809904ed76c6e0cd74b818c",
+    "recordCount": 30,
+    "eligibleRecordCount": 30,
+    "distinctLocationCount": 6,
+    "studyStart": "2026-01-01",
+    "studyEnd": "2026-01-28"
+  },
+  "fields": {
+    "id": "case_id",
+    "date": "event_date",
+    "latitude": "latitude",
+    "longitude": "longitude"
+  },
+  "plantedCluster": {
+    "locationIds": ["N1", "N2"],
+    "start": "2026-01-10",
+    "end": "2026-01-14",
+    "caseIds": ["P013", "P014", "P015", "P016", "P017", "P018", "P019", "P020", "P021", "P022", "P023", "P024"]
+  },
+  "command": "EPIAI CLUSTER SPACE_TIME ID=case_id DATE=event_date LATITUDE=latitude LONGITUDE=longitude RESULT=FeverRashClusters START=2026-01-01 END=2026-01-28 UNIT=DAY LENGTH=1 MAXDISTANCEKM=5 MAXCASEFRACTION=0.5 MAXTIMEUNITS=7 MAXTIMEFRACTION=0.5 REPLICATIONS=999 SEED=20260916",
+  "execution": "candidate-preview",
+  "expectedInference": {
+    "engineVersion": "space-time-cluster-scoring-v0.2.0",
+    "randomGenerator": "mulberry32-v1",
+    "replications": 999,
+    "seed": 20260916,
+    "work": 1398600,
+    "topCluster": {
+      "observed": 12,
+      "expected": 5.6,
+      "logLikelihoodRatio": 3.6698758853089153,
+      "monteCarloExceedances": 12,
+      "pValue": 0.013
+    }
+  },
+  "notes": [
+    "The planted cluster and frozen seeded inference are candidate acceptance targets, not validated epidemiologic results.",
+    "The browser exposes a visibly labeled candidate preview; differential evidence and epidemiologist review remain required before validation or parity claims."
+  ]
+}

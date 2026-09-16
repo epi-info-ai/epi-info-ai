@@ -74,6 +74,8 @@ GitLab CI and GitHub Actions build and publish the same complete JupyterLite lab
 
 | Validation notebook | GitLab Pages | GitHub Pages |
 | --- | --- | --- |
+| Space-Time Cluster Detection inference V0.3 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-space-time-cluster.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-space-time-cluster.ipynb) |
+| Conditional LOGISTIC V0.1 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-conditional-logistic.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-conditional-logistic.ipynb) |
 | MATCH paired-analysis contract | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-match.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-match.ipynb) |
 | TABLES V0.11 + Complex Samples | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-tables.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-tables.ipynb) |
 | Chi Square for Trend | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-chi-square-trend.ipynb) |
@@ -322,7 +324,7 @@ project has:
   Tables, Frequencies, and Means slices, including `PSUVAR`, survey variance,
   design effects, `OUTTABLE`, session `READ`/`LIST`, fixtures, and independent
   notebook evidence;
-- grown the JupyterLite validation lab to eleven notebooks, all built and linked
+- grown the JupyterLite validation lab to twelve notebooks, all built and linked
   on both GitLab Pages and the public GitHub Pages mirror;
 - added Visual Dashboard Epi Curve and Rates slices, Data Quality missingness
   bars, type-aware validation, import preview and duplicate warnings, secure
@@ -652,20 +654,67 @@ The detailed cumulative changes and validation increments follow.
   locally imported teaching archives, uninstall/update/quota workflows, private
   repository identity, and a curated signed/revocable index.
 
-- **Add governed space-time cluster detection as a new branch.** Use the
-  open-source [SaTScan repository](https://github.com/scanstatistics/satscan)
-  as a reference implementation and interoperability target; perform a formal
-  license and architecture review before reusing its C/C++ implementation.
-  Define an
-  epidemiologically reviewed workflow for event date/time, point or area
-  location, population-at-risk/expected counts, study extent, temporal window,
-  and scanning parameters. Start with a named, independently reproducible
-  retrospective method; report observed/expected counts, relative risk,
-  statistical significance, uncertainty, exclusions, and parameter provenance.
-  Keep exploratory map animation distinct from inferential cluster detection,
-  protect precise locations in exports, support offline project map assets, and
-  require synthetic known-cluster fixtures plus independent validation before
-  enabling operational use. Do not present it as legacy command parity.
+- **Build governed Space-Time Cluster Detection as the active new branch.** The
+  proposed programming-language form is `EPIAI CLUSTER SPACE_TIME`; it does not
+  adopt the name of an external product. Use an established open-source
+  [scan-statistics implementation](https://github.com/scanstatistics/satscan)
+  only as an attributed differential reference and interoperability target. The
+  first bounded
+  [method contract](wasm/docs/validation/space-time-cluster-permutation-method-contract.md)
+  specifies retrospective, high-cluster, space-time permutation scanning for a
+  case line list, with explicit study/window parameters, deterministic
+  synthetic known-cluster fixtures, Monte Carlo provenance, an independent
+  JupyterLite oracle, and external differential evidence. The reference license
+  has attribution and same-license conditions, so no source is copied into the
+  Apache-2.0 core; any compiled reuse requires a separate architecture and
+  licensing decision. Keep exploratory map animation distinct from inferential
+  cluster detection, protect precise locations in exports, and do not present
+  this work as legacy command parity or parity with an external product.
+  The companion
+  [scientific Python reference inventory](wasm/docs/design/spatial-clustering-reference-inventory.md)
+  uses SciPy, scikit-learn, and PySAL as additional, independently labeled
+  design, synthetic-data, and validation inputs rather than treating every
+  clustering method as the same epidemiologic analysis.
+  The typed AST and resolver canonicalize and validate all required fields,
+  named result, study/window bounds, replication count, and seed. Deterministic
+  V0.2 candidate enumeration reconstructs spatial/time margins, expected
+  counts, high-cluster likelihood scores, and map-ready center/radius/member
+  geometry. Its checksummed 30-case fixture correctly ranks the planted
+  two-location, five-day window first. The V0.3 inference candidate now uses a
+  recorded `mulberry32-v1` seed, preserves observed margins, compares against
+  each replication's maximum scan statistic, and freezes 12 exceedances from
+  999 replications (`p=0.013`). Row-order reproducibility and a 25-million
+  candidate-evaluation ceiling are tested. The independent JupyterLite source now reimplements the random
+  stream, shuffle, complete null scan, and frozen p-value; its published Run All
+  output remains a gate. V0.4 now isolates the complete inference in a dedicated
+  Worker with bounded progress messages, AbortSignal and explicit cancellation,
+  stale-instance rejection, a visible-failure timeout, and final-result-only
+  resolution. The Program Editor now exposes an explicitly labeled candidate
+  preview with replication progress, elapsed time, cancellation, aggregate-only
+  Output/history, and a locally named result. This is not a validation or parity
+  claim. A later
+  `EPIAI CLUSTER RENDER RESULT=...` operation will display
+  a named result without overloading the retained legacy `MAP` command.
+
+- **Resume governed patient record linkage after its upstream license metadata
+  is reconciled.** Treat
+  `RECORDLINK` as a new branch distinct from the legacy statistical `MATCH`
+  command. The
+  [end-to-end synthetic demo and validation plan](wasm/docs/design/recordlink-demo-and-validation-plan.md)
+  uses known truth links so candidate generation, classification, clerical
+  review, person clustering, and final outputs can be measured without real
+  patient data. Use the authorized
+  [`pt_matching_app`](https://github.com/jkariuki7/pt_matching_app) workflow at
+  pinned commit `0097d8c406437c2f2980caab279c0f4ca28a03dc` as design and test input:
+  source mapping and harmonization, candidate blocking, explainable comparison
+  scores, classification, clerical review, conflict-aware person clusters, and
+  reviewed `MERGE`/deduplicated outputs. Keep record values local, bound every
+  candidate set, preserve human decisions and provenance in history, and test
+  against synthetic truth links. Permission to use the upstream has been
+  confirmed by its owner, and the pinned commit adds a root Apache-2.0
+  `LICENSE`. Its `pyproject.toml` still declares `Proprietary`; reconcile that
+  contradictory package metadata before copying or redistributing source or
+  fixtures. This does not block Space-Time Cluster Detection.
 
 - **Complete field-user validation and expand `MATCH` without lowering the parity floor.** The
   [source and dataset inventory](wasm/docs/research/match-command-sources-and-data.md)
@@ -870,3 +919,10 @@ The detailed cumulative changes and validation increments follow.
 - Complete legacy Epi Info and independent review of the Phase 5 V0.4 confidence
   intervals, exact tails, conditional odds ratios, and exact limits; the browser now
   obtains those results from Rust/WASM, but the registry remains `candidate`.
+
+## License
+
+Epi Info AI is licensed under the [Apache License 2.0](LICENSE). Third-party
+dependencies, vendored assets, reference materials, datasets, and the optional
+Epi Info Community Edition submodule retain their own licenses and attribution
+requirements; the project license does not replace those terms.

@@ -165,6 +165,23 @@ export interface ClassicMatchStatement extends ClassicNode {
   settings: Array<{ name: string; value: string }>;
 }
 
+export interface ClassicLogisticTerm {
+  factors: Array<{ field: ClassicIdentifier; categorical: boolean }>;
+}
+
+export interface ClassicLogisticStatement extends ClassicNode {
+  type: "LogisticStatement";
+  outcome: ClassicIdentifier;
+  terms: ClassicLogisticTerm[];
+  matchBy?: ClassicIdentifier;
+  weightBy?: ClassicIdentifier;
+  title?: string;
+  confidenceLevel?: number;
+  outputTable?: ClassicIdentifier;
+  linkFunction?: "LOG";
+  noIntercept: boolean;
+}
+
 export interface ClassicMeansStatement extends ClassicNode {
   type: "MeansStatement";
   field: ClassicIdentifier;
@@ -203,6 +220,30 @@ export type ClassicSetStatement = ClassicNode & ({
 
 export interface EpiAiQualityStatement extends ClassicNode {
   type: "EpiAiQualityStatement";
+}
+
+export interface EpiAiSpaceTimeClusterStatement extends ClassicNode {
+  type: "EpiAiSpaceTimeClusterStatement";
+  idField: ClassicIdentifier;
+  dateField: ClassicIdentifier;
+  latitudeField: ClassicIdentifier;
+  longitudeField: ClassicIdentifier;
+  resultName: ClassicIdentifier;
+  studyStart: string;
+  studyEnd: string;
+  timeUnit: "DAY" | "WEEK" | "MONTH";
+  timeLength: number;
+  maxDistanceKm: number;
+  maxCaseFraction: number;
+  maxTimeUnits: number;
+  maxTimeFraction: number;
+  replications: number;
+  seed: number;
+}
+
+export interface EpiAiClusterRenderStatement extends ClassicNode {
+  type: "EpiAiClusterRenderStatement";
+  resultName: ClassicIdentifier;
 }
 
 export interface FileConvertStatement extends ClassicNode {
@@ -348,6 +389,7 @@ export type ClassicStatement =
   | ClassicListStatement
   | ClassicTablesStatement
   | ClassicMatchStatement
+  | ClassicLogisticStatement
   | ClassicMeansStatement
   | ClassicSummarizeStatement
   | ClassicGraphStatement
@@ -360,6 +402,8 @@ export type ClassicStatement =
   | ClassicBeepStatement
   | ClassicSetStatement
   | EpiAiQualityStatement
+  | EpiAiSpaceTimeClusterStatement
+  | EpiAiClusterRenderStatement
   | FileConvertStatement
   | ClassicDefineStatement
   | ClassicDefineGroupStatement
@@ -710,6 +754,7 @@ class ProgramParser {
     if (command === "LIST") return this.list(line, rest);
     if (command === "TABLES") return this.tables(line, rest);
     if (command === "MATCH") return this.match(line, rest);
+    if (command === "LOGISTIC") return this.logistic(line, rest);
     if (command === "MEANS") return this.means(line, rest);
     if (command === "SUMMARIZE") return this.summarize(line, rest);
     if (command === "GRAPH") return this.graph(line, rest);
@@ -845,11 +890,64 @@ class ProgramParser {
     return { type: "BeepStatement", span: lineSpan(line) };
   }
 
-  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement {
+  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement | EpiAiSpaceTimeClusterStatement | EpiAiClusterRenderStatement {
     const tokens = words(rest);
-    if (tokens[0]?.toUpperCase() !== "QUALITY") throw new ClassicSyntaxError(line.line, 1, "This new-branch AST slice supports EPIAI QUALITY only.");
-    if (tokens.length === 2 && tokens[1] === "*") return { type: "EpiAiQualityStatement", span: lineSpan(line) };
-    throw new ClassicSyntaxError(line.line, 1, "This bounded new branch uses EPIAI QUALITY * only.");
+    if (tokens[0]?.toUpperCase() === "QUALITY") {
+      if (tokens.length === 2 && tokens[1] === "*") return { type: "EpiAiQualityStatement", span: lineSpan(line) };
+      throw new ClassicSyntaxError(line.line, 1, "This bounded new branch uses EPIAI QUALITY * only.");
+    }
+    if (tokens[0]?.toUpperCase() === "CLUSTER" && tokens[1]?.toUpperCase() === "RENDER") {
+      if (tokens.length !== 3) throw new ClassicSyntaxError(line.line, 1, "EPIAI CLUSTER RENDER requires exactly RESULT=name.");
+      const result = optionValue(tokens, 2, line);
+      if (result.key !== "RESULT" || result.next !== tokens.length) throw new ClassicSyntaxError(line.line, 1, "EPIAI CLUSTER RENDER requires exactly RESULT=name.");
+      return { type: "EpiAiClusterRenderStatement", resultName: identifier(result.value, line), span: lineSpan(line) };
+    }
+    if (tokens[0]?.toUpperCase() !== "CLUSTER" || tokens[1]?.toUpperCase() !== "SPACE_TIME") {
+      throw new ClassicSyntaxError(line.line, 1, "This new-branch AST slice supports EPIAI QUALITY, EPIAI CLUSTER SPACE_TIME, and EPIAI CLUSTER RENDER.");
+    }
+    const settings = new Map<string, string>();
+    let cursor = 2;
+    while (cursor < tokens.length) {
+      const parsed = optionValue(tokens, cursor, line);
+      cursor = parsed.next;
+      if (settings.has(parsed.key)) throw new ClassicSyntaxError(line.line, 1, `EPIAI CLUSTER SPACE_TIME repeats ${parsed.key}.`);
+      settings.set(parsed.key, parsed.value);
+    }
+    const allowed = new Set(["ID", "DATE", "LATITUDE", "LONGITUDE", "RESULT", "START", "END", "UNIT", "LENGTH", "MAXDISTANCEKM", "MAXCASEFRACTION", "MAXTIMEUNITS", "MAXTIMEFRACTION", "REPLICATIONS", "SEED"]);
+    for (const key of settings.keys()) if (!allowed.has(key)) throw new ClassicSyntaxError(line.line, 1, `Unsupported EPIAI CLUSTER SPACE_TIME option ${key}.`);
+    const required = (key: string): string => {
+      const value = settings.get(key);
+      if (value === undefined) throw new ClassicSyntaxError(line.line, 1, `EPIAI CLUSTER SPACE_TIME requires ${key}.`);
+      return value;
+    };
+    const finite = (key: string): number => {
+      const raw = required(key);
+      const value = Number(raw);
+      if (!Number.isFinite(value)) throw new ClassicSyntaxError(line.line, 1, `${key} must be a finite number.`);
+      return value;
+    };
+    const integer = (key: string): number => {
+      const value = finite(key);
+      if (!Number.isInteger(value)) throw new ClassicSyntaxError(line.line, 1, `${key} must be an integer.`);
+      return value;
+    };
+    const date = (key: string): string => {
+      const value = required(key);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) throw new ClassicSyntaxError(line.line, 1, `${key} must use YYYY-MM-DD.`);
+      return value;
+    };
+    const timeUnit = required("UNIT").toUpperCase();
+    if (!(["DAY", "WEEK", "MONTH"] as const).includes(timeUnit as "DAY" | "WEEK" | "MONTH")) throw new ClassicSyntaxError(line.line, 1, "UNIT must be DAY, WEEK, or MONTH.");
+    return {
+      type: "EpiAiSpaceTimeClusterStatement",
+      idField: identifier(required("ID"), line), dateField: identifier(required("DATE"), line),
+      latitudeField: identifier(required("LATITUDE"), line), longitudeField: identifier(required("LONGITUDE"), line),
+      resultName: identifier(required("RESULT"), line),
+      studyStart: date("START"), studyEnd: date("END"), timeUnit: timeUnit as "DAY" | "WEEK" | "MONTH",
+      timeLength: integer("LENGTH"), maxDistanceKm: finite("MAXDISTANCEKM"), maxCaseFraction: finite("MAXCASEFRACTION"),
+      maxTimeUnits: integer("MAXTIMEUNITS"), maxTimeFraction: finite("MAXTIMEFRACTION"),
+      replications: integer("REPLICATIONS"), seed: integer("SEED"), span: lineSpan(line),
+    };
   }
 
   private setOption(line: SourceLine, rest: string): ClassicSetStatement {
@@ -949,6 +1047,71 @@ class ProgramParser {
       }
     }
     return { type: "MatchStatement", selection, ...(weightBy ? { weightBy } : {}), matchBy, settings, span: lineSpan(line) };
+  }
+
+  private logistic(line: SourceLine, rest: string): ClassicLogisticStatement {
+    const assignment = rest.match(/^(\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_.]*)\s*=\s*(.+)$/);
+    if (!assignment) throw new ClassicSyntaxError(line.line, 1, "LOGISTIC requires LOGISTIC <outcome> = <term list> followed by optional settings.");
+    const outcome = identifier(assignment[1]!, line);
+    const right = assignment[2]!.trim();
+    const optionPattern = /(?:^|\s)(TITLETEXT|WEIGHTVAR|LINKFUNCTION|MATCHVAR|PVALUE|OUTTABLE)\s*=\s*|(?:^|\s)(NOINTERCEPT)(?=\s|$)/gi;
+    const optionMatches = [...right.matchAll(optionPattern)];
+    const termSource = right.slice(0, optionMatches[0]?.index ?? right.length).trim();
+    const termTokens = words(termSource);
+    if (!termTokens.length) throw new ClassicSyntaxError(line.line, 1, "LOGISTIC requires at least one independent-variable term.");
+    const terms: ClassicLogisticTerm[] = termTokens.map((termToken) => {
+      const factorTokens = termToken.split("*");
+      if (factorTokens.some((factor) => !factor.trim())) throw new ClassicSyntaxError(line.line, 1, `Invalid LOGISTIC interaction term ${JSON.stringify(termToken)}.`);
+      return {
+        factors: factorTokens.map((factorToken) => {
+          const categorical = factorToken.startsWith("(") && factorToken.endsWith(")");
+          const raw = categorical ? factorToken.slice(1, -1) : factorToken;
+          return { field: identifier(raw, line), categorical };
+        }),
+      };
+    });
+    let matchBy: ClassicIdentifier | undefined;
+    let weightBy: ClassicIdentifier | undefined;
+    let title: string | undefined;
+    let confidenceLevel: number | undefined;
+    let outputTable: ClassicIdentifier | undefined;
+    let linkFunction: "LOG" | undefined;
+    let noIntercept = false;
+    const seen = new Set<string>();
+    for (const [index, optionMatch] of optionMatches.entries()) {
+      const name = (optionMatch[1] ?? optionMatch[2])!.toUpperCase();
+      if (seen.has(name)) throw new ClassicSyntaxError(line.line, 1, `LOGISTIC option ${name} may appear only once.`);
+      seen.add(name);
+      if (name === "NOINTERCEPT") { noIntercept = true; continue; }
+      const start = optionMatch.index! + optionMatch[0].length;
+      const end = optionMatches[index + 1]?.index ?? right.length;
+      const value = right.slice(start, end).trim();
+      if (!value) throw new ClassicSyntaxError(line.line, 1, `LOGISTIC option ${name} requires a value.`);
+      if (name === "MATCHVAR") matchBy = identifier(value, line);
+      else if (name === "WEIGHTVAR") weightBy = identifier(value, line);
+      else if (name === "OUTTABLE") {
+        const values = words(value);
+        if (values.length !== 1) throw new ClassicSyntaxError(line.line, 1, "LOGISTIC OUTTABLE requires exactly one table name.");
+        outputTable = identifier(values[0]!, line);
+      }
+      else if (name === "TITLETEXT") {
+        const quoted = value.match(/^"((?:[^"]|"")*)"$/);
+        if (!quoted) throw new ClassicSyntaxError(line.line, 1, "LOGISTIC TITLETEXT requires one quoted string.");
+        title = quoted[1]!.replace(/""/g, '"');
+      } else if (name === "PVALUE") {
+        const normalized = value.endsWith("%") ? Number(value.slice(0, -1)) / 100 : Number(value);
+        if (!(normalized > 0 && normalized < 1)) throw new ClassicSyntaxError(line.line, 1, "LOGISTIC PVALUE must be a confidence proportion or percentage between zero and one hundred.");
+        confidenceLevel = normalized;
+      } else if (name === "LINKFUNCTION") {
+        if (value.toUpperCase() !== "LOG") throw new ClassicSyntaxError(line.line, 1, "The retained LOGISTIC LINKFUNCTION option accepts LOG only.");
+        linkFunction = "LOG";
+      }
+    }
+    return {
+      type: "LogisticStatement", outcome, terms, ...(matchBy ? { matchBy } : {}), ...(weightBy ? { weightBy } : {}),
+      ...(title !== undefined ? { title } : {}), ...(confidenceLevel !== undefined ? { confidenceLevel } : {}),
+      ...(outputTable ? { outputTable } : {}), ...(linkFunction ? { linkFunction } : {}), noIntercept, span: lineSpan(line),
+    };
   }
 
   private write(line: SourceLine, rest: string): ClassicWriteStatement {

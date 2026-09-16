@@ -271,14 +271,14 @@
     },
     {
       "operation": "epi.match.paired",
-      "resultSchemaVersion": "0.1.0",
+      "resultSchemaVersion": "0.2.0",
       "state": "candidate",
       "implementation": {
         "engineId": "epi-core-wasm",
         "engineVersion": "0.16.0",
         "source": "wasm/engine-rust/src/lib.rs"
       },
-      "gates": { "G0": "passed", "G1": "partial", "G2": "passed", "G3": "passed", "G4": "partial", "G5": "not-started", "G6": "partial" },
+      "gates": { "G0": "passed", "G1": "partial", "G2": "partial", "G3": "passed", "G4": "partial", "G5": "not-started", "G6": "partial" },
       "approvals": { "statistical": null, "implementation": null },
       "evidence": [
         "wasm/tests/fixtures/algorithm-validation/matched-pairs-contract-v0.1.json",
@@ -290,6 +290,56 @@
         "Collect and review experienced field-user and historical desktop workflow evidence.",
         "Expand variable-ratio, multiple-match-field, weighted, wildcard, retained-option, and OUTTABLE behavior under separate contracts.",
         "Complete the consolidated statistical and implementation review before any validated or legacy-parity claim."
+      ]
+    },
+    {
+      "operation": "epi.logistic.conditional",
+      "resultSchemaVersion": "0.1.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "classic-program-browser",
+        "engineVersion": "classic-conditional-logistic-v0.1.0",
+        "source": "wasm/app/programming/classic-logistic.ts"
+      },
+      "gates": { "G0": "passed", "G1": "partial", "G2": "passed", "G3": "passed", "G4": "partial", "G5": "not-started", "G6": "partial" },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/conditional-logistic-v0.1.json",
+        "wasm/docs/validation/conditional-logistic-method-contract.md",
+        "wasm/validation-lab/content/validate-conditional-logistic.ipynb",
+        "wasm/demo/examples/matched-case-control/matched-case-control-command-tour.pgm7"
+      ],
+      "knownGaps": [
+        "Migrate the reviewed TypeScript numerical kernel to Rust/WebAssembly.",
+        "Add categorical terms, interactions, weights, OUTTABLE, and ordinary logistic regression under separate explicit contracts.",
+        "Collect reviewed historical desktop Epi Info output and experienced-user workflow evidence.",
+        "Complete the consolidated statistical and implementation review before any validated or legacy-parity claim."
+      ]
+    },
+    {
+      "operation": "epi.cluster.spaceTime",
+      "resultSchemaVersion": "0.2.0",
+      "state": "experimental",
+      "implementation": {
+        "engineId": "classic-program-browser",
+        "engineVersion": "space-time-cluster-scoring-v0.2.0",
+        "source": "wasm/app/programming/epi-ai-space-time-cluster-analysis.ts"
+      },
+      "gates": { "G0": "passed", "G1": "partial", "G2": "partial", "G3": "partial", "G4": "not-started", "G5": "not-started", "G6": "not-started" },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv",
+        "wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json",
+        "wasm/docs/validation/space-time-cluster-permutation-method-contract.md",
+        "wasm/docs/design/spatial-clustering-reference-inventory.md",
+        "wasm/validation-lab/content/validate-space-time-cluster.ipynb",
+        "wasm/demo/examples/cluster/space-time-cluster-synthetic-v0.1.csv",
+        "wasm/demo/examples/cluster/space-time-cluster-command-tour.pgm7"
+      ],
+      "knownGaps": [
+        "Run the independent JupyterLite maximum-statistic Monte Carlo oracle through the published Run All path and archive its executed output.",
+        "Add external differential evidence before enabling execution.",
+        "Add explicit map result rendering, project persistence, and epidemiologist review."
       ]
     },
     {

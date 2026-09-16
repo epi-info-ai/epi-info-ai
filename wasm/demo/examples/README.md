@@ -8,6 +8,7 @@ this directory tree unchanged to GitLab Pages and GitHub Pages.
 |---|---|---|
 | [`foodborne/`](foodborne/) | Canonical outbreak-investigation demonstration and regression harness | Synthetic line list in CSV/XLSX, Program Editor tours, program catalog, Toledo neighborhood polygons, and WorldPop population-density raster |
 | [`matched-case-control/`](matched-case-control/) | `MATCH` revival and matched-analysis validation | Legacy 65-pair teaching workbook, scalable dataset-bound catalogs, command tours, hand-audit and zero-cell/no-discordance boundary data, and bounded executable MATCH programs |
+| [`cluster/`](cluster/) | New-branch Space-Time Cluster Detection demonstration | Synthetic 30-case line list, planted-cluster command tour, dataset-bound catalog, privacy boundary, and attributed external-data candidate |
 | [`projects/`](projects/) | Whole-project migration examples | Browser-native conversion of the legacy Epi Info Sample project |
 
 ## Organization rules

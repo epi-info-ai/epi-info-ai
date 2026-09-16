@@ -12,6 +12,31 @@ copy of the Community Edition sample workbook. Its main worksheet contains 130
 observations and 121 fields. `CaCo` contains 65 cases and 65 controls, and
 `Matched pairs` identifies 65 complete one-case/one-control sets.
 
+### Investigation context recovered from the Epi Info 7 guide
+
+The official Epi Info 7 Visual Dashboard guide uses this workbook as a
+pair-matched case-control study of chicken consumption and illness. It identifies
+`AnyChkn` as the exposure, `CaCo` as the case/control variable, and `Matched
+pairs` as the Pair Group ID. The worked output contains 57 analyzable pairs: 29
+with both members exposed, 13 with only the case exposed, eight with only the
+control exposed, and seven with neither exposed. See the archived
+[full Epi Info 7 User Guide](https://archive.cdc.gov/www_cdc_gov/epiinfo/pdfs/userguide/EI7Full.pdf)
+and the recovered
+[matched-pair source inventory](../../../docs/research/match-command-sources-and-data.md).
+
+The recovered material does not name a pathogen, outbreak, place, or study
+date. This example therefore describes only the documented chicken-consumption
+and illness question; it does not invent a more specific investigation story.
+
+### Data dictionary
+
+The workbook's 121 abbreviated legacy columns are described in the
+[data dictionary](DATA_DICTIONARY.md). It distinguishes meanings documented by
+the Epi Info guide from interpretations inferred from field names and observed
+values. Review it before selecting matching, outcome, or exposure variables;
+the original value labels and questionnaire skip rules have not yet been
+recovered.
+
 For the initial `PB` exposure exercise, 60 sets have complete binary exposure
 values and five otherwise valid sets are excluded because one or both exposure
 values are missing. Executable Output reports that distinction rather than
@@ -46,10 +71,18 @@ materialize CRLF line endings and therefore has a different byte digest.
 [`case-control-database-example.programs.json`](case-control-database-example.programs.json)
 binds the teaching workbook to the Program Editor example picker. Its
 [`matched-case-control-command-tour.pgm7`](matched-case-control-command-tour.pgm7)
-counterpart runs `LIST`, `FREQ`, `TABLES`, and `MATCH` together. This tests
-multi-command parsing, source-order execution, retained Output, and History on
-the same matched data used by the revival candidate. The example is offered
-only when the matching workbook fingerprint is loaded.
+counterpart first profiles data quality and descriptive statistics, then runs
+the original guide's `AnyChkn` matched-pair question. `QUALITY` reveals field
+completeness; frequencies verify case/control balance, two records per pair ID,
+and the missing or non-binary exposure codes; `MEANS` describes age; `TABLES`
+shows the unmatched cross-tabulation; `MATCH` applies the pair structure; and
+conditional `LOGISTIC` demonstrates a two-predictor model that preserves the
+matched sets. `Age` is included only to exercise adjusted-model mechanics. The
+unrecovered study protocol does not establish that age belongs in the
+substantive causal model.
+This tests multi-command parsing, source-order execution, retained Output, and
+History on the same matched data used by the revival candidate. The example is
+offered only when the matching workbook fingerprint is loaded.
 
 [`match-school-zero-cell.pgm7`](match-school-zero-cell.pgm7) exercises the
 workbook's `School` exposure. Among 29 complete pairs it produces `b=16`,

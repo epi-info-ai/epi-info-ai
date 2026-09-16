@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "dataset": {
+    "id": "space-time-cluster-synthetic-v0.1",
+    "file": "space-time-cluster-synthetic-v0.1.csv",
+    "sha256": "8eed0a8681415e9f055a219eb811a1c5252b405ca809904ed76c6e0cd74b818c",
+    "recordCount": 30,
+    "fieldTypes": {
+      "case_id": "text",
+      "event_date": "date",
+      "location_id": "text",
+      "latitude": "number",
+      "longitude": "number",
+      "syndrome": "text"
+    }
+  },
+  "programs": [
+    {
+      "id": "space-time-cluster-command-tour",
+      "title": "NEW BRANCH — Space-Time Cluster Detection command tour",
+      "description": "Runs the bounded case-only space-time permutation candidate with a planted five-day cluster, deterministic seed, Worker progress, cancellation, aggregate-only Output, and an inline result map.",
+      "requiredFields": ["case_id", "event_date", "latitude", "longitude"],
+      "source": "EPIAI CLUSTER SPACE_TIME ID=case_id DATE=event_date LATITUDE=latitude LONGITUDE=longitude RESULT=FeverRashClusters START=2026-01-01 END=2026-01-28 UNIT=DAY LENGTH=1 MAXDISTANCEKM=5 MAXCASEFRACTION=0.5 MAXTIMEUNITS=7 MAXTIMEFRACTION=0.5 REPLICATIONS=999 SEED=20260916\n\nEPIAI CLUSTER RENDER RESULT=FeverRashClusters"
+    }
+  ]
+}
