@@ -4107,3 +4107,46 @@ test("Classic Analysis Help opens Teaching Repositories", async ({ page }) => {
   await page.locator("#classic-help-teaching-repositories").click();
   await expect(page.getByRole("dialog", { name: "Teaching Repositories" })).toBeVisible();
 });
+
+test("File imports three complete checksummed teaching projects from the repository catalog", async ({ page }) => {
+  await expect(page.locator("#app-version")).toHaveText("v0.1.0");
+  const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
+  await applicationMenu.getByText("File", { exact: true }).click();
+  await applicationMenu.getByRole("menuitem", { name: /Import Example Project/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Import Example Project" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("#example-project-status")).toContainText("3 verified project choices");
+  await expect(dialog.locator(".example-project-card")).toHaveCount(3);
+  await dialog.getByRole("button", { name: "Import Foodborne Outbreak Investigation" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("#main-menu-status")).toContainText("Imported Foodborne Outbreak Investigation");
+  await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
+  await expect(page.locator("#project-tree-name")).toContainText("Foodborne Outbreak Investigation");
+  await expect(page.locator("#form-name")).toHaveValue("Foodborne Outbreak Investigation Form");
+
+  const designerMenu = page.getByRole("navigation", { name: "Form Designer menu" });
+  await designerMenu.getByText("File", { exact: true }).click();
+  await designerMenu.getByRole("menuitem", { name: "Import Example Project" }).click();
+  await expect(dialog.locator("#example-project-status")).toContainText("3 verified project choices");
+  await dialog.getByRole("button", { name: "Import Space-Time Cluster Detection" }).click();
+  await expect(page.locator("#project-tree-name")).toContainText("Space-Time Cluster Detection");
+  await expect(page.locator("#form-name")).toHaveValue("Space Time Cluster Synthetic V0.1 Form");
+
+  await designerMenu.getByText("File", { exact: true }).click();
+  await designerMenu.getByRole("menuitem", { name: "Import Example Project" }).click();
+  await expect(dialog.locator("#example-project-status")).toContainText("3 verified project choices");
+  await dialog.getByRole("button", { name: "Import Synthetic Patient Record Linkage" }).click();
+  await expect(page.locator("#project-tree-name")).toContainText("Synthetic Patient Record Linkage");
+  await expect(page.locator("#form-name")).toHaveValue("patient_registry_a");
+
+  await applicationMenu.getByText("Help", { exact: true }).click();
+  await applicationMenu.getByRole("menuitem", { name: /Automated Runbooks/ }).click();
+  const runbookLibrary = page.getByRole("dialog", { name: "Automated Runbooks" });
+  await expect(runbookLibrary.locator("#runbook-select option[value='recordlink-project-tour']")).toHaveText(/Current project/);
+  await runbookLibrary.locator("#runbook-select").selectOption("recordlink-project-tour");
+  await expect(runbookLibrary.locator("#runbook-description")).toContainText("aggregate candidate diagnostics");
+  await runbookLibrary.locator("#runbook-start").click();
+  await expect(page.locator("#runbook-step-title")).toHaveText("Confirm the governed boundary");
+  await expect(page.locator("#classic-recordlink-output-summary")).toHaveText("");
+  await page.locator("#runbook-stop").click();
+});

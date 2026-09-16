@@ -12,10 +12,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=62" />
+    <link rel="stylesheet" href="styles.css?v=63" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=110"></script>
+    <script type="module" src="app.js?v=111"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -23,7 +23,7 @@
     <header class="titlebar">
       <div class="brand-mark" aria-hidden="true">E</div>
       <div class="brand-copy">
-        <strong>Epi Info<span class="ai-label">AI</span></strong>
+        <strong>Epi Info<span class="ai-label">AI</span><span id="app-version" class="app-version">v0.1.0</span></strong>
         <span data-i18n="app.brand.tagline">Tools for public health practice</span>
       </div>
       <div class="titlebar-actions" aria-label="Project status">
@@ -38,6 +38,7 @@
         <summary aria-haspopup="menu" data-i18n="menu.file.label">File</summary>
         <div class="legacy-menu-popup" role="menu" aria-label="File">
           <button id="file-open-project" type="button" role="menuitem">Open Project...</button>
+          <button id="file-open-example-project" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Import Example Project...</button>
           <button id="file-save-project" type="button" role="menuitem">Save Project As...</button>
           <button id="file-open-encrypted-project" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Open Encrypted Project...</button>
           <button id="file-save-encrypted-project" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Save Encrypted Project...</button>
@@ -125,6 +126,26 @@
           <p class="dialog-note"><strong>You stay in control.</strong> A runbook may navigate between modules, but it never imports data or executes analysis without your action.</p>
         </div>
         <div class="legacy-dialog-actions"><button id="runbook-start" class="dialog-primary" type="button">Start Runbook</button><button value="cancel">Cancel</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="example-project-dialog" class="legacy-dialog example-project-dialog" aria-labelledby="example-project-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar"><h2 id="example-project-title">Import Example Project</h2><button value="cancel" aria-label="Close">&times;</button></div>
+        <div class="legacy-dialog-body">
+          <p><span class="new-branch-tag">New branch</span> Open a complete teaching project maintained in the CDC Epi Info AI GitLab group. Each package is checksum-verified before the normal project validator opens it.</p>
+          <label for="example-project-catalog-url">Project catalog URL</label>
+          <div class="example-project-catalog-controls">
+            <input id="example-project-catalog-url" type="url" spellcheck="false" value="./examples/projects/epi-info-projects.json">
+            <button id="example-project-refresh" type="button">Load catalog</button>
+          </div>
+          <p class="dialog-note">For a reliable demonstration, the published site carries a mirror of this catalog and its project packages. The source links show where the projects are governed.</p>
+          <h3 id="example-project-catalog-title">Epi Info AI demonstration projects</h3>
+          <p id="example-project-catalog-description"></p>
+          <p id="example-project-status" class="inline-feedback" role="status">Choose Load catalog to retrieve the available projects.</p>
+          <section id="example-project-list" class="example-project-list" aria-label="Available example projects"></section>
+        </div>
+        <div class="legacy-dialog-actions"><button value="cancel">Close</button></div>
       </form>
     </dialog>
 

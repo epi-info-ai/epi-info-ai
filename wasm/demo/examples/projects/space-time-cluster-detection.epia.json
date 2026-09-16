@@ -1,0 +1,390 @@
+{
+  "format": "epi-info-ai-project",
+  "version": 2,
+  "exportedAt": "2026-09-16T18:46:02.219Z",
+  "project": {
+    "name": "Space-Time Cluster Detection",
+    "currentFormId": "space-time-cluster-cases",
+    "forms": [
+      {
+        "id": "space-time-cluster-cases",
+        "schema": {
+          "name": "Space Time Cluster Synthetic V0.1 Form",
+          "fields": [
+            {
+              "name": "case_id",
+              "prompt": "Case ID",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "event_date",
+              "prompt": "Event date",
+              "type": "date",
+              "required": false
+            },
+            {
+              "name": "location_id",
+              "prompt": "Location ID",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "latitude",
+              "prompt": "Latitude",
+              "type": "number",
+              "required": false,
+              "rules": [
+                {
+                  "kind": "coordinate",
+                  "axis": "latitude",
+                  "minimumDecimalPlaces": 5
+                }
+              ]
+            },
+            {
+              "name": "longitude",
+              "prompt": "Longitude",
+              "type": "number",
+              "required": false,
+              "rules": [
+                {
+                  "kind": "coordinate",
+                  "axis": "longitude",
+                  "minimumDecimalPlaces": 5
+                }
+              ]
+            },
+            {
+              "name": "syndrome",
+              "prompt": "Syndrome",
+              "type": "text",
+              "required": false
+            }
+          ]
+        },
+        "records": [
+          {
+            "case_id": "P001",
+            "event_date": "2026-01-01",
+            "location_id": "S1",
+            "latitude": "41.70012",
+            "longitude": "-83.60018",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P002",
+            "event_date": "2026-01-03",
+            "location_id": "E1",
+            "latitude": "41.62024",
+            "longitude": "-83.44982",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P003",
+            "event_date": "2026-01-05",
+            "location_id": "W1",
+            "latitude": "41.67988",
+            "longitude": "-83.70021",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P004",
+            "event_date": "2026-01-07",
+            "location_id": "N1",
+            "latitude": "41.65012",
+            "longitude": "-83.54008",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P005",
+            "event_date": "2026-01-08",
+            "location_id": "S1",
+            "latitude": "41.70012",
+            "longitude": "-83.60018",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P006",
+            "event_date": "2026-01-09",
+            "location_id": "E1",
+            "latitude": "41.62024",
+            "longitude": "-83.44982",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P007",
+            "event_date": "2026-01-16",
+            "location_id": "W1",
+            "latitude": "41.67988",
+            "longitude": "-83.70021",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P008",
+            "event_date": "2026-01-18",
+            "location_id": "N2",
+            "latitude": "41.65518",
+            "longitude": "-83.53492",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P009",
+            "event_date": "2026-01-20",
+            "location_id": "S1",
+            "latitude": "41.70012",
+            "longitude": "-83.60018",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P010",
+            "event_date": "2026-01-22",
+            "location_id": "E1",
+            "latitude": "41.62024",
+            "longitude": "-83.44982",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P011",
+            "event_date": "2026-01-24",
+            "location_id": "W1",
+            "latitude": "41.67988",
+            "longitude": "-83.70021",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P012",
+            "event_date": "2026-01-27",
+            "location_id": "N3",
+            "latitude": "41.66009",
+            "longitude": "-83.52986",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P013",
+            "event_date": "2026-01-10",
+            "location_id": "N1",
+            "latitude": "41.65012",
+            "longitude": "-83.54008",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P014",
+            "event_date": "2026-01-10",
+            "location_id": "N2",
+            "latitude": "41.65518",
+            "longitude": "-83.53492",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P015",
+            "event_date": "2026-01-11",
+            "location_id": "N1",
+            "latitude": "41.65012",
+            "longitude": "-83.54008",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P016",
+            "event_date": "2026-01-11",
+            "location_id": "N2",
+            "latitude": "41.65518",
+            "longitude": "-83.53492",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P017",
+            "event_date": "2026-01-12",
+            "location_id": "N1",
+            "latitude": "41.65012",
+            "longitude": "-83.54008",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P018",
+            "event_date": "2026-01-12",
+            "location_id": "N2",
+            "latitude": "41.65518",
+            "longitude": "-83.53492",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P019",
+            "event_date": "2026-01-13",
+            "location_id": "N1",
+            "latitude": "41.65012",
+            "longitude": "-83.54008",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P020",
+            "event_date": "2026-01-13",
+            "location_id": "N2",
+            "latitude": "41.65518",
+            "longitude": "-83.53492",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P021",
+            "event_date": "2026-01-14",
+            "location_id": "N1",
+            "latitude": "41.65012",
+            "longitude": "-83.54008",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P022",
+            "event_date": "2026-01-14",
+            "location_id": "N2",
+            "latitude": "41.65518",
+            "longitude": "-83.53492",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P023",
+            "event_date": "2026-01-12",
+            "location_id": "N1",
+            "latitude": "41.65012",
+            "longitude": "-83.54008",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P024",
+            "event_date": "2026-01-13",
+            "location_id": "N2",
+            "latitude": "41.65518",
+            "longitude": "-83.53492",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P025",
+            "event_date": "2026-01-02",
+            "location_id": "N3",
+            "latitude": "41.66009",
+            "longitude": "-83.52986",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P026",
+            "event_date": "2026-01-06",
+            "location_id": "S1",
+            "latitude": "41.70012",
+            "longitude": "-83.60018",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P027",
+            "event_date": "2026-01-15",
+            "location_id": "E1",
+            "latitude": "41.62024",
+            "longitude": "-83.44982",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P028",
+            "event_date": "2026-01-19",
+            "location_id": "W1",
+            "latitude": "41.67988",
+            "longitude": "-83.70021",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P029",
+            "event_date": "2026-01-25",
+            "location_id": "N3",
+            "latitude": "41.66009",
+            "longitude": "-83.52986",
+            "syndrome": "FeverRash"
+          },
+          {
+            "case_id": "P030",
+            "event_date": "2026-01-28",
+            "location_id": "S1",
+            "latitude": "41.70012",
+            "longitude": "-83.60018",
+            "syndrome": "FeverRash"
+          }
+        ],
+        "dataset": {
+          "id": "space-time-cluster-synthetic-v0.1",
+          "file": "space-time-cluster-synthetic-v0.1.csv",
+          "sha256": "1b70344d46257cb156f2487caa0e7e2b0a05912ce89237d2ab15804144577041"
+        }
+      }
+    ],
+    "version": 1,
+    "storage": {
+      "type": "browser"
+    }
+  },
+  "programs": [
+    {
+      "name": "space-time-cluster-command-tour",
+      "source": "EPIAI CLUSTER SPACE_TIME ID=case_id DATE=event_date LATITUDE=latitude LONGITUDE=longitude RESULT=FeverRashClusters START=2026-01-01 END=2026-01-28 UNIT=DAY LENGTH=1 MAXDISTANCEKM=5 MAXCASEFRACTION=0.5 MAXTIMEUNITS=7 MAXTIMEFRACTION=0.5 REPLICATIONS=999 SEED=20260916\n\nEPIAI CLUSTER RENDER RESULT=FeverRashClusters",
+      "language": "classic-analysis",
+      "author": "Epi Info AI",
+      "comment": "Runs the bounded case-only space-time permutation candidate with a planted five-day cluster, deterministic seed, Worker progress, cancellation, aggregate-only Output, and an inline result map.",
+      "createdAt": "2026-09-16T12:00:00.000Z",
+      "modifiedAt": "2026-09-16T12:00:00.000Z"
+    }
+  ],
+  "codeTables": [],
+  "runbooks": [
+    {
+      "id": "space-time-cluster-project-tour",
+      "title": "Space-time cluster project tour",
+      "description": "Run the reproducible synthetic cluster analysis, inspect its parameters, and open the ranked result in Maps.",
+      "prerequisite": "Import the Space-Time Cluster Detection example project. It contains 30 synthetic events and a saved two-command tour.",
+      "module": "classic",
+      "steps": [
+        {
+          "id": "orient",
+          "title": "Orient to the Program Editor",
+          "instruction": "The project is active in Classic Analysis. No cluster analysis has run automatically.",
+          "target": "#classic-program-title"
+        },
+        {
+          "id": "open-program-dialog",
+          "title": "Open the saved cluster program",
+          "instruction": "Select Open Pgm to review the program included with this project.",
+          "target": "#classic-program-toolbar-open",
+          "advanceOn": "click"
+        },
+        {
+          "id": "load-source",
+          "title": "Load the cluster command tour",
+          "instruction": "Choose the saved space-time-cluster-command-tour and select Open. Loading source does not run it.",
+          "target": "#classic-program-dialog-primary",
+          "advanceOn": "click"
+        },
+        {
+          "id": "verify",
+          "title": "Verify all parameters",
+          "instruction": "Select Verify Program, then inspect the visible dates, distance, temporal window, replication count, and deterministic seed.",
+          "target": "#classic-program-verify",
+          "advanceOn": "click"
+        },
+        {
+          "id": "run",
+          "title": "Run cluster detection",
+          "instruction": "Select Run Commands and watch Worker progress and elapsed time. You remain able to cancel the calculation.",
+          "target": "#classic-program-run",
+          "advanceOn": "click"
+        },
+        {
+          "id": "review-output",
+          "title": "Review statistical output",
+          "instruction": "Inspect the ranked windows, Monte Carlo p-values, explicit parameter table, and aggregate-only privacy boundary.",
+          "target": "#classic-cluster-output"
+        },
+        {
+          "id": "open-maps",
+          "title": "Open the cluster story map",
+          "instruction": "Select Open in Maps, then use Story Tour to move through ranked clusters and hover for cluster characteristics.",
+          "target": "#classic-cluster-open-maps",
+          "advanceOn": "click"
+        }
+      ]
+    }
+  ]
+}

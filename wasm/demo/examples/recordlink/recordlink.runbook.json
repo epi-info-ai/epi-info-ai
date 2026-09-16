@@ -1,0 +1,56 @@
+{
+  "id": "recordlink-project-tour",
+  "title": "Governed record-linkage project tour",
+  "description": "Inspect both synthetic sources, run quality checks, and review aggregate candidate diagnostics without merging records.",
+  "prerequisite": "Import the Synthetic Patient Record Linkage example project. It includes two source tables, five known truth links, and a saved command tour.",
+  "module": "classic",
+  "steps": [
+    {
+      "id": "orient",
+      "title": "Confirm the governed boundary",
+      "instruction": "The project contains two fictional eight-record sources and a five-link truth table. No comparison, classification, or merge runs automatically.",
+      "target": "#classic-program-title"
+    },
+    {
+      "id": "open-program-dialog",
+      "title": "Open the saved linkage workflow",
+      "instruction": "Select Open Pgm. The complete workflow is stored with the project.",
+      "target": "#classic-program-toolbar-open",
+      "advanceOn": "click"
+    },
+    {
+      "id": "load-source",
+      "title": "Load visible linkage source",
+      "instruction": "Choose recordlink-command-tour and select Open. Loading the program does not execute it.",
+      "target": "#classic-program-dialog-primary",
+      "advanceOn": "click"
+    },
+    {
+      "id": "verify",
+      "title": "Verify the workflow",
+      "instruction": "Select Verify Program. Review the QUALITY, LIST, FREQ, TABLES, and governed EPIAI RECORDLINK commands before execution.",
+      "target": "#classic-program-verify",
+      "advanceOn": "click"
+    },
+    {
+      "id": "run",
+      "title": "Run reviewed diagnostics",
+      "instruction": "Select Run Commands. The current slice produces aggregate candidate diagnostics only and cannot mutate either source.",
+      "target": "#classic-program-run",
+      "advanceOn": "click"
+    },
+    {
+      "id": "review-output",
+      "title": "Review candidate reduction",
+      "instruction": "Inspect the progressive blocking counts, reduction from the full pair space, and truth-link recall. Pair identities and patient values remain out of Output and history.",
+      "target": "#classic-recordlink-output"
+    },
+    {
+      "id": "history",
+      "title": "Inspect the audit history",
+      "instruction": "Open History to confirm the source, plan version, status, and aggregate result summary.",
+      "target": "#classic-output-history",
+      "advanceOn": "click"
+    }
+  ]
+}

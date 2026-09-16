@@ -55,7 +55,7 @@ export const FORM_DESIGNER_MENUS: readonly FormDesignerTopMenu[] = [
       gap("new-page", "New Page"),
       separator,
       command("open-project", "Open Project...", "designer-open-project", "always", "Ctrl+O"),
-      gap("open-project-web", "Open Project from Web...", "always"),
+      newBranchCommand("open-project-web", "Import Example Project...", "designer-open-project-web", "always"),
       command("close-project", "Close Project", "designer-close-project"),
       gap("get-template", "Get Template...", "always"),
       gap("print", "Print..."),

@@ -256,7 +256,7 @@ function requiredElement<T extends Element>(selector: string): T {
   return element;
 }
 
-export function initializeUiRunbooks(): void {
+export function initializeUiRunbooks(projectRunbooks: () => readonly UiRunbook[] = () => []): void {
   const library = requiredElement<HTMLDialogElement>("#runbook-library-dialog");
   const select = requiredElement<HTMLSelectElement>("#runbook-select");
   const description = requiredElement<HTMLElement>("#runbook-description");
@@ -275,9 +275,19 @@ export function initializeUiRunbooks(): void {
   let stepIndex = 0;
   let highlighted: HTMLElement | undefined;
 
-  select.replaceChildren(...UI_RUNBOOKS.map((runbook) => new Option(runbook.title, runbook.id)));
+  const availableRunbooks = (): readonly UiRunbook[] => [...UI_RUNBOOKS, ...projectRunbooks()];
+  const renderRunbookOptions = (): void => {
+    const previous = select.value;
+    const runbooks = availableRunbooks();
+    select.replaceChildren(...runbooks.map((runbook) => new Option(
+      UI_RUNBOOKS.some(({ id }) => id === runbook.id) ? runbook.title : `Current project — ${runbook.title}`,
+      runbook.id,
+    )));
+    if (runbooks.some(({ id }) => id === previous)) select.value = previous;
+  };
+  renderRunbookOptions();
 
-  const selectedRunbook = (): UiRunbook => UI_RUNBOOKS.find(({ id }) => id === select.value) ?? UI_RUNBOOKS[0]!;
+  const selectedRunbook = (): UiRunbook => availableRunbooks().find(({ id }) => id === select.value) ?? UI_RUNBOOKS[0]!;
   const renderLibrary = (): void => {
     const runbook = selectedRunbook();
     description.textContent = runbook.description;
@@ -334,6 +344,7 @@ export function initializeUiRunbooks(): void {
   for (const trigger of document.querySelectorAll<HTMLElement>("#help-runbooks, [aria-label='Help'].icon-button")) {
     trigger.addEventListener("click", () => {
       document.querySelector<HTMLDetailsElement>("#help-menu")?.removeAttribute("open");
+      renderRunbookOptions();
       renderLibrary();
       library.showModal();
     });
@@ -365,4 +376,9 @@ export function initializeUiRunbooks(): void {
   };
   document.addEventListener("click", advanceFromAction);
   document.addEventListener("change", advanceFromAction);
+  globalThis.addEventListener("epi-info-project-activated", () => {
+    stopRunbook();
+    renderRunbookOptions();
+    renderLibrary();
+  });
 }

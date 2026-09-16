@@ -12,10 +12,12 @@ import {
   replaceCurrentProjectMapState,
   detachCurrentOfflineMapAsset,
   getCurrentProjectData,
+  getCurrentProjectRunbooks,
   getCurrentProjectPrograms,
   getProjectDataSources,
   initializeFormDataDemo,
   markCurrentProjectSynced,
+  openProjectPackage,
   saveCurrentProjectProgram,
   showRecordInEnter,
   testSupabaseConnection,
@@ -71,16 +73,20 @@ import { assessClassicProgramCatalog, loadClassicProgramCatalogIndex, loadClassi
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import { installTeachingRepository, listInstalledTeachingRepositories, previewTeachingRepository, readInstalledTeachingArtifact, type InstalledTeachingRepository, type TeachingRepositoryPreview } from "../app/teaching/repository.js";
+import { fetchExampleProject, loadExampleProjectCatalog, type LoadedExampleProjectCatalog } from "../app/projects/example-repository.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MatchedPairsDerivation, MatchedPairsResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, StratifiedTable2x2Result, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 import type { EpiCurveResult } from "../app/contracts/dashboard.js";
 import type { EpiRecord, FieldDefinition } from "../app/contracts/core.js";
 import type { ProjectProgram } from "../app/contracts/project-package.js";
+import packageMetadata from "../../package.json" with { type: "json" };
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
   if (!element) throw new Error(`Required application interface element is missing: ${selector}`);
   return element;
 }
+
+requiredElement("#app-version").textContent = `v${packageMetadata.version}`;
 
 const form = requiredElement<HTMLFormElement>("#table-form");
 const message = requiredElement<HTMLElement>("#form-message");
@@ -652,7 +658,7 @@ const classicProgramOutput = requiredElement<HTMLElement>("#classic-program-outp
 const classicProgramLineNumbersButton = requiredElement<HTMLButtonElement>("#view-program-line-numbers");
 const classicProgramIndentTabsButton = requiredElement<HTMLButtonElement>("#view-program-indent-tabs");
 renderClassicProgramSurface(requiredElement("#classic-program-menu"), requiredElement("#classic-program-toolbar"), requiredElement("#classic-output-toolbar"));
-initializeUiRunbooks();
+initializeUiRunbooks(getCurrentProjectRunbooks);
 const classicProgramCommandStatus = requiredElement<HTMLElement>("#classic-program-command-status");
 const classicProgramToolbarRun = requiredElement<HTMLButtonElement>("#classic-program-toolbar-run");
 const classicProgramToolbarCancel = requiredElement<HTMLButtonElement>("#classic-program-toolbar-cancel");
@@ -2266,6 +2272,89 @@ async function refreshClassicProgramExamples(): Promise<void> {
 }
 
 void refreshClassicProgramExamples();
+
+const exampleProjectDialog = requiredElement<HTMLDialogElement>("#example-project-dialog");
+const exampleProjectCatalogUrl = requiredElement<HTMLInputElement>("#example-project-catalog-url");
+const exampleProjectStatus = requiredElement<HTMLElement>("#example-project-status");
+const exampleProjectList = requiredElement<HTMLElement>("#example-project-list");
+let loadedExampleProjectCatalog: LoadedExampleProjectCatalog | null = null;
+
+function formatExampleProjectBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function renderExampleProjectCatalog(loaded: LoadedExampleProjectCatalog): void {
+  requiredElement("#example-project-catalog-title").textContent = loaded.catalog.title;
+  requiredElement("#example-project-catalog-description").textContent = loaded.catalog.description;
+  exampleProjectList.replaceChildren(...loaded.catalog.projects.map((entry) => {
+    const item = document.createElement("article");
+    item.className = "example-project-card";
+    const copy = document.createElement("div");
+    const title = document.createElement("h4");
+    title.textContent = entry.title;
+    const description = document.createElement("p");
+    description.textContent = entry.description;
+    const provenance = document.createElement("p");
+    provenance.className = "dialog-note";
+    const repository = document.createElement("a");
+    repository.href = entry.repository;
+    repository.target = "_blank";
+    repository.rel = "noopener noreferrer";
+    repository.textContent = "CDC GitLab source";
+    provenance.append(repository, ` · ${formatExampleProjectBytes(entry.bytes)} · SHA-256 ${entry.sha256.slice(0, 12)}…`);
+    copy.append(title, description, provenance);
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "dialog-primary";
+    open.textContent = `Import ${entry.title}`;
+    open.addEventListener("click", () => {
+      open.disabled = true;
+      exampleProjectStatus.textContent = `Retrieving and verifying ${entry.title}…`;
+      void (async () => {
+        try {
+          const file = await fetchExampleProject(loaded, entry);
+          exampleProjectStatus.textContent = `Checksum verified. Opening ${entry.title}…`;
+          await openProjectPackage(file);
+          exampleProjectDialog.close("opened");
+          requiredElement("#main-menu-status").textContent = `Imported ${entry.title} from the verified project catalog. Data and saved programs are ready.`;
+        } catch (error) {
+          exampleProjectStatus.textContent = error instanceof Error ? error.message : "Unable to import the selected project.";
+          open.disabled = false;
+        }
+      })();
+    });
+    item.append(copy, open);
+    return item;
+  }));
+}
+
+async function refreshExampleProjectCatalog(): Promise<void> {
+  loadedExampleProjectCatalog = null;
+  exampleProjectList.replaceChildren();
+  exampleProjectStatus.textContent = "Loading the project catalog…";
+  try {
+    const loaded = await loadExampleProjectCatalog(exampleProjectCatalogUrl.value);
+    loadedExampleProjectCatalog = loaded;
+    renderExampleProjectCatalog(loaded);
+    exampleProjectStatus.textContent = `${loaded.catalog.projects.length} verified project choices are available. Importing replaces the active project after saving it to Recent Projects.`;
+  } catch (error) {
+    exampleProjectStatus.textContent = error instanceof Error ? error.message : "Unable to load the project catalog.";
+  }
+}
+
+function openExampleProjectDialog(): void {
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.legacy-menu")) menu.open = false;
+  exampleProjectDialog.showModal();
+  void refreshExampleProjectCatalog();
+}
+
+document.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element) || !event.target.closest("#file-open-example-project, #designer-open-project-web")) return;
+  openExampleProjectDialog();
+});
+requiredElement("#example-project-refresh").addEventListener("click", () => void refreshExampleProjectCatalog());
 
 const teachingRepositoryDialog = requiredElement<HTMLDialogElement>("#teaching-repository-dialog");
 const teachingRepositoryUrl = requiredElement<HTMLInputElement>("#teaching-repository-url");

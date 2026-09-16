@@ -1,0 +1,11 @@
+stages:
+  - validate
+
+validate-project-package:
+  stage: validate
+  image: node:24.19.0-alpine
+  script:
+    - node validate-project.mjs
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'

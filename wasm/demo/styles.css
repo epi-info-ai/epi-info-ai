@@ -1134,6 +1134,20 @@ a:focus-visible {
   border-radius: 999px;
 }
 
+.app-version {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.12rem 0.38rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  color: #eaf7fb;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 0.28rem;
+  vertical-align: middle;
+}
+
 .titlebar-actions {
   display: flex;
   align-items: center;
@@ -4668,6 +4682,50 @@ body.map-fullscreen-fallback {
 .teaching-repository-dialog h3,
 .teaching-repository-dialog h4 {
   margin-bottom: 0.35rem;
+}
+
+.example-project-dialog {
+  width: min(780px, calc(100vw - 2rem));
+}
+
+.example-project-catalog-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.example-project-catalog-controls input {
+  min-width: 0;
+  width: 100%;
+}
+
+.example-project-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.75rem;
+}
+
+.example-project-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.example-project-card h4,
+.example-project-card p {
+  margin: 0 0 0.3rem;
+}
+
+@media (max-width: 620px) {
+  .example-project-catalog-controls,
+  .example-project-card {
+    grid-template-columns: 1fr;
+  }
 }
 
 .runbook-library-dialog select {

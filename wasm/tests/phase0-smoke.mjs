@@ -53,6 +53,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/matched-worker-client.ts",
     "wasm/demo/supabase-sync.ts",
     "wasm/scripts/refresh-wasm-manifest.mjs",
+    "wasm/scripts/generate-example-projects.mjs",
+    "wasm/scripts/validate-example-project-package.mjs",
     "wasm/app/contracts/core.ts",
     "wasm/app/contracts/assistant.ts",
     "wasm/app/assistant/proposals.ts",
@@ -85,6 +87,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/epi-ai-space-time-cluster-analysis.ts",
     "wasm/app/programming/epi-ai-recordlink.ts",
     "wasm/app/programming/epi-ai-recordlink-analysis.ts",
+    "wasm/app/projects/example-repository.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
@@ -149,6 +152,12 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/matched-case-control/match-pb-by-pair.pgm7",
     "wasm/demo/examples/projects/README.md",
     "wasm/demo/examples/projects/sample-project.epia.json",
+    "wasm/demo/examples/projects/epi-info-projects.json",
+    "wasm/demo/examples/projects/foodborne-outbreak-investigation.epia.json",
+    "wasm/demo/examples/projects/space-time-cluster-detection.epia.json",
+    "wasm/demo/examples/foodborne/foodborne-investigation.runbook.json",
+    "wasm/demo/examples/cluster/space-time-cluster.runbook.json",
+    "wasm/demo/examples/recordlink/recordlink.runbook.json",
     "wasm/demo/vendor/leaflet/leaflet.css",
     "wasm/demo/vendor/leaflet/leaflet.js",
     "wasm/demo/vendor/leaflet/LICENSE",
@@ -430,7 +439,7 @@ async function checkRequiredAssetsAndUi() {
   const fileCommands = menuContract.FORM_DESIGNER_MENUS[0].entries.filter((entry) => entry.kind !== "separator").map((entry) => entry.label);
   assert.deepEqual(fileCommands, [
     "New Project...", "New Project from Template...", "New Project from Data Dictionary...", "New Form", "New Page",
-    "Open Project...", "Open Project from Web...", "Close Project", "Get Template...", "Print...",
+    "Open Project...", "Import Example Project...", "Close Project", "Get Template...", "Print...",
     "Copy Form to Mobile Device...", "Publish Form to Cloud Data Capture...", "Publish Form to Web Survey...",
     "Recent Projects", "Exit", "Project Storage...",
   ]);
@@ -4060,6 +4069,36 @@ async function checkLocalizationBoundary() {
   assert.ok(pseudo.messages["status.records.count"].includes("{count}"), "pseudolocalization must preserve placeholders");
 }
 
+async function checkExampleProjectRepository() {
+  const repositories = await import(`${pathToFileURL(repositoryPath("wasm/app/projects/example-repository.ts")).href}?projects=${Date.now()}`);
+  const packages = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?project-packages=${Date.now()}`);
+  const catalogPath = repositoryPath("wasm/demo/examples/projects/epi-info-projects.json");
+  const catalog = repositories.validateExampleProjectCatalog(JSON.parse(await readFile(catalogPath, "utf8")));
+  assert.deepEqual(catalog.projects.map(({ id }) => id), [
+    "foodborne-outbreak-investigation",
+    "space-time-cluster-detection",
+    "record-linkage",
+  ]);
+  const expected = new Map([
+    ["foodborne-outbreak-investigation", { project: "Foodborne Outbreak Investigation", forms: 1, records: 96 }],
+    ["space-time-cluster-detection", { project: "Space-Time Cluster Detection", forms: 1, records: 30 }],
+    ["record-linkage", { project: "Synthetic Patient Record Linkage", forms: 3, records: 21 }],
+  ]);
+  for (const entry of catalog.projects) {
+    const filePath = resolve(dirname(catalogPath), entry.file);
+    const bytes = await readFile(filePath);
+    assert.equal(bytes.byteLength, entry.bytes, `${entry.id} catalog byte count`);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.sha256, `${entry.id} catalog digest`);
+    const packageValue = packages.parseProjectPackage(bytes.toString("utf8"));
+    const expectation = expected.get(entry.id);
+    assert.equal(packageValue.project.name, expectation.project);
+    assert.equal(packageValue.project.forms.length, expectation.forms);
+    assert.equal(packageValue.project.forms.reduce((sum, form) => sum + form.records.length, 0), expectation.records);
+    assert.ok(packageValue.programs.length > 0, `${entry.id} must include a runnable teaching program`);
+    assert.equal(packageValue.runbooks?.length, 1, `${entry.id} must include one project-scoped runbook`);
+  }
+}
+
 async function run() {
   const checks = [
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
@@ -4093,6 +4132,7 @@ async function run() {
     ["Epi Assist typed proposal allowlist", checkEpiAssistProposalBoundary],
     ["versioned Classic Program AST", checkClassicProgramAst],
     ["browser localization and language-pack boundary", checkLocalizationBoundary],
+    ["checksummed example-project repository", checkExampleProjectRepository],
   ];
 
   for (const [name, check] of checks) {

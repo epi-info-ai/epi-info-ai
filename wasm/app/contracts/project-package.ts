@@ -2,6 +2,7 @@ import {
   validateProjectSnapshot,
   type ProjectSnapshotV1,
 } from "./core.ts";
+import type { UiRunbook, UiRunbookStep } from "../help/runbooks.ts";
 
 export const PROJECT_PACKAGE_FORMAT = "epi-info-ai-project" as const;
 export const PROJECT_PACKAGE_VERSION = 2 as const;
@@ -84,6 +85,7 @@ export interface ProjectPackageV2 {
   project: ProjectSnapshotV1;
   programs: ProjectProgram[];
   codeTables: ProjectCodeTable[];
+  runbooks?: UiRunbook[];
   migration?: LegacyMigrationPayload;
 }
 
@@ -163,6 +165,54 @@ function codeTableAt(value: unknown, path: string): ProjectCodeTable {
     name: stringAt(source.name, `${path}.name`),
     columns: [...source.columns] as string[],
     rows: source.rows.map((row, index) => objectAt(row, `${path}.rows[${index}]`)),
+  };
+}
+
+const RUNBOOK_MODULES = new Set(["classic", "forms", "data", "dashboard", "maps", "statcalc"]);
+const RUNBOOK_ADVANCE_EVENTS = new Set(["click", "change"]);
+
+function runbookTarget(value: unknown, path: string): string {
+  const target = stringAt(value, path);
+  if (target.length > 200 || /[{}<>]/.test(target)) fail(path, "must be a bounded DOM selector without braces or markup");
+  return target;
+}
+
+function runbookStepAt(value: unknown, path: string): UiRunbookStep {
+  const source = objectAt(value, path);
+  const result: UiRunbookStep = {
+    id: stringAt(source.id, `${path}.id`),
+    title: stringAt(source.title, `${path}.title`),
+    instruction: stringAt(source.instruction, `${path}.instruction`),
+    target: runbookTarget(source.target, `${path}.target`),
+  };
+  if (source.advanceOn !== undefined) {
+    if (!RUNBOOK_ADVANCE_EVENTS.has(String(source.advanceOn))) fail(`${path}.advanceOn`, "must be click or change");
+    result.advanceOn = source.advanceOn as "click" | "change";
+  }
+  if (source.advanceTargets !== undefined) {
+    if (!Array.isArray(source.advanceTargets) || source.advanceTargets.length < 1 || source.advanceTargets.length > 10) {
+      fail(`${path}.advanceTargets`, "must contain 1 to 10 selectors");
+    }
+    result.advanceTargets = source.advanceTargets.map((target, index) => runbookTarget(target, `${path}.advanceTargets[${index}]`));
+  }
+  return result;
+}
+
+export function validateProjectRunbook(value: unknown, path = "runbook"): UiRunbook {
+  const source = objectAt(value, path);
+  const id = stringAt(source.id, `${path}.id`);
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) fail(`${path}.id`, "must be a lowercase kebab-case identifier");
+  if (!RUNBOOK_MODULES.has(String(source.module))) fail(`${path}.module`, "is not a supported application module");
+  if (!Array.isArray(source.steps) || source.steps.length < 1 || source.steps.length > 50) fail(`${path}.steps`, "must contain 1 to 50 steps");
+  const steps = source.steps.map((step, index) => runbookStepAt(step, `${path}.steps[${index}]`));
+  if (new Set(steps.map((step) => step.id.toLowerCase())).size !== steps.length) fail(`${path}.steps`, "contains duplicate step identifiers");
+  return {
+    id,
+    title: stringAt(source.title, `${path}.title`),
+    description: stringAt(source.description, `${path}.description`),
+    prerequisite: stringAt(source.prerequisite, `${path}.prerequisite`),
+    module: source.module as UiRunbook["module"],
+    steps,
   };
 }
 
@@ -269,6 +319,11 @@ export function validateProjectPackage(value: unknown): ProjectPackageV2 {
     programs: source.programs.map((program, index) => programAt(program, `package.programs[${index}]`)),
     codeTables: source.codeTables.map((table, index) => codeTableAt(table, `package.codeTables[${index}]`)),
   };
+  if (source.runbooks !== undefined) {
+    if (!Array.isArray(source.runbooks) || source.runbooks.length > 16) fail("package.runbooks", "must contain no more than 16 runbooks");
+    result.runbooks = source.runbooks.map((runbook, index) => validateProjectRunbook(runbook, `package.runbooks[${index}]`));
+    if (new Set(result.runbooks.map((runbook) => runbook.id.toLowerCase())).size !== result.runbooks.length) fail("package.runbooks", "contains duplicate runbook identifiers");
+  }
   if (source.migration !== undefined) result.migration = migrationAt(source.migration, "package.migration");
   if (!Number.isFinite(Date.parse(result.exportedAt))) fail("package.exportedAt", "must be an ISO-compatible date/time");
   if (new Set(result.programs.map((program) => program.name.toLocaleLowerCase())).size !== result.programs.length) {
@@ -311,7 +366,7 @@ export function parseProjectPackage(text: string): ProjectPackageV2 {
   }
 }
 
-export function createProjectPackage(project: ProjectSnapshotV1, extras: Partial<Pick<ProjectPackageV2, "programs" | "codeTables" | "migration">> = {}): ProjectPackageV2 {
+export function createProjectPackage(project: ProjectSnapshotV1, extras: Partial<Pick<ProjectPackageV2, "programs" | "codeTables" | "runbooks" | "migration">> = {}): ProjectPackageV2 {
   const candidate: ProjectPackageV2 = {
     format: PROJECT_PACKAGE_FORMAT,
     version: PROJECT_PACKAGE_VERSION,
@@ -320,6 +375,7 @@ export function createProjectPackage(project: ProjectSnapshotV1, extras: Partial
     programs: extras.programs ?? [],
     codeTables: extras.codeTables ?? [],
   };
+  if (extras.runbooks !== undefined) candidate.runbooks = extras.runbooks;
   if (extras.migration !== undefined) candidate.migration = extras.migration;
   return validateProjectPackage(candidate);
 }

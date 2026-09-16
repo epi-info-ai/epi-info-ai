@@ -1,5 +1,11 @@
 # Space-Time Cluster Detection example
 
+The independently governed teaching repository also publishes
+`space-time-cluster-detection.epia.json`, a complete browser project containing
+the synthetic events and saved command tour. In Epi Info AI, use **File >
+Import Example Project...** to retrieve and verify it without manually
+exchanging classroom files.
+
 This bundle exercises the new-branch `EPIAI CLUSTER SPACE_TIME` command with an
 entirely synthetic case-only line list. It is separate from legacy Epi Info
 parity and does not claim compatibility with any external scan-statistics

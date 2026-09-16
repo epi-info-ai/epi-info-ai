@@ -21,11 +21,13 @@ import {
   createProjectPackage,
   MAX_PROJECT_PACKAGE_BYTES,
   parseProjectPackage,
+  validateProjectRunbook,
   validateProjectProgram,
   type LegacyMigrationPayload,
   type ProjectCodeTable,
   type ProjectProgram,
 } from "../app/contracts/project-package.ts";
+import type { UiRunbook } from "../app/help/runbooks.ts";
 import {
   createProjectArchive,
   isBinaryProjectArchive,
@@ -128,6 +130,7 @@ interface RecentProjectEntry {
   extras: {
     programs: ProjectProgram[];
     codeTables: ProjectCodeTable[];
+    runbooks: UiRunbook[];
     migration?: LegacyMigrationPayload;
   };
 }
@@ -155,21 +158,26 @@ let activeDuplicateGroup: DuplicateGroup | null = null;
 function loadProjectPackageExtras(): {
   programs: ProjectProgram[];
   codeTables: ProjectCodeTable[];
+  runbooks: UiRunbook[];
   migration?: LegacyMigrationPayload;
 } {
   const stored = loadJson<unknown>(PROJECT_EXTRAS_KEY, null);
-  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return { programs: [], codeTables: [] };
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return { programs: [], codeTables: [], runbooks: [] };
   const source = stored as Record<string, unknown>;
   const programs = Array.isArray(source.programs) ? source.programs.flatMap((program, index) => {
     try { return [validateProjectProgram(program, `stored programs[${index}]`)]; } catch { return []; }
   }) : [];
   const codeTables = Array.isArray(source.codeTables) ? source.codeTables.filter((table): table is ProjectCodeTable => Boolean(table && typeof table === "object")) : [];
-  return { programs, codeTables };
+  const runbooks = Array.isArray(source.runbooks) ? source.runbooks.flatMap((runbook, index) => {
+    try { return [validateProjectRunbook(runbook, `stored runbooks[${index}]`)]; } catch { return []; }
+  }) : [];
+  return { programs, codeTables, runbooks };
 }
 
 let projectPackageExtras: {
   programs: ProjectProgram[];
   codeTables: ProjectCodeTable[];
+  runbooks: UiRunbook[];
   migration?: LegacyMigrationPayload;
 } = loadProjectPackageExtras();
 let projectState: ProjectSnapshotV1 = loadedProject.snapshot ?? {
@@ -191,6 +199,9 @@ let recentProjects = loadJson<RecentProjectEntry[]>(RECENT_PROJECTS_KEY, []).fla
       extras: {
         programs: Array.isArray(entry.extras?.programs) ? structuredClone(entry.extras.programs) : [],
         codeTables: Array.isArray(entry.extras?.codeTables) ? structuredClone(entry.extras.codeTables) : [],
+        runbooks: Array.isArray(entry.extras?.runbooks) ? entry.extras.runbooks.flatMap((runbook, index) => {
+          try { return [validateProjectRunbook(runbook, `recent runbooks[${index}]`)]; } catch { return []; }
+        }) : [],
         ...(entry.extras?.migration ? { migration: structuredClone(entry.extras.migration) } : {}),
       },
     }];
@@ -584,6 +595,10 @@ export function getCurrentProjectPrograms(): ProjectProgram[] {
   return structuredClone(projectPackageExtras.programs.filter((program) => program.language === "classic-analysis"));
 }
 
+export function getCurrentProjectRunbooks(): UiRunbook[] {
+  return structuredClone(projectPackageExtras.runbooks);
+}
+
 export function saveCurrentProjectProgram(name: string, source: string, metadata: { author?: string; comment?: string } = {}): ProjectProgram {
   if (!hasActiveProject) throw new Error("Open or create a project before saving a program.");
   const normalizedName = name.trim();
@@ -626,7 +641,7 @@ export function applyHostedProjectSnapshot(snapshot: unknown, remote: HostedProj
   }
   projectState = nextProject;
   const issues = validateProjectRecords(projectState);
-  projectPackageExtras = { programs: [], codeTables: [] };
+  projectPackageExtras = { programs: [], codeTables: [], runbooks: [] };
   projectState.storage = { type: "supabase" };
   projectState.remote = structuredClone(remote);
   projectName = projectState.name || "Hosted Project";
@@ -1617,7 +1632,7 @@ function stageEncryptedProjectForReview(file: File): void {
   queueMicrotask(() => requiredElement<HTMLInputElement>("#encrypted-project-open-passphrase").focus());
 }
 
-async function openProjectPackage(file: File): Promise<void> {
+export async function openProjectPackage(file: File): Promise<void> {
   if (file.size > MAX_PROJECT_ARCHIVE_BYTES) throw new Error("Project packages are limited to 150 MiB in this prototype.");
   const binary = await isBinaryProjectArchive(file);
   let packageValue;
@@ -1666,6 +1681,7 @@ async function openProjectPackage(file: File): Promise<void> {
   projectPackageExtras = {
     programs: structuredClone(packageValue.programs),
     codeTables: structuredClone(packageValue.codeTables),
+    runbooks: structuredClone(packageValue.runbooks ?? []),
   };
   if (packageValue.migration !== undefined) projectPackageExtras.migration = structuredClone(packageValue.migration);
   activateProject(null);
@@ -2519,7 +2535,7 @@ export function initializeFormDataDemo() {
       forms: [{ id: currentFormId, schema: structuredClone(schema), records: [] }],
       ...(pendingStudyArea ? { studyAreas: [structuredClone(pendingStudyArea)] } : {}),
     };
-    projectPackageExtras = { programs: [], codeTables: [] };
+    projectPackageExtras = { programs: [], codeTables: [], runbooks: [] };
     activateProject(null);
     syncCurrentForm();
     renderDesigner();

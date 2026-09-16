@@ -57,12 +57,14 @@ const requiredFiles = [
   "examples/foodborne/foodborne-outbreak-investigation.xlsx",
   "examples/foodborne/foodborne-outbreak-investigation.programs.json",
   "examples/foodborne/foodborne-dialog-tour.pgm7",
+  "examples/foodborne/foodborne-investigation.runbook.json",
   "examples/foodborne/maps/city-of-toledo-neighborhoods.geojson",
   "examples/foodborne/maps/worldpop-toledo-population-density.tif",
   "examples/cluster/README.md",
   "examples/cluster/space-time-cluster-synthetic-v0.1.csv",
   "examples/cluster/space-time-cluster-command-tour.pgm7",
   "examples/cluster/space-time-cluster-synthetic-v0.1.programs.json",
+  "examples/cluster/space-time-cluster.runbook.json",
   "examples/matched-case-control/README.md",
   "examples/matched-case-control/DATA_DICTIONARY.md",
   "examples/matched-case-control/case-control-database-example.xlsx",
@@ -79,6 +81,10 @@ const requiredFiles = [
   "examples/matched-case-control/match-pb-by-pair.pgm7",
   "examples/projects/README.md",
   "examples/projects/sample-project.epia.json",
+  "examples/projects/epi-info-projects.json",
+  "examples/projects/foodborne-outbreak-investigation.epia.json",
+  "examples/projects/space-time-cluster-detection.epia.json",
+  "examples/recordlink/recordlink.runbook.json",
   "vendor/leaflet/leaflet.js",
   "vendor/h3-js/h3-js.es.js",
   "setup/supabase-schema.sql",
@@ -125,8 +131,10 @@ assert.equal(createHash("sha256").update(engineBytes).digest("hex"), engineManif
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
-assert.match(html, /src=["']app\.js\?v=110["']/);
-assert.match(html, /href=["']styles\.css\?v=62["']/);
+assert.match(html, /src=["']app\.js\?v=111["']/);
+assert.match(html, /href=["']styles\.css\?v=63["']/);
+assert.match(html, /id=["']app-version["'][^>]*>v0\.1\.0</);
+assert.match(html, /id=["']example-project-dialog["']/);
 assert.match(html, /id=["']teaching-repository-dialog["']/);
 assert.match(html, /id=["']study-area-dialog["']/);
 assert.match(html, /id=["']main-menu["']/);

@@ -1,0 +1,64 @@
+{
+  "id": "foodborne-investigation-project-tour",
+  "title": "Foodborne investigation project tour",
+  "description": "Review the imported line list, open its saved command tour, run the visible source, and inspect the audit history.",
+  "prerequisite": "Import the Foodborne Outbreak Investigation example project. Its 96 synthetic records and saved programs are included.",
+  "module": "data",
+  "steps": [
+    {
+      "id": "review-records",
+      "title": "Review the line list",
+      "instruction": "Confirm that the imported project contains 96 synthetic foodborne investigation records. No analysis has run automatically.",
+      "target": "#saved-records-title"
+    },
+    {
+      "id": "open-classic",
+      "title": "Open Classic Analysis",
+      "instruction": "Choose Classic Analysis from the left module rail. The project data and saved programs remain active.",
+      "target": "[data-module='classic']",
+      "advanceOn": "click"
+    },
+    {
+      "id": "open-program-dialog",
+      "title": "Open a saved program",
+      "instruction": "Select Open Pgm to see programs carried by this project package.",
+      "target": "#classic-program-toolbar-open",
+      "advanceOn": "click"
+    },
+    {
+      "id": "choose-command-tour",
+      "title": "Choose the command tour",
+      "instruction": "Choose foodborne-classic-command-tour. Review its source before opening it.",
+      "target": "#classic-program-dialog-project",
+      "advanceOn": "change"
+    },
+    {
+      "id": "load-source",
+      "title": "Load visible source",
+      "instruction": "Select Open. Loading a program never executes it.",
+      "target": "#classic-program-dialog-primary",
+      "advanceOn": "click"
+    },
+    {
+      "id": "verify",
+      "title": "Verify the program",
+      "instruction": "Select Verify Program and review the typed syntax result.",
+      "target": "#classic-program-verify",
+      "advanceOn": "click"
+    },
+    {
+      "id": "run",
+      "title": "Run the reviewed commands",
+      "instruction": "Select Run Commands only after reviewing the visible source. The output remains auditable in this browser.",
+      "target": "#classic-program-run",
+      "advanceOn": "click"
+    },
+    {
+      "id": "history",
+      "title": "Inspect command history",
+      "instruction": "Open History to inspect command source, status, versions, and result summaries.",
+      "target": "#classic-output-history",
+      "advanceOn": "click"
+    }
+  ]
+}

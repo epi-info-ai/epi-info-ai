@@ -657,6 +657,7 @@ The detailed cumulative changes and validation increments follow.
 
 - **Teaching Repositories V0.1 candidate.** The
   [teaching repository contract](wasm/docs/design/teaching-repository-contract.md)
+  and [example project repository contract](wasm/docs/design/example-project-repository-contract.md)
   and **Help > Teaching Repositories** now preview the public foodborne manifest,
   pin downloads to a full GitHub commit SHA, verify declared lengths and hashes,
   install artifacts into OPFS, re-verify offline reads, and register the installed

@@ -1,0 +1,56 @@
+{
+  "id": "space-time-cluster-project-tour",
+  "title": "Space-time cluster project tour",
+  "description": "Run the reproducible synthetic cluster analysis, inspect its parameters, and open the ranked result in Maps.",
+  "prerequisite": "Import the Space-Time Cluster Detection example project. It contains 30 synthetic events and a saved two-command tour.",
+  "module": "classic",
+  "steps": [
+    {
+      "id": "orient",
+      "title": "Orient to the Program Editor",
+      "instruction": "The project is active in Classic Analysis. No cluster analysis has run automatically.",
+      "target": "#classic-program-title"
+    },
+    {
+      "id": "open-program-dialog",
+      "title": "Open the saved cluster program",
+      "instruction": "Select Open Pgm to review the program included with this project.",
+      "target": "#classic-program-toolbar-open",
+      "advanceOn": "click"
+    },
+    {
+      "id": "load-source",
+      "title": "Load the cluster command tour",
+      "instruction": "Choose the saved space-time-cluster-command-tour and select Open. Loading source does not run it.",
+      "target": "#classic-program-dialog-primary",
+      "advanceOn": "click"
+    },
+    {
+      "id": "verify",
+      "title": "Verify all parameters",
+      "instruction": "Select Verify Program, then inspect the visible dates, distance, temporal window, replication count, and deterministic seed.",
+      "target": "#classic-program-verify",
+      "advanceOn": "click"
+    },
+    {
+      "id": "run",
+      "title": "Run cluster detection",
+      "instruction": "Select Run Commands and watch Worker progress and elapsed time. You remain able to cancel the calculation.",
+      "target": "#classic-program-run",
+      "advanceOn": "click"
+    },
+    {
+      "id": "review-output",
+      "title": "Review statistical output",
+      "instruction": "Inspect the ranked windows, Monte Carlo p-values, explicit parameter table, and aggregate-only privacy boundary.",
+      "target": "#classic-cluster-output"
+    },
+    {
+      "id": "open-maps",
+      "title": "Open the cluster story map",
+      "instruction": "Select Open in Maps, then use Story Tour to move through ranked clusters and hover for cluster characteristics.",
+      "target": "#classic-cluster-open-maps",
+      "advanceOn": "click"
+    }
+  ]
+}
