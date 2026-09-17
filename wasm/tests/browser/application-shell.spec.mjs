@@ -1166,7 +1166,7 @@ test("EPIAI CLUSTER runs in a Worker and renders its named result inline", async
   await expect(page.locator("#map-status")).toContainText("derived map output from the previous project was cleared");
 });
 
-test("RECORDLINK tour reports governed candidate diagnostics without scoring or mutation", async ({ page }) => {
+test("RECORDLINK tour reports governed threshold classifications without mutation", async ({ page }) => {
   await page.locator("#project-package-open").setInputFiles("wasm/demo/examples/recordlink/recordlink-synthetic-project.epia.json");
   await expect(page.locator("#main-menu-status")).toContainText("Opened Synthetic Patient Record Linkage");
   await page.getByRole("button", { name: "Classic", exact: true }).click();
@@ -1178,13 +1178,63 @@ test("RECORDLINK tour reports governed candidate diagnostics without scoring or 
   await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 20 commands in source order");
   const retained = page.locator("#classic-sequential-output-body .classic-sequential-command").last();
   await expect(retained).toContainText("RECORDLINK blocking retained 7 of 64 possible pairs");
-  await expect(retained).toContainText("Candidate-pair diagnostics — PatientLinks");
-  await expect(retained).toContainText("7 candidates · 89.1% reduction");
+  await expect(retained).toContainText("Candidate comparison — PatientLinks");
+  await expect(retained).toContainText("7 candidates · 89.1% reduction · 6-point scale");
   await expect(retained).toContainText("blocking retained 5 of 5 known links (100.0% candidate recall)");
-  await expect(retained).toContainText("does not calculate fuzzy similarities");
-  await expect(page.locator("#classic-program-history")).toContainText("RECORDLINK blocking retained 7 of 64 possible pairs");
+  await expect(retained).toContainText("Score distribution: 6/6: 4; 5/6: 1; 0/6: 2");
+  await expect(retained).toContainText("Threshold classes: 4 match, 1 review, 2 non-match");
+  await expect(retained).toContainText("precision 100.0%, recall 80.0%, and F1 88.9%");
+  await expect(retained).toContainText("patient_address:Address JW=0.947 → 1");
+  await expect(retained).toContainText("Deterministic comparison and threshold classification remain proposals");
+  await retained.getByRole("button", { name: "Review pair" }).click();
+  const reviewDialog = page.locator("#classic-recordlink-review-dialog");
+  await expect(reviewDialog).toBeVisible();
+  await expect(reviewDialog).toContainText("Automatic class review; score 5/6");
+  await expect(reviewDialog).toContainText("A004");
+  await expect(reviewDialog).toContainText("B004");
+  await expect(reviewDialog).toContainText("1988-12-01");
+  await expect(reviewDialog).toContainText("1988-12-02");
+  await reviewDialog.locator("#classic-recordlink-review-decision").selectOption("match");
+  await reviewDialog.locator("#classic-recordlink-review-reason").selectOption("acceptable-variation");
+  await reviewDialog.locator("#classic-recordlink-review-save").click();
+  await expect(reviewDialog).toBeHidden();
+  await expect(retained.getByRole("button", { name: "Review again (match)" })).toBeVisible();
+  await expect(retained).toContainText("Clerical decisions saved this session: 1");
+  await expect(page.locator("#classic-program-history")).toContainText("proposed 4 match, 1 review, and 2 non-match classifications");
+  await expect(page.locator("#classic-program-history")).toContainText("Candidate 5 received clerical decision match");
   await expect(page.locator("#classic-program-history")).not.toContainText("A001");
   await expect(page.locator("#classic-program-history")).not.toContainText("B001");
+  await expect(page.locator("#classic-program-history")).not.toContainText("A004");
+  await expect(page.locator("#classic-program-history")).not.toContainText("B004");
+  await expect(page.locator("#classic-recordlink-review-export")).toBeEnabled();
+  const artifactDownloadPromise = page.waitForEvent("download");
+  await page.locator("#classic-recordlink-review-export").click();
+  const artifactDownload = await artifactDownloadPromise;
+  expect(artifactDownload.suggestedFilename()).toBe("patientlinks-recordlink-review.json");
+  const artifactPath = await artifactDownload.path();
+  const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+  expect(artifact).toMatchObject({
+    kind: "epi-info-ai.recordlink-review", schemaVersion: 1, reviewVersion: "0.1.0",
+    projectName: "Synthetic Patient Record Linkage",
+    privacy: { identifiersIncluded: false, recordValuesIncluded: false, normalizedValuesIncluded: false },
+  });
+  expect(artifact.decisions).toHaveLength(1);
+  expect(artifact.candidateSet.fingerprint).toMatch(/^[a-f0-9]{64}$/);
+  const artifactText = JSON.stringify(artifact);
+  for (const privateValue of ["A004", "B004", "1988-12-01", "1988-12-02"]) expect(artifactText).not.toContain(privateValue);
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-feedback")).toContainText("Executed all 20 commands in source order");
+  await expect(page.locator("#classic-recordlink-review-export")).toBeDisabled();
+  await page.locator("#classic-recordlink-review-file").setInputFiles(artifactPath);
+  await expect(page.locator("#classic-recordlink-review-artifact-status")).toContainText("Replayed 1 fingerprint-verified decision");
+  await expect(page.locator(".recordlink-review-open").last()).toHaveText("Review again (match)");
+  await expect(page.locator("#classic-program-history")).toContainText("Replayed 1 fingerprint-verified clerical decision");
+  await expect(page.locator("#classic-recordlink-build-clusters")).toBeEnabled();
+  await page.locator("#classic-recordlink-build-clusters").click();
+  await expect(page.locator("#classic-recordlink-cluster-status")).toContainText("Proposed 11 people from 16 source records: 5 linked pairs and 6 singletons; 5 links accepted and 0 conflicting links rejected");
+  await expect(page.locator("#classic-program-history")).toContainText("Proposed 11 opaque person clusters");
+  await expect(page.locator("#classic-program-history")).not.toContainText("A004");
+  await expect(page.locator("#classic-program-history")).not.toContainText("B004");
   await page.getByRole("button", { name: "Enter Data", exact: true }).click();
   await expect(page.locator("#record-count")).toContainText("8");
 });
@@ -4144,7 +4194,7 @@ test("File imports three complete checksummed teaching projects from the reposit
   const runbookLibrary = page.getByRole("dialog", { name: "Automated Runbooks" });
   await expect(runbookLibrary.locator("#runbook-select option[value='recordlink-project-tour']")).toHaveText(/Current project/);
   await runbookLibrary.locator("#runbook-select").selectOption("recordlink-project-tour");
-  await expect(runbookLibrary.locator("#runbook-description")).toContainText("aggregate candidate diagnostics");
+  await expect(runbookLibrary.locator("#runbook-description")).toContainText("explainable threshold classifications");
   await runbookLibrary.locator("#runbook-start").click();
   await expect(page.locator("#runbook-step-title")).toHaveText("Confirm the governed boundary");
   await expect(page.locator("#classic-recordlink-output-summary")).toHaveText("");

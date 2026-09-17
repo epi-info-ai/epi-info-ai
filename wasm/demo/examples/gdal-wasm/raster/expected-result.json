@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "operation": "raster-warp-clip-resample",
+  "source": {
+    "name": "worldpop-toledo-population-density.tif",
+    "sha256": "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1",
+    "crs": "EPSG:4326",
+    "width": 365,
+    "height": 207,
+    "bands": 1
+  },
+  "targetCrs": "EPSG:3857",
+  "clipBoundsWgs84": [-83.62, 41.6, -83.45, 41.72],
+  "expectedBoundsMeters": [-9308535.820133537, 5101248.438166104, -9289611.50669868, 5119128.644236652],
+  "boundsToleranceMeters": 2,
+  "nodata": -99999,
+  "profiles": {
+    "quick": { "width": 1024, "height": 1024, "estimatedRawBytes": 4194304 },
+    "standard": { "width": 2048, "height": 2048, "estimatedRawBytes": 16777216 },
+    "stress": { "width": 4096, "height": 4096, "estimatedRawBytes": 67108864 }
+  }
+}

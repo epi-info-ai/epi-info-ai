@@ -8,6 +8,10 @@ an implementation prototype, not the product definition. Phase 2 therefore
 types the browser boundary around the legacy concepts before additional map
 features are added.
 
+The detailed, source-backed parity-floor review is maintained in
+[`../review/geospatial_mapping.md`](../review/geospatial_mapping.md). This design
+inventory retains the stable gap IDs and browser implementation decisions.
+
 This module inventory is governed by the
 [legacy capability register](legacy-capability-register.md). Its stable Maps gap
 IDs are the bridge from legacy discovery to implementation work.

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI — GDAL/WASM zonal-statistics spike</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header><p class="label">NEW BRANCH · ARCHITECTURE SPIKE</p><h1>Population-at-risk zonal statistics</h1><p>Mask a population surface by epidemiologic study zones and calculate coverage-aware rates in a dedicated GDAL/WASM Worker.</p></header>
+  <main>
+    <nav class="spike-tabs" aria-label="GDAL/WASM spike tabs"><a href="../reprojection/index.html">Reprojection</a><a href="../raster/index.html">Raster</a><a href="../shapefile/index.html">Zipped Shapefile</a><a href="../spatial-join/index.html">Spatial Join</a><a href="../dirty-boundaries/index.html">Dirty Boundaries</a><a class="active" aria-current="page" href="../zonal-statistics/index.html">Zonal Statistics</a><a href="../cog-offline/index.html">COG Offline</a><a href="../geopackage/index.html">GeoPackage</a></nav>
+    <section class="panel">
+      <h2>Analysis profile</h2>
+      <label for="zonal-profile"><strong>Workload</strong></label>
+      <select id="zonal-profile"><option value="diagnostic">Diagnostic · rectangle, hole, and outside-raster zone</option><option value="standard" selected>Standard · all 6 zones · one pass</option><option value="stress">Stress · all 6 zones · four deterministic passes</option></select>
+      <p>GDAL masks the WGS 84 population surface to each zone using nearest-neighbor resampling, retains NoData, and calculates Worker-side band statistics. Epi Info derives coverage and cases per 100,000 population units.</p>
+      <p class="boundary"><strong>Denominator boundary:</strong> the fixture is WorldPop-derived but carries no authoritative unit metadata. Values are treated as population units solely for this architecture test. Production rates require the investigator to confirm raster year, population concept, units, CRS, resolution, and study-area suitability.</p>
+      <div class="actions"><button id="run-zonal">Run zonal statistics</button><button id="cancel-zonal" class="secondary" hidden>Cancel</button><button id="download-zonal" class="secondary" disabled>Download results CSV</button></div>
+      <p id="zonal-status" role="status">Ready.</p><p><strong>Elapsed:</strong> <span id="zonal-elapsed">0.0 s</span></p>
+      <p id="zonal-validation" class="validation" data-state="pending">Validation has not run.</p>
+      <p id="zonal-denominator-warning" class="denominator-warning"><strong>Small-denominator review:</strong> results below 5,000 population units will be flagged after analysis. This demonstration threshold is a review cue, not a universal suppression rule.</p>
+    </section>
+    <section class="panel"><h2>Coverage-aware rate map</h2><svg id="zonal-map" class="topology-map" viewBox="0 0 700 330" role="img" aria-label="Study zones colored by cases per 100,000 population units"><text x="350" y="165" text-anchor="middle">Run the analysis to render rates.</text></svg><p class="map-note">Gray indicates no usable denominator. Hover or focus a zone to inspect cases, population, coverage, and rate.</p></section>
+    <section class="panel"><h2>Zonal results</h2><div class="table-scroll"><table id="zonal-table"><thead><tr><th>Zone</th><th>Cases</th><th>Population units</th><th>Valid pixels</th><th>Coverage</th><th>Rate per 100,000</th><th>Denominator review</th></tr></thead><tbody><tr><td colspan="7">Run the analysis to calculate results.</td></tr></tbody></table></div></section>
+    <section class="panel"><h2>Auditable processing receipt</h2><pre id="zonal-receipt">Run the spike to generate the receipt.</pre></section>
+    <p><a href="../README.md">Design and go/no-go criteria</a> · <a href="../../../">Return to Epi Info AI</a></p>
+  </main>
+  <script type="module" src="./gdal-zonal-statistics-spike.js"></script>
+</body>
+</html>

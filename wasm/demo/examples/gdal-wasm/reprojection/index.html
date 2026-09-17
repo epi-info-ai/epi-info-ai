@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI — GDAL/WASM kernel spike</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header><p class="label">NEW BRANCH · ARCHITECTURE SPIKE</p><h1>GDAL/WASM browser kernel</h1><p>Reproject a synthetic vector layer from Web Mercator to WGS 84 entirely inside a dedicated browser Worker.</p></header>
+  <main>
+    <nav class="spike-tabs" aria-label="GDAL/WASM spike tabs"><a class="active" aria-current="page" href="../reprojection/index.html">Reprojection</a><a href="../raster/index.html">Raster</a><a href="../shapefile/index.html">Zipped Shapefile</a><a href="../spatial-join/index.html">Spatial Join</a><a href="../dirty-boundaries/index.html">Dirty Boundaries</a><a href="../zonal-statistics/index.html">Zonal Statistics</a><a href="../cog-offline/index.html">COG Offline</a><a href="../geopackage/index.html">GeoPackage</a></nav>
+    <section class="panel">
+      <h2>Bounded operation</h2>
+      <dl><div><dt>Input</dt><dd>3 synthetic point features · GeoJSON · EPSG:3857</dd></div><div><dt>Operation</dt><dd><code>ogr2ogr -s_srs EPSG:3857 -t_srs EPSG:4326</code></dd></div><div><dt>Output</dt><dd>RFC 7946 GeoJSON · EPSG:4326</dd></div><div><dt>Execution</dt><dd>GDAL 3.8.4 + PROJ 9.3.1 + GEOS 3.12.1 through gdal3.js 2.8.1</dd></div></dl>
+      <p class="boundary"><strong>Safety boundary:</strong> the example reads one checked-in synthetic fixture. No record values leave the browser, no project state changes, and cancelling terminates the Worker.</p>
+      <div class="actions"><button id="run-spike">Run GDAL/WASM spike</button><button id="cancel-spike" class="secondary" hidden>Cancel</button><button id="download-result" class="secondary" disabled>Download validated GeoJSON</button></div>
+      <p id="spike-status" role="status">Ready. The approximately 40 MB vendored runtime loads only when you run the spike.</p>
+      <p id="validation-status" class="validation" data-state="pending">Validation has not run.</p>
+    </section>
+    <section class="panel"><h2>Auditable processing receipt</h2><pre id="processing-receipt">Run the spike to generate the receipt.</pre></section>
+    <details class="panel"><summary>Normalized WGS 84 GeoJSON</summary><pre id="output-geojson"></pre></details>
+    <details class="panel"><summary>Worker log</summary><pre id="worker-log"></pre></details>
+    <p><a href="../README.md">Read the spike design and go/no-go criteria</a> · <a href="../../../">Return to Epi Info AI</a></p>
+  </main>
+  <script type="module" src="./gdal-wasm-spike.js"></script>
+</body>
+</html>

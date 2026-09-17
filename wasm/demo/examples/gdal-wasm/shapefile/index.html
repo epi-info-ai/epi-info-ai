@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI — GDAL/WASM zipped Shapefile spike</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header><p class="label">NEW BRANCH · ARCHITECTURE SPIKE</p><h1>Zipped Shapefile round-trip</h1><p>Create, package, reopen, validate, and normalize a multi-file Shapefile entirely in the browser.</p></header>
+  <main>
+    <nav class="spike-tabs" aria-label="GDAL/WASM spike tabs"><a href="../reprojection/index.html">Reprojection</a><a href="../raster/index.html">Raster</a><a class="active" aria-current="page" href="../shapefile/index.html">Zipped Shapefile</a><a href="../spatial-join/index.html">Spatial Join</a><a href="../dirty-boundaries/index.html">Dirty Boundaries</a><a href="../zonal-statistics/index.html">Zonal Statistics</a><a href="../cog-offline/index.html">COG Offline</a><a href="../geopackage/index.html">GeoPackage</a></nav>
+    <section class="panel">
+      <h2>Vector/archive profile</h2>
+      <label for="shapefile-profile"><strong>Synthetic point count</strong></label>
+      <select id="shapefile-profile"><option value="300">Quick · 300</option><option value="3000" selected>Standard · 3,000</option><option value="30000">Stress · 30,000</option></select>
+      <p>The first Worker converts EPSG:3857 GeoJSON into `.shp`, `.shx`, `.dbf`, and `.prj` components. The page ZIPs those bytes, terminates that Worker, and a fresh Worker reopens the ZIP through GDAL’s `/vsizip/` handler before normalizing it to EPSG:4326 GeoJSON.</p>
+      <p class="boundary"><strong>Safety boundary:</strong> all records are generated synthetic points. No uploaded file, network processing service, or project state is used.</p>
+      <div class="actions"><button id="run-shapefile-spike">Run zipped Shapefile spike</button><button id="cancel-shapefile-spike" class="secondary" hidden>Cancel</button><button id="download-shapefile-zip" class="secondary" disabled>Download ZIP</button><button id="download-shapefile-geojson" class="secondary" disabled>Download normalized GeoJSON</button></div>
+      <p id="shapefile-status" role="status">Ready.</p><p><strong>Elapsed:</strong> <span id="shapefile-elapsed">0.0 s</span></p>
+      <p id="shapefile-validation" class="validation" data-state="pending">Validation has not run.</p>
+    </section>
+    <section class="panel"><h2>Archive manifest</h2><pre id="shapefile-manifest">Run the spike to create the archive.</pre></section>
+    <section class="panel"><h2>Auditable round-trip receipt</h2><pre id="shapefile-receipt">Run the spike to generate the receipt.</pre></section>
+    <p><a href="../README.md">Design and go/no-go criteria</a> · <a href="../../../">Return to Epi Info AI</a></p>
+  </main>
+  <script type="module" src="./gdal-shapefile-spike.js"></script>
+</body>
+</html>

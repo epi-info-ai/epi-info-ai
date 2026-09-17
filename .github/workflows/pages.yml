@@ -64,6 +64,9 @@ jobs:
           for notebook in wasm/validation-lab/content/*.ipynb; do
             test -f "wasm/dist/validation-lab/files/$(basename "$notebook")"
           done
+          test -f wasm/dist/validation-lab/files/validate-recordlink.ipynb
+          test -f wasm/dist/examples/gdal-wasm/reprojection/index.html
+          test -f wasm/dist/examples/gdal-wasm/geopackage/index.html
           touch wasm/dist/.nojekyll
 
       - name: Run browser acceptance tests

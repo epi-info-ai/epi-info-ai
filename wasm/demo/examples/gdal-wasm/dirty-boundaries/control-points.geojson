@@ -1,0 +1,17 @@
+{
+  "type": "FeatureCollection",
+  "name": "control_points",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  "features": [
+    { "type": "Feature", "properties": { "point_id": "SOUTH_LOBE", "expected_boundary": "BOWTIE", "case": "inside repaired south lobe" }, "geometry": { "type": "Point", "coordinates": [-83.66, 41.61] } },
+    { "type": "Feature", "properties": { "point_id": "NORTH_LOBE", "expected_boundary": "BOWTIE", "case": "inside repaired north lobe" }, "geometry": { "type": "Point", "coordinates": [-83.66, 41.63] } },
+    { "type": "Feature", "properties": { "point_id": "CROSSING", "expected_boundary": null, "case": "self-intersection node excluded after repair" }, "geometry": { "type": "Point", "coordinates": [-83.66, 41.62] } },
+    { "type": "Feature", "properties": { "point_id": "BOWTIE_OUTSIDE", "expected_boundary": null, "case": "inside envelope but outside repaired lobes" }, "geometry": { "type": "Point", "coordinates": [-83.675, 41.62] } },
+    { "type": "Feature", "properties": { "point_id": "MAIN_SHELL", "expected_boundary": "ORPHAN_HOLE", "case": "inside main shell" }, "geometry": { "type": "Point", "coordinates": [-83.60, 41.62] } },
+    { "type": "Feature", "properties": { "point_id": "DETACHED_RING", "expected_boundary": "ORPHAN_HOLE", "case": "inside detached ring after repair" }, "geometry": { "type": "Point", "coordinates": [-83.555, 41.605] } },
+    { "type": "Feature", "properties": { "point_id": "CONTROL_SHELL", "expected_boundary": "DONUT_CONTROL", "case": "inside valid control shell" }, "geometry": { "type": "Point", "coordinates": [-83.52, 41.605] } },
+    { "type": "Feature", "properties": { "point_id": "CONTROL_HOLE", "expected_boundary": null, "case": "inside valid control hole" }, "geometry": { "type": "Point", "coordinates": [-83.50, 41.625] } },
+    { "type": "Feature", "properties": { "point_id": "HOLE_BOUNDARY", "expected_boundary": "DONUT_CONTROL", "case": "on valid control hole boundary" }, "geometry": { "type": "Point", "coordinates": [-83.51, 41.625] } },
+    { "type": "Feature", "properties": { "point_id": "OUTSIDE_ALL", "expected_boundary": null, "case": "outside all boundaries" }, "geometry": { "type": "Point", "coordinates": [-83.45, 41.62] } }
+  ]
+}

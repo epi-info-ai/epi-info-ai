@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI - GDAL/WASM GeoPackage round-trip</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header><p class="label">NEW BRANCH - ARCHITECTURE SPIKE</p><h1>Multi-layer GeoPackage round-trip</h1><p>Create, reopen, inventory, and validate epidemiologic points, study boundaries, and a nonspatial metadata table in one browser-generated file.</p></header>
+  <main>
+    <nav class="spike-tabs" aria-label="GDAL/WASM spike tabs"><a href="../reprojection/index.html">Reprojection</a><a href="../raster/index.html">Raster</a><a href="../shapefile/index.html">Zipped Shapefile</a><a href="../spatial-join/index.html">Spatial Join</a><a href="../dirty-boundaries/index.html">Dirty Boundaries</a><a href="../zonal-statistics/index.html">Zonal Statistics</a><a href="../cog-offline/index.html">COG Offline</a><a class="active" aria-current="page" href="../geopackage/index.html">GeoPackage</a></nav>
+    <section class="panel">
+      <h2>Round-trip acceptance test</h2>
+      <p>The first dedicated Worker writes three named layers to one GeoPackage. A fresh Worker reopens its bytes, inventories every layer, and exports each layer by explicit name for comparison with the reviewed source.</p>
+      <p class="boundary"><strong>Selection boundary:</strong> a GeoPackage containing multiple layers never receives an implicit default layer. The user or calling workflow must select a layer from the discovered inventory.</p>
+      <div class="actions"><button id="run-geopackage">Run GeoPackage round-trip</button><button id="cancel-geopackage" class="secondary" hidden>Cancel</button><button id="download-geopackage" class="secondary" disabled>Download GeoPackage</button></div>
+      <p id="geopackage-status" role="status">Ready.</p><p><strong>Elapsed:</strong> <span id="geopackage-elapsed">0.0 s</span></p>
+      <p id="geopackage-validation" class="validation" data-state="pending">Validation has not run.</p>
+    </section>
+    <section class="panel">
+      <h2>Explicit layer explorer</h2>
+      <label for="geopackage-layer"><strong>Layer</strong></label>
+      <select id="geopackage-layer" disabled><option value="">Run the test to discover layers</option></select>
+      <button id="download-geopackage-layer" class="secondary" disabled>Download selected layer as GeoJSON</button>
+      <div class="table-scroll"><table id="geopackage-inventory"><thead><tr><th>Layer</th><th>Kind</th><th>Features</th><th>Geometry</th><th>CRS</th><th>Fields</th></tr></thead><tbody><tr><td colspan="6">No inventory yet.</td></tr></tbody></table></div>
+    </section>
+    <section class="panel">
+      <h2>Selected GeoJSON output preview</h2>
+      <p id="geopackage-preview-summary" class="map-note">Choose an explicitly discovered layer to preview its exported GeoJSON.</p>
+      <dl class="preview-metadata" aria-label="Selected layer metadata"><div><dt>Layer</dt><dd id="geopackage-preview-layer">Not selected</dd></div><div><dt>Kind</dt><dd id="geopackage-preview-kind">Not available</dd></div><div><dt>CRS</dt><dd id="geopackage-preview-crs">Not available</dd></div><div><dt>Features</dt><dd id="geopackage-preview-count">Not available</dd></div></dl>
+      <div class="geojson-preview-grid">
+        <svg id="geopackage-map-preview" viewBox="0 0 640 360" role="img" aria-label="Selected spatial GeoJSON layer preview"><text x="320" y="180" text-anchor="middle">No spatial layer selected</text></svg>
+        <pre id="geopackage-json-preview">No layer selected.</pre>
+      </div>
+    </section>
+    <section class="panel"><h2>Auditable processing receipt</h2><pre id="geopackage-receipt">Run the spike to generate the receipt.</pre></section>
+    <p><a href="../README.md">Design and go/no-go criteria</a> - <a href="../../../">Return to Epi Info AI</a></p>
+  </main>
+  <script type="module" src="./gdal-geopackage-spike.js"></script>
+</body>
+</html>

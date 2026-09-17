@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "method": "independent-geotiff-cell-center-point-in-polygon",
+  "source": {
+    "rasterSha256": "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1",
+    "zonesSha256": "9b1e7e66dc717be8cbd7a1f19de84056eb59059237e2296df10847c2c7ac9b80"
+  },
+  "tolerance": {
+    "populationRelative": 0.0002,
+    "populationAbsolute": 0.01,
+    "validPixelDifference": 1
+  },
+  "results": [
+    { "zoneId": "Z01", "population": 78750.00881313476, "validPixels": 11033, "selectedPixels": 11520 },
+    { "zoneId": "Z02", "population": 57062.26663341658, "validPixels": 9852, "selectedPixels": 10656 },
+    { "zoneId": "Z03", "population": 86359.5166758003, "validPixels": 11542, "selectedPixels": 12450 },
+    { "zoneId": "Z04", "population": 51373.05200548774, "validPixels": 11457, "selectedPixels": 12672 },
+    { "zoneId": "Z05", "population": 1900.6019685255196, "validPixels": 1664, "selectedPixels": 5664 },
+    { "zoneId": "Z06", "population": 0, "validPixels": 0, "selectedPixels": 0 }
+  ]
+}

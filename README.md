@@ -68,12 +68,28 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch Epi Info AI v0.1.0 — GitHub Pages mirror](https://epi-info-ai.github.io/epi-info-ai/)** — the same validated `main` build published by GitHub Actions for external replication testing.
 
+### GDAL/WASM browser GIS validation lab
+
+The standalone validation lab exercises eight browser GIS workloads: reprojection,
+raster processing, zipped Shapefile input, parallel spatial joins, dirty-boundary
+repair, zonal statistics, COG range reads with OPFS replay, and GeoPackage layers.
+Use the tabs in the lab to move between tests.
+
+| Deployment | Open the validation lab |
+| --- | --- |
+| GitLab Pages | **[Launch GDAL/WASM validation lab](https://epi-info-ai-2859c9.gitpages.cdc.gov/examples/gdal-wasm/reprojection/index.html)** |
+| GitHub Pages mirror | **[Launch GDAL/WASM validation lab](https://epi-info-ai.github.io/epi-info-ai/examples/gdal-wasm/reprojection/index.html)** |
+
+The fixtures, reviewed expectations, and implementation notes are in
+[`wasm/demo/examples/gdal-wasm`](wasm/demo/examples/gdal-wasm/README.md).
+
 ## JupyterLite validation labs
 
 GitLab CI and GitHub Actions build and publish the same complete JupyterLite lab from `wasm/validation-lab/content`. CDC GitLab authentication may be required for GitLab Pages; the public GitHub mirror runs the same notebooks and deployed Rust/WASM kernel.
 
 | Validation notebook | GitLab Pages | GitHub Pages |
 | --- | --- | --- |
+| RECORDLINK classification, review binding, and clusters V0.7 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-recordlink.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-recordlink.ipynb) |
 | Space-Time Cluster Detection inference V0.3 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-space-time-cluster.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-space-time-cluster.ipynb) |
 | Conditional LOGISTIC V0.1 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-conditional-logistic.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-conditional-logistic.ipynb) |
 | MATCH paired-analysis contract | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-match.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-match.ipynb) |
@@ -728,11 +744,13 @@ The detailed cumulative changes and validation increments follow.
   candidate set, preserve human decisions and provenance in history, and test
   against synthetic truth links. Permission to use the upstream has been
   confirmed by its owner, and the pinned commit now aligns the root `LICENSE`
-  and `pyproject.toml` on Apache-2.0. The typed V0.2 AST/resolver and independent
-  [synthetic example bundle](wasm/demo/examples/recordlink/) now execute bounded
-  candidate generation and report progressive blocking reduction plus truth-link
-  recall. Comparison, classification, pair-level disclosure, clustering, and
-  source mutation remain fail-closed.
+  and `pyproject.toml` on Apache-2.0. The typed command, independent
+  [synthetic example bundle](wasm/demo/examples/recordlink/), and V0.7
+  [JupyterLite validation lab](wasm/validation-lab/content/validate-recordlink.ipynb)
+  now cover bounded candidates, deterministic comparison/classification,
+  fingerprint-bound review evidence, and conflict-aware person-cluster
+  proposals. Durable audit tables, reviewed `MERGE`, and source mutation remain
+  fail-closed.
 
 - **Complete field-user validation and expand `MATCH` without lowering the parity floor.** The
   [source and dataset inventory](wasm/docs/research/match-command-sources-and-data.md)

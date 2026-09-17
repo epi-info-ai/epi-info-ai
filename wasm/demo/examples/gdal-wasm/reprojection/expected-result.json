@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "operation": "vector-reproject",
+  "sourceCrs": "EPSG:3857",
+  "targetCrs": "EPSG:4326",
+  "featureCount": 3,
+  "expectedBounds": [-83.5552, 41.6404, -83.5195, 41.6639],
+  "coordinateToleranceDegrees": 0.000001,
+  "inputSha256": "b306f6eb24faee693aecd329a83f16eb5298d1a3348abc639fbcb0f76c7ece79",
+  "engine": {
+    "package": "gdal3.js",
+    "packageVersion": "2.8.1",
+    "gdalVersion": "3.8.4",
+    "projVersion": "9.3.1",
+    "geosVersion": "3.12.1"
+  }
+}

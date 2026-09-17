@@ -62,6 +62,12 @@ async function runbook(relativePath) {
 async function writePackage(fileName, project, programs, runbooks) {
   const outputPath = path.join(examplesRoot, "projects", fileName);
   const packageValue = createProjectPackage(project, { programs, codeTables: [], runbooks });
+  try {
+    const existing = JSON.parse(await readFile(outputPath, "utf8"));
+    if (typeof existing.exportedAt === "string") packageValue.exportedAt = existing.exportedAt;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
   await writeFile(outputPath, `${JSON.stringify(packageValue, null, 2)}\n`);
   return outputPath;
 }
@@ -113,6 +119,8 @@ await writePackage(
 
 const recordLinkPackagePath = path.join(examplesRoot, "recordlink", "recordlink-synthetic-project.epia.json");
 const recordLinkPackage = JSON.parse(await readFile(recordLinkPackagePath, "utf8"));
+recordLinkPackage.programs[0].source = await readFile(path.join(examplesRoot, "recordlink", "recordlink-command-tour.pgm7"), "utf8");
+recordLinkPackage.programs[0].comment = "Synthetic teaching workflow; V0.7 adds a deterministic conflict-aware person-cluster proposal without changing source data.";
 recordLinkPackage.runbooks = [await runbook("recordlink/recordlink.runbook.json")];
 await writeFile(recordLinkPackagePath, `${JSON.stringify(recordLinkPackage, null, 2)}\n`);
 
@@ -134,7 +142,7 @@ const projects = [
   {
     id: "record-linkage",
     title: "Synthetic Patient Record Linkage",
-    description: "Two synthetic patient sources, known truth links, source quality review, and governed RECORDLINK candidate diagnostics.",
+    description: "Two synthetic patient sources, known truth links, source quality review, explainable RECORDLINK classification, and bounded local clerical review.",
     file: "../recordlink/recordlink-synthetic-project.epia.json",
     repository: "https://git.cdc.gov/epi-info-ai/recordlink",
   },

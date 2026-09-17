@@ -836,6 +836,18 @@ new functionality follows the legacy capability register and later phases.
 
 ## TODO
 
+- [ ] Evaluate `REPEAT ... UNTIL` as a bounded Classic-language revival.
+  The retained Epi Info grammar defines `REPEAT` followed by statements and an
+  `UNTIL` expression, but the inspected Epi Info 7 Analysis interpreter leaves
+  `Repeat_Statement` without an executable rule; no user-language `FOR`,
+  `FOREACH`, or `WHILE` production was found. Preserve that distinction rather
+  than claiming legacy execution parity. Any browser implementation must use a
+  typed AST, validate the condition and body before execution, enforce explicit
+  iteration/time/output limits, support cancellation, retain transactional and
+  audit behavior, and fail closed on unsupported effects. Add positive,
+  termination, zero/one/many-iteration, limit, cancellation, and malicious-loop
+  fixtures plus experienced-user review before exposing it outside a clearly
+  labeled revival/new branch.
 - [x] Establish a host-owned declarative walkthrough service and Help entry with
   a foodborne Program Editor runbook. The V0.1 host owns spotlighting and
   action-aware progression, navigates only between modules, and leaves loading

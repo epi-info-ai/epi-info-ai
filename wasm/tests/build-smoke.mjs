@@ -6,6 +6,18 @@ import { fileURLToPath } from "node:url";
 
 const testsDirectory = dirname(fileURLToPath(import.meta.url));
 const outputDirectory = resolve(testsDirectory, "../dist");
+const repositoryReadme = await readFile(resolve(testsDirectory, "../../README.md"), "utf8");
+
+assert.match(
+  repositoryReadme,
+  /https:\/\/epi-info-ai-2859c9\.gitpages\.cdc\.gov\/examples\/gdal-wasm\/reprojection\/index\.html/,
+  "the main README must link to the GitLab Pages GDAL/WASM validation lab",
+);
+assert.match(
+  repositoryReadme,
+  /https:\/\/epi-info-ai\.github\.io\/epi-info-ai\/examples\/gdal-wasm\/reprojection\/index\.html/,
+  "the main README must link to the GitHub Pages GDAL/WASM validation lab",
+);
 
 async function requireFile(relativePath) {
   const file = join(outputDirectory, relativePath);
@@ -85,6 +97,38 @@ const requiredFiles = [
   "examples/projects/foodborne-outbreak-investigation.epia.json",
   "examples/projects/space-time-cluster-detection.epia.json",
   "examples/recordlink/recordlink.runbook.json",
+  "examples/gdal-wasm/README.md",
+  "examples/gdal-wasm/THIRD_PARTY_NOTICES.md",
+  "examples/gdal-wasm/LICENSE.fflate.txt",
+  "examples/gdal-wasm/styles.css",
+  "examples/gdal-wasm/reprojection/index.html",
+  "examples/gdal-wasm/reprojection/source-sites-epsg3857.geojson",
+  "examples/gdal-wasm/reprojection/expected-result.json",
+  "examples/gdal-wasm/reprojection/gdal-wasm-spike.js",
+  "examples/gdal-wasm/raster/index.html",
+  "examples/gdal-wasm/raster/expected-result.json",
+  "examples/gdal-wasm/raster/gdal-raster-spike.js",
+  "examples/gdal-wasm/shapefile/index.html",
+  "examples/gdal-wasm/shapefile/gdal-shapefile-spike.js",
+  "examples/gdal-wasm/spatial-join/index.html",
+  "examples/gdal-wasm/spatial-join/gdal-spatial-join-spike.js",
+  "examples/gdal-wasm/dirty-boundaries/index.html",
+  "examples/gdal-wasm/dirty-boundaries/dirty-boundaries.geojson",
+  "examples/gdal-wasm/dirty-boundaries/control-points.geojson",
+  "examples/gdal-wasm/dirty-boundaries/gdal-dirty-boundaries-spike.js",
+  "examples/gdal-wasm/zonal-statistics/index.html",
+  "examples/gdal-wasm/zonal-statistics/study-zones.geojson",
+  "examples/gdal-wasm/zonal-statistics/expected-result.json",
+  "examples/gdal-wasm/zonal-statistics/gdal-zonal-statistics-spike.js",
+  "examples/gdal-wasm/cog-offline/index.html",
+  "examples/gdal-wasm/cog-offline/toledo-population-cog.tif",
+  "examples/gdal-wasm/cog-offline/gdal-cog-offline-spike.js",
+  "examples/gdal-wasm/geopackage/index.html",
+  "examples/gdal-wasm/geopackage/gdal-geopackage-spike.js",
+  "examples/gdal-wasm/runtime/gdal3.js",
+  "examples/gdal-wasm/runtime/gdal3WebAssembly.wasm",
+  "examples/gdal-wasm/runtime/gdal3WebAssembly.data",
+  "examples/gdal-wasm/runtime/LICENSE.gdal3.js.txt",
   "vendor/leaflet/leaflet.js",
   "vendor/h3-js/h3-js.es.js",
   "setup/supabase-schema.sql",

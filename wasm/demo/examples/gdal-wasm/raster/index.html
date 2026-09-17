@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI — GDAL/WASM raster stress spike</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header><p class="label">NEW BRANCH · ARCHITECTURE SPIKE</p><h1>GDAL/WASM raster stress pipeline</h1><p>Clip, reproject, resample, compress, and preview a local population raster entirely inside one dedicated browser Worker.</p></header>
+  <main>
+    <nav class="spike-tabs" aria-label="GDAL/WASM spike tabs"><a href="../reprojection/index.html">Reprojection</a><a class="active" aria-current="page" href="../raster/index.html">Raster</a><a href="../shapefile/index.html">Zipped Shapefile</a><a href="../spatial-join/index.html">Spatial Join</a><a href="../dirty-boundaries/index.html">Dirty Boundaries</a><a href="../zonal-statistics/index.html">Zonal Statistics</a><a href="../cog-offline/index.html">COG Offline</a><a href="../geopackage/index.html">GeoPackage</a></nav>
+    <section class="panel">
+      <h2>Stress profile</h2>
+      <label for="stress-profile"><strong>Output dimensions</strong></label>
+      <select id="stress-profile">
+        <option value="quick">Quick · 1024 × 1024 · approximately 4 MiB raw</option>
+        <option value="standard" selected>Standard · 2048 × 2048 · approximately 16 MiB raw</option>
+        <option value="stress">Stress · 4096 × 4096 · approximately 64 MiB raw</option>
+      </select>
+      <dl>
+        <div><dt>Input</dt><dd>WorldPop-derived Toledo fixture · 365 × 207 · EPSG:4326</dd></div>
+        <div><dt>Pipeline</dt><dd><code>gdalwarp</code> clip + EPSG:3857 reprojection + bilinear resampling + tiled DEFLATE GeoTIFF</dd></div>
+        <div><dt>Preview</dt><dd><code>gdal_translate</code> scaled PNG derivative generated in the same Worker</dd></div>
+      </dl>
+      <p class="boundary"><strong>Safety boundary:</strong> the source is a checked-in public-health demonstration raster. Nothing is uploaded. Cancel terminates the Worker and rejects partial output.</p>
+      <div class="actions"><button id="run-raster-spike">Run raster stress spike</button><button id="cancel-raster-spike" class="secondary" hidden>Cancel</button><button id="download-raster-result" class="secondary" disabled>Download GeoTIFF</button><button id="download-raster-preview" class="secondary" disabled>Download preview</button></div>
+      <p id="raster-spike-status" role="status">Ready. Choose a profile and run the local pipeline.</p>
+      <p><strong>Elapsed:</strong> <span id="raster-elapsed">0.0 s</span></p>
+      <p id="raster-validation-status" class="validation" data-state="pending">Validation has not run.</p>
+    </section>
+    <section class="panel"><h2>Worker-generated preview</h2><img id="raster-preview" alt="The generated raster preview will appear here" hidden></section>
+    <section class="panel"><h2>Auditable processing receipt</h2><pre id="raster-processing-receipt">Run the spike to generate the receipt.</pre></section>
+    <p><a href="../README.md">Design and go/no-go criteria</a> · <a href="../../../">Return to Epi Info AI</a></p>
+  </main>
+  <script type="module" src="./gdal-raster-spike.js"></script>
+</body>
+</html>

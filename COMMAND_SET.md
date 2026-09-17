@@ -9,7 +9,7 @@ and the evidence rules and detailed gaps are in the
 
 ## Snapshot
 
-Last reconciled: **2026-09-16**
+Last reconciled: **2026-09-17**
 
 | Measure | Count |
 |---|---:|
@@ -95,7 +95,7 @@ runs.
 | User Interaction | Quit | `QUIT` | Browser lifecycle adaptation not started | Gap |
 | Options | Set | `SET` | Typed parser/dialog; selected and bounded program execution | BV |
 
-## Epi Info AI new-branch commands
+## Implemented Epi Info AI new-branch commands
 
 These commands are deliberate browser-era additions. They are governed and
 tested separately and **do not count toward the legacy parity totals above**.
@@ -107,18 +107,31 @@ The detailed authority is the
 | `EPIAI QUALITY *` | Aggregate line-list completeness, validation, and duplicate-candidate review | Typed AST, selected/program execution, visible aggregate Output, missingness mini-bars, and common history | Browser-verified V0.1 |
 | `FILE CONVERT "input.mdb" TO "output.sqlite"` | Migrate readable Microsoft Access tables and data to a browser-portable SQLite file | Reviewed file grant, immutable source, checksummed manifest, reconciliation, warnings, and download | Browser-verified V0.1 |
 | `FILE CONVERT "input.mdb" TO "output.duckdb"` | Migrate readable Access tables to a DuckDB analytical file | Same reviewed migration boundary with DuckDB-Wasm output and storage-header verification | Browser-verified V0.1 |
-| `EPIAI CLUSTER SPACE_TIME ... RESULT=name` | Case-only retrospective high-cluster space-time permutation analysis | Typed plan; deterministic scoring; seeded maximum-statistic Monte Carlo inference; independent Python/JupyterLite oracle; bounded cancellable Worker; elapsed/progress UI; aggregate-only Output and history; synthetic dataset-bound command tour | Worker/UI candidate V0.4; published Run All, external differential evidence, and epidemiologist review pending |
+| `EPIAI CLUSTER SPACE_TIME ... RESULT=name` | Case-only retrospective high-cluster space-time permutation analysis | Typed plan; deterministic scoring; seeded maximum-statistic Monte Carlo inference; independent Python/JupyterLite oracle; bounded cancellable Worker; elapsed/progress UI; aggregate-only Output and history; synthetic dataset-bound command tour | Executable Worker/UI candidate V0.5; external differential evidence and epidemiologist review remain pending |
+| `EPIAI CLUSTER RENDER RESULT=name` | Render a previously calculated named cluster result without rerunning inference or overloading legacy `MAP` | Typed AST and selected/program execution; session/project-bound lookup; static attributed OpenStreetMap raster with baked-in overlays and offline fallback; interactive Maps handoff with matching tooltips and a reopenable rank-by-rank story tour | Executable rendering candidate V0.5; persistent result restoration, offline acceptance, and cartographic review remain pending |
+| `EPIAI RECORDLINK ... RESULT=name` | Explainable, reviewed patient-record linkage and deduplication across two sources | Typed V0.4 AST/resolver and synthetic project tour execute bounded blocking, deterministic exact/Jaro-Winkler scoring, and visible threshold classification. V0.5 adds explicit review decisions; V0.6 exports and replays fingerprint-bound aggregate-only artifacts; V0.7 builds deterministic conflict-aware person-cluster proposals after every review candidate is resolved. Output, history, and artifacts omit identifiers and values | Executable cluster-proposal candidate V0.7; durable person/link audit tables, source mutation, and `MERGE` remain fail-closed |
 
-### Planned new-branch commands
+### Open increments within implemented new branches
 
-| Command | Intended role | Current state |
-|---|---|---|
-| `EPIAI CLUSTER RENDER RESULT=name` | Render a previously calculated named cluster result without rerunning inference or overloading legacy `MAP` | Typed AST; session/project-bound lookup; static OpenStreetMap raster with baked-in overlays, per-cluster hover/focus details, and offline fallback; interactive Maps handoff with matching tooltips and rank-by-rank story tour; no inference rerun |
-| `EPIAI RECORDLINK` | Explainable, reviewed patient-record linkage and deduplication across two sources | Typed V0.2 AST/resolver and synthetic project tour execute bounded blocking diagnostics: pair-space reduction, progressive rule counts, candidate cap enforcement, and optional truth-link recall. Pair identifiers, comparison, classification, clustering, source mutation, and MERGE remain fail-closed |
+- RECORDLINK durable person/link audit tables, deduplication outputs, and reviewed
+  `MERGE` handoff remain separate governed slices. They are not separate
+  command implementations.
+- CLUSTER still requires published full-run evidence, broader external
+  differential validation, persistent named-result restoration, and
+  epidemiologist/cartographic review before promotion beyond candidate status.
+- `QUALITY` intentionally excludes epidemiologic timeliness until an agreed
+  event/submission or deadline model exists.
 
-The retained legacy `MAP` command remains a separate parity/revival item. New
-geospatial commands must use explicit `EPIAI` names rather than silently
-changing historical `MAP` semantics.
+### Dormant legacy-language revival candidates
+
+- `MAP` remains a separate unimplemented parity/revival item. New geospatial
+  commands use explicit `EPIAI` names rather than changing historical `MAP`
+  semantics.
+- `REPEAT ... UNTIL` exists in the retained grammar, but the inspected desktop
+  interpreter did not construct an executable rule for it. It remains a TODO
+  requiring typed bounded iteration, cancellation, resource limits, hostile-loop
+  tests, and experienced-user review; it is not an implemented command or a
+  legacy-parity claim.
 
 ## What “full parity” requires
 

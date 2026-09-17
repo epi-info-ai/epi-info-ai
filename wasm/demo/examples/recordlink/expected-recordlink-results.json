@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "state": "candidate-diagnostics-only",
+  "state": "conflict-aware-person-cluster-proposal",
   "commandTour": {
     "statementCount": 20,
     "sourceAProfileCommands": 5,
@@ -23,12 +23,60 @@
     "unlinkedSourceB": 3,
     "reviewScenario": ["A004", "B004"]
   },
+  "comparison": {
+    "method": "deterministic-exact-and-jaro-winkler",
+    "maximumScore": 6,
+    "fuzzyThreshold": 0.85,
+    "scoreDistribution": [
+      { "score": 6, "candidates": 4 },
+      { "score": 5, "candidates": 1 },
+      { "score": 0, "candidates": 2 }
+    ],
+    "candidateScoresInBlockingOrder": [6, 0, 0, 6, 5, 6, 6]
+  },
+  "classification": {
+    "reviewThreshold": 4,
+    "matchThreshold": 6,
+    "classesInBlockingOrder": ["match", "non-match", "non-match", "match", "review", "match", "match"],
+    "counts": { "match": 4, "review": 1, "non-match": 2 },
+    "truthMetrics": {
+      "truePositiveMatches": 4,
+      "falsePositiveMatches": 0,
+      "falseNegativeMatches": 1,
+      "truthLinksInReview": 1,
+      "precision": 1,
+      "recall": 0.8,
+      "f1": 0.888888888888889
+    }
+  },
+  "clericalReview": {
+    "version": "0.1.0",
+    "queuedCandidateNumbers": [5],
+    "allowedDecisions": ["match", "non-match", "uncertain"],
+    "persistence": "fingerprint-bound-json-artifact",
+    "identifiersInOutputOrHistory": false
+  },
+  "personClustering": {
+    "version": "0.1.0",
+    "reviewCandidate5AsMatch": {
+      "acceptedEdges": 5,
+      "rejectedConflicts": 0,
+      "linkedClusters": 5,
+      "singletons": 6,
+      "totalPeople": 11
+    },
+    "sourceMembershipLimit": 1,
+    "sourceMutation": false
+  },
   "acceptanceBoundary": {
     "parserAndResolver": true,
     "candidateGeneration": true,
-    "comparisonAndClassification": false,
-    "clericalReview": false,
-    "personClustering": false,
+    "comparison": true,
+    "classification": true,
+    "clericalReview": true,
+    "durableReviewArtifact": true,
+    "personClustering": true,
+    "durableAuditTables": false,
     "merge": false
   }
 }

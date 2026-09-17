@@ -10,6 +10,7 @@ this directory tree unchanged to GitLab Pages and GitHub Pages.
 | [`matched-case-control/`](matched-case-control/) | `MATCH` revival and matched-analysis validation | Legacy 65-pair teaching workbook, scalable dataset-bound catalogs, command tours, hand-audit and zero-cell/no-discordance boundary data, and bounded executable MATCH programs |
 | [`cluster/`](cluster/) | New-branch Space-Time Cluster Detection demonstration | Synthetic 30-case line list, planted-cluster command tour, dataset-bound catalog, privacy boundary, and attributed external-data candidate |
 | [`recordlink/`](recordlink/) | New-branch patient record-linkage contract and future evaluation harness | Two differently shaped synthetic sources, complete truth links, typed command tour, generation manifest, and explicit acceptance boundary |
+| [`gdal-wasm/`](gdal-wasm/) | Browser GIS-kernel architecture spikes | Four folder-scoped tabs for vector reprojection, raster warp/clip/resample, zipped Shapefile round-trip, and calibrated multi-Worker spatial join, each with validation receipts and cancellation boundaries |
 | [`projects/`](projects/) | Whole-project migration examples | Browser-native conversion of the legacy Epi Info Sample project |
 
 ## Organization rules

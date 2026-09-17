@@ -99,6 +99,7 @@ validation-lab-build:
     - test -f wasm/dist/validation-lab/files/validate-match.ipynb
     - test -f wasm/dist/validation-lab/files/validate-conditional-logistic.ipynb
     - test -f wasm/dist/validation-lab/files/validate-space-time-cluster.ipynb
+    - test -f wasm/dist/validation-lab/files/validate-recordlink.ipynb
   artifacts:
     paths:
       - wasm/dist
@@ -138,6 +139,9 @@ pages:
       artifacts: false
   script:
     - test -f wasm/dist/index.html
+    - test -f wasm/dist/validation-lab/files/validate-recordlink.ipynb
+    - test -f wasm/dist/examples/gdal-wasm/reprojection/index.html
+    - test -f wasm/dist/examples/gdal-wasm/geopackage/index.html
     - mkdir -p public
     - cp -R wasm/dist/. public/
   artifacts:

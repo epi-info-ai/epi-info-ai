@@ -1541,13 +1541,33 @@
           <p class="inline-feedback">Completeness and violations use the active form schema and records. Duplicate review remains available in Enter Data &gt; Data Quality.</p>
         </section>
         <section id="classic-recordlink-output" class="panel new-branch-output" data-module-view="classic" aria-labelledby="classic-recordlink-output-title" hidden>
-          <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> RECORDLINK output</p><h2 id="classic-recordlink-output-title">Candidate-pair diagnostics</h2></div><span id="classic-recordlink-output-count" class="calculation-time"></span></div>
+          <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> RECORDLINK output</p><h2 id="classic-recordlink-output-title">Candidate comparison</h2></div><span id="classic-recordlink-output-count" class="calculation-time"></span></div>
           <p id="classic-recordlink-output-summary"></p>
           <p><code id="classic-recordlink-output-command"></code></p>
           <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Stage</th><th>Blocking fields</th><th>Candidate pairs</th><th>Reduction from full pair space</th></tr></thead><tbody id="classic-recordlink-output-body"></tbody></table></div>
           <p id="classic-recordlink-output-truth" class="method-note"></p>
-          <p class="compatibility-note"><strong>Governed boundary:</strong> This slice generates candidate indexes and aggregate blocking diagnostics only. It does not calculate fuzzy similarities, classify links, expose pair identifiers in Output/history, create person clusters, or modify either source.</p>
+          <h3>Explainable candidate scores</h3>
+          <p id="classic-recordlink-comparison-summary" class="method-note recordlink-comparison-summary"></p>
+          <div class="results-table-scroll"><table class="results-table"><thead><tr><th>Candidate</th><th>Exact</th><th>Fuzzy</th><th>Total score</th><th>Threshold class</th><th>Field-level explanation</th><th>Clerical review</th></tr></thead><tbody id="classic-recordlink-comparison-body"></tbody></table></div>
+          <div class="actions"><button id="classic-recordlink-review-export" class="secondary-button" type="button" disabled>Export review artifact</button><button id="classic-recordlink-review-import" class="secondary-button" type="button">Import review artifact</button><button id="classic-recordlink-build-clusters" class="secondary-button" type="button" disabled>Build person clusters</button><input id="classic-recordlink-review-file" type="file" accept="application/json,.json" hidden></div>
+          <p id="classic-recordlink-review-artifact-status" class="inline-feedback" role="status">Run RECORDLINK to enable governed review-artifact exchange.</p>
+          <p id="classic-recordlink-cluster-status" class="inline-feedback" role="status">Resolve the review queue before building person clusters.</p>
+          <p class="compatibility-note"><strong>Governed boundary:</strong> Deterministic comparison and threshold classification remain proposals. V0.7 permits explicit local decisions, fingerprint-bound review artifacts, and a deterministic conflict-aware person-cluster proposal. A cluster may contain at most one record from each source. Identifiers, original values, and normalized values appear only in the transient review dialog and are omitted from Output, history, and the artifact. This slice does not write an audit table, merge records, or modify either source.</p>
         </section>
+        <dialog id="classic-recordlink-review-dialog" class="legacy-dialog recordlink-review-dialog" aria-labelledby="classic-recordlink-review-title">
+          <form method="dialog">
+            <div class="legacy-dialog-titlebar"><h2 id="classic-recordlink-review-title">Review candidate pair</h2><button value="cancel" aria-label="Close">×</button></div>
+            <div class="legacy-dialog-body">
+              <p id="classic-recordlink-review-summary"></p>
+              <p class="warning-banner"><strong>Sensitive local review:</strong> Source identifiers and record values are visible only in this dialog. They are cleared when it closes and are never written to Output or command history.</p>
+              <div class="results-table-scroll"><table class="results-table recordlink-review-table"><thead><tr><th>Role</th><th id="classic-recordlink-review-source-a">Source A</th><th id="classic-recordlink-review-source-b">Source B</th><th>Comparison</th></tr></thead><tbody id="classic-recordlink-review-body"></tbody></table></div>
+              <label>Clerical decision<select id="classic-recordlink-review-decision"><option value="uncertain">Uncertain — keep in review</option><option value="match">Match</option><option value="non-match">Non-match</option></select></label>
+              <label>Reason<select id="classic-recordlink-review-reason"><option value="insufficient-evidence">Insufficient evidence</option><option value="confirmed-agreement">Confirmed agreement</option><option value="acceptable-variation">Acceptable variation</option><option value="conflicting-identifiers">Conflicting identifiers</option><option value="other">Other controlled reason</option></select></label>
+              <p id="classic-recordlink-review-feedback" class="inline-feedback" role="status">No decision has been saved.</p>
+            </div>
+            <div class="legacy-dialog-actions"><button value="cancel">Cancel</button><button id="classic-recordlink-review-save" class="dialog-primary" type="button">Save decision</button></div>
+          </form>
+        </dialog>
         <section id="classic-cluster-output" class="panel new-branch-output" data-module-view="classic" aria-labelledby="classic-cluster-output-title" hidden>
           <div class="panel-heading"><div><p class="step-label"><span class="new-branch-label">NEW BRANCH</span> CLUSTER output</p><h2 id="classic-cluster-output-title">Space-Time Cluster Detection</h2></div><span id="classic-cluster-output-count" class="calculation-time"></span></div>
           <p id="classic-cluster-output-summary"></p>

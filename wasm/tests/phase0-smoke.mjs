@@ -87,11 +87,15 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/epi-ai-space-time-cluster-analysis.ts",
     "wasm/app/programming/epi-ai-recordlink.ts",
     "wasm/app/programming/epi-ai-recordlink-analysis.ts",
+    "wasm/app/programming/epi-ai-recordlink-review.ts",
+    "wasm/app/programming/epi-ai-recordlink-review-artifact.ts",
+    "wasm/app/programming/epi-ai-recordlink-cluster.ts",
     "wasm/app/projects/example-repository.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
     "wasm/docs/design/charts-compatibility-inventory.md",
+    "wasm/docs/review/geospatial_mapping.md",
     "COMMAND_SET.md",
     "wasm/app/programming/classic-program-surface.ts",
     "wasm/app/programming/classic-program.ts",
@@ -109,6 +113,10 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/localization/catalogs/en-US.ts",
     "wasm/docs/design/localization-parity-inventory.md",
     "wasm/docs/design/recordlink-demo-and-validation-plan.md",
+    "wasm/docs/validation/recordlink-comparison-method-contract.md",
+    "wasm/docs/validation/recordlink-clerical-review-contract.md",
+    "wasm/docs/validation/recordlink-review-artifact-contract.md",
+    "wasm/docs/validation/recordlink-person-cluster-contract.md",
     "wasm/docs/design/spatial-clustering-reference-inventory.md",
     "wasm/app/forms/form-designer-menu.ts",
     "wasm/app/forms/enter-data-menu.ts",
@@ -158,6 +166,34 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/foodborne/foodborne-investigation.runbook.json",
     "wasm/demo/examples/cluster/space-time-cluster.runbook.json",
     "wasm/demo/examples/recordlink/recordlink.runbook.json",
+    "wasm/demo/examples/gdal-wasm/README.md",
+    "wasm/demo/examples/gdal-wasm/THIRD_PARTY_NOTICES.md",
+    "wasm/demo/examples/gdal-wasm/styles.css",
+    "wasm/demo/examples/gdal-wasm/gdal-wasm-worker.ts",
+    "wasm/demo/examples/gdal-wasm/reprojection/index.html",
+    "wasm/demo/examples/gdal-wasm/reprojection/source-sites-epsg3857.geojson",
+    "wasm/demo/examples/gdal-wasm/reprojection/expected-result.json",
+    "wasm/demo/examples/gdal-wasm/reprojection/gdal-wasm-spike.ts",
+    "wasm/demo/examples/gdal-wasm/raster/index.html",
+    "wasm/demo/examples/gdal-wasm/raster/expected-result.json",
+    "wasm/demo/examples/gdal-wasm/raster/gdal-raster-spike.ts",
+    "wasm/demo/examples/gdal-wasm/shapefile/index.html",
+    "wasm/demo/examples/gdal-wasm/shapefile/gdal-shapefile-spike.ts",
+    "wasm/demo/examples/gdal-wasm/spatial-join/index.html",
+    "wasm/demo/examples/gdal-wasm/spatial-join/gdal-spatial-join-spike.ts",
+    "wasm/demo/examples/gdal-wasm/dirty-boundaries/index.html",
+    "wasm/demo/examples/gdal-wasm/dirty-boundaries/dirty-boundaries.geojson",
+    "wasm/demo/examples/gdal-wasm/dirty-boundaries/control-points.geojson",
+    "wasm/demo/examples/gdal-wasm/dirty-boundaries/gdal-dirty-boundaries-spike.ts",
+    "wasm/demo/examples/gdal-wasm/zonal-statistics/index.html",
+    "wasm/demo/examples/gdal-wasm/zonal-statistics/study-zones.geojson",
+    "wasm/demo/examples/gdal-wasm/zonal-statistics/expected-result.json",
+    "wasm/demo/examples/gdal-wasm/zonal-statistics/gdal-zonal-statistics-spike.ts",
+    "wasm/demo/examples/gdal-wasm/cog-offline/index.html",
+    "wasm/demo/examples/gdal-wasm/cog-offline/toledo-population-cog.tif",
+    "wasm/demo/examples/gdal-wasm/cog-offline/gdal-cog-offline-spike.ts",
+    "wasm/demo/examples/gdal-wasm/geopackage/index.html",
+    "wasm/demo/examples/gdal-wasm/geopackage/gdal-geopackage-spike.ts",
     "wasm/demo/vendor/leaflet/leaflet.css",
     "wasm/demo/vendor/leaflet/leaflet.js",
     "wasm/demo/vendor/leaflet/LICENSE",
@@ -202,6 +238,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/content/validate-match.ipynb",
     "wasm/validation-lab/content/validate-conditional-logistic.ipynb",
     "wasm/validation-lab/content/validate-space-time-cluster.ipynb",
+    "wasm/validation-lab/content/validate-recordlink.ipynb",
     "wasm/validation-lab/jupyter-lite.json",
     "wasm/validation-lab/requirements.txt",
     "wasm/validation-lab/verify.py",
@@ -497,8 +534,11 @@ async function checkRequiredAssetsAndUi() {
   assert.match(commandSet, /Typed AST\/parser branches \| 36 \|/);
   assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 28 \|/);
   assert.match(commandSet, /Legacy-parity-verified against reviewed desktop Epi Info output \| 0 \|/);
-  assert.match(commandSet, /## Epi Info AI new-branch commands/);
+  assert.match(commandSet, /## Implemented Epi Info AI new-branch commands/);
   assert.match(commandSet, /`EPIAI CLUSTER SPACE_TIME \.\.\. RESULT=name`/);
+  assert.match(commandSet, /`EPIAI CLUSTER RENDER RESULT=name`/);
+  assert.match(commandSet, /Executable cluster-proposal candidate V0\.7/);
+  assert.doesNotMatch(commandSet, /### Planned new-branch commands/);
   assert.match(commandSet, /do not count toward the legacy parity totals/);
   for (const entry of commandParity.CLASSIC_COMMAND_PARITY) {
     assert.ok(["not-started", "browser-verified", "legacy-parity-verified"].includes(entry.parityStatus), `${entry.id} must declare parity status`);
@@ -1624,6 +1664,9 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const cluster = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-space-time-cluster.ts")).href}?cluster=${Date.now()}`);
   const recordlink = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink.ts")).href}?recordlink=${Date.now()}`);
   const recordlinkAnalysis = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-analysis.ts")).href}?recordlinkAnalysis=${Date.now()}`);
+  const recordlinkReview = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-review.ts")).href}?recordlinkReview=${Date.now()}`);
+  const recordlinkReviewArtifact = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-review-artifact.ts")).href}?recordlinkReviewArtifact=${Date.now()}`);
+  const recordlinkCluster = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-cluster.ts")).href}?recordlinkCluster=${Date.now()}`);
   const clusterFixture = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json"), "utf8"));
   const clusterCsv = await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv"), "utf8");
   assert.equal(createHash("sha256").update(clusterCsv).digest("hex"), clusterFixture.dataset.sha256);
@@ -1750,8 +1793,8 @@ FREQ AgeGroup STRATAVAR=Sex`;
     },
   ];
   const recordLinkPlan = recordlink.resolveRecordLinkCommand(recordLinkSource, recordLinkSources);
-  assert.equal(recordLinkPlan.version, "0.2.0");
-  assert.equal(recordLinkPlan.execution, "candidate-diagnostics-only");
+  assert.equal(recordLinkPlan.version, "0.4.0");
+  assert.equal(recordLinkPlan.execution, "candidate-classification-only");
   assert.equal(recordLinkPlan.mode, "two-source-cross-file");
   assert.equal(recordLinkPlan.provenance.license, "Apache-2.0");
   assert.equal(recordLinkPlan.provenance.reviewedCommit, "9be01cba65572a374f788242a635f3e57df44f25");
@@ -1791,7 +1834,79 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(recordLinkDiagnostics.truth.truthPairs, 5);
   assert.equal(recordLinkDiagnostics.truth.retainedTruthPairs, 5);
   assert.equal(recordLinkDiagnostics.truth.candidateRecall, 1);
-  assert.deepEqual(recordLinkDiagnostics.governance, { comparisonExecuted: false, classificationExecuted: false, mergeExecuted: false, identifiersExposedInOutput: false });
+  assert.equal(recordLinkDiagnostics.version, "0.3.0");
+  assert.equal(recordLinkDiagnostics.maximumScore, recordLinkExpected.comparison.maximumScore);
+  assert.deepEqual(recordLinkDiagnostics.scoreDistribution, recordLinkExpected.comparison.scoreDistribution);
+  assert.deepEqual(recordLinkDiagnostics.scoredCandidates.map(({ totalScore }) => totalScore), recordLinkExpected.comparison.candidateScoresInBlockingOrder);
+  assert.deepEqual(recordLinkDiagnostics.scoredCandidates.map(({ classification }) => classification), recordLinkExpected.classification.classesInBlockingOrder);
+  assert.deepEqual(recordLinkDiagnostics.classificationCounts, recordLinkExpected.classification.counts);
+  assert.deepEqual(recordLinkDiagnostics.truth.classification, recordLinkExpected.classification.truthMetrics);
+  assert.equal(recordLinkDiagnostics.scoredCandidates[0].comparisons.find(({ pair }) => pair.sourceA === "patient_address").similarity, 0.9466666666666667);
+  assert.equal(recordlinkAnalysis.jaroWinklerSimilarity("MARTHA", "MARHTA"), 0.9611111111111111);
+  assert.equal(recordlinkAnalysis.jaroWinklerSimilarity("", "value"), 0);
+  assert.deepEqual(recordLinkDiagnostics.governance, { comparisonExecuted: true, classificationExecuted: true, clericalReviewExecuted: false, mergeExecuted: false, identifiersExposedInOutput: false, normalizedValuesExposedInOutput: false });
+  const recordLinkReviewSources = recordLinkProject.project.forms.map((form) => ({ id: form.schema.name, fields: form.schema.fields, records: form.records }));
+  const reviewCase = recordlinkReview.createRecordLinkReviewCase(recordLinkPlan, recordLinkDiagnostics, recordLinkReviewSources, 5);
+  assert.equal(reviewCase.version, "0.1.0");
+  assert.equal(reviewCase.automaticClassification, "review");
+  assert.deepEqual([reviewCase.totalScore, reviewCase.maximumScore], [5, 6]);
+  assert.deepEqual([reviewCase.fields[0].sourceAValue, reviewCase.fields[0].sourceBValue], ["A004", "B004"]);
+  assert.deepEqual(reviewCase.fields.find(({ role }) => role === "exact"), {
+    role: "exact", sourceAField: "date_of_birth", sourceBField: "DOB",
+    sourceAValue: "1988-12-01", sourceBValue: "1988-12-02",
+    normalizedSourceAValue: "1988-12-01", normalizedSourceBValue: "1988-12-02",
+    similarity: 0, contribution: 0,
+  });
+  const reviewDecision = recordlinkReview.createRecordLinkReviewDecision(reviewCase, "match", "acceptable-variation", "2026-09-17T12:00:00.000Z");
+  assert.deepEqual(reviewDecision, {
+    version: "0.1.0", resultName: "PatientLinks", candidateNumber: 5,
+    automaticClassification: "review", decision: "match", effectiveClassification: "match",
+    reason: "acceptable-variation", decidedAt: "2026-09-17T12:00:00.000Z",
+  });
+  const reviewArtifact = await recordlinkReviewArtifact.createRecordLinkReviewArtifact(
+    "Synthetic Patient Record Linkage", recordLinkPlan, recordLinkDiagnostics,
+    new Map([[reviewDecision.candidateNumber, reviewDecision]]), "2026-09-17T12:05:00.000Z",
+  );
+  assert.equal(reviewArtifact.kind, "epi-info-ai.recordlink-review");
+  assert.equal(reviewArtifact.schemaVersion, 1);
+  assert.equal(reviewArtifact.candidateSet.candidates, 7);
+  assert.match(reviewArtifact.candidateSet.fingerprint, /^[a-f0-9]{64}$/);
+  assert.deepEqual(reviewArtifact.privacy, { identifiersIncluded: false, recordValuesIncluded: false, normalizedValuesIncluded: false });
+  assert.deepEqual([...((await recordlinkReviewArtifact.replayRecordLinkReviewArtifact(reviewArtifact, "Synthetic Patient Record Linkage", recordLinkPlan, recordLinkDiagnostics)).values())], [reviewDecision]);
+  const serializedReviewArtifact = JSON.stringify(reviewArtifact);
+  for (const privateValue of ["A004", "B004", "1988-12-01", "1988-12-02"]) assert.equal(serializedReviewArtifact.includes(privateValue), false, `review artifact must omit ${privateValue}`);
+  await assert.rejects(() => recordlinkReviewArtifact.replayRecordLinkReviewArtifact({ ...reviewArtifact, projectName: "Different project" }, "Synthetic Patient Record Linkage", recordLinkPlan, recordLinkDiagnostics), /different project/);
+  await assert.rejects(() => recordlinkReviewArtifact.replayRecordLinkReviewArtifact({ ...reviewArtifact, candidateSet: { ...reviewArtifact.candidateSet, fingerprint: "0".repeat(64) } }, "Synthetic Patient Record Linkage", recordLinkPlan, recordLinkDiagnostics), /fingerprint/);
+  await assert.rejects(() => recordlinkReviewArtifact.replayRecordLinkReviewArtifact({ ...reviewArtifact, decisions: [{ ...reviewDecision, candidateNumber: 1 }] }, "Synthetic Patient Record Linkage", recordLinkPlan, recordLinkDiagnostics), /not in the active.*review queue/);
+  assert.equal(recordlinkReview.createRecordLinkReviewDecision(reviewCase, "uncertain", "insufficient-evidence", "2026-09-17T12:00:00.000Z").effectiveClassification, "review");
+  const personClusters = recordlinkCluster.createRecordLinkPersonClusters(
+    recordLinkPlan, recordLinkDiagnostics, new Map([[reviewDecision.candidateNumber, reviewDecision]]),
+  );
+  assert.equal(personClusters.version, "0.1.0");
+  assert.deepEqual({
+    acceptedEdges: personClusters.acceptedEdges,
+    conflicts: personClusters.rejectedEdges.length,
+    linked: personClusters.linkedClusters,
+    singletons: personClusters.singletonClusters,
+    people: personClusters.totalPersonClusters,
+  }, { acceptedEdges: 5, conflicts: 0, linked: 5, singletons: 6, people: 11 });
+  assert.deepEqual(personClusters.governance, {
+    deterministic: true, conflictAware: true, identifiersExposedInOutput: false,
+    sourceMutationExecuted: false, mergeExecuted: false,
+  });
+  assert.throws(() => recordlinkCluster.createRecordLinkPersonClusters(recordLinkPlan, recordLinkDiagnostics, new Map()), /1 remain unresolved/);
+  const nonMatchDecision = recordlinkReview.createRecordLinkReviewDecision(reviewCase, "non-match", "conflicting-identifiers", "2026-09-17T12:00:00.000Z");
+  const nonMatchClusters = recordlinkCluster.createRecordLinkPersonClusters(recordLinkPlan, recordLinkDiagnostics, new Map([[5, nonMatchDecision]]));
+  assert.deepEqual([nonMatchClusters.acceptedEdges, nonMatchClusters.linkedClusters, nonMatchClusters.singletonClusters, nonMatchClusters.totalPersonClusters], [4, 4, 8, 12]);
+  const conflictingDiagnostics = {
+    ...recordLinkDiagnostics,
+    scoredCandidates: [...recordLinkDiagnostics.scoredCandidates, {
+      ...recordLinkDiagnostics.scoredCandidates[0], candidateNumber: 8, sourceBIndex: recordLinkDiagnostics.scoredCandidates[3].sourceBIndex,
+    }],
+  };
+  const conflictClusters = recordlinkCluster.createRecordLinkPersonClusters(recordLinkPlan, conflictingDiagnostics, new Map([[5, reviewDecision]]));
+  assert.deepEqual(conflictClusters.rejectedEdges, [{ candidateNumber: 8, reason: "source-membership-conflict" }]);
+  assert.throws(() => recordlinkReview.createRecordLinkReviewCase(recordLinkPlan, recordLinkDiagnostics, recordLinkReviewSources, 1), /limited to the review queue/);
   assert.throws(() => recordlinkAnalysis.generateRecordLinkCandidateDiagnostics({ ...recordLinkPlan, maxCandidates: 6 }, recordLinkProject.project.forms.map((form) => ({ id: form.schema.name, fields: form.schema.fields, records: form.records }))), /exceeding MAXCANDIDATES=6/);
   assert.throws(() => classicAst.parseClassicProgram(recordLinkPlan.canonicalSource.replace(" RESULT=PatientLinks", " UNKNOWN=1 RESULT=PatientLinks")), /Unsupported EPIAI RECORDLINK option UNKNOWN/);
   assert.throws(() => classicAst.parseClassicProgram(recordLinkPlan.canonicalSource.replace("BLOCK=facility_code:site_code", "BLOCK=facility_code")), /sourceA:sourceB field pairs/);
@@ -3724,6 +3839,21 @@ async function checkValidationLabSource() {
   ]) {
     assert.ok(clusterSource.includes(requiredText), `space-time CLUSTER validation notebook must retain ${requiredText}`);
   }
+  const recordLinkNotebook = JSON.parse(await readFile(repositoryPath("wasm/validation-lab/content/validate-recordlink.ipynb"), "utf8"));
+  assert.equal(recordLinkNotebook.nbformat, 4);
+  assert.equal(recordLinkNotebook.metadata?.kernelspec?.name, "python");
+  const recordLinkSource = recordLinkNotebook.cells.flatMap((cell) => cell.source || []).join("");
+  for (const requiredText of [
+    "RECORDLINK validation lab — V0.7",
+    "epi-info-ai.recordlink-review",
+    "hashlib.sha256",
+    "identifiersIncluded",
+    "cluster_proposal",
+    "reviewCandidate5AsMatch",
+    "source-membership_conflict_candidates",
+  ]) {
+    assert.ok(recordLinkSource.includes(requiredText), `RECORDLINK validation notebook must retain ${requiredText}`);
+  }
 }
 
 async function checkEpiAssistProposalBoundary() {
@@ -4099,6 +4229,125 @@ async function checkExampleProjectRepository() {
   }
 }
 
+async function checkGdalWasmSpike() {
+  const fixtureBytes = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/reprojection/source-sites-epsg3857.geojson"));
+  const fixture = JSON.parse(fixtureBytes.toString("utf8"));
+  const expected = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/reprojection/expected-result.json"), "utf8"));
+  assert.equal(createHash("sha256").update(fixtureBytes).digest("hex"), expected.inputSha256, "GDAL spike fixture checksum");
+  assert.equal(fixture.type, "FeatureCollection");
+  assert.equal(fixture.features.length, expected.featureCount);
+  assert.equal(fixture.crs.properties.name, "EPSG:3857");
+  assert.equal(expected.targetCrs, "EPSG:4326");
+  assert.deepEqual(expected.expectedBounds, [-83.5552, 41.6404, -83.5195, 41.6639]);
+  assert.equal(expected.engine.packageVersion, "2.8.1");
+
+  const workerSource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/gdal-wasm-worker.ts"), "utf8");
+  assert.match(workerSource, /new Worker\(/);
+  assert.match(workerSource, /useWorker:\s*false/);
+  assert.match(workerSource, /func:\s*"constructor"/);
+  assert.match(workerSource, /this\.worker\.terminate\(\)/);
+
+  const pageSource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/reprojection/gdal-wasm-spike.ts"), "utf8");
+  assert.match(pageSource, /call<[^>]+>\("ogr2ogr"/);
+  assert.match(pageSource, /EPSG:3857/);
+  assert.match(pageSource, /EPSG:4326/);
+  assert.match(pageSource, /crypto\.subtle\.digest\("SHA-256"/);
+  assert.match(pageSource, /activeClient\?\.terminate\(\)/, "cancel should terminate the processing Worker");
+
+  const rasterExpected = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/raster/expected-result.json"), "utf8"));
+  const rasterBytes = await readFile(repositoryPath("wasm/demo/examples/foodborne/maps/worldpop-toledo-population-density.tif"));
+  assert.equal(createHash("sha256").update(rasterBytes).digest("hex"), rasterExpected.source.sha256);
+  assert.equal(rasterExpected.profiles.stress.estimatedRawBytes, 4096 * 4096 * 4);
+  const rasterSource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/raster/gdal-raster-spike.ts"), "utf8");
+  assert.match(rasterSource, /"gdalwarp"/);
+  assert.match(rasterSource, /"gdal_translate"/);
+  assert.match(rasterSource, /"COMPRESS=DEFLATE"/);
+  assert.match(rasterSource, /activeClient\?\.terminate\(\)/);
+
+  const shapefileSource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/shapefile/gdal-shapefile-spike.ts"), "utf8");
+  assert.match(shapefileSource, /zipSync/);
+  assert.match(shapefileSource, /"ESRI Shapefile"/);
+  assert.match(shapefileSource, /\["vsizip"\]/);
+  assert.match(shapefileSource, /requiredExtensions = \["\.shp", "\.shx", "\.dbf", "\.prj"\]/);
+
+  const spatialSource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/spatial-join/gdal-spatial-join-spike.ts"), "utf8");
+  assert.match(spatialSource, /ST_Intersects/);
+  assert.match(spatialSource, /hardwareConcurrency/);
+  assert.match(spatialSource, /deviceMemory/);
+  assert.match(spatialSource, /projectedSingleWorkerMilliseconds/);
+  assert.match(spatialSource, /Promise\.all\(partitions/);
+  assert.match(spatialSource, /separateWasmMemoryPerWorker/);
+  assert.match(spatialSource, /Retrying the complete join with one fresh Worker/);
+  assert.match(spatialSource, /Calibration probe failed/);
+
+  const dirtyBoundaries = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/dirty-boundaries/dirty-boundaries.geojson"), "utf8"));
+  const dirtyPoints = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/dirty-boundaries/control-points.geojson"), "utf8"));
+  assert.equal(dirtyBoundaries.features.length, 3);
+  assert.equal(dirtyPoints.features.length, 10);
+  const dirtySource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/dirty-boundaries/gdal-dirty-boundaries-spike.ts"), "utf8");
+  assert.match(dirtySource, /ST_IsValid/);
+  assert.match(dirtySource, /ST_MakeValid/);
+  assert.match(dirtySource, /ST_Intersects/);
+  assert.match(dirtySource, /sourceMutation:\s*false/);
+  assert.match(dirtySource, /Automatic repair may alter topology/);
+  assert.match(dirtySource, /renderTopologyMap/);
+
+  const zonalZones = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/zonal-statistics/study-zones.geojson"), "utf8"));
+  const zonalExpected = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/zonal-statistics/expected-result.json"), "utf8"));
+  assert.equal(zonalZones.features.length, 6);
+  assert.equal(zonalExpected.results.length, 6);
+  assert.equal(zonalExpected.method, "independent-geotiff-cell-center-point-in-polygon");
+  const zonalSource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/zonal-statistics/gdal-zonal-statistics-spike.ts"), "utf8");
+  assert.match(zonalSource, /"gdalwarp"/);
+  assert.match(zonalSource, /"gdalinfo"/);
+  assert.match(zonalSource, /cropToCutline:\s*true/);
+  assert.match(zonalSource, /rateMultiplier:\s*100_000/);
+  assert.match(zonalSource, /smallDenominatorThreshold = 5_000/);
+  assert.match(zonalSource, /The fixture lacks authoritative population-unit metadata/);
+
+  const cogBytes = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/cog-offline/toledo-population-cog.tif"));
+  assert.equal(cogBytes.byteLength, 9_570_199, "COG fixture byte length");
+  assert.equal(createHash("sha256").update(cogBytes).digest("hex"), "45b646b879eec22a8824ebe890c4ca2b3240b81f44eb7c0b96c85df0ef46332e", "COG fixture checksum");
+  const cogSource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/cog-offline/gdal-cog-offline-spike.ts"), "utf8");
+  assert.match(cogSource, /fromUrl\(sourceUrl\.href/);
+  assert.match(cogSource, /allowFullFile:\s*false/);
+  assert.match(cogSource, /navigator\.storage\.getDirectory/);
+  assert.match(cogSource, /sourceNetworkRequests:\s*0/);
+  assert.match(cogSource, /transferredBytes >= sourceByteLength \* 0\.5/);
+  assert.match(cogSource, /five-quantile-positive-values/);
+  assert.match(cogSource, /quantilePalette/);
+  assert.match(cogSource, /identicalClassification:\s*true/);
+
+  const geopackageSource = await readFile(repositoryPath("wasm/demo/examples/gdal-wasm/geopackage/gdal-geopackage-spike.ts"), "utf8");
+  assert.match(geopackageSource, /"-f", "GPKG"/);
+  assert.match(geopackageSource, /"-update", "-append"/);
+  assert.match(geopackageSource, /two-sequential-dedicated-workers/);
+  assert.match(geopackageSource, /automaticLayerSelection/);
+  assert.match(geopackageSource, /project_metadata/);
+  assert.match(geopackageSource, /renderLayerPreview/);
+  assert.match(geopackageSource, /_gpkg_fid/);
+
+  for (const folder of ["reprojection", "raster", "shapefile", "spatial-join", "dirty-boundaries", "zonal-statistics", "cog-offline", "geopackage"]) {
+    const html = await readFile(repositoryPath(`wasm/demo/examples/gdal-wasm/${folder}/index.html`), "utf8");
+    assert.match(html, /aria-label="GDAL\/WASM spike tabs"/);
+    assert.match(html, /Reprojection/);
+    assert.match(html, /Raster/);
+    assert.match(html, /Zipped Shapefile/);
+    assert.match(html, /Spatial Join/);
+    assert.match(html, /Dirty Boundaries/);
+    assert.match(html, /Zonal Statistics/);
+    assert.match(html, /COG Offline/);
+    assert.match(html, /GeoPackage/);
+  }
+
+  const buildSource = await readFile(repositoryPath("wasm/scripts/build.mjs"), "utf8");
+  assert.match(buildSource, /gdal3WebAssembly\.wasm/);
+  assert.match(buildSource, /gdal3WebAssembly\.data/);
+  assert.match(buildSource, /gdal3\.js/);
+  assert.match(buildSource, /LICENSE\.gdal3\.js\.txt/);
+  assert.match(buildSource, /LICENSE\.fflate\.txt/);
+}
+
 async function run() {
   const checks = [
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
@@ -4133,6 +4382,7 @@ async function run() {
     ["versioned Classic Program AST", checkClassicProgramAst],
     ["browser localization and language-pack boundary", checkLocalizationBoundary],
     ["checksummed example-project repository", checkExampleProjectRepository],
+    ["bounded GDAL WebAssembly Worker spike", checkGdalWasmSpike],
   ];
 
   for (const [name, check] of checks) {

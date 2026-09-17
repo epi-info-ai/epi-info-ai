@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI — GDAL/WASM dirty-boundary spike</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header><p class="label">NEW BRANCH · ARCHITECTURE SPIKE</p><h1>Dirty boundaries and overlay</h1><p>Repair known topology defects and test epidemiologic point assignment in a dedicated GDAL/WASM Worker.</p></header>
+  <main>
+    <nav class="spike-tabs" aria-label="GDAL/WASM spike tabs"><a href="../reprojection/index.html">Reprojection</a><a href="../raster/index.html">Raster</a><a href="../shapefile/index.html">Zipped Shapefile</a><a href="../spatial-join/index.html">Spatial Join</a><a class="active" aria-current="page" href="../dirty-boundaries/index.html">Dirty Boundaries</a><a href="../zonal-statistics/index.html">Zonal Statistics</a><a href="../cog-offline/index.html">COG Offline</a><a href="../geopackage/index.html">GeoPackage</a></nav>
+    <section class="panel">
+      <h2>Topology profile</h2>
+      <label for="dirty-profile"><strong>Replicated fixture size</strong></label>
+      <select id="dirty-profile"><option value="1">Diagnostic · 3 boundaries · 10 control points</option><option value="20" selected>Standard · 60 boundaries · 200 control points</option><option value="100">Stress · 300 boundaries · 1,000 control points</option></select>
+      <p>The fixture contains a self-intersecting bow-tie, a polygon with a hole outside its shell, and a valid polygon-with-hole control. Points exercise repaired lobes, the intersection, the detached ring, a valid hole, boundaries, envelope false positives, and outside locations.</p>
+      <p class="boundary"><strong>Governance boundary:</strong> repair never silently replaces source geometry. The source-validity finding, repair method, geometry-type change, expected assignment, actual assignment, and output hashes are retained in the receipt. A repaired file is a derived artifact requiring review.</p>
+      <div class="actions"><button id="run-dirty-boundaries">Run repair and overlay</button><button id="cancel-dirty-boundaries" class="secondary" hidden>Cancel</button><button id="download-repaired" class="secondary" disabled>Download repaired boundaries</button><button id="download-classified" class="secondary" disabled>Download classified points</button></div>
+      <p id="dirty-status" role="status">Ready.</p><p><strong>Elapsed:</strong> <span id="dirty-elapsed">0.0 s</span></p>
+      <p id="dirty-validation" class="validation" data-state="pending">Validation has not run.</p>
+    </section>
+    <section class="panel">
+      <h2>Before and after repair</h2>
+      <p>The representative fixture remains at the same scale in both views. Hover or focus a boundary or point for its identifier and reviewed case.</p>
+      <div class="map-legend" aria-label="Map legend"><span><i class="legend-line source"></i>Invalid source</span><span><i class="legend-line control"></i>Valid control</span><span><i class="legend-line repaired"></i>Derived repair</span><span><i class="legend-point"></i>Control point</span></div>
+      <div class="comparison-grid">
+        <figure><figcaption><strong>Before:</strong> source geometry</figcaption><svg id="dirty-before-map" class="topology-map" viewBox="0 0 600 260" role="img" aria-label="Source dirty boundaries and control points"></svg></figure>
+        <figure><figcaption><strong>After:</strong> derived <code>ST_MakeValid</code> geometry</figcaption><svg id="dirty-after-map" class="topology-map" viewBox="0 0 600 260" role="img" aria-label="Repaired boundaries and classified control points"><text x="300" y="130" text-anchor="middle">Run the repair to render derived geometry.</text></svg></figure>
+      </div>
+      <p class="map-note">The detached ring and unassigned bow-tie intersection demonstrate why geometric validity is not the same as epidemiologic correctness.</p>
+    </section>
+    <section class="panel"><h2>Topology and assignment findings</h2><pre id="dirty-findings">Run the spike to inspect known defects and control-point assignments.</pre></section>
+    <section class="panel"><h2>Auditable processing receipt</h2><pre id="dirty-receipt">Run the spike to generate the receipt.</pre></section>
+    <p><a href="../README.md">Design and go/no-go criteria</a> · <a href="../../../">Return to Epi Info AI</a></p>
+  </main>
+  <script type="module" src="./gdal-dirty-boundaries-spike.js"></script>
+</body>
+</html>

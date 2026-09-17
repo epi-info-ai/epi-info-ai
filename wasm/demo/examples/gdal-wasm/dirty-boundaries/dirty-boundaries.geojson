@@ -1,0 +1,37 @@
+{
+  "type": "FeatureCollection",
+  "name": "dirty_boundaries",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "boundary_id": "BOWTIE", "defect": "self-intersection" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-83.68, 41.60], [-83.64, 41.64], [-83.68, 41.64], [-83.64, 41.60], [-83.68, 41.60]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "boundary_id": "ORPHAN_HOLE", "defect": "hole-outside-shell" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[-83.62, 41.60], [-83.57, 41.60], [-83.57, 41.65], [-83.62, 41.65], [-83.62, 41.60]],
+          [[-83.56, 41.60], [-83.55, 41.60], [-83.55, 41.61], [-83.56, 41.61], [-83.56, 41.60]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "boundary_id": "DONUT_CONTROL", "defect": "valid-control-with-hole" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[-83.53, 41.60], [-83.47, 41.60], [-83.47, 41.65], [-83.53, 41.65], [-83.53, 41.60]],
+          [[-83.51, 41.615], [-83.49, 41.615], [-83.49, 41.635], [-83.51, 41.635], [-83.51, 41.615]]
+        ]
+      }
+    }
+  ]
+}

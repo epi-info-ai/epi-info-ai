@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI — GDAL/WASM spatial join spike</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header><p class="label">NEW BRANCH · ARCHITECTURE SPIKE</p><h1>Large spatial join</h1><p>Assign deterministic synthetic surveillance points to a 100-zone grid with GEOS-backed point-in-polygon predicates inside the GDAL Worker.</p></header>
+  <main>
+    <nav class="spike-tabs" aria-label="GDAL/WASM spike tabs"><a href="../reprojection/index.html">Reprojection</a><a href="../raster/index.html">Raster</a><a href="../shapefile/index.html">Zipped Shapefile</a><a class="active" aria-current="page" href="../spatial-join/index.html">Spatial Join</a><a href="../dirty-boundaries/index.html">Dirty Boundaries</a><a href="../zonal-statistics/index.html">Zonal Statistics</a><a href="../cog-offline/index.html">COG Offline</a><a href="../geopackage/index.html">GeoPackage</a></nav>
+    <section class="panel">
+      <h2>Join profile</h2>
+      <label for="spatial-join-profile"><strong>Point count</strong></label>
+      <select id="spatial-join-profile"><option value="100">Quick · 100 points · 10,000 predicate candidates</option><option value="1000" selected>Standard · 1,000 points · 100,000 predicate candidates</option><option value="5000">Stress · 5,000 points · 500,000 predicate candidates</option></select>
+      <label for="spatial-join-workers"><strong>Worker strategy</strong></label>
+      <select id="spatial-join-workers"><option value="auto" selected>Auto · calibrate workload, CPU, and memory</option><option value="1">Fixed 1 Worker · lowest memory</option><option value="2">Fixed 2 Workers · comparison</option><option value="4">Fixed 4 Workers · highest memory</option></select>
+      <p>The browser generates 100 non-overlapping Toledo-area polygons and points guaranteed to fall inside them. GDAL executes an intentionally unindexed SQLite-dialect self-join using <code>ST_Intersects</code>, returning one point–zone assignment per point and exposing the kernel’s scaling limit.</p>
+      <p class="boundary"><strong>Safety boundary:</strong> all geometry is deterministic and synthetic. Exact cardinality, unique point IDs, zone membership, per-zone counts, and output hash are recorded. Each Worker owns a separate WASM memory instance; increasing the pool trades memory for throughput.</p>
+      <div class="actions"><button id="run-spatial-join">Run spatial join</button><button id="cancel-spatial-join" class="secondary" hidden>Cancel</button><button id="download-spatial-join" class="secondary" disabled>Download joined GeoJSON</button></div>
+      <p id="spatial-join-status" role="status">Ready.</p><p><strong>Elapsed:</strong> <span id="spatial-join-elapsed">0.0 s</span></p>
+      <p id="spatial-join-validation" class="validation" data-state="pending">Validation has not run.</p>
+    </section>
+    <section class="panel"><h2>Zone count summary</h2><pre id="spatial-join-summary">Run the spike to calculate the join.</pre></section>
+    <section class="panel"><h2>Auditable processing receipt</h2><pre id="spatial-join-receipt">Run the spike to generate the receipt.</pre></section>
+    <p><a href="../README.md">Design and go/no-go criteria</a> · <a href="../../../">Return to Epi Info AI</a></p>
+  </main>
+  <script type="module" src="./gdal-spatial-join-spike.js"></script>
+</body>
+</html>

@@ -25,11 +25,11 @@
     {
       "id": "record-linkage",
       "title": "Synthetic Patient Record Linkage",
-      "description": "Two synthetic patient sources, known truth links, source quality review, and governed RECORDLINK candidate diagnostics.",
+      "description": "Two synthetic patient sources, known truth links, source quality review, explainable RECORDLINK classification, and bounded local clerical review.",
       "file": "../recordlink/recordlink-synthetic-project.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/recordlink",
-      "bytes": 16565,
-      "sha256": "036450ca9d5b5f346e178cd76ffb9f96e7abcec448bf8828459ceb39924d0e76"
+      "bytes": 18799,
+      "sha256": "9540e41f26080a372d2699b972a2e7890b44e008937634b574454d1769459c82"
     }
   ]
 }

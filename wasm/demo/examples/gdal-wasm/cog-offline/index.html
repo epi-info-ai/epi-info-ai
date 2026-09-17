@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI — GDAL/WASM COG offline spike</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header><p class="label">NEW BRANCH · ARCHITECTURE SPIKE</p><h1>COG window and offline replay</h1><p>Measure a study-area byte-range read, persist the extracted GeoTIFF in OPFS, and reproduce its GDAL result without source-network access.</p></header>
+  <main>
+    <nav class="spike-tabs" aria-label="GDAL/WASM spike tabs"><a href="../reprojection/index.html">Reprojection</a><a href="../raster/index.html">Raster</a><a href="../shapefile/index.html">Zipped Shapefile</a><a href="../spatial-join/index.html">Spatial Join</a><a href="../dirty-boundaries/index.html">Dirty Boundaries</a><a href="../zonal-statistics/index.html">Zonal Statistics</a><a class="active" aria-current="page" href="../cog-offline/index.html">COG Offline</a><a href="../geopackage/index.html">GeoPackage</a></nav>
+    <section class="panel">
+      <h2>Two-stage acceptance test</h2>
+      <ol><li>Cold extraction requires HTTP 206 responses and reads a 256 × 256 study-area window from a 2,048-pixel COG.</li><li>The derived window is checksummed and stored in OPFS.</li><li>Offline replay reads only OPFS and verifies the identical digest and GDAL statistics.</li></ol>
+      <p class="boundary"><strong>Authority boundary:</strong> the range-aware browser adapter owns network and OPFS access. GDAL/WASM receives only an explicitly bounded local window. The page cannot disable its own network; the automated acceptance test applies real browser offline mode before replay.</p>
+      <div class="actions"><button id="run-cog-cold">1. Run cold range extraction</button><button id="run-cog-offline" class="secondary" disabled>2. Replay from OPFS</button><button id="cancel-cog" class="secondary" hidden>Cancel</button><button id="download-cog-window" class="secondary" disabled>Download extracted window</button></div>
+      <p id="cog-status" role="status">Ready.</p><p><strong>Elapsed:</strong> <span id="cog-elapsed">0.0 s</span></p>
+      <p id="cog-validation" class="validation" data-state="pending">Validation has not run.</p>
+    </section>
+    <section class="metric-grid" aria-label="COG transfer metrics"><article><strong id="cog-source-bytes">—</strong><span>Source bytes</span></article><article><strong id="cog-transfer-bytes">—</strong><span>Cold transferred bytes</span></article><article><strong id="cog-savings">—</strong><span>Transfer reduction</span></article><article><strong id="cog-range-count">—</strong><span>HTTP 206 ranges</span></article></section>
+    <section class="panel"><h2>Extracted study-area window</h2><img id="cog-preview" hidden alt="Five-quantile preview of the extracted COG study-area window"><div id="cog-legend" class="quantile-legend" hidden aria-label="Five-quantile raster legend"></div><p class="map-note">The original extracted values remain unchanged. The default preview classifies positive raster cells into five quantiles using the ColorBrewer YlOrRd palette; zero and NoData cells use neutral colors.</p></section>
+    <section class="panel"><h2>Auditable processing receipt</h2><pre id="cog-receipt">Run the cold stage to generate the receipt.</pre></section>
+    <p><a href="../README.md">Design and go/no-go criteria</a> · <a href="../../../">Return to Epi Info AI</a></p>
+  </main>
+  <script type="module" src="./gdal-cog-offline-spike.js"></script>
+</body>
+</html>

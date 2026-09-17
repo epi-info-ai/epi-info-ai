@@ -1,7 +1,7 @@
 import type { FieldDefinition } from "../contracts/core.ts";
 import { parseClassicProgram, type EpiAiRecordLinkFieldPair } from "./classic-ast.ts";
 
-export const RECORDLINK_PLAN_VERSION = "0.2.0" as const;
+export const RECORDLINK_PLAN_VERSION = "0.4.0" as const;
 
 export interface RecordLinkFieldPair {
   sourceA: string;
@@ -35,7 +35,7 @@ export interface RecordLinkPlan extends RecordLinkCommandInput {
   version: typeof RECORDLINK_PLAN_VERSION;
   mode: "two-source-cross-file";
   comparison: "deterministic-exact-and-jaro-winkler";
-  execution: "candidate-diagnostics-only";
+  execution: "candidate-classification-only";
   canonicalSource: string;
   provenance: {
     upstream: "jkariuki7/pt_matching_app";
@@ -53,7 +53,7 @@ const pairToken = (pair: RecordLinkFieldPair): string => `${identifierToken(pair
 const numberToken = (value: number): string => String(Number(value));
 
 export function buildRecordLinkCommand(input: RecordLinkCommandInput): string {
-  if (!input.blockPairs.length || !input.exactPairs.length || !input.fuzzyPairs.length) throw new RangeError("RECORDLINK requires at least one BLOCK, EXACT, and FUZZY field pair in V0.1.");
+  if (!input.blockPairs.length || !input.exactPairs.length || !input.fuzzyPairs.length) throw new RangeError("RECORDLINK requires at least one BLOCK, EXACT, and FUZZY field pair in V0.4.");
   return [
     "EPIAI RECORDLINK",
     `SOURCEA=${identifierToken(input.sourceA)}`, `SOURCEB=${identifierToken(input.sourceB)}`,
@@ -152,7 +152,7 @@ export function resolveRecordLinkCommand(source: string, sources: readonly Recor
   };
   return {
     version: RECORDLINK_PLAN_VERSION, mode: "two-source-cross-file",
-    comparison: "deterministic-exact-and-jaro-winkler", execution: "candidate-diagnostics-only",
+    comparison: "deterministic-exact-and-jaro-winkler", execution: "candidate-classification-only",
     ...input, canonicalSource: buildRecordLinkCommand(input),
     provenance: {
       upstream: "jkariuki7/pt_matching_app",

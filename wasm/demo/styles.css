@@ -2159,6 +2159,25 @@ select {
   max-width: 42rem;
 }
 
+.recordlink-review-dialog {
+  max-width: 72rem;
+}
+
+.recordlink-review-table td {
+  vertical-align: top;
+}
+
+.recordlink-review-value {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 10rem;
+}
+
+.recordlink-review-value small {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
 .localization-options-dialog {
   max-width: 34rem;
 }

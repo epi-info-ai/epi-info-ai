@@ -479,6 +479,28 @@ discrepancy to its detailed evidence record.
   Passing validates this browser candidate and fixture, not legacy desktop
   parity; experienced field-user workflow review remains pending.
 
+### RECORDLINK classification, review binding, and clustering V0.7
+
+- `validate-recordlink.ipynb` loads both eight-row synthetic sources, the five
+  truth links, and the checked-in expected-result contract.
+- Independent Python reconstructs facility blocking, Unicode/case/punctuation
+  normalization, Jaro-Winkler similarities, binary field contributions, the
+  six-point score, threshold classes, and truth-set metrics without importing
+  the browser implementation.
+- The notebook asserts seven candidates, complete candidate recall, scores
+  `[6, 0, 0, 6, 5, 6, 6]`, and the frozen 6/5/0 score distribution.
+- The expected threshold output is four match, one review, and two non-match
+  proposals; automatic-match precision is 100%, recall 80%, and F1 88.9%.
+- The V0.6 cells construct an aggregate-only SHA-256 review binding, prove that
+  representative identifiers and values are absent, and prove that tampering
+  changes the fingerprint.
+- The V0.7 cells independently reconstruct five reviewed links, five linked
+  clusters, six singletons, and 11 proposed people, then inject a competing edge
+  and require explicit source-membership conflict rejection.
+- Passing validates this bounded deterministic fixture. It does not validate
+  threshold calibration, durable audit tables, merging, or a production
+  patient-matching method.
+
 ### Classic TABLES V0.11 validation
 
 - `validate-tables.ipynb` derives both the unstratified foodborne potato-salad by

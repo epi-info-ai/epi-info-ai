@@ -26,6 +26,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-match.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-conditional-logistic.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-space-time-cluster.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-recordlink.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -178,6 +179,19 @@ def verify_notebook() -> None:
         "1398600",
         "0.013",
         "EPIAI CLUSTER RENDER",
+    ]:
+        assert required in source
+
+    recordlink = nbformat.read(NOTEBOOKS[13], as_version=4)
+    source = "\n".join(cell.source for cell in recordlink.cells)
+    for required in [
+        "RECORDLINK validation lab — V0.7",
+        "epi-info-ai.recordlink-review",
+        "hashlib.sha256",
+        "identifiersIncluded",
+        "cluster_proposal",
+        "reviewCandidate5AsMatch",
+        "source-membership_conflict_candidates",
     ]:
         assert required in source
 

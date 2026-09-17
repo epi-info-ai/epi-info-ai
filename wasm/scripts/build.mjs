@@ -52,6 +52,13 @@ await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb
 await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js"), join(outputDirectory, "duckdb-browser-mvp.worker.js"));
 await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-eh.wasm"), join(outputDirectory, "duckdb-eh.wasm"));
 await cp(resolve(wasmDirectory, "../node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js"), join(outputDirectory, "duckdb-browser-eh.worker.js"));
+const gdalRuntimeDirectory = join(outputDirectory, "examples/gdal-wasm/runtime");
+await mkdir(gdalRuntimeDirectory, { recursive: true });
+await cp(resolve(wasmDirectory, "../node_modules/fflate/LICENSE"), join(outputDirectory, "examples/gdal-wasm/LICENSE.fflate.txt"));
+await cp(resolve(wasmDirectory, "../node_modules/gdal3.js/dist/package/gdal3WebAssembly.wasm"), join(gdalRuntimeDirectory, "gdal3WebAssembly.wasm"));
+await cp(resolve(wasmDirectory, "../node_modules/gdal3.js/dist/package/gdal3WebAssembly.data"), join(gdalRuntimeDirectory, "gdal3WebAssembly.data"));
+await cp(resolve(wasmDirectory, "../node_modules/gdal3.js/dist/package/gdal3.js"), join(gdalRuntimeDirectory, "gdal3.js"));
+await cp(resolve(wasmDirectory, "../node_modules/gdal3.js/LICENSE"), join(gdalRuntimeDirectory, "LICENSE.gdal3.js.txt"));
 await mkdir(validationFixtureDirectory, { recursive: true });
 await cp(
   join(wasmDirectory, "tests/fixtures/phase0/wasm-manifest.json"),
@@ -193,6 +200,22 @@ const results = await Promise.all([
     splitting: true,
     chunkNames: "chunks/[name]-[hash]",
     alias: { stream: "stream-browserify", events: "events" },
+  }),
+  build({
+    ...commonOptions,
+    entryPoints: [
+      join(sourceDirectory, "examples/gdal-wasm/reprojection/gdal-wasm-spike.ts"),
+      join(sourceDirectory, "examples/gdal-wasm/raster/gdal-raster-spike.ts"),
+      join(sourceDirectory, "examples/gdal-wasm/shapefile/gdal-shapefile-spike.ts"),
+      join(sourceDirectory, "examples/gdal-wasm/spatial-join/gdal-spatial-join-spike.ts"),
+      join(sourceDirectory, "examples/gdal-wasm/dirty-boundaries/gdal-dirty-boundaries-spike.ts"),
+      join(sourceDirectory, "examples/gdal-wasm/zonal-statistics/gdal-zonal-statistics-spike.ts"),
+      join(sourceDirectory, "examples/gdal-wasm/cog-offline/gdal-cog-offline-spike.ts"),
+      join(sourceDirectory, "examples/gdal-wasm/geopackage/gdal-geopackage-spike.ts"),
+    ],
+    bundle: true,
+    splitting: true,
+    chunkNames: "chunks/gdal-[name]-[hash]",
   }),
 ]);
 

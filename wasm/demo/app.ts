@@ -57,8 +57,11 @@ import { applyClassicComplexMeans, classicComplexMeansOutTable, resolveClassicCo
 import { applyEpiAiQualityProfile, resolveEpiAiQualityCommand } from "../app/programming/epi-ai-quality.js";
 import { resolveSpaceTimeClusterCommand, resolveSpaceTimeClusterRenderCommand } from "../app/programming/epi-ai-space-time-cluster.js";
 import type { SpaceTimeClusterInferenceResult } from "../app/programming/epi-ai-space-time-cluster-analysis.js";
-import { resolveRecordLinkCommand } from "../app/programming/epi-ai-recordlink.js";
-import { generateRecordLinkCandidateDiagnostics, type RecordLinkCandidateDiagnostics } from "../app/programming/epi-ai-recordlink-analysis.js";
+import { resolveRecordLinkCommand, type RecordLinkPlan } from "../app/programming/epi-ai-recordlink.js";
+import { generateRecordLinkCandidateDiagnostics, type RecordLinkCandidateDiagnostics, type RecordLinkDataSource } from "../app/programming/epi-ai-recordlink-analysis.js";
+import { createRecordLinkReviewCase, createRecordLinkReviewDecision, RECORDLINK_REVIEW_VERSION, type RecordLinkReviewCase, type RecordLinkReviewDecision } from "../app/programming/epi-ai-recordlink-review.js";
+import { createRecordLinkReviewArtifact, replayRecordLinkReviewArtifact, RECORDLINK_REVIEW_ARTIFACT_VERSION } from "../app/programming/epi-ai-recordlink-review-artifact.js";
+import { createRecordLinkPersonClusters, RECORDLINK_PERSON_CLUSTER_VERSION } from "../app/programming/epi-ai-recordlink-cluster.js";
 import { convertAccessFile, resolveFileConvertCommand } from "../app/programming/file-convert.js";
 import { parseClassicOutputSettings, validateClassicOutputSettings, type ClassicOutputSettings } from "../app/programming/classic-output-settings.js";
 import { resolveClassicDialogCommand, validateClassicDialogValue, type ClassicDialogCommandInput, type ClassicDialogPlan } from "../app/programming/classic-dialog.js";
@@ -665,6 +668,14 @@ const classicProgramToolbarCancel = requiredElement<HTMLButtonElement>("#classic
 let classicProgramRunController: AbortController | null = null;
 const classicClusterResults = new Map<string, { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult }>();
 let renderedClusterMapEntry: { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult } | null = null;
+let classicRecordLinkReviewContext: {
+  projectName: string;
+  plan: RecordLinkPlan;
+  diagnostics: RecordLinkCandidateDiagnostics;
+  sources: RecordLinkDataSource[];
+  decisions: Map<number, RecordLinkReviewDecision>;
+} | null = null;
+let activeRecordLinkReviewCase: RecordLinkReviewCase | null = null;
 classicProgramToolbarCancel.disabled = true;
 const classicProgramFontDialog = requiredElement<HTMLDialogElement>("#classic-program-font-dialog");
 const classicProgramFontFamily = requiredElement<HTMLSelectElement>("#classic-program-font-family");
@@ -3551,10 +3562,71 @@ function renderEpiAiQualityOutput(report: DataQualityReport): void {
   requiredElement<HTMLElement>("#classic-quality-output").hidden = false;
 }
 
+function clearRecordLinkReviewDialog(): void {
+  activeRecordLinkReviewCase = null;
+  requiredElement("#classic-recordlink-review-title").textContent = "Review candidate pair";
+  requiredElement("#classic-recordlink-review-summary").textContent = "";
+  requiredElement("#classic-recordlink-review-source-a").textContent = "Source A";
+  requiredElement("#classic-recordlink-review-source-b").textContent = "Source B";
+  requiredElement("#classic-recordlink-review-body").replaceChildren();
+  requiredElement("#classic-recordlink-review-feedback").textContent = "No decision has been saved.";
+}
+
+function openRecordLinkReview(candidateNumber: number): void {
+  const context = classicRecordLinkReviewContext;
+  if (!context) throw new RangeError("Run EPIAI RECORDLINK before opening clerical review.");
+  if (getCurrentProjectData().projectName !== context.projectName) throw new RangeError("This RECORDLINK review result belongs to a different project. Run the command again in the current project.");
+  const reviewCase = createRecordLinkReviewCase(context.plan, context.diagnostics, context.sources, candidateNumber);
+  activeRecordLinkReviewCase = reviewCase;
+  requiredElement("#classic-recordlink-review-title").textContent = `Review candidate ${candidateNumber}`;
+  requiredElement("#classic-recordlink-review-summary").textContent =
+    `Automatic class ${reviewCase.automaticClassification}; score ${reviewCase.totalScore}/${reviewCase.maximumScore}. Compare the two source records and make an explicit clerical decision.`;
+  requiredElement("#classic-recordlink-review-source-a").textContent = reviewCase.sourceALabel;
+  requiredElement("#classic-recordlink-review-source-b").textContent = reviewCase.sourceBLabel;
+  requiredElement("#classic-recordlink-review-body").replaceChildren(...reviewCase.fields.map((field) => {
+    const row = document.createElement("tr");
+    const role = document.createElement("td");
+    role.textContent = field.role;
+    const valueCell = (fieldName: string, value: string, normalizedValue: string): HTMLTableCellElement => {
+      const cell = document.createElement("td");
+      const content = document.createElement("span");
+      content.className = "recordlink-review-value";
+      const name = document.createElement("strong");
+      name.textContent = fieldName;
+      const original = document.createElement("span");
+      original.textContent = value;
+      const normalizedValueElement = document.createElement("small");
+      normalizedValueElement.textContent = `Normalized: ${normalizedValue}`;
+      content.append(name, original, normalizedValueElement);
+      cell.append(content);
+      return cell;
+    };
+    const comparison = document.createElement("td");
+    comparison.textContent = field.similarity === null
+      ? (field.role === "blocking" ? "Blocking agreement required" : "Not scored")
+      : `${field.role === "exact" ? "Exact" : "Jaro-Winkler"} ${field.similarity.toFixed(3)} → ${field.contribution}`;
+    row.append(
+      role,
+      valueCell(field.sourceAField, field.sourceAValue, field.normalizedSourceAValue),
+      valueCell(field.sourceBField, field.sourceBValue, field.normalizedSourceBValue),
+      comparison,
+    );
+    return row;
+  }));
+  const existing = context.decisions.get(candidateNumber);
+  requiredElement<HTMLSelectElement>("#classic-recordlink-review-decision").value = existing?.decision ?? "uncertain";
+  requiredElement<HTMLSelectElement>("#classic-recordlink-review-reason").value = existing?.reason ?? "insufficient-evidence";
+  requiredElement("#classic-recordlink-review-feedback").textContent = existing
+    ? `Current session decision: ${existing.decision}; reason ${existing.reason}. Saving records a new audit event.`
+    : "No decision has been saved for this candidate.";
+  requiredElement<HTMLDialogElement>("#classic-recordlink-review-dialog").showModal();
+}
+
 function renderRecordLinkCandidateDiagnostics(result: RecordLinkCandidateDiagnostics, canonicalSource: string): void {
   const candidates = result.candidatePairs.length;
-  requiredElement("#classic-recordlink-output-title").textContent = `Candidate-pair diagnostics — ${result.resultName}`;
-  requiredElement("#classic-recordlink-output-count").textContent = `${candidates.toLocaleString("en-US")} candidates · ${result.reductionPercent.toFixed(1)}% reduction`;
+  const decisions = classicRecordLinkReviewContext?.diagnostics === result ? classicRecordLinkReviewContext.decisions : new Map<number, RecordLinkReviewDecision>();
+  requiredElement("#classic-recordlink-output-title").textContent = `Candidate comparison — ${result.resultName}`;
+  requiredElement("#classic-recordlink-output-count").textContent = `${candidates.toLocaleString("en-US")} candidates · ${result.reductionPercent.toFixed(1)}% reduction · ${result.maximumScore}-point scale`;
   requiredElement("#classic-recordlink-output-summary").textContent =
     `${result.sourceARecords.toLocaleString("en-US")} × ${result.sourceBRecords.toLocaleString("en-US")} records produced ${result.possiblePairs.toLocaleString("en-US")} possible cross-source pairs; blocking retained ${candidates.toLocaleString("en-US")} within the reviewed cap of ${result.maximumCandidates.toLocaleString("en-US")}.`;
   requiredElement("#classic-recordlink-output-command").textContent = canonicalSource;
@@ -3573,10 +3645,171 @@ function renderRecordLinkCandidateDiagnostics(result: RecordLinkCandidateDiagnos
     return row;
   }));
   requiredElement("#classic-recordlink-output-truth").textContent = result.truth
-    ? `Truth evaluation: blocking retained ${result.truth.retainedTruthPairs} of ${result.truth.truthPairs} known links (${(result.truth.candidateRecall * 100).toFixed(1)}% candidate recall). Truth identifiers remain hidden.`
+    ? `Truth evaluation: blocking retained ${result.truth.retainedTruthPairs} of ${result.truth.truthPairs} known links (${(result.truth.candidateRecall * 100).toFixed(1)}% candidate recall). At MATCHTHRESHOLD, precision ${(result.truth.classification.precision * 100).toFixed(1)}%, recall ${(result.truth.classification.recall * 100).toFixed(1)}%, and F1 ${(result.truth.classification.f1 * 100).toFixed(1)}%; ${result.truth.classification.truthLinksInReview} known link remains in review. Truth identifiers remain hidden.`
     : "No truth source was declared; candidate recall was not evaluated.";
+  requiredElement("#classic-recordlink-comparison-summary").textContent =
+    `Score distribution: ${result.scoreDistribution.map(({ score, candidates: count }) => `${score}/${result.maximumScore}: ${count}`).join("; ") || "no candidates"}. Threshold classes: ${result.classificationCounts.match} match, ${result.classificationCounts.review} review, ${result.classificationCounts["non-match"]} non-match. Clerical decisions saved this session: ${decisions.size}. A fuzzy field contributes one point only when its Jaro-Winkler similarity meets FUZZYTHRESHOLD.`;
+  requiredElement("#classic-recordlink-comparison-body").replaceChildren(...result.scoredCandidates.map((candidate) => {
+    const row = document.createElement("tr");
+    const explanation = candidate.comparisons.map((comparison) => {
+      const method = comparison.kind === "exact" ? "exact" : "JW";
+      const similarity = comparison.similarity === null ? "missing" : comparison.similarity.toFixed(3);
+      return `${comparison.pair.sourceA}:${comparison.pair.sourceB} ${method}=${similarity} → ${comparison.contribution}`;
+    }).join("; ");
+    for (const value of [
+      `Candidate ${candidate.candidateNumber}`,
+      `${candidate.exactMatches}/${result.maximumScore - candidate.comparisons.filter(({ kind }) => kind === "fuzzy").length}`,
+      `${candidate.fuzzyMatches}/${candidate.comparisons.filter(({ kind }) => kind === "fuzzy").length}`,
+      `${candidate.totalScore}/${candidate.maximumScore}`,
+      candidate.classification,
+      explanation,
+    ]) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.append(cell);
+    }
+    const reviewCell = document.createElement("td");
+    const decision = decisions.get(candidate.candidateNumber);
+    if (candidate.classification === "review") {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "secondary-button recordlink-review-open";
+      button.dataset.candidateNumber = String(candidate.candidateNumber);
+      button.dataset.recordlinkReview = "";
+      button.textContent = decision ? `Review again (${decision.decision})` : "Review pair";
+      reviewCell.append(button);
+    } else {
+      reviewCell.textContent = "Not queued";
+    }
+    row.append(reviewCell);
+    return row;
+  }));
+  requiredElement<HTMLButtonElement>("#classic-recordlink-review-export").disabled = decisions.size === 0;
+  const unresolvedReviews = result.scoredCandidates.filter(({ classification, candidateNumber }) =>
+    classification === "review" && decisions.get(candidateNumber)?.effectiveClassification !== "match" && decisions.get(candidateNumber)?.effectiveClassification !== "non-match",
+  ).length;
+  requiredElement<HTMLButtonElement>("#classic-recordlink-build-clusters").disabled = unresolvedReviews > 0;
+  requiredElement("#classic-recordlink-cluster-status").textContent = unresolvedReviews
+    ? `Resolve ${unresolvedReviews} review candidate${unresolvedReviews === 1 ? "" : "s"} before building person clusters.`
+    : "All review candidates are resolved. The deterministic cluster proposal is ready to build.";
+  requiredElement("#classic-recordlink-review-artifact-status").textContent = decisions.size
+    ? `${decisions.size} decision${decisions.size === 1 ? "" : "s"} can be exported without identifiers or record values.`
+    : "Save at least one clerical decision before exporting a review artifact.";
   requiredElement<HTMLElement>("#classic-recordlink-output").hidden = false;
 }
+
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>(".recordlink-review-open") : null;
+  if (!target) return;
+  try {
+    openRecordLinkReview(Number(target.dataset.candidateNumber));
+  } catch (error) {
+    classicProgramCommandStatus.textContent = error instanceof Error ? error.message : "Unable to open RECORDLINK clerical review.";
+  }
+});
+
+requiredElement("#classic-recordlink-review-save").addEventListener("click", () => {
+  const context = classicRecordLinkReviewContext;
+  const reviewCase = activeRecordLinkReviewCase;
+  if (!context || !reviewCase) return;
+  try {
+    const decision = createRecordLinkReviewDecision(
+      reviewCase,
+      requiredElement<HTMLSelectElement>("#classic-recordlink-review-decision").value as RecordLinkReviewDecision["decision"],
+      requiredElement<HTMLSelectElement>("#classic-recordlink-review-reason").value as RecordLinkReviewDecision["reason"],
+    );
+    context.decisions.set(decision.candidateNumber, decision);
+    renderRecordLinkCandidateDiagnostics(context.diagnostics, context.plan.canonicalSource);
+    document.querySelectorAll<HTMLButtonElement>(`.recordlink-review-open[data-candidate-number="${decision.candidateNumber}"]`).forEach((button) => {
+      button.textContent = `Review again (${decision.decision})`;
+    });
+    document.querySelectorAll<HTMLElement>(".recordlink-comparison-summary").forEach((summary) => {
+      summary.textContent = summary.textContent?.replace(/Clerical decisions saved this session: \d+\./, `Clerical decisions saved this session: ${context.decisions.size}.`) ?? "";
+    });
+    recordProgramRun({
+      origin: "manual", status: "succeeded", planVersion: `recordlink-review-${RECORDLINK_REVIEW_VERSION}`,
+      projectName: context.projectName, formName: `${context.plan.sourceA} ↔ ${context.plan.sourceB}`,
+      sourceRecords: context.diagnostics.sourceARecords + context.diagnostics.sourceBRecords,
+      source: "RECORDLINK clerical review",
+      summary: `Candidate ${decision.candidateNumber} received clerical decision ${decision.decision} with controlled reason ${decision.reason}; effective class ${decision.effectiveClassification}.`,
+      diagnostics: ["Candidate ordinal is scoped to this deterministic session result.", "Source identifiers, original values, and normalized values were omitted from Output and history.", "No person cluster, MERGE, or source mutation occurred."],
+    });
+    classicProgramFeedback.textContent = `Saved ${decision.decision} for Candidate ${decision.candidateNumber} in this browser session. Source records were not changed.`;
+    classicProgramCommandStatus.textContent = "RECORDLINK clerical decision recorded without patient values; clustering and MERGE remain disabled.";
+    requiredElement<HTMLDialogElement>("#classic-recordlink-review-dialog").close("saved");
+  } catch (error) {
+    requiredElement("#classic-recordlink-review-feedback").textContent = error instanceof Error ? error.message : "Unable to save the clerical decision.";
+  }
+});
+
+requiredElement<HTMLDialogElement>("#classic-recordlink-review-dialog").addEventListener("close", clearRecordLinkReviewDialog);
+
+requiredElement("#classic-recordlink-review-export").addEventListener("click", async () => {
+  const context = classicRecordLinkReviewContext;
+  if (!context || !context.decisions.size) return;
+  try {
+    const artifact = await createRecordLinkReviewArtifact(context.projectName, context.plan, context.diagnostics, context.decisions);
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(new Blob([`${JSON.stringify(artifact, null, 2)}\n`], { type: "application/json;charset=utf-8" }));
+    link.href = url;
+    link.download = `${context.plan.resultName.toLocaleLowerCase("en-US")}-recordlink-review.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    requiredElement("#classic-recordlink-review-artifact-status").textContent = `Exported ${artifact.decisions.length} fingerprint-bound decision${artifact.decisions.length === 1 ? "" : "s"}; no patient identifiers or values were included.`;
+  } catch (error) {
+    requiredElement("#classic-recordlink-review-artifact-status").textContent = error instanceof Error ? error.message : "Unable to export the RECORDLINK review artifact.";
+  }
+});
+
+requiredElement("#classic-recordlink-review-import").addEventListener("click", () => requiredElement<HTMLInputElement>("#classic-recordlink-review-file").click());
+requiredElement<HTMLInputElement>("#classic-recordlink-review-file").addEventListener("change", async (event) => {
+  const input = event.currentTarget as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  const context = classicRecordLinkReviewContext;
+  if (!file || !context) {
+    requiredElement("#classic-recordlink-review-artifact-status").textContent = context ? "No review artifact was selected." : "Run RECORDLINK before importing a review artifact.";
+    return;
+  }
+  try {
+    const replayed = await replayRecordLinkReviewArtifact(JSON.parse(await file.text()), context.projectName, context.plan, context.diagnostics);
+    context.decisions = replayed;
+    renderRecordLinkCandidateDiagnostics(context.diagnostics, context.plan.canonicalSource);
+    requiredElement("#classic-recordlink-review-artifact-status").textContent = `Replayed ${replayed.size} fingerprint-verified decision${replayed.size === 1 ? "" : "s"}. No source record was changed.`;
+    recordProgramRun({
+      origin: "manual", status: "succeeded", planVersion: `recordlink-review-artifact-v${RECORDLINK_REVIEW_ARTIFACT_VERSION}`,
+      projectName: context.projectName, formName: `${context.plan.sourceA} â†” ${context.plan.sourceB}`,
+      sourceRecords: context.diagnostics.sourceARecords + context.diagnostics.sourceBRecords,
+      source: "RECORDLINK review artifact replay",
+      summary: `Replayed ${replayed.size} fingerprint-verified clerical decision${replayed.size === 1 ? "" : "s"} for ${context.plan.resultName}.`,
+      diagnostics: ["Artifact contained candidate ordinals and decisions only; identifiers and record values were absent.", "Candidate fingerprint, project, command plan, versions, and effective classifications were verified before replay.", "No person cluster, MERGE, or source mutation occurred."],
+    });
+  } catch (error) {
+    requiredElement("#classic-recordlink-review-artifact-status").textContent = error instanceof Error ? `Import rejected: ${error.message}` : "Import rejected.";
+  }
+});
+
+requiredElement("#classic-recordlink-build-clusters").addEventListener("click", () => {
+  const context = classicRecordLinkReviewContext;
+  if (!context) return;
+  try {
+    const result = createRecordLinkPersonClusters(context.plan, context.diagnostics, context.decisions);
+    requiredElement("#classic-recordlink-cluster-status").textContent =
+      `Proposed ${result.totalPersonClusters} people from ${result.sourceRecords.sourceA + result.sourceRecords.sourceB} source records: ${result.linkedClusters} linked pairs and ${result.singletonClusters} singletons; ${result.acceptedEdges} links accepted and ${result.rejectedEdges.length} conflicting links rejected.`;
+    recordProgramRun({
+      origin: "manual", status: "succeeded", planVersion: `recordlink-cluster-${RECORDLINK_PERSON_CLUSTER_VERSION}`,
+      projectName: context.projectName, formName: `${context.plan.sourceA} ↔ ${context.plan.sourceB}`,
+      sourceRecords: result.sourceRecords.sourceA + result.sourceRecords.sourceB,
+      source: "RECORDLINK person-cluster proposal",
+      summary: `Proposed ${result.totalPersonClusters} opaque person clusters: ${result.linkedClusters} linked and ${result.singletonClusters} singleton; ${result.acceptedEdges} links accepted and ${result.rejectedEdges.length} source-membership conflicts rejected.`,
+      diagnostics: ["All review candidates had conclusive decisions before clustering.", "A cluster may contain at most one record from each source; higher-scoring edges are considered first.", "Identifiers and values were omitted from Output and history. No source mutation or MERGE occurred."],
+    });
+    classicProgramFeedback.textContent = "Built a deterministic, non-mutating person-cluster proposal.";
+    classicProgramCommandStatus.textContent = "RECORDLINK person clusters proposed; governed audit-table and MERGE handoff remain disabled.";
+  } catch (error) {
+    requiredElement("#classic-recordlink-cluster-status").textContent = error instanceof Error ? error.message : "Unable to build RECORDLINK person clusters.";
+  }
+});
 
 function elapsedLabel(milliseconds: number): string {
   return milliseconds < 1000 ? `${Math.round(milliseconds)} ms` : `${(milliseconds / 1000).toFixed(1)} s`;
@@ -4891,17 +5124,19 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
     if (command.kind === "recordlink") {
       const dataSources = getProjectDataSources();
       const plan = resolveRecordLinkCommand(selectedSource, dataSources.map((candidate) => ({ id: candidate.formName, fields: candidate.fields })));
-      const diagnostics = generateRecordLinkCandidateDiagnostics(plan, dataSources.map((candidate) => ({ id: candidate.formName, fields: candidate.fields, records: candidate.records })));
+      const recordLinkSources = dataSources.map((candidate) => ({ id: candidate.formName, fields: candidate.fields, records: candidate.records }));
+      const diagnostics = generateRecordLinkCandidateDiagnostics(plan, recordLinkSources);
+      classicRecordLinkReviewContext = { projectName: project.projectName, plan, diagnostics, sources: recordLinkSources, decisions: new Map() };
       renderRecordLinkCandidateDiagnostics(diagnostics, plan.canonicalSource);
       requiredElement("#classic-recordlink-output").scrollIntoView({ behavior: "smooth", block: "start" });
-      classicProgramFeedback.textContent = `RECORDLINK reduced ${diagnostics.possiblePairs.toLocaleString("en-US")} possible pairs to ${diagnostics.candidatePairs.length.toLocaleString("en-US")} blocked candidates. No comparisons, classifications, or data changes occurred.`;
-      classicProgramCommandStatus.textContent = "NEW BRANCH EPIAI RECORDLINK candidate diagnostics completed; scoring and linkage remain disabled.";
+      classicProgramFeedback.textContent = `RECORDLINK reduced ${diagnostics.possiblePairs.toLocaleString("en-US")} possible pairs to ${diagnostics.candidatePairs.length.toLocaleString("en-US")} candidates: ${diagnostics.classificationCounts.match} match, ${diagnostics.classificationCounts.review} review, and ${diagnostics.classificationCounts["non-match"]} non-match proposals. Review-queue candidates can now receive an explicit session-only clerical decision; no links or data changes occurred.`;
+      classicProgramCommandStatus.textContent = "NEW BRANCH EPIAI RECORDLINK threshold classification completed; the bounded clerical-review queue is available. Clustering and MERGE remain disabled.";
       recordProgramRun({
         origin: "user-program", status: "succeeded", planVersion: plan.version, astVersion: CLASSIC_AST_VERSION,
         projectName: project.projectName, formName: project.formName, sourceRecords: diagnostics.sourceARecords + diagnostics.sourceBRecords,
         source: selectedSource, canonicalSource: plan.canonicalSource,
-        summary: `RECORDLINK blocking retained ${diagnostics.candidatePairs.length} of ${diagnostics.possiblePairs} possible pairs (${diagnostics.reductionPercent.toFixed(1)}% reduction)${diagnostics.truth ? ` and ${diagnostics.truth.retainedTruthPairs} of ${diagnostics.truth.truthPairs} truth links` : ""}.`,
-        diagnostics: ["Candidate diagnostics only; fuzzy comparison, classification, person clustering, and MERGE were not executed.", "Pair identifiers and record values were omitted from Output and history."],
+        summary: `RECORDLINK blocking retained ${diagnostics.candidatePairs.length} of ${diagnostics.possiblePairs} possible pairs (${diagnostics.reductionPercent.toFixed(1)}% reduction), then proposed ${diagnostics.classificationCounts.match} match, ${diagnostics.classificationCounts.review} review, and ${diagnostics.classificationCounts["non-match"]} non-match classifications${diagnostics.truth ? `; match precision ${(diagnostics.truth.classification.precision * 100).toFixed(1)}%, recall ${(diagnostics.truth.classification.recall * 100).toFixed(1)}%, F1 ${(diagnostics.truth.classification.f1 * 100).toFixed(1)}%` : ""}. No clerical decision or merge occurred.`,
+        diagnostics: ["Threshold classification only; clerical review, person clustering, and MERGE were not executed.", "Pair identifiers, normalized values, and record values were omitted from Output and history."],
       });
       return;
     }
@@ -5128,7 +5363,7 @@ function retainedSequentialOutput(source: HTMLElement): HTMLElement {
   clone.removeAttribute("data-module-view");
   for (const element of clone.querySelectorAll<HTMLElement>("[id]")) element.removeAttribute("id");
   for (const control of clone.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement>("input, button, select, textarea")) {
-    if (!(control instanceof HTMLButtonElement && control.matches("[data-cluster-open-maps]"))) control.disabled = true;
+    if (!(control instanceof HTMLButtonElement && control.matches("[data-cluster-open-maps], [data-recordlink-review]"))) control.disabled = true;
   }
   return clone;
 }

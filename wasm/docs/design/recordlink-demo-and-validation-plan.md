@@ -116,6 +116,53 @@ truth form. Candidate identities stay in memory and are omitted from Output and
 history. Comparison, classification, manual review, clustering, and merge still
 do not execute.
 
-Defer learned models, multi-source clusters, very large populations, and
+V0.3 implements deterministic candidate comparison. Exact nonmissing equality
+contributes one point. Text pairs use Unicode-normalized, case-folded,
+punctuation/whitespace-normalized Jaro-Winkler similarity; a similarity meeting
+`FUZZYTHRESHOLD` contributes one point. Output reports the score distribution
+and every numerical field contribution under session-only candidate ordinals.
+Identifiers, normalized strings, and patient values remain absent from Output
+and history. This slice does not interpret `REVIEWTHRESHOLD` or
+`MATCHTHRESHOLD` as classifications and cannot review, cluster, merge, or
+mutate records.
+
+V0.4 applies the declared thresholds after scoring: scores at or above
+`MATCHTHRESHOLD` are proposed matches; scores from `REVIEWTHRESHOLD` up to the
+match threshold are proposed reviews; lower scores are proposed non-matches.
+When complete truth links are supplied, Output reports automatic-match
+precision, recall, F1, false positives, false negatives, and truth links held
+for review. These are evaluation results, not clerical decisions. Identifiers
+remain hidden and no link, cluster, merged table, or source mutation is created.
+
+The normative V0.4 details and acceptance fixture are in the
+[RECORDLINK deterministic comparison contract](../validation/recordlink-comparison-method-contract.md).
+
+V0.5 adds a bounded local clerical-review queue. Only candidates classified
+`review` can be opened. The reviewer sees identifiers, original values,
+normalized values, and numerical comparison evidence in a transient dialog,
+then records Match, Non-match, or Uncertain plus a controlled reason. Output and
+common history retain the session ordinal and decision but omit every patient
+identifier and value. Decisions are session-only and do not create links,
+clusters, tables, merges, or source changes. The normative boundary is in the
+[RECORDLINK clerical-review contract](../validation/recordlink-clerical-review-contract.md).
+
+V0.6 makes those decisions portable without making them authoritative links.
+The browser exports aggregate-only JSON bound to the project, canonical plan,
+contract versions, and a deterministic candidate-set SHA-256. Replay fails
+closed when any binding differs and records an aggregate history event. The
+artifact omits identifiers, original values, normalized values, and free text.
+The normative boundary is in the
+[RECORDLINK review-artifact contract](../validation/recordlink-review-artifact-contract.md).
+
+V0.7 converts conclusive classifications into a deterministic, non-mutating
+person-cluster proposal. All review candidates must first resolve to Match or
+Non-match. A cluster may contain at most one record from either source;
+competing edges are considered by score and candidate ordinal, and an edge that
+would duplicate a source is rejected as an explicit conflict. Output and common
+history retain only aggregate counts and candidate ordinals. The normative
+boundary is in the
+[RECORDLINK person-cluster contract](../validation/recordlink-person-cluster-contract.md).
+
+Defer learned models, durable audit tables, multi-source clusters, very large populations, and
 production privacy/security claims until the complete vertical slice is
 browser-tested and independently validated.
