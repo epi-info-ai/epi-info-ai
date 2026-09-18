@@ -11,12 +11,14 @@ on API credentials, cross-origin policy, or GitLab availability.
 the project title, purpose, package size, abbreviated SHA-256 digest, and source
 repository. Selecting **Import** performs these steps in order:
 
-1. fetch the declared `.epia.json` file;
+1. fetch the declared `.epia` archive or legacy `.epia.json` file;
 2. require the exact declared byte length and SHA-256 digest;
 3. pass the file through the normal Project Package V2 validator;
 4. save the active project to Recent Projects and close it safely;
-5. activate the imported project, including its data and saved programs; and
-6. emit the normal project-activation event so stale analysis and map output is
+5. for a binary archive, validate and restore every declared map asset to OPFS;
+6. activate the imported project, including its data, saved programs, map
+   assets, and map-layer definitions; and
+7. emit the normal project-activation event so stale analysis and map output is
    cleared.
 
 Import never executes a saved program. The analyst must inspect and run it.
@@ -34,7 +36,9 @@ Detection, and Patient Record Linkage projects.
 
 An instructor can develop a project in its own repository under the GitLab
 group, run its dataset, program, browser, and statistical validation in CI, and
-publish an immutable `.epia.json` release. A reviewed catalog change then adds
+publish an immutable `.epia` archive or `.epia.json` release. Binary `.epia`
+archives are required when project-owned map bytes must travel with the data,
+programs, and runbooks. A reviewed catalog change then adds
 the release metadata and digest. Static-site CI mirrors accepted packages for a
 predictable classroom and conference experience while preserving a link to the
 governed source.

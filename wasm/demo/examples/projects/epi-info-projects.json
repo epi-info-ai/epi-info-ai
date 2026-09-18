@@ -7,11 +7,11 @@
     {
       "id": "foodborne-outbreak-investigation",
       "title": "Foodborne Outbreak Investigation",
-      "description": "96 synthetic investigation records with the Classic Analysis command tour, DIALOG tour, TABLES examples, and quality profile.",
-      "file": "foodborne-outbreak-investigation.epia.json",
+      "description": "96 synthetic investigation records with the Classic Analysis command tour, DIALOG tour, TABLES examples, quality profile, and embedded Toledo GeoJSON and GeoTIFF map layers.",
+      "file": "foodborne-outbreak-investigation.epia",
       "repository": "https://git.cdc.gov/epi-info-ai/foodborne-outbreak-investigation",
-      "bytes": 105665,
-      "sha256": "53510fd7cc6d50a008bf67ab87d7fdf2c2299feb2ec51393f26cdcd5739c19eb"
+      "bytes": 1477514,
+      "sha256": "58a090e933d7ce0451752943f8877439d6717ae999d834b47d241d192de7f2f7"
     },
     {
       "id": "space-time-cluster-detection",
@@ -28,8 +28,8 @@
       "description": "Two synthetic patient sources, known truth links, source quality review, explainable RECORDLINK classification, and bounded local clerical review.",
       "file": "../recordlink/recordlink-synthetic-project.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/recordlink",
-      "bytes": 18799,
-      "sha256": "9540e41f26080a372d2699b972a2e7890b44e008937634b574454d1769459c82"
+      "bytes": 19095,
+      "sha256": "8bdff295f50bc4af928e9cec6f67de1d75c5198b8372d727d509adefbd06cae5"
     }
   ]
 }

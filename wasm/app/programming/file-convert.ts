@@ -1,5 +1,6 @@
 import type { Column } from "mdb-reader";
 import { parseClassicProgram } from "./classic-ast.ts";
+import { loadDuckDbSeed } from "./duckdb-seed.ts";
 
 export const FILE_CONVERT_PLAN_VERSION = "0.1.0" as const;
 export type FileConvertTarget = "sqlite" | "duckdb";
@@ -175,13 +176,13 @@ export async function convertAccessFileToDuckdb(file: File, plan: FileConvertPla
   const warnings = [
     "Forms, reports, macros, VBA, relationships, indexes, and saved Access query semantics are not migrated in V0.1.",
     "DuckDB is the analytical conversion target; use SQLite for the browser operational project store.",
-    "V0.1 initializes the writable browser database from DuckDB's public test database; self-hosting the reviewed seed is required before offline or production claims.",
+    "The writable DuckDB bootstrap is a checksummed Epi Info AI asset installed in OPFS; no external seed request is made.",
   ];
   try {
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-    const seedResponse = await fetch("https://blobs.duckdb.org/data/test.db");
-    if (!seedResponse.ok) throw new Error(`DuckDB seed request failed with HTTP ${seedResponse.status}.`);
-    await db.registerFileBuffer(databasePath, new Uint8Array(await seedResponse.arrayBuffer()));
+    const seed = await loadDuckDbSeed();
+    warnings.push(`DuckDB seed ${seed.version} verified by SHA-256 and loaded from ${seed.storage}.`);
+    await db.registerFileBuffer(databasePath, seed.bytes);
     await db.open({ path: databasePath, accessMode: duckdb.DuckDBAccessMode.READ_WRITE, arrowLosslessConversion: true });
     const connection = await db.connect();
     let bytes: Uint8Array | null = null;

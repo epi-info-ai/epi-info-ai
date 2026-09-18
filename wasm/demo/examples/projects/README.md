@@ -5,9 +5,11 @@ shown by **File > Import Example Project...**. It provides three complete,
 browser-ready demonstration projects maintained from the CDC Epi Info AI GitLab
 group:
 
-- [`foodborne-outbreak-investigation.epia.json`](foodborne-outbreak-investigation.epia.json)
-  contains 96 synthetic records, saved foodborne command examples, and a
-  learner-operated investigation runbook;
+- [`foodborne-outbreak-investigation.epia`](foodborne-outbreak-investigation.epia)
+  contains 96 synthetic records, saved foodborne command examples, a
+  learner-operated investigation runbook, and the integrity-checked Toledo
+  neighborhood GeoJSON and WorldPop GeoTIFF map assets. Import restores both
+  assets to OPFS and opens their project map layers without another download;
 - [`space-time-cluster-detection.epia.json`](space-time-cluster-detection.epia.json)
   contains 30 synthetic events, the reproducible cluster command tour, and a
   learner-operated mapping runbook; and

@@ -2985,7 +2985,52 @@
     "version": 1,
     "storage": {
       "type": "browser"
-    }
+    },
+    "mapAssets": [
+      {
+        "id": "c557159ea94def64612731542ede3ec70362cc3c4af2e99e2dafc7d264aa97b1",
+        "fileName": "city-of-toledo-neighborhoods.geojson",
+        "storage": "opfs",
+        "storagePath": "epi-info-ai/map-assets/c557159ea94def64612731542ede3ec70362cc3c4af2e99e2dafc7d264aa97b1.geojson",
+        "byteLength": 1107106,
+        "sha256": "c557159ea94def64612731542ede3ec70362cc3c4af2e99e2dafc7d264aa97b1",
+        "format": "geojson",
+        "mediaType": "application/geo+json",
+        "importedAt": "2026-09-17T12:00:00.000Z",
+        "persistence": "best-effort"
+      },
+      {
+        "id": "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1",
+        "fileName": "worldpop-toledo-population-density.tif",
+        "storage": "opfs",
+        "storagePath": "epi-info-ai/map-assets/cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1.tif",
+        "byteLength": 304873,
+        "sha256": "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1",
+        "format": "geotiff",
+        "mediaType": "image/tiff",
+        "importedAt": "2026-09-17T12:00:00.000Z",
+        "persistence": "best-effort"
+      }
+    ],
+    "mapLayers": [
+      {
+        "id": "toledo-neighborhoods",
+        "assetId": "c557159ea94def64612731542ede3ec70362cc3c4af2e99e2dafc7d264aa97b1",
+        "name": "City of Toledo neighborhoods",
+        "visible": true,
+        "kind": "geojson",
+        "labelField": "name",
+        "labelsEnabled": true
+      },
+      {
+        "id": "toledo-population-density",
+        "assetId": "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1",
+        "name": "WorldPop Toledo population density",
+        "visible": true,
+        "kind": "raster",
+        "opacity": 0.7
+      }
+    ]
   },
   "programs": [
     {

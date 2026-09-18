@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
-  "state": "conflict-aware-person-cluster-proposal",
+  "state": "programmed-governed-workflow",
   "commandTour": {
-    "statementCount": 20,
+    "statementCount": 24,
     "sourceAProfileCommands": 5,
     "sourceBProfileCommands": 5,
     "syntheticLineLists": 2,
-    "stopsSafelyAt": "EPIAI RECORDLINK"
+    "pausesAt": "EPIAI RECORDLINK REVIEW",
+    "finishesSafelyAt": "EPIAI RECORDLINK OUTPUT",
+    "duckdbTarget": "patientlinks.duckdb"
   },
   "sourceCounts": {
     "patient_registry_a": 8,
@@ -68,6 +70,28 @@
     "sourceMembershipLimit": 1,
     "sourceMutation": false
   },
+  "auditTables": {
+    "version": 1,
+    "personRows": 11,
+    "membershipRows": 16,
+    "acceptedLinkRows": 5,
+    "rejectedLinkRows": 0,
+    "decisionRows": 1,
+    "sourceRecordOrdinalsIncluded": true,
+    "patientIdentifiersOrValuesIncluded": false,
+    "replay": "candidate-and-audit-fingerprint-bound"
+  },
+  "personOutput": {
+    "version": "0.1.0",
+    "policy": "prefer-source-a-fill-source-b",
+    "recordRows": 11,
+    "mappedFields": 7,
+    "provenanceRows": 77,
+    "fieldDisagreements": 6,
+    "sourceBFallbackValues": 21,
+    "sourceIdentifiersExcluded": true,
+    "newDatasetOnly": true
+  },
   "acceptanceBoundary": {
     "parserAndResolver": true,
     "candidateGeneration": true,
@@ -76,7 +100,9 @@
     "clericalReview": true,
     "durableReviewArtifact": true,
     "personClustering": true,
-    "durableAuditTables": false,
+    "durableAuditTables": true,
+    "deduplicatedOutput": true,
+    "projectTableCreation": false,
     "merge": false
   }
 }

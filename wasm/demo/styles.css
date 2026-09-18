@@ -1526,6 +1526,16 @@ select {
   border: 1px solid var(--border-strong);
 }
 
+.primary-button:disabled,
+.secondary-button:disabled {
+  color: #6f7d85;
+  cursor: not-allowed;
+  background: #e5e9eb;
+  border-color: #b8c2c7;
+  box-shadow: none;
+  opacity: 0.72;
+}
+
 .calculation-time {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -2159,8 +2169,34 @@ select {
   max-width: 42rem;
 }
 
-.recordlink-review-dialog {
+.legacy-dialog.recordlink-review-dialog {
+  width: min(72rem, calc(100% - 2rem));
   max-width: 72rem;
+}
+
+.recordlink-review-dialog .legacy-dialog-body {
+  padding: 1rem;
+}
+
+.recordlink-review-dialog .results-table-scroll {
+  max-height: min(52dvh, 34rem);
+  border: 1px solid #c4d0d6;
+}
+
+.recordlink-review-table {
+  width: 100%;
+  min-width: 56rem;
+  table-layout: fixed;
+}
+
+.recordlink-review-table th:first-child,
+.recordlink-review-table td:first-child {
+  width: 7rem;
+}
+
+.recordlink-review-table th:last-child,
+.recordlink-review-table td:last-child {
+  width: 12rem;
 }
 
 .recordlink-review-table td {
@@ -2176,6 +2212,41 @@ select {
 .recordlink-review-value small {
   color: var(--text-muted);
   overflow-wrap: anywhere;
+}
+
+.recordlink-next-action {
+  margin: 0.75rem 0 0.45rem;
+  padding: 0.7rem 0.8rem;
+  color: #253f4f;
+  background: #fff7d6;
+  border-inline-start: 4px solid #e3a900;
+}
+
+.recordlink-review-decision-grid {
+  display: grid;
+  align-items: end;
+  gap: 0.75rem;
+  grid-template-columns: minmax(18rem, 1.2fr) minmax(16rem, 1fr);
+}
+
+.recordlink-review-decision-grid label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.recordlink-review-decision-grid select {
+  width: 100%;
+  min-height: var(--control-min-size);
+  padding: 0.3rem 0.45rem;
+  border: 1px solid #9caeb8;
+}
+
+@media (max-width: 640px) {
+  .recordlink-review-decision-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .localization-options-dialog {

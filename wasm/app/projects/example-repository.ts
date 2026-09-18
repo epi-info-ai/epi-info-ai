@@ -50,7 +50,7 @@ function safeRelativeFile(value: unknown, name: string): string {
   if (file.startsWith("/") || parts.some((part) => !part || part === ".") || parts.filter((part) => part === "..").length > 1) {
     throw new ExampleProjectRepositoryError(`${name} must be a safe relative path.`);
   }
-  if (!/\.epia\.json$/i.test(file)) throw new ExampleProjectRepositoryError(`${name} must identify an .epia.json project package.`);
+  if (!/\.epia(?:\.json)?$/i.test(file)) throw new ExampleProjectRepositoryError(`${name} must identify an .epia or .epia.json project package.`);
   return file;
 }
 
@@ -108,9 +108,15 @@ async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
 }
 
 export async function loadExampleProjectCatalog(catalogUrl: URL | string): Promise<LoadedExampleProjectCatalog> {
-  const url = new URL(String(catalogUrl), location.href);
+  const url = new URL(String(catalogUrl), document.baseURI);
   if (!allowedCatalogUrl(url)) throw new ExampleProjectRepositoryError("Project catalogs require this application origin or an approved HTTPS GitLab/GitHub source.");
-  const response = await fetch(url);
+  let response: Response;
+  try {
+    response = await fetch(url, { cache: "no-cache" });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "network request failed";
+    throw new ExampleProjectRepositoryError(`Unable to fetch the project catalog from ${url.href} (${detail}).`);
+  }
   if (!response.ok) throw new ExampleProjectRepositoryError(`Unable to load the project catalog (${response.status}).`);
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength > MAX_CATALOG_BYTES) throw new ExampleProjectRepositoryError("Project catalog exceeds 256 KiB.");
@@ -126,7 +132,13 @@ export async function fetchExampleProject(loaded: LoadedExampleProjectCatalog, e
   }
   const url = new URL(entry.file, loaded.url);
   if (!allowedCatalogUrl(url)) throw new ExampleProjectRepositoryError("The project package resolved outside an approved repository source.");
-  const response = await fetch(url);
+  let response: Response;
+  try {
+    response = await fetch(url, { cache: "no-cache" });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "network request failed";
+    throw new ExampleProjectRepositoryError(`Unable to fetch ${entry.title} from ${url.href} (${detail}).`);
+  }
   if (!response.ok) throw new ExampleProjectRepositoryError(`Unable to retrieve ${entry.title} (${response.status}).`);
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength !== entry.bytes) throw new ExampleProjectRepositoryError(`${entry.title} has ${bytes.byteLength} bytes; expected ${entry.bytes}.`);

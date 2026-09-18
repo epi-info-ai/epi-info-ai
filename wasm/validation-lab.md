@@ -479,7 +479,7 @@ discrepancy to its detailed evidence record.
   Passing validates this browser candidate and fixture, not legacy desktop
   parity; experienced field-user workflow review remains pending.
 
-### RECORDLINK classification, review binding, and clustering V0.7
+### RECORDLINK end-to-end governed output V0.9
 
 - `validate-recordlink.ipynb` loads both eight-row synthetic sources, the five
   truth links, and the checked-in expected-result contract.
@@ -497,8 +497,14 @@ discrepancy to its detailed evidence record.
 - The V0.7 cells independently reconstruct five reviewed links, five linked
   clusters, six singletons, and 11 proposed people, then inject a competing edge
   and require explicit source-membership conflict rejection.
+- The V0.8 cells independently derive 11 opaque person rows, 16 one-based
+  source-membership rows, 5 accepted-link rows, and 1 controlled decision row,
+  then bind the tables to the candidate fingerprint with a second SHA-256.
+- The V0.9 cells independently apply the seven visible field mappings and
+  Source A preference, producing 11 new person rows, six disagreements, 21
+  Source B fallbacks, and 77 provenance rows while excluding source IDs.
 - Passing validates this bounded deterministic fixture. It does not validate
-  threshold calibration, durable audit tables, merging, or a production
+  threshold calibration, project-table creation, merging, or a production
   patient-matching method.
 
 ### Classic TABLES V0.11 validation

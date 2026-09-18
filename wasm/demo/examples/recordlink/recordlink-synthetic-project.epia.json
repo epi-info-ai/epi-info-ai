@@ -410,10 +410,10 @@
       "name": "recordlink-command-tour",
       "language": "classic-analysis",
       "author": "Epi Info AI",
-      "comment": "Synthetic teaching workflow; V0.7 adds a deterministic conflict-aware person-cluster proposal without changing source data.",
+      "comment": "Synthetic teaching workflow; V0.11 pauses for governed review, prepares clusters and audit tables, and offers an acknowledged DuckDB analytical output without changing project tables.",
       "createdAt": "2026-09-16T12:00:00.000Z",
       "modifiedAt": "2026-09-16T12:00:00.000Z",
-      "source": "*** Epi Info AI RECORDLINK end-to-end command tour\n*** Datasets: patient-registry-a.csv and surveillance-b.csv (entirely synthetic)\n*** Purpose: inspect both sources before proposing cross-source patient links.\n*** New branch; not the legacy matched case-control MATCH command.\n*** V0.7 adds a conflict-aware person-cluster proposal after review; it changes no source.\n\nHEADER 1 \"Synthetic patient record-linkage teaching workflow\"\nTYPEOUT \"Two fictional eight-record sources use different schemas and contain five known truth links.\"\nTYPEOUT \"Review source quality and aggregate distributions before evaluating any proposed link.\"\n\nREAD patient_registry_a\nHEADER 1 \"Source A — synthetic patient registry\"\nEPIAI QUALITY *\nLIST record_id date_of_birth sex art_code facility_code first_name last_name patient_address\nFREQ facility_code\nFREQ sex\nTABLES facility_code sex\n\nREAD surveillance_b\nHEADER 1 \"Source B — synthetic surveillance line list\"\nEPIAI QUALITY *\nLIST client_id DOB SEX ART_CODE site_code given_name family_name Address\nFREQ site_code\nFREQ SEX\nTABLES site_code SEX\n\nHEADER 1 \"Reviewed cross-source linkage plan\"\nTYPEOUT \"Block on facility/site; compare date, sex, and ART code exactly; compare names and address fuzzily.\"\nEPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id TRUTH=true_links TRUTHA=source_a_id TRUTHB=source_b_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks\n\n*** Candidate identifiers and values remain out of Output and history.\n*** Review-queue values appear only in the transient local review dialog.\n*** Future governed slices continue with durable audit tables and an explicitly reviewed MERGE.\n"
+      "source": "*** Epi Info AI RECORDLINK end-to-end command tour\n*** Datasets: patient-registry-a.csv and surveillance-b.csv (entirely synthetic)\n*** Purpose: inspect both sources before proposing cross-source patient links.\n*** New branch; not the legacy matched case-control MATCH command.\n*** V0.11 adds an acknowledged DuckDB target to the typed governed stages.\n\nHEADER 1 \"Synthetic patient record-linkage teaching workflow\"\nTYPEOUT \"Two fictional eight-record sources use different schemas and contain five known truth links.\"\nTYPEOUT \"Review source quality and aggregate distributions before evaluating any proposed link.\"\n\nREAD patient_registry_a\nHEADER 1 \"Source A — synthetic patient registry\"\nEPIAI QUALITY *\nLIST record_id date_of_birth sex art_code facility_code first_name last_name patient_address\nFREQ facility_code\nFREQ sex\nTABLES facility_code sex\n\nREAD surveillance_b\nHEADER 1 \"Source B — synthetic surveillance line list\"\nEPIAI QUALITY *\nLIST client_id DOB SEX ART_CODE site_code given_name family_name Address\nFREQ site_code\nFREQ SEX\nTABLES site_code SEX\n\nHEADER 1 \"Reviewed cross-source linkage plan\"\nTYPEOUT \"Block on facility/site; compare date, sex, and ART code exactly; compare names and address fuzzily.\"\nEPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id TRUTH=true_links TRUTHA=source_a_id TRUTHB=source_b_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks\nEPIAI RECORDLINK REVIEW RESULT=PatientLinks\nEPIAI RECORDLINK CLUSTER RESULT=PatientLinks\nEPIAI RECORDLINK AUDIT RESULT=PatientLinks\nEPIAI RECORDLINK OUTPUT RESULT=PatientLinks TO=\"patientlinks.duckdb\"\n\n*** Candidate identifiers and values remain out of Output and history.\n*** Review-queue values appear only in the transient local review dialog.\n*** REVIEW pauses this program until every queued pair has a conclusive human decision.\n*** AUDIT stays in memory; OUTPUT requires acknowledgement before CSV, JSON, or DuckDB download.\n*** Future governed slices continue with project-table creation and an explicitly reviewed MERGE.\n"
     }
   ],
   "codeTables": [],
@@ -421,7 +421,7 @@
     {
       "id": "recordlink-project-tour",
       "title": "Governed record-linkage project tour",
-      "description": "Inspect both synthetic sources, run quality checks, review explainable threshold classifications, exchange a fingerprint-bound review artifact, and build a conflict-aware person-cluster proposal without merging records.",
+      "description": "Run a typed linkage workflow that pauses for human review, then prepares clusters, audit tables, and acknowledged person output without merging records.",
       "prerequisite": "Import the Synthetic Patient Record Linkage example project. It includes two source tables, five known truth links, and a saved command tour.",
       "module": "classic",
       "steps": [
@@ -455,7 +455,7 @@
         {
           "id": "run",
           "title": "Run reviewed comparisons",
-          "instruction": "Select Run Commands. The workflow blocks candidates, calculates deterministic exact and fuzzy scores, and applies the visible review/match thresholds. Nothing mutates either source.",
+          "instruction": "Select Run Commands. The workflow blocks candidates, calculates deterministic scores, and pauses at EPIAI RECORDLINK REVIEW. Nothing mutates either source.",
           "target": "#classic-program-run",
           "advanceOn": "click"
         },
@@ -463,34 +463,34 @@
           "id": "review-output",
           "title": "Review candidate scores and classes",
           "instruction": "Inspect blocking counts, score distribution, threshold classes, truth-set precision/recall/F1, and field-level contributions. Candidate identifiers and patient values remain out of Output and history.",
-          "target": "#classic-recordlink-output"
-        },
-        {
-          "id": "open-clerical-review",
-          "title": "Inspect the review-queue pair",
-          "instruction": "Choose Review pair for Candidate 5. Identifiers, original values, and normalized values appear only in the transient local dialog. Compare the one-day date variation and choose a decision plus a controlled reason.",
-          "target": ".recordlink-review-open",
-          "advanceOn": "click"
+          "target": "#classic-recordlink-review-summary"
         },
         {
           "id": "save-clerical-decision",
           "title": "Record an explicit decision",
-          "instruction": "Choose Match, Non-match, or Uncertain and a controlled reason, then select Save decision. This creates an in-memory audit event; it does not create a link, cluster people, run MERGE, or change source data.",
+          "instruction": "Compare the one-day date variation, choose Match and a controlled reason, then select Save decision. The program resumes through CLUSTER, AUDIT, and OUTPUT only after the review is conclusive.",
           "target": "#classic-recordlink-review-save",
           "advanceOn": "click"
         },
         {
           "id": "export-review-artifact",
           "title": "Export governed review evidence",
-          "instruction": "Select Export review artifact. The JSON contains candidate ordinals, decisions, versions, the canonical plan, and a candidate-set fingerprint. It contains no patient identifiers or field values and can be replayed only against the identical project result.",
+          "instruction": "The completed program has prepared 11 person clusters, fingerprint-bound audit tables, and a person-record preview. Select Export review artifact if you want portable decision evidence; no export happened automatically.",
           "target": "#classic-recordlink-review-export",
           "advanceOn": "click"
         },
         {
-          "id": "build-person-clusters",
-          "title": "Build the reviewed cluster proposal",
-          "instruction": "After every review candidate has a conclusive Match or Non-match decision, select Build person clusters. The deterministic proposal permits at most one record from each source per person and reports competing edges without changing source data.",
-          "target": "#classic-recordlink-build-clusters",
+          "id": "export-audit-tables",
+          "title": "Export durable audit tables",
+          "instruction": "Inspect the opaque person and accepted-link previews prepared by the AUDIT program stage, then select Export audit tables if desired. Membership uses source record ordinals but excludes patient identifiers and values.",
+          "target": "#classic-recordlink-audit-export",
+          "advanceOn": "click"
+        },
+        {
+          "id": "review-person-records",
+          "title": "Acknowledge the person-level output",
+          "instruction": "The OUTPUT program stage prepared the seven declared field mappings and 11 records. Review them, then select the acknowledgement. CSV, provenance JSON, and the declared patientlinks.duckdb download become available only now.",
+          "target": "#classic-recordlink-output-reviewed",
           "advanceOn": "click"
         },
         {

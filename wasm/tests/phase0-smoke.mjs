@@ -90,6 +90,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/epi-ai-recordlink-review.ts",
     "wasm/app/programming/epi-ai-recordlink-review-artifact.ts",
     "wasm/app/programming/epi-ai-recordlink-cluster.ts",
+    "wasm/app/programming/epi-ai-recordlink-audit.ts",
+    "wasm/app/programming/epi-ai-recordlink-output.ts",
     "wasm/app/projects/example-repository.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
@@ -117,6 +119,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/docs/validation/recordlink-clerical-review-contract.md",
     "wasm/docs/validation/recordlink-review-artifact-contract.md",
     "wasm/docs/validation/recordlink-person-cluster-contract.md",
+    "wasm/docs/validation/recordlink-audit-table-contract.md",
+    "wasm/docs/validation/recordlink-person-output-contract.md",
     "wasm/docs/design/spatial-clustering-reference-inventory.md",
     "wasm/app/forms/form-designer-menu.ts",
     "wasm/app/forms/enter-data-menu.ts",
@@ -162,6 +166,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/projects/sample-project.epia.json",
     "wasm/demo/examples/projects/epi-info-projects.json",
     "wasm/demo/examples/projects/foodborne-outbreak-investigation.epia.json",
+    "wasm/demo/examples/projects/foodborne-outbreak-investigation.epia",
     "wasm/demo/examples/projects/space-time-cluster-detection.epia.json",
     "wasm/demo/examples/foodborne/foodborne-investigation.runbook.json",
     "wasm/demo/examples/cluster/space-time-cluster.runbook.json",
@@ -537,7 +542,7 @@ async function checkRequiredAssetsAndUi() {
   assert.match(commandSet, /## Implemented Epi Info AI new-branch commands/);
   assert.match(commandSet, /`EPIAI CLUSTER SPACE_TIME \.\.\. RESULT=name`/);
   assert.match(commandSet, /`EPIAI CLUSTER RENDER RESULT=name`/);
-  assert.match(commandSet, /Executable cluster-proposal candidate V0\.7/);
+  assert.match(commandSet, /Executable governed-DuckDB candidate V0\.11/);
   assert.doesNotMatch(commandSet, /### Planned new-branch commands/);
   assert.match(commandSet, /do not count toward the legacy parity totals/);
   for (const entry of commandParity.CLASSIC_COMMAND_PARITY) {
@@ -1667,6 +1672,9 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const recordlinkReview = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-review.ts")).href}?recordlinkReview=${Date.now()}`);
   const recordlinkReviewArtifact = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-review-artifact.ts")).href}?recordlinkReviewArtifact=${Date.now()}`);
   const recordlinkCluster = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-cluster.ts")).href}?recordlinkCluster=${Date.now()}`);
+  const recordlinkAudit = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-audit.ts")).href}?recordlinkAudit=${Date.now()}`);
+  const recordlinkOutput = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-output.ts")).href}?recordlinkOutput=${Date.now()}`);
+  const recordlinkDuckdb = await import(`${pathToFileURL(repositoryPath("wasm/app/programming/epi-ai-recordlink-duckdb.ts")).href}?recordlinkDuckdb=${Date.now()}`);
   const clusterFixture = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json"), "utf8"));
   const clusterCsv = await readFile(repositoryPath("wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv"), "utf8");
   assert.equal(createHash("sha256").update(clusterCsv).digest("hex"), clusterFixture.dataset.sha256);
@@ -1753,6 +1761,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
     "ReadStatement", "HeaderStatement", "EpiAiQualityStatement", "ListStatement", "FrequencyStatement", "FrequencyStatement", "TablesStatement",
     "ReadStatement", "HeaderStatement", "EpiAiQualityStatement", "ListStatement", "FrequencyStatement", "FrequencyStatement", "TablesStatement",
     "HeaderStatement", "TypeoutStatement", "EpiAiRecordLinkStatement",
+    "EpiAiRecordLinkStageStatement", "EpiAiRecordLinkStageStatement", "EpiAiRecordLinkStageStatement", "EpiAiRecordLinkStageStatement",
   ]);
   const recordLinkSource = recordLinkTour.split(/\r?\n/).find((line) => line.startsWith("EPIAI RECORDLINK "));
   assert.ok(recordLinkSource, "the RECORDLINK tour must contain one visible EPIAI RECORDLINK command");
@@ -1816,6 +1825,15 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(recordLinkAst.body.filter(({ type }) => type === "ListStatement").length, recordLinkExpected.commandTour.syntheticLineLists);
   assert.equal(recordLinkAst.body.filter(({ type }) => type === "FrequencyStatement").length, 4);
   assert.equal(recordLinkAst.body.filter(({ type }) => type === "TablesStatement").length, 2);
+  assert.deepEqual(recordLinkAst.body.filter(({ type }) => type === "EpiAiRecordLinkStageStatement").map(({ stage }) => stage), ["REVIEW", "CLUSTER", "AUDIT", "OUTPUT"]);
+  assert.equal(recordLinkAst.body.find(({ type, stage }) => type === "EpiAiRecordLinkStageStatement" && stage === "OUTPUT").outputFile, "patientlinks.duckdb");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "recordlink-stage", stage: "REVIEW", resultName: "PatientLinks" }), "EPIAI RECORDLINK REVIEW RESULT=PatientLinks");
+  assert.equal(commandBuilder.buildClassicAnalysisCommand({ kind: "recordlink-stage", stage: "OUTPUT", resultName: "PatientLinks", outputFile: "patientlinks.duckdb" }), 'EPIAI RECORDLINK OUTPUT RESULT=PatientLinks TO="patientlinks.duckdb"');
+  assert.deepEqual(commandBuilder.resolveSelectedClassicAnalysisCommand('EPIAI RECORDLINK OUTPUT RESULT=PatientLinks TO="patientlinks.duckdb"', []), {
+    kind: "recordlink-stage", stage: "OUTPUT", resultName: "PatientLinks", outputFile: "patientlinks.duckdb", source: 'EPIAI RECORDLINK OUTPUT RESULT=PatientLinks TO="patientlinks.duckdb"',
+  });
+  assert.throws(() => classicAst.parseClassicProgram("EPIAI RECORDLINK REVIEW RESULT=PatientLinks EXTRA=1"), /Unsupported.*REVIEW option EXTRA/);
+  assert.throws(() => classicAst.parseClassicProgram('EPIAI RECORDLINK OUTPUT RESULT=PatientLinks TO="bad.csv"'), /local .duckdb file name/);
   const recordLinkProject = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/recordlink/recordlink-synthetic-project.epia.json"), "utf8"));
   assert.equal(recordLinkProject.format, "epi-info-ai-project");
   assert.equal(recordLinkProject.version, 2);
@@ -1894,6 +1912,51 @@ FREQ AgeGroup STRATAVAR=Sex`;
     deterministic: true, conflictAware: true, identifiersExposedInOutput: false,
     sourceMutationExecuted: false, mergeExecuted: false,
   });
+  const auditArtifact = await recordlinkAudit.createRecordLinkAuditArtifact(
+    "Synthetic Patient Record Linkage", recordLinkPlan, recordLinkDiagnostics,
+    new Map([[reviewDecision.candidateNumber, reviewDecision]]), personClusters, "2026-09-17T12:10:00.000Z",
+  );
+  assert.equal(auditArtifact.kind, "epi-info-ai.recordlink-audit");
+  assert.deepEqual([auditArtifact.personTable.length, auditArtifact.membershipTable.length, auditArtifact.linkTable.length], [11, 16, 5]);
+  assert.deepEqual(auditArtifact.personTable.filter(({ linked }) => linked).map(({ personId }) => personId), ["P000001", "P000002", "P000004", "P000005", "P000006"]);
+  assert.equal(auditArtifact.membershipTable.filter(({ sourceRole }) => sourceRole === "sourceA").length, 8);
+  assert.equal(auditArtifact.membershipTable.filter(({ sourceRole }) => sourceRole === "sourceB").length, 8);
+  assert.deepEqual(auditArtifact.linkTable.find(({ candidateNumber }) => candidateNumber === 5), {
+    candidateNumber: 5, personId: "P000004", score: 5, maximumScore: 6,
+    authority: "clerical-review", decisionReason: "acceptable-variation", decidedAt: "2026-09-17T12:00:00.000Z",
+  });
+  assert.match(auditArtifact.auditFingerprint, /^[a-f0-9]{64}$/);
+  assert.deepEqual(auditArtifact.privacy, { identifiersIncluded: false, recordValuesIncluded: false, normalizedValuesIncluded: false, sourceRecordOrdinalsIncluded: true });
+  const serializedAudit = JSON.stringify(auditArtifact);
+  for (const privateValue of ["A004", "B004", "1988-12-01", "1988-12-02"]) assert.equal(serializedAudit.includes(privateValue), false, `audit artifact must omit ${privateValue}`);
+  const replayedAudit = await recordlinkAudit.replayRecordLinkAuditArtifact(auditArtifact, "Synthetic Patient Record Linkage", recordLinkPlan, recordLinkDiagnostics);
+  assert.deepEqual(replayedAudit.artifact, auditArtifact);
+  assert.deepEqual(replayedAudit.clusters, personClusters);
+  await assert.rejects(() => recordlinkAudit.replayRecordLinkAuditArtifact({ ...auditArtifact, personTable: [{ ...auditArtifact.personTable[0], memberCount: 99 }, ...auditArtifact.personTable.slice(1)] }, "Synthetic Patient Record Linkage", recordLinkPlan, recordLinkDiagnostics), /personTable/);
+  const personOutput = recordlinkOutput.createRecordLinkPersonOutput(recordLinkPlan, recordLinkReviewSources, personClusters);
+  assert.equal(personOutput.version, "0.1.0");
+  assert.deepEqual(personOutput.fields.map(({ outputField }) => outputField), ["facility_code", "date_of_birth", "sex", "art_code", "first_name", "last_name", "patient_address"]);
+  assert.deepEqual(personOutput.totals, { people: 11, linkedPeople: 5, singletonPeople: 6, fieldDisagreements: 6, fallbackValues: 21 });
+  assert.equal(personOutput.provenance.length, 77);
+  assert.deepEqual(personOutput.records[3], {
+    person_id: "P000004", source_count: 2, facility_code: "FAC-03", date_of_birth: "1988-12-01",
+    sex: "Male", art_code: "ART-004", first_name: "David", last_name: "Smith", patient_address: "400 Cedar Lane",
+  });
+  assert.equal(Object.hasOwn(personOutput.records[3], "record_id"), false);
+  assert.equal(Object.hasOwn(personOutput.records[3], "client_id"), false);
+  assert.deepEqual(personOutput.governance, { newDatasetOnly: true, sourceIdentifiersExcluded: true, unmappedFieldsExcluded: true, containsRecordValues: true, sourceMutationExecuted: false, mergeExecuted: false });
+  const personOutputCsv = recordlinkOutput.serializeRecordLinkPersonOutputCsv(personOutput);
+  assert.match(personOutputCsv, /^person_id,source_count,facility_code,date_of_birth,sex,art_code,first_name,last_name,patient_address\r\n/);
+  assert.equal(personOutputCsv.trim().split(/\r?\n/).length, 12);
+  assert.equal(personOutputCsv.includes("A004"), false);
+  assert.equal(personOutputCsv.includes("B004"), false);
+  const duckdbTables = recordlinkDuckdb.recordLinkDuckDbTables(personOutput, auditArtifact);
+  assert.deepEqual(duckdbTables.map(({ name, rows }) => [name, rows.length]), [
+    ["PatientLinks_Persons", 11], ["_recordlink_provenance", 77], ["_recordlink_person", 11],
+    ["_recordlink_membership", 16], ["_recordlink_link", 5], ["_recordlink_rejected_link", 0], ["_recordlink_decision", 1],
+  ]);
+  assert.deepEqual(duckdbTables[0].columns.map(({ name }) => name), ["person_id", "source_count", "facility_code", "date_of_birth", "sex", "art_code", "first_name", "last_name", "patient_address"]);
+  assert.equal(JSON.stringify(duckdbTables.slice(1)).includes("A004"), false);
   assert.throws(() => recordlinkCluster.createRecordLinkPersonClusters(recordLinkPlan, recordLinkDiagnostics, new Map()), /1 remain unresolved/);
   const nonMatchDecision = recordlinkReview.createRecordLinkReviewDecision(reviewCase, "non-match", "conflicting-identifiers", "2026-09-17T12:00:00.000Z");
   const nonMatchClusters = recordlinkCluster.createRecordLinkPersonClusters(recordLinkPlan, recordLinkDiagnostics, new Map([[5, nonMatchDecision]]));
@@ -3844,13 +3907,17 @@ async function checkValidationLabSource() {
   assert.equal(recordLinkNotebook.metadata?.kernelspec?.name, "python");
   const recordLinkSource = recordLinkNotebook.cells.flatMap((cell) => cell.source || []).join("");
   for (const requiredText of [
-    "RECORDLINK validation lab — V0.7",
+    "RECORDLINK validation lab — V0.9",
     "epi-info-ai.recordlink-review",
     "hashlib.sha256",
     "identifiersIncluded",
     "cluster_proposal",
     "reviewCandidate5AsMatch",
     "source-membership_conflict_candidates",
+    "membershipTable",
+    "acceptedLinkRows",
+    "output_mappings",
+    "sourceBFallbackValues",
   ]) {
     assert.ok(recordLinkSource.includes(requiredText), `RECORDLINK validation notebook must retain ${requiredText}`);
   }
@@ -4202,6 +4269,7 @@ async function checkLocalizationBoundary() {
 async function checkExampleProjectRepository() {
   const repositories = await import(`${pathToFileURL(repositoryPath("wasm/app/projects/example-repository.ts")).href}?projects=${Date.now()}`);
   const packages = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?project-packages=${Date.now()}`);
+  const archives = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-archive.ts")).href}?project-archives=${Date.now()}`);
   const catalogPath = repositoryPath("wasm/demo/examples/projects/epi-info-projects.json");
   const catalog = repositories.validateExampleProjectCatalog(JSON.parse(await readFile(catalogPath, "utf8")));
   assert.deepEqual(catalog.projects.map(({ id }) => id), [
@@ -4219,13 +4287,21 @@ async function checkExampleProjectRepository() {
     const bytes = await readFile(filePath);
     assert.equal(bytes.byteLength, entry.bytes, `${entry.id} catalog byte count`);
     assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.sha256, `${entry.id} catalog digest`);
-    const packageValue = packages.parseProjectPackage(bytes.toString("utf8"));
+    const parsedArchive = /\.epia$/i.test(entry.file)
+      ? await archives.parseProjectArchive(new File([bytes], entry.file, { type: "application/vnd.epi-info-ai.project" }))
+      : null;
+    const packageValue = parsedArchive?.projectPackage ?? packages.parseProjectPackage(bytes.toString("utf8"));
     const expectation = expected.get(entry.id);
     assert.equal(packageValue.project.name, expectation.project);
     assert.equal(packageValue.project.forms.length, expectation.forms);
     assert.equal(packageValue.project.forms.reduce((sum, form) => sum + form.records.length, 0), expectation.records);
     assert.ok(packageValue.programs.length > 0, `${entry.id} must include a runnable teaching program`);
     assert.equal(packageValue.runbooks?.length, 1, `${entry.id} must include one project-scoped runbook`);
+    if (entry.id === "foodborne-outbreak-investigation") {
+      assert.equal(parsedArchive?.assets.length, 2, "the foodborne package must embed both map assets");
+      assert.deepEqual(parsedArchive.assets.map(({ asset }) => asset.format), ["geojson", "geotiff"]);
+      assert.equal(packageValue.project.mapLayers?.length, 2, "the foodborne package must restore both project map layers");
+    }
   }
 }
 

@@ -5,13 +5,54 @@ import path from "node:path";
 
 const directory = process.cwd();
 const requested = process.argv[2];
-const candidates = requested
-  ? [requested]
-  : (await readdir(directory)).filter((name) => name.endsWith(".epia.json"));
-assert.equal(candidates.length, 1, "the repository must contain exactly one root .epia.json package");
+const directoryEntries = await readdir(directory);
+const binaryCandidates = directoryEntries.filter((name) => name.endsWith(".epia"));
+const jsonCandidates = directoryEntries.filter((name) => name.endsWith(".epia.json"));
+const candidates = requested ? [requested] : binaryCandidates.length ? binaryCandidates : jsonCandidates;
+assert.equal(candidates.length, 1, "the repository must identify exactly one root .epia archive or .epia.json package");
 
 const packagePath = path.resolve(directory, candidates[0]);
-const packageValue = JSON.parse(await readFile(packagePath, "utf8"));
+const packageBytes = await readFile(packagePath);
+let packageValue;
+let embeddedAssetCount = 0;
+if (candidates[0].endsWith(".epia")) {
+  const magic = Buffer.from([0x45, 0x50, 0x49, 0x41, 0x01, 0x0d, 0x0a, 0x1a]);
+  assert.ok(packageBytes.length >= 12 && packageBytes.subarray(0, 8).equals(magic), "binary project archive magic");
+  const manifestLength = packageBytes.readUInt32LE(8);
+  assert.ok(manifestLength > 0 && 12 + manifestLength <= packageBytes.length, "binary project archive manifest length");
+  const manifest = JSON.parse(packageBytes.subarray(12, 12 + manifestLength).toString("utf8"));
+  assert.equal(manifest.format, "epi-info-ai-archive", "archive format");
+  assert.equal(manifest.version, 1, "archive version");
+  assert.ok(Array.isArray(manifest.assets), "archive asset inventory");
+  packageValue = manifest.projectPackage;
+  const referencedAssets = [
+    ...(packageValue.project?.studyAreas ?? []).flatMap((area) => area.offlineMap?.asset ? [area.offlineMap.asset] : []),
+    ...(packageValue.project?.mapAssets ?? []),
+  ];
+  assert.equal(manifest.assets.length, referencedAssets.length, "archive contains every referenced map asset");
+  let offset = 12 + manifestLength;
+  for (const asset of manifest.assets) {
+    assert.ok(referencedAssets.some((reference) => JSON.stringify(reference) === JSON.stringify(asset)), `${asset.fileName} metadata is referenced by the project`);
+    assert.ok(Number.isSafeInteger(asset.byteLength) && asset.byteLength > 0, `${asset.fileName} byte length`);
+    const end = offset + asset.byteLength;
+    assert.ok(end <= packageBytes.length, `${asset.fileName} payload is complete`);
+    const payload = packageBytes.subarray(offset, end);
+    assert.equal(createHash("sha256").update(payload).digest("hex"), asset.sha256, `${asset.fileName} embedded SHA-256`);
+    if (asset.format === "geojson") {
+      const geojson = JSON.parse(payload.toString("utf8"));
+      assert.equal(typeof geojson?.type, "string", `${asset.fileName} GeoJSON type`);
+    } else if (asset.format === "geotiff") {
+      const littleEndian = payload[0] === 0x49 && payload[1] === 0x49 && payload[2] === 0x2a && payload[3] === 0x00;
+      const bigEndian = payload[0] === 0x4d && payload[1] === 0x4d && payload[2] === 0x00 && payload[3] === 0x2a;
+      assert.ok(littleEndian || bigEndian, `${asset.fileName} TIFF signature`);
+    }
+    offset = end;
+  }
+  assert.equal(offset, packageBytes.length, "archive has no unreferenced trailing bytes");
+  embeddedAssetCount = manifest.assets.length;
+} else {
+  packageValue = JSON.parse(packageBytes.toString("utf8"));
+}
 assert.equal(packageValue.format, "epi-info-ai-project", "package format");
 assert.equal(packageValue.version, 2, "Project Package V2");
 assert.ok(!Number.isNaN(Date.parse(packageValue.exportedAt)), "valid export timestamp");
@@ -76,4 +117,4 @@ for (const runbook of packageValue.runbooks) {
   }
 }
 
-console.log(`Validated ${packageValue.project.name}: ${packageValue.project.forms.length} forms, ${recordCount} records, ${packageValue.programs.length} saved programs, ${packageValue.runbooks.length} runbooks.`);
+console.log(`Validated ${packageValue.project.name}: ${packageValue.project.forms.length} forms, ${recordCount} records, ${packageValue.programs.length} saved programs, ${packageValue.runbooks.length} runbooks, ${embeddedAssetCount} embedded map assets.`);

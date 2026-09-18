@@ -185,13 +185,17 @@ def verify_notebook() -> None:
     recordlink = nbformat.read(NOTEBOOKS[13], as_version=4)
     source = "\n".join(cell.source for cell in recordlink.cells)
     for required in [
-        "RECORDLINK validation lab — V0.7",
+        "RECORDLINK validation lab — V0.9",
         "epi-info-ai.recordlink-review",
         "hashlib.sha256",
         "identifiersIncluded",
         "cluster_proposal",
         "reviewCandidate5AsMatch",
         "source-membership_conflict_candidates",
+        "membershipTable",
+        "acceptedLinkRows",
+        "output_mappings",
+        "sourceBFallbackValues",
     ]:
         assert required in source
 

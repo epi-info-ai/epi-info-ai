@@ -47,8 +47,12 @@ local dialog and assigned Match, Non-match, or Uncertain with a controlled
 reason. Decisions can be exported and replayed as a fingerprint-bound V0.6 JSON
 artifact that excludes identifiers and values. Once the review queue is fully
 resolved, V0.7 builds a deterministic person-cluster proposal with at most one
-record from each source. Durable audit tables, source changes, and `MERGE`
-remain fail-closed.
+record from each source. V0.8 exports and replays fingerprint-bound person,
+membership, accepted-link, rejected-link, and decision audit tables. Source
+changes, project-table creation, and `MERGE` remain fail-closed. V0.9 can create
+a separately reviewed new person-record CSV and provenance JSON without adding
+that output to the project. V0.10 exposes the governed review, cluster, audit,
+and output transitions as typed program statements.
 
 ## Current slice
 
@@ -62,14 +66,30 @@ workflow:
 3. `READ surveillance_b`, repeat the same quality and aggregate review using
    that source's differently named fields.
 4. Display the reviewed blocking and comparison rationale.
-5. End at the explicit candidate-classification command, then choose **Review
-   pair** for the one queued candidate to exercise the V0.5 clerical-review
-   boundary, export and replay the governed V0.6 review artifact, and build the
-   non-mutating V0.7 person-cluster proposal:
+5. Run the explicit candidate-classification command followed by the four V0.10
+   governed stages. The program pauses at `REVIEW` for the one queued candidate,
+   then resumes through the non-mutating cluster, in-memory audit, and reviewed
+   person-output preview:
 
 ```text
 EPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id TRUTH=true_links TRUTHA=source_a_id TRUTHB=source_b_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks
+EPIAI RECORDLINK REVIEW RESULT=PatientLinks
+EPIAI RECORDLINK CLUSTER RESULT=PatientLinks
+EPIAI RECORDLINK AUDIT RESULT=PatientLinks
+EPIAI RECORDLINK OUTPUT RESULT=PatientLinks
 ```
+
+`REVIEW` cannot complete while a queued candidate remains Uncertain. `AUDIT`
+does not force a download, and `OUTPUT` does not enable downloads until the user
+acknowledges the visible mappings, disagreements, and person records.
+
+The tour's V0.11 `OUTPUT` statement declares `patientlinks.duckdb`. After the
+same acknowledgement, **Download governed DuckDB** creates eight tables: the
+11-row person dataset, 77-row field provenance, five audit/decision tables, and
+the fingerprinted manifest. The file is a new analytical output; it does not
+become a project form and does not modify either source. It clones the same
+versioned, checksummed seed that Epi Info AI installs immutably in OPFS; no
+third-party seed request is made.
 
 The resolver requires two distinct named project sources, validates every field
 pair against its own schema, requires compatible types, restricts fuzzy
@@ -91,6 +111,16 @@ With Candidate 5 reviewed as Match, the cluster proposal reports five linked
 pairs and six singleton records: 11 proposed people from 16 source records.
 Competing edges that would put two records from one source into a person are
 reported as conflicts rather than silently replacing a link.
+The durable artifact contains 11 opaque person rows, 16 membership rows, and 5
+accepted-link rows for this reviewed fixture. Membership uses one-based source
+record ordinals so later governed output can map records without embedding
+patient identifiers or field values. Import recomputes every table and both
+fingerprints before accepting the artifact.
+The V0.9 output uses only the seven field pairs visible in the command. Its
+initial policy prefers nonmissing Source A values and fills from Source B only
+when Source A is absent. For this fixture it produces 11 rows, six linked-field
+disagreements, 21 Source B fallback values, and 77 value-provenance rows. The
+policy is visible provenance, not a claim that Source A is more accurate.
 
 The two `LIST` commands intentionally show matching fields so users can inspect
 the controlled differences before seeing proposed links. This is appropriate

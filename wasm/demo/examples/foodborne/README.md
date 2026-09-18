@@ -41,12 +41,16 @@ raster belong to one outbreak-investigation workflow.
 
 ## Demo workflow
 
-1. Create a project from the CSV or Excel workbook.
+1. Import the complete checksummed foodborne `.epia` package from
+   **File > Import Example Project**. The same download carries both map assets.
 2. Inspect the 96 records in Enter Data.
 3. Open the Program Editor and choose a dataset-bound example or upload a tour.
 4. Plot `Latitude` and `Longitude` in Maps.
-5. Add the Toledo GeoJSON, choose `name` as its label field, and fit the layers.
-6. Add the WorldPop GeoTIFF and verify that it remains below vectors and points.
+5. Confirm the restored Toledo neighborhood layer has `name` labels enabled.
+6. Confirm the restored WorldPop GeoTIFF remains below vectors and points.
 
 The map assets are supporting artifacts for this foodborne example, not a
-separate epidemiologic dataset.
+separate epidemiologic dataset. The generator embeds their bytes, metadata,
+and digests in
+[`../projects/foodborne-outbreak-investigation.epia`](../projects/foodborne-outbreak-investigation.epia);
+import validates them before restoring their OPFS copies and project layers.

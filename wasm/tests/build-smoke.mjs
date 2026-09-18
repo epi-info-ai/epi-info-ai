@@ -61,6 +61,8 @@ const requiredFiles = [
   "epi2x2.wasm",
   "sample-case-data.csv",
   "sample-map-layer.geojson",
+  "assets/duckdb/README.md",
+  "assets/duckdb/seed-v1.duckdb",
   "examples/README.md",
   "examples/program-catalogs.json",
   "examples/foodborne/README.md",
@@ -95,6 +97,7 @@ const requiredFiles = [
   "examples/projects/sample-project.epia.json",
   "examples/projects/epi-info-projects.json",
   "examples/projects/foodborne-outbreak-investigation.epia.json",
+  "examples/projects/foodborne-outbreak-investigation.epia",
   "examples/projects/space-time-cluster-detection.epia.json",
   "examples/recordlink/recordlink.runbook.json",
   "examples/gdal-wasm/README.md",
@@ -167,6 +170,13 @@ requiredFiles.push("sqlite3.wasm");
 requiredFiles.push("duckdb-mvp.wasm", "duckdb-browser-mvp.worker.js");
 requiredFiles.push("duckdb-eh.wasm", "duckdb-browser-eh.worker.js");
 await Promise.all(requiredFiles.map(requireFile));
+const duckDbSeedBytes = await readFile(join(outputDirectory, "assets/duckdb/seed-v1.duckdb"));
+assert.equal(duckDbSeedBytes.length, 274432, "the reviewed DuckDB seed byte length must remain pinned");
+assert.equal(
+  createHash("sha256").update(duckDbSeedBytes).digest("hex"),
+  "eaffa154f61f16789211ac80161b0dea2cd4f79cf0e0a3413443303def9a1ffc",
+  "the production DuckDB seed must match the reviewed digest",
+);
 const engineManifest = JSON.parse(await requireFile("engine-manifest.json"));
 const engineBytes = await readFile(join(outputDirectory, "epi2x2.wasm"));
 assert.equal(engineBytes.length, engineManifest.size);
@@ -176,7 +186,7 @@ const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
 assert.match(html, /src=["']app\.js\?v=111["']/);
-assert.match(html, /href=["']styles\.css\?v=63["']/);
+assert.match(html, /href=["']styles\.css\?v=65["']/);
 assert.match(html, /id=["']app-version["'][^>]*>v0\.1\.0</);
 assert.match(html, /id=["']example-project-dialog["']/);
 assert.match(html, /id=["']teaching-repository-dialog["']/);

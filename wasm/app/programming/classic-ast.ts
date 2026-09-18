@@ -270,6 +270,15 @@ export interface EpiAiRecordLinkStatement extends ClassicNode {
   resultName: ClassicIdentifier;
 }
 
+export type EpiAiRecordLinkStage = "REVIEW" | "CLUSTER" | "AUDIT" | "OUTPUT";
+
+export interface EpiAiRecordLinkStageStatement extends ClassicNode {
+  type: "EpiAiRecordLinkStageStatement";
+  stage: EpiAiRecordLinkStage;
+  resultName: ClassicIdentifier;
+  outputFile?: string;
+}
+
 export interface FileConvertStatement extends ClassicNode {
   type: "FileConvertStatement";
   inputFile: string;
@@ -429,6 +438,7 @@ export type ClassicStatement =
   | EpiAiSpaceTimeClusterStatement
   | EpiAiClusterRenderStatement
   | EpiAiRecordLinkStatement
+  | EpiAiRecordLinkStageStatement
   | FileConvertStatement
   | ClassicDefineStatement
   | ClassicDefineGroupStatement
@@ -915,7 +925,7 @@ class ProgramParser {
     return { type: "BeepStatement", span: lineSpan(line) };
   }
 
-  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement | EpiAiSpaceTimeClusterStatement | EpiAiClusterRenderStatement | EpiAiRecordLinkStatement {
+  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement | EpiAiSpaceTimeClusterStatement | EpiAiClusterRenderStatement | EpiAiRecordLinkStatement | EpiAiRecordLinkStageStatement {
     const tokens = words(rest);
     if (tokens[0]?.toUpperCase() === "QUALITY") {
       if (tokens.length === 2 && tokens[1] === "*") return { type: "EpiAiQualityStatement", span: lineSpan(line) };
@@ -928,6 +938,27 @@ class ProgramParser {
       return { type: "EpiAiClusterRenderStatement", resultName: identifier(result.value, line), span: lineSpan(line) };
     }
     if (tokens[0]?.toUpperCase() === "RECORDLINK") {
+      const stage = tokens[1]?.toUpperCase();
+      if (stage === "REVIEW" || stage === "CLUSTER" || stage === "AUDIT" || stage === "OUTPUT") {
+        const settings = new Map<string, string>();
+        let cursor = 2;
+        while (cursor < tokens.length) {
+          const parsed = optionValue(tokens, cursor, line);
+          cursor = parsed.next;
+          if (settings.has(parsed.key)) throw new ClassicSyntaxError(line.line, 1, `EPIAI RECORDLINK ${stage} repeats ${parsed.key}.`);
+          settings.set(parsed.key, parsed.value);
+        }
+        const allowed = stage === "OUTPUT" ? new Set(["RESULT", "TO"]) : new Set(["RESULT"]);
+        for (const key of settings.keys()) if (!allowed.has(key)) throw new ClassicSyntaxError(line.line, 1, `Unsupported EPIAI RECORDLINK ${stage} option ${key}.`);
+        const result = settings.get("RESULT");
+        if (!result) throw new ClassicSyntaxError(line.line, 1, `EPIAI RECORDLINK ${stage} requires RESULT=name.`);
+        const rawOutput = settings.get("TO");
+        const outputFile = rawOutput?.startsWith('"') && rawOutput.endsWith('"') ? rawOutput.slice(1, -1).replaceAll('""', '"') : rawOutput;
+        if (rawOutput !== undefined && (stage !== "OUTPUT" || !outputFile || !/^[^\\/:*?"<>|]+\.duckdb$/i.test(outputFile))) {
+          throw new ClassicSyntaxError(line.line, 1, "EPIAI RECORDLINK OUTPUT TO requires a local .duckdb file name without path characters.");
+        }
+        return { type: "EpiAiRecordLinkStageStatement", stage, resultName: identifier(result, line), ...(outputFile ? { outputFile } : {}), span: lineSpan(line) };
+      }
       const settings = new Map<string, string>();
       let cursor = 1;
       while (cursor < tokens.length) {

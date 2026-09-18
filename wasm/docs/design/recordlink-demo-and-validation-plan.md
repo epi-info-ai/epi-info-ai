@@ -163,6 +163,41 @@ history retain only aggregate counts and candidate ordinals. The normative
 boundary is in the
 [RECORDLINK person-cluster contract](../validation/recordlink-person-cluster-contract.md).
 
-Defer learned models, durable audit tables, multi-source clusters, very large populations, and
+V0.8 makes the reviewed proposal durable as person, membership, accepted-link,
+rejected-link, and controlled-decision tables. Opaque person IDs appear in
+Output; the downloadable artifact also contains one-based source record
+ordinals so a future reviewed output step can map rows without embedding source
+identifiers or values. Replay reconstructs decisions, clusters, tables, and two
+fingerprints before acceptance. The normative boundary is in the
+[RECORDLINK audit-table contract](../validation/recordlink-audit-table-contract.md).
+
+V0.9 creates a separately reviewed person-record output without changing the
+project. Only command-declared field pairs are included. The initial policy
+prefers Source A and fills missing values from Source B; every selected value
+retains source provenance and a disagreement flag. Source identifiers and
+unmapped fields stay excluded. CSV and provenance JSON downloads remain
+disabled until the user reviews the visible mapping and records. The normative
+boundary is in the
+[RECORDLINK person-output contract](../validation/recordlink-person-output-contract.md).
+
+V0.10 exposes the governed handoff in the teaching program as typed `REVIEW`,
+`CLUSTER`, `AUDIT`, and `OUTPUT` stages. `REVIEW` suspends sequential execution
+while the specialized local comparison dialog is open, and every review-class
+candidate must receive a conclusive Match or Non-match decision. Cancellation
+stops later statements. `CLUSTER` rejects an unresolved queue, `AUDIT` prepares
+the fingerprint-bound artifact in memory without automatically downloading it,
+and `OUTPUT` renders the person records for explicit acknowledgement. None of
+these stages creates a project form, mutates either source, or runs `MERGE`.
+
+V0.11 extends the final statement with
+`TO="patientlinks.duckdb"`. The statement still only prepares the reviewed
+output; it does not download during program execution. After acknowledgement,
+DuckDB-Wasm creates the person table, field-level provenance, all governed
+audit/decision tables, and a fingerprinted manifest in a new analytical file.
+The [DuckDB output contract](../validation/recordlink-duckdb-output-contract.md)
+defines the schema, acceptance evidence, privacy boundary, and versioned,
+checksummed OPFS seed lifecycle.
+
+Defer learned models, project-table creation, multi-source clusters, very large populations, and
 production privacy/security claims until the complete vertical slice is
 browser-tested and independently validated.

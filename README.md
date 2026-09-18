@@ -89,7 +89,7 @@ GitLab CI and GitHub Actions build and publish the same complete JupyterLite lab
 
 | Validation notebook | GitLab Pages | GitHub Pages |
 | --- | --- | --- |
-| RECORDLINK classification, review binding, and clusters V0.7 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-recordlink.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-recordlink.ipynb) |
+| RECORDLINK end-to-end governed output V0.9 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-recordlink.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-recordlink.ipynb) |
 | Space-Time Cluster Detection inference V0.3 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-space-time-cluster.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-space-time-cluster.ipynb) |
 | Conditional LOGISTIC V0.1 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-conditional-logistic.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-conditional-logistic.ipynb) |
 | MATCH paired-analysis contract | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-match.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-match.ipynb) |
@@ -660,6 +660,23 @@ The detailed cumulative changes and validation increments follow.
 
 ## TODO
 
+- **Complete Check Code parity as a separate event-driven language and runtime.**
+  Preserve the distinction between Form Designer Check Code and the Classic
+  Analysis program runner. Build a Check Code Editor with the legacy
+  form/view, record, page, and field `Before`, `After`, and `Click` event
+  structure; parse source into a versioned typed AST; validate field, page,
+  form, and variable references before execution; and apply only explicit,
+  bounded entry-time effects. Expand the current safe subset to cover
+  `IF`/`ELSE`, `ASSIGN`, `DEFINE`, `CLEAR`, `GOTO`, field-state commands,
+  `DIALOG`, and `GEOCODE`, while preserving unsupported imported source and
+  failing closed on ambient filesystem, network, DLL, or arbitrary `EXECUTE`
+  behavior. Add undo/search/font/editor affordances, actionable diagnostics,
+  deterministic event ordering, recursion and navigation-cycle limits,
+  cancellation, and an audit trail. Exercise the implementation with a
+  foodborne Check Code teaching project and automated fixtures for validation,
+  skip logic, calculated fields, required/hidden state, dialog choices,
+  geocoding, save/reopen fidelity, and rejected unsafe or unsupported code.
+
 - **Evaluate JupyterGIS as a later GIS integration layer.** The bounded
   [JupyterGIS architecture spike](wasm/docs/design/jupytergis-architecture-spike.md)
   treats its BSD-3-Clause, browser-first GIS, `.jGIS` document model, GDAL/WASM
@@ -745,11 +762,17 @@ The detailed cumulative changes and validation increments follow.
   against synthetic truth links. Permission to use the upstream has been
   confirmed by its owner, and the pinned commit now aligns the root `LICENSE`
   and `pyproject.toml` on Apache-2.0. The typed command, independent
-  [synthetic example bundle](wasm/demo/examples/recordlink/), and V0.7
+  [synthetic example bundle](wasm/demo/examples/recordlink/), V0.9
   [JupyterLite validation lab](wasm/validation-lab/content/validate-recordlink.ipynb)
   now cover bounded candidates, deterministic comparison/classification,
-  fingerprint-bound review evidence, and conflict-aware person-cluster
-  proposals. Durable audit tables, reviewed `MERGE`, and source mutation remain
+  fingerprint-bound review evidence, conflict-aware person clusters, replayable
+  audit tables, and an explicitly reviewed person-record CSV/provenance output.
+  The V0.11 command tour expresses `REVIEW`, `CLUSTER`, `AUDIT`, and
+  `OUTPUT` as typed stages: execution pauses for a conclusive human decision,
+  then resumes without automatic downloads or project mutation. Its declared
+  `patientlinks.duckdb` target becomes available only after acknowledgement and
+  contains the person, provenance, governed audit/decision, and manifest tables.
+  Project-table creation, reviewed `MERGE`, and source mutation remain
   fail-closed.
 
 - **Complete field-user validation and expand `MATCH` without lowering the parity floor.** The
@@ -920,9 +943,10 @@ The detailed cumulative changes and validation increments follow.
   report unsupported Access objects instead of silently dropping them. Validate
   table/row/column counts, null/type conversions, representative checksums, and
   referential integrity before a conversion result can be accepted or imported into `.epia`.
-  DuckDB V0.1 currently fetches DuckDB's public test database as a cleanable
-  writable seed; self-host and checksum that reviewed seed before offline or
-  production use. The selected Access file and its records remain browser-local.
+  DuckDB V0.1 ships a versioned, checksummed writable seed as a same-origin app
+  asset, verifies it, and installs an immutable copy in OPFS during startup.
+  Each conversion clones those verified bytes; no third-party seed request is
+  made. The selected Access file and its records remain browser-local.
 - Implement the versioned plugin runtime, capability API, permissions, and plugin catalog described in the architecture plan.
 - Execute the algorithm validation standard: complete provenance review of the
   imported legacy 2 x 2 corpus, add independent/pathological exact fixtures, and

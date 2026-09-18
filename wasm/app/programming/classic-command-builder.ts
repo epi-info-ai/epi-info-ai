@@ -1,6 +1,6 @@
 import type { FieldDefinition } from "../contracts/core.ts";
 import type { MapDataSource } from "../contracts/maps.ts";
-import { parseClassicProgram, type ClassicAnalysisOptions } from "./classic-ast.ts";
+import { parseClassicProgram, type ClassicAnalysisOptions, type EpiAiRecordLinkStage } from "./classic-ast.ts";
 import { buildClassicSelectionCommand, resolveClassicSelectionCommand, type ClassicSelectionOperator } from "./classic-selection.ts";
 import { buildClassicSortCommand, resolveClassicSortCommand, type ClassicSortDirection } from "./classic-sort.ts";
 import { buildClassicAssignmentCommand, buildClassicUndefineCommand, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand, type ClassicSessionVariableDefinition, type ClassicVariableValue } from "./classic-assignment.ts";
@@ -23,7 +23,7 @@ import { buildClassicDialogCommand, resolveClassicDialogCommand, type ClassicDia
 import { buildClassicMatchCommand, resolveExecutableClassicMatchCommand, type ClassicMatchInput, type ExecutableClassicMatchInput } from "./classic-match.ts";
 import { resolveClassicConditionalLogisticCommand, type ClassicConditionalLogisticPlan } from "./classic-logistic.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "match" | "logistic" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "cluster-space-time" | "cluster-render" | "recordlink" | "file-convert";
+export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "match" | "logistic" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "cluster-space-time" | "cluster-render" | "recordlink" | "recordlink-stage" | "file-convert";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -50,6 +50,7 @@ export type ClassicAnalysisCommandInput =
   | ({ kind: "cluster-space-time" } & SpaceTimeClusterCommandInput)
   | { kind: "cluster-render"; resultName: string }
   | ({ kind: "recordlink" } & RecordLinkCommandInput)
+  | { kind: "recordlink-stage"; stage: EpiAiRecordLinkStage; resultName: string; outputFile?: string }
   | { kind: "file-convert"; inputFile: string; outputFile: string }
   | { kind: "set-missing"; enabled: boolean }
   | { kind: "set-missing-label"; value: string }
@@ -156,6 +157,10 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "sort") return buildClassicSortCommand(input.items);
   if (input.kind === "cancel-sort") return "CANCEL SORT";
   if (input.kind === "list") return `LIST ${input.fields.length ? input.fields.map(fieldToken).join(" ") : "*"}`;
+  if (input.kind === "recordlink-stage") {
+    if (input.outputFile && (input.stage !== "OUTPUT" || !/^[^\\/:*?"<>|]+\.duckdb$/i.test(input.outputFile))) throw new RangeError("RECORDLINK OUTPUT requires a local .duckdb file name without path characters.");
+    return `EPIAI RECORDLINK ${input.stage} RESULT=${variableToken(input.resultName)}${input.outputFile ? ` TO=${JSON.stringify(input.outputFile)}` : ""}`;
+  }
   if (input.kind === "frequency") return `FREQ ${fieldToken(input.field)}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}${input.weightBy ? ` WEIGHTVAR=${fieldToken(input.weightBy)}` : ""}${input.psuBy ? ` PSUVAR=${fieldToken(input.psuBy)}` : ""}${input.outputTable ? ` OUTTABLE=${fieldToken(input.outputTable)}` : ""}`;
   if (input.kind === "means") return `MEANS ${fieldToken(input.field)}${input.crossTabBy ? ` ${fieldToken(input.crossTabBy)}` : ""}${input.stratifyBy ? ` STRATAVAR=${fieldToken(input.stratifyBy)}` : ""}${input.weightBy ? ` WEIGHTVAR=${fieldToken(input.weightBy)}` : ""}${input.outputTable ? ` OUTTABLE=${fieldToken(input.outputTable)}` : ""}${input.psuBy ? ` PSUVAR=${fieldToken(input.psuBy)}` : ""}`;
   return `TABLES ${fieldToken(input.exposure)} ${fieldToken(input.outcome)}${input.stratifyBy?.length ? ` STRATAVAR=${input.stratifyBy.map(fieldToken).join(" ")}` : ""}${input.weightBy ? ` WEIGHTVAR=${fieldToken(input.weightBy)}` : ""}${input.psuBy ? ` PSUVAR=${fieldToken(input.psuBy)}` : ""}${input.statistics ? ` STATISTICS=${input.statistics}` : ""}${input.outputTable ? ` OUTTABLE=${fieldToken(input.outputTable)}` : ""}${input.oneIsYes ? " ONEISYES" : ""}${input.noWrap ? " NOWRAP" : ""}${input.columnSize !== undefined ? ` COLUMNSIZE=${input.columnSize}` : ""}`;
@@ -321,6 +326,9 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
       matchThreshold: plan.matchThreshold, maxCandidates: plan.maxCandidates,
       resultName: plan.resultName, source,
     };
+  }
+  if (statement.type === "EpiAiRecordLinkStageStatement") {
+    return { kind: "recordlink-stage", stage: statement.stage, resultName: statement.resultName.name, ...(statement.outputFile ? { outputFile: statement.outputFile } : {}), source };
   }
   if (statement.type === "FileConvertStatement") {
     const plan = resolveFileConvertCommand(source);

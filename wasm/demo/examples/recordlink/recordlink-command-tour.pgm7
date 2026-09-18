@@ -2,7 +2,7 @@
 *** Datasets: patient-registry-a.csv and surveillance-b.csv (entirely synthetic)
 *** Purpose: inspect both sources before proposing cross-source patient links.
 *** New branch; not the legacy matched case-control MATCH command.
-*** V0.7 adds a conflict-aware person-cluster proposal after review; it changes no source.
+*** V0.11 adds an acknowledged DuckDB target to the typed governed stages.
 
 HEADER 1 "Synthetic patient record-linkage teaching workflow"
 TYPEOUT "Two fictional eight-record sources use different schemas and contain five known truth links."
@@ -27,7 +27,13 @@ TABLES site_code SEX
 HEADER 1 "Reviewed cross-source linkage plan"
 TYPEOUT "Block on facility/site; compare date, sex, and ART code exactly; compare names and address fuzzily."
 EPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id TRUTH=true_links TRUTHA=source_a_id TRUTHB=source_b_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks
+EPIAI RECORDLINK REVIEW RESULT=PatientLinks
+EPIAI RECORDLINK CLUSTER RESULT=PatientLinks
+EPIAI RECORDLINK AUDIT RESULT=PatientLinks
+EPIAI RECORDLINK OUTPUT RESULT=PatientLinks TO="patientlinks.duckdb"
 
 *** Candidate identifiers and values remain out of Output and history.
 *** Review-queue values appear only in the transient local review dialog.
-*** Future governed slices continue with durable audit tables and an explicitly reviewed MERGE.
+*** REVIEW pauses this program until every queued pair has a conclusive human decision.
+*** AUDIT stays in memory; OUTPUT requires acknowledgement before CSV, JSON, or DuckDB download.
+*** Future governed slices continue with project-table creation and an explicitly reviewed MERGE.
