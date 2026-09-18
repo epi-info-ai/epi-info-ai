@@ -120,12 +120,25 @@ const foodborneProjectResult = await writePackage(
     forms: [foodborneForm],
     mapAssets: [foodborneGeoJson.asset, foodborneGeoTiff.asset],
     mapLayers: [
+      {
+        id: "foodborne-case-cluster",
+        kind: "case-cluster",
+        sourceFormId: foodborneForm.id,
+        name: "Foodborne illness reports",
+        visible: true,
+        latitudeField: "latitude",
+        longitudeField: "longitude",
+        labelField: "id",
+      },
       { id: "toledo-neighborhoods", kind: "geojson", assetId: foodborneGeoJson.asset.id, name: "City of Toledo neighborhoods", visible: true, labelField: "name", labelsEnabled: true },
       { id: "toledo-population-density", kind: "raster", assetId: foodborneGeoTiff.asset.id, name: "WorldPop Toledo population density", visible: true, opacity: 0.7 },
     ],
   },
   foodbornePrograms,
-  [await runbook("foodborne/foodborne-investigation.runbook.json")],
+  [
+    await runbook("foodborne/foodborne-investigation.runbook.json"),
+    await runbook("foodborne/foodborne-gis-investigation.runbook.json"),
+  ],
 );
 const foodborneArchive = await createProjectArchive(foodborneProjectResult.packageValue, [foodborneGeoJson, foodborneGeoTiff]);
 await writeFile(
@@ -163,7 +176,7 @@ const projects = [
   {
     id: "foodborne-outbreak-investigation",
     title: "Foodborne Outbreak Investigation",
-    description: "96 synthetic investigation records with the Classic Analysis command tour, DIALOG tour, TABLES examples, quality profile, and embedded Toledo GeoJSON and GeoTIFF map layers.",
+    description: "96 synthetic investigation records with Classic Analysis and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
     file: "foodborne-outbreak-investigation.epia",
     repository: "https://git.cdc.gov/epi-info-ai/foodborne-outbreak-investigation",
   },

@@ -151,6 +151,9 @@ let mapContext: MapLaunchContext = "standalone";
 let activeData: MapDataSource | null = null;
 let fallbackFullscreen = false;
 let activeRecordPoints: MapPoint[] = [];
+let activeRecordLayerId = "";
+let activeRecordLatitudeField = "";
+let activeRecordLongitudeField = "";
 let activeRecordLabelField = "";
 let activeRecordOpenHandler: OpenRecordHandler | null = null;
 let timeLapseState: TimeLapseState | null = null;
@@ -188,6 +191,16 @@ function persistProjectMapLayers(): void {
     .map(({ asset }) => asset)
     .filter((asset, index, values) => values.findIndex((candidate) => candidate.id === asset.id) === index);
   const layers: ProjectMapLayer[] = [
+    ...(caseClusterAdded && activeData && activeRecordLatitudeField && activeRecordLongitudeField ? [{
+      id: activeRecordLayerId || `case-cluster-${activeData.formId}`,
+      kind: "case-cluster" as const,
+      sourceFormId: activeData.formId,
+      name: requiredElement("#map-record-layer-name").textContent || `Case Cluster: ${activeData.formName}`,
+      visible: map.hasLayer(recordLayer),
+      latitudeField: activeRecordLatitudeField,
+      longitudeField: activeRecordLongitudeField,
+      labelField: activeRecordLabelField,
+    }] : []),
     ...[...geoJsonLayers].map(([id, entry]): ProjectMapLayer => ({
       id,
       kind: "geojson",
@@ -736,6 +749,9 @@ function resetMapWorkspace() {
   locationAdded = false;
   activeData = null;
   activeRecordPoints = [];
+  activeRecordLayerId = "";
+  activeRecordLatitudeField = "";
+  activeRecordLongitudeField = "";
   activeRecordLabelField = "";
   activeRecordOpenHandler = null;
   requiredElement("#map-point-count").textContent = "0";
@@ -1337,10 +1353,22 @@ function clearClusterTour(): void {
   requiredElement<HTMLButtonElement>("#map-cluster-tour-open").hidden = true;
 }
 
-function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler): void {
-  const latitudeField = requiredElement("#map-latitude-field").value;
-  const longitudeField = requiredElement("#map-longitude-field").value;
-  const labelField = requiredElement("#map-label-field").value;
+function plotRecords(
+  data: MapDataSource | null,
+  openRecord: OpenRecordHandler,
+  options: {
+    id?: string;
+    name?: string;
+    latitudeField?: string;
+    longitudeField?: string;
+    labelField?: string;
+    visible?: boolean;
+    persist?: boolean;
+  } = {},
+): void {
+  const latitudeField = options.latitudeField ?? requiredElement("#map-latitude-field").value;
+  const longitudeField = options.longitudeField ?? requiredElement("#map-longitude-field").value;
+  const labelField = options.labelField ?? requiredElement("#map-label-field").value;
   if (!data || !latitudeField || !longitudeField) {
     requiredElement("#map-status").textContent = "Select a data source, latitude, and longitude fields first.";
     return;
@@ -1352,14 +1380,20 @@ function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler):
   const mappedRecords = extractMapPoints(data.records, latitudeField, longitudeField);
   activeData = data;
   activeRecordPoints = mappedRecords;
+  activeRecordLayerId = options.id || `case-cluster-${data.formId}`;
+  activeRecordLatitudeField = latitudeField;
+  activeRecordLongitudeField = longitudeField;
   activeRecordLabelField = labelField;
   activeRecordOpenHandler = openRecord;
   renderRecordMarkers(mappedRecords);
   const points = mappedRecords.map(({ latitude, longitude }) => [latitude, longitude]);
   setMapHeading(data);
-  requiredElement("#map-record-layer-name").textContent = `Case Cluster: ${data.formName}`;
+  requiredElement("#map-record-layer-name").textContent = options.name || `Case Cluster: ${data.formName}`;
   requiredElement("#map-point-count").textContent = String(points.length);
   caseClusterAdded = points.length > 0;
+  const visible = options.visible !== false;
+  requiredElement<HTMLInputElement>("#map-record-layer-toggle").checked = visible;
+  if (!visible && map.hasLayer(recordLayer)) map.removeLayer(recordLayer);
   refreshMapEmptyState();
   updateLayerCount();
   requiredElement("#map-status").textContent = points.length > 0
@@ -1367,6 +1401,7 @@ function plotRecords(data: MapDataSource | null, openRecord: OpenRecordHandler):
     : "No valid coordinates were found in the selected fields.";
   lastBounds = points.length > 0 ? L.latLngBounds(points) : null;
   if (lastBounds?.isValid()) map.fitBounds(lastBounds.pad(0.18), { maxZoom: 15 });
+  if (options.persist) persistProjectMapLayers();
 }
 
 export function renderSpaceTimeClusterResult(
@@ -1472,15 +1507,34 @@ function captureLocation() {
 
 let projectLayerRestoreSequence = 0;
 
-async function restoreProjectMapLayers(snapshot: ProjectSnapshotV1 | null): Promise<void> {
+async function restoreProjectMapLayers(
+  snapshot: ProjectSnapshotV1 | null,
+  getDataSources: () => MapDataSource[],
+  openRecord: OpenRecordHandler,
+): Promise<void> {
   const sequence = ++projectLayerRestoreSequence;
   const assets = new Map((snapshot?.mapAssets ?? []).map((asset) => [asset.id, asset]));
+  const dataSources = new Map(getDataSources().map((data) => [data.formId, data]));
   const failures: string[] = [];
   for (const definition of snapshot?.mapLayers ?? []) {
     if (sequence !== projectLayerRestoreSequence) return;
-    const asset = assets.get(definition.assetId);
-    if (!asset) { failures.push(`${definition.name}: missing asset metadata`); continue; }
     try {
+      if (definition.kind === "case-cluster") {
+        const data = dataSources.get(definition.sourceFormId);
+        if (!data) throw new Error("source form is unavailable");
+        plotRecords(data, openRecord, {
+          id: definition.id,
+          name: definition.name,
+          latitudeField: definition.latitudeField,
+          longitudeField: definition.longitudeField,
+          labelField: definition.labelField,
+          visible: definition.visible,
+          persist: false,
+        });
+        continue;
+      }
+      const asset = assets.get(definition.assetId);
+      if (!asset) throw new Error("missing asset metadata");
       const file = await readProjectMapAsset(asset);
       if (definition.kind === "geojson" && asset.format === "geojson") {
         const { geojson, featureCount } = parseGeoJson(await file.text());
@@ -1511,11 +1565,16 @@ async function restoreProjectMapLayers(snapshot: ProjectSnapshotV1 | null): Prom
   if (failures.length > 0) {
     requiredElement("#map-status").textContent = `Some project map layers could not be restored: ${failures.join("; ")}.`;
   } else if ((snapshot?.mapLayers?.length ?? 0) > 0) {
-    requiredElement("#map-status").textContent = `Restored ${snapshot!.mapLayers!.length} project map layer${snapshot!.mapLayers!.length === 1 ? "" : "s"} from integrity-checked browser assets.`;
+    requiredElement("#map-status").textContent = `Restored ${snapshot!.mapLayers!.length} project map layer${snapshot!.mapLayers!.length === 1 ? "" : "s"} from verified project data and assets.`;
   }
 }
 
-function configureLaunch(context: MapLaunchContext, getCurrentData: () => MapDataSource, openRecord: OpenRecordHandler): void {
+function configureLaunch(
+  context: MapLaunchContext,
+  getCurrentData: () => MapDataSource,
+  getDataSources: () => MapDataSource[],
+  openRecord: OpenRecordHandler,
+): void {
   mapContext = context;
   resetMapWorkspace();
   if (context === "current-form") {
@@ -1533,7 +1592,7 @@ function configureLaunch(context: MapLaunchContext, getCurrentData: () => MapDat
     requiredElement("#map-empty-state").textContent = "Select Add Data Layer > Case Cluster, then choose a project form.";
     requiredElement("#map-status").textContent = "Standalone map ready.";
   }
-  void restoreProjectMapLayers(currentProjectSnapshot?.() ?? null);
+  void restoreProjectMapLayers(currentProjectSnapshot?.() ?? null, getDataSources, openRecord);
 }
 
 function prepareCaseClusterDialog(
@@ -1688,7 +1747,7 @@ export function initializeMaps(
       ? `Opened ${snapshot.name}; derived map output from the previous project was cleared.`
       : "The project was closed; derived map output was cleared.";
     const mapsView = requiredElement<HTMLElement>('[data-module-view="maps"]');
-    if (!mapsView.hidden && map && snapshot) void restoreProjectMapLayers(snapshot);
+    if (!mapsView.hidden && map && snapshot) void restoreProjectMapLayers(snapshot, getDataSources, openRecord);
   });
   for (const button of requiredElements('[data-module="maps"], [data-open-module="maps"]')) {
     button.addEventListener("click", () => {
@@ -1703,7 +1762,7 @@ export function initializeMaps(
       setTimeout(() => {
         try {
           ensureMap();
-          configureLaunch(context, getCurrentData, openRecord);
+          configureLaunch(context, getCurrentData, getDataSources, openRecord);
           map.invalidateSize();
           void prepareOfflineBasemap(snapshot);
         } catch (error) {
@@ -1728,7 +1787,7 @@ export function initializeMaps(
   requiredElement("#case-cluster-form").addEventListener("submit", (event) => {
     event.preventDefault();
     if (!eventForm(event).reportValidity()) return;
-    plotRecords(activeData, openRecord);
+    plotRecords(activeData, openRecord, { persist: true });
     caseClusterDialog.close("plot");
   });
   requiredElement("#map-create-timelapse").addEventListener("click", () => {
@@ -2117,6 +2176,7 @@ export function initializeMaps(
     const currentMap = ensureMap();
     if (eventControl(event).checked) recordLayer.addTo(currentMap);
     else if (currentMap.hasLayer(recordLayer)) currentMap.removeLayer(recordLayer);
+    persistProjectMapLayers();
   });
   requiredElement("#map-location-layer-toggle").addEventListener("change", (event) => {
     const currentMap = ensureMap();

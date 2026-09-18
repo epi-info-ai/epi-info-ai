@@ -1,0 +1,77 @@
+{
+  "id": "foodborne-gis-investigation-v0-1",
+  "title": "Foodborne GIS investigation v0.1",
+  "description": "Relate case coordinates, neighborhood boundaries, population context, and an H3 summary in one reviewable map workflow.",
+  "prerequisite": "Import the Foodborne Outbreak Investigation example project. Its 96 synthetic records, Toledo neighborhoods, and population-density raster are included in the project package.",
+  "module": "maps",
+  "steps": [
+    {
+      "id": "orient",
+      "title": "Start with the investigation question",
+      "instruction": "Use the map to ask where reported illnesses occurred, which neighborhood context surrounds them, and whether a broad aggregate pattern is visible. The map is an investigation view, not proof of exposure or causation.",
+      "target": "#maps-title"
+    },
+    {
+      "id": "inspect-layer-stack",
+      "title": "Inspect the packaged layer stack",
+      "instruction": "Open Map Layers. The project package restores the named Toledo neighborhood boundary and WorldPop-derived raster as separate, checksummed assets. Layer order matters: contextual raster below boundaries and case points.",
+      "target": "#map-layer-panel-toggle",
+      "advanceOn": "click"
+    },
+    {
+      "id": "review-reference-geography",
+      "title": "Review reference geography",
+      "instruction": "Confirm the City of Toledo neighborhoods layer is present. Its polygons and name labels provide geographic context; they do not become record attributes unless a reviewed spatial join creates a derived artifact.",
+      "target": "#map-geojson-layers"
+    },
+    {
+      "id": "review-population-context",
+      "title": "Review population context",
+      "instruction": "Confirm the WorldPop-derived raster is present below the vector layers. It is useful visual context, but its source identifier, vintage, population concept, and units must be completed before it can support epidemiologic denominators.",
+      "target": "#map-raster-layers"
+    },
+    {
+      "id": "open-case-cluster",
+      "title": "Bind records to point geography",
+      "instruction": "Choose Add Data Layer, then Case Cluster. Select the current foodborne form and explicitly review Latitude, Longitude, and display-label fields. Invalid WGS 84 rows are skipped rather than silently displaced.",
+      "target": "#map-add-layer-menu"
+    },
+    {
+      "id": "review-coordinate-binding",
+      "title": "Review coordinate roles",
+      "instruction": "Latitude and Longitude are semantic coordinate roles, not merely numeric columns. Keep Latitude as Y, Longitude as X, require signed WGS 84 values, and preserve at least five decimal places in this teaching dataset.",
+      "target": "#case-cluster-dialog .legacy-dialog-body"
+    },
+    {
+      "id": "inspect-record-layer",
+      "title": "Inspect mapped records",
+      "instruction": "After selecting OK in the Case Cluster dialog, inspect the mapped-record count and fit the layer extent. A marker remains linked to its source record; the source line list remains authoritative.",
+      "target": "#map-record-layer-toggle"
+    },
+    {
+      "id": "open-h3",
+      "title": "Create a derived H3 summary",
+      "instruction": "Choose Add Data Layer, then H3 Hexagons. H3 is a derived aggregation of the current case points, not a replacement for them. Review how resolution changes average hexagon edge length and area before adding the layer.",
+      "target": "#map-add-layer-menu"
+    },
+    {
+      "id": "review-h3-scale",
+      "title": "Choose scale consciously",
+      "instruction": "Higher H3 resolutions create smaller hexagons and more local detail; lower resolutions summarize broader areas. Choose a scale appropriate to the study area and disclosure risk, then add the layer.",
+      "target": "#h3-resolution"
+    },
+    {
+      "id": "fit-and-compare",
+      "title": "Compare without conflating layers",
+      "instruction": "Fit Layers and compare raw points, derived H3 cells, neighborhood context, and raster context. Visibility and ordering change the presentation, not the source data or analytical result.",
+      "target": "#map-fit-points",
+      "advanceOn": "click"
+    },
+    {
+      "id": "audit-boundary",
+      "title": "Recognize the v0.1 audit boundary",
+      "instruction": "This runnable example preserves project assets and layer state, but the production epi-gis kernel will add reviewed plans, processing receipts, CRS diagnostics, immutable derived artifacts, and reproducible spatial joins. Those planned functions are not claimed by this walkthrough.",
+      "target": "#map-status"
+    }
+  ]
+}

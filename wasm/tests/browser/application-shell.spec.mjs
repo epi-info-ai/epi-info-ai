@@ -4294,9 +4294,12 @@ test("File imports three complete checksummed teaching projects from the reposit
   await expect(page.locator("#project-tree-name")).toContainText("Foodborne Outbreak Investigation");
   await expect(page.locator("#form-name")).toHaveValue("Foodborne Outbreak Investigation Form");
   await page.locator('.module-rail [data-module="maps"]').click();
+  await expect(page.locator("#map-point-count")).toHaveText("96", { timeout: 15_000 });
+  await expect(page.locator("#map-record-layer-name")).toHaveText("Foodborne illness reports");
   await expect(page.locator("#map-geojson-layers")).toContainText("City of Toledo neighborhoods", { timeout: 15_000 });
   await expect(page.locator("#map-raster-layers")).toContainText("WorldPop Toledo population density", { timeout: 15_000 });
-  await expect(page.locator("#map-status")).toContainText("Restored 2 project map layers from integrity-checked browser assets");
+  await expect(page.locator("#map-layer-count")).toHaveText("3");
+  await expect(page.locator("#map-status")).toContainText("Restored 3 project map layers from verified project data and assets");
   await page.locator('.module-rail [data-module="forms"]').click();
 
   const designerMenu = page.getByRole("navigation", { name: "Form Designer menu" });

@@ -393,6 +393,152 @@ This table is a planning snapshot, not a parity claim.
 | Space-time cluster result map and story tour | Implemented for aggregate ranked results | New branch; not Case Cluster or `MAP` parity |
 | Classic `MAP` command | Not implemented | Correctly remains a declared revival gap |
 
+## Improved GIS mental model v0.1
+
+The legacy source and manuals imply a durable conceptual sequence:
+
+```text
+project data -> geographic binding -> epidemiologic representation
+             -> layer -> map document -> investigation/communication
+```
+
+That remains the parity floor. It explains why records are authoritative, why
+coordinates and area keys are different bindings, why Spot/Case Cluster,
+Choropleth, Dot Density, and Reference Layer are distinct representations, and
+why a map is an ordered collection of layers rather than one analytical result.
+It is nevertheless too linear and too presentation-oriented for reproducible
+browser GIS.
+
+The improved Epi Info AI model keeps those concepts and makes planning,
+derivation, lineage, review, and iteration first-class:
+
+```text
+investigation question
+        |
+        v
+governed project assets + study area
+        |
+        v
+inspect quality, semantics, CRS, extent, privacy, and resource limits
+        |
+        v
+explicit spatial binding -> reviewed GisPlan -> allowlisted kernel operation
+        |                                      |
+        |                                      v
+        |                         immutable derived artifact + receipt
+        |                                      |
+        +-------------------------+------------+
+                                  v
+                 epidemiologic layer recipe + presentation
+                                  |
+                                  v
+                map document, interaction, and record linkback
+                                  |
+                                  v
+                  revise, reproduce, validate, teach, or share
+                                  |
+                                  +---- feedback to the question and plan
+```
+
+### Core concepts
+
+1. **Investigation question** â€” the workflow begins with an epidemiologic
+   question, not a file format or map widget. A visual pattern is not itself a
+   finding of exposure, causation, or statistical significance.
+2. **Study area** â€” bounds, expected scale, time interval, relevant population,
+   offline coverage, and disclosure context are project-level intent, even when
+   no records exist yet.
+3. **Governed asset** â€” source data, boundaries, rasters, tiles, and derived
+   data have stable IDs, hashes, provenance, semantic metadata, and explicit
+   availability. Source assets are not silently repaired or overwritten.
+4. **Spatial binding** â€” coordinates, area keys, and spatial predicates bind
+   records to geography. Field type alone does not establish a coordinate role;
+   key equality does not prove geographic equivalence.
+5. **GIS plan** â€” a typed, canonical, reviewable request identifies inputs,
+   operation, effective parameters, CRS assumptions, limits, and desired
+   outputs before computation. UI actions, future `MAP` statements, and Epi
+   Assist proposals converge on the same plan.
+6. **Derived artifact and receipt** â€” reprojection, normalization, repair,
+   spatial join, raster transformation, and aggregation produce new immutable
+   assets. A receipt records lineage, versions, parameters, warnings,
+   exclusions, duration, and validation status.
+7. **Layer recipe** â€” declares the epidemiologic meaning of the result (point,
+   case cluster, choropleth, dot density, reference, raster, H3, analytical
+   result) separately from the bytes and from renderer-specific objects.
+8. **Map document** â€” composes layers, visibility, order, style, legend,
+   annotations, extent, and story state. Presentation changes do not mutate the
+   analytical artifact.
+9. **Linkback and feedback** â€” authorized map interactions can return to source
+   records or analysis. Findings can revise the question or plan, so the model
+   is iterative rather than a one-way export pipeline.
+10. **Portable investigation package** â€” data, programs, runbooks, source and
+    derived spatial assets, plans, receipts, and map documents travel together
+    through checked and optionally encrypted project packaging.
+
+Privacy, offline operation, accessibility, resource limits, provenance, and
+validation are cross-cutting policies at every stage; they are not final export
+options.
+
+### Lessons from the foodborne enhancement
+
+The runnable `../../demo/examples/foodborne/foodborne-gis-investigation.runbook.json`
+and its `GIS_WORKFLOW_V0.1.md` companion exposed several requirements that are
+easy to miss in a generic architecture:
+
+- latitude and longitude need semantic axis roles, signed ranges, retained
+  precision, skipped-row diagnostics, and source-record linkback;
+- the existing neighborhood text field and the boundary geometry are separate
+  evidence. Agreement must be measured through a derived spatial join rather
+  than assumed from matching labels;
+- a technically readable population raster is not automatically an admissible
+  denominator. Vintage, units, population concept, NoData, and coverage are
+  part of correctness;
+- cases, administrative areas, population surfaces, and basemap context play
+  different geographic roles even when drawn on one screen;
+- raw points and H3 cells are different evidentiary objects, and H3 resolution
+  is an analytical/disclosure choice rather than merely a visual zoom level;
+- layer order communicates meaning, while source and analytical state must
+  remain independent of the chosen renderer; and
+- offline restoration and encrypted project transfer make asset availability,
+  hashes, and lineage part of the GIS workflow itself.
+
+## Legacy versus improved model â€” after-improvement v0.1 evaluation
+
+This is an architectural evaluation, not a claim that every improved behavior
+is implemented. **Runnable** means the foodborne project demonstrates it now;
+**kernel gate** means `epi-gis` must supply evidence before the improvement can
+be promoted.
+
+| Dimension | Legacy model / parity floor | Improved v0.1 model | Foodborne evidence and v0.1 assessment |
+|---|---|---|---|
+| Starting point | Select data and a map/layer type | State an investigation question and study-area intent | Runnable teaching question; structured question object remains a kernel/product follow-up |
+| Source authority | Project records feed mapping | Governed source assets remain immutable and authoritative | Records and embedded assets retain IDs/hashes; strong adaptation |
+| Geography | Coordinates, boundary files, map servers | Typed geography roles plus semantic provenance | Point, polygon, raster, and tile roles are visible; provenance for the population raster is incomplete |
+| Binding | Choose X/Y fields or match data to boundary keys | Explicit coordinate/key/predicate binding with diagnostics | Coordinate binding is runnable; deterministic record-to-neighborhood join is a kernel gate |
+| CRS | Often implicit or coupled to source/provider | Declared CRS, confidence, known-control validation, and reviewed reprojection | WGS 84 is declared for current record/raster path; generalized inspect/reproject is a kernel gate |
+| Processing | Often hidden inside a layer/provider workflow | Canonical reviewed `GisPlan` and allowlisted operation | Current H3 action is bounded, but general plans are a kernel gate |
+| Changed geometry/data | Save/open map or regenerate a layer | Preserve source; create immutable derived artifacts | Project asset preservation is runnable; derived lineage is a kernel gate |
+| Audit | Map document and output convey some choices | Deterministic receipt records hashes, versions, parameters, warnings, exclusions, timing, and status | Asset hashes exist; complete processing receipts are a kernel gate |
+| Epidemiologic representation | Spot, Case Cluster, Choropleth, Dot Density, Reference Layer | Retain those named meanings; add separately governed H3 and analytical-result layers | Points, reference layers, raster, H3, and cluster result map exist; legacy Choropleth/Dot Density remain gaps |
+| Analysis versus display | Layer often combines data work and presentation | Artifact, layer recipe, and renderer are separate | Multiple layer kinds are distinguishable; renderer-independent plan/result testing is a kernel gate |
+| Quality | Invalid locations or joins handled within individual workflows | Quality, semantics, topology, coverage, and skipped rows are explicit inputs/results | Coordinate checks are runnable; topology/join/raster-denominator diagnostics are kernel gates |
+| Interaction | Pan, zoom, identify, select, link to records | Preserve linkback and feed discoveries into revised plans | Point-to-record linkback is runnable; generalized selection/result feedback remains partial |
+| Persistence | Save map documents and project-linked content | Package data, code, runbook, map, assets, plans, and receipts together | Project package includes data, programs, two runbooks, map assets, and layer state; plan/receipt inclusion is a kernel gate |
+| Offline field use | Desktop/local assets and some cached/provider behavior | Explicit offline study area, integrity-checked assets, and visible recovery | PMTiles/project asset recovery exists; complete planned-coverage workflow remains partial |
+| Privacy | Controlled mainly by selected records/output | Policy applies to exact locations, aggregates, exports, history, packages, and AI/tool proposals | Browser-local map paths and aggregate distinctions exist; disclosure policy metadata remains a design gate |
+| Reproducibility | Reopen a saved map/workflow | Replay canonical plan against hashed inputs and compare independent expected results | Example is teachable and packaged; deterministic kernel replay/receipts remain a kernel gate |
+
+### V0.1 finding
+
+The improved model preserves the recognizable Epi Info mapping workflow while
+closing three conceptual gaps: it distinguishes computation from rendering, it
+makes every derived geography auditable, and it treats the map as an iterative
+part of an investigation rather than its final picture. The foodborne example
+is sufficient to validate the vocabulary and expose the production contracts.
+It is not sufficient to claim spatial-processing parity. The next architectural
+step is the bounded `epi-gis` v0.1 kernel specified in
+`../design/epi-gis-kernel-v0.1.md`.
+
 ## Parity acceptance gates
 
 Mapping parity should not be declared until the following are demonstrated with
@@ -569,6 +715,197 @@ quality boundary: population denominators must disclose raster coverage, NoData,
 outside-study-area zones, resampling, and the semantic provenance of raster
 values. It refuses to describe the fixture-derived rates as surveillance
 estimates because population year, concept, and units have not been established.
+
+### GDAL/WASM integration roadmap
+
+The eight completed GDAL/WASM spike families are sufficient to begin a narrow
+production scaffold. They do not justify moving the example Worker directly
+into every map workflow or treating the upstream API as Epi Info's public GIS
+contract. The efficient path is an Epi Info-owned `epi-gis` facade that follows
+the successful `epi-core` principles—typed operations, versioned results,
+independent fixtures, explicit diagnostics, and one auditable implementation
+path—while remaining a separate runtime artifact.
+
+`epi-core` and `epi-gis` should not be merged into one WASM binary. `epi-core`
+is a comparatively small Epi Info-owned Rust statistics library. GDAL is a large
+C/C++ format and processing ecosystem with a separate toolchain, driver surface,
+license inventory, memory profile, startup cost, and update cadence. Keeping the
+artifacts separate allows ordinary forms and statistical analysis to avoid the
+approximately 40 MB uncompressed GDAL payload and lets GIS operations load only
+when requested.
+
+The target package boundary is:
+
+```text
+epi-lang / typed UI actions / Epi Assist tools
+                         |
+                         v
+              engine-neutral GisPlan
+                         |
+                         v
+        TypeScript epi-gis host and policy facade
+          |              |                 |
+          v              v                 v
+ GDAL/WASM adapter   Rust/WASM spatial   browser asset adapter
+ formats, CRS,       epidemiology        OPFS, range fetch,
+ geometry, raster    and H3/indexing     package import/export
+          \              |                 /
+           +-------------+----------------+
+                         |
+                         v
+             versioned GisResult + receipt
+                         |
+                         v
+          Leaflet/MapLibre rendering adapters
+```
+
+The application and command language depend only on `GisPlan`, `GisResult`, and
+processing-receipt contracts. They must not import `gdal3.js`, construct raw
+GDAL argument arrays, issue arbitrary SQL, or depend on GDAL virtual filesystem
+paths. This keeps GDAL replaceable and prevents an AI proposal or `.pgm7`
+program from acquiring a general-purpose native-tool interface.
+
+#### Proposed production modules
+
+The spike code should be extracted—not duplicated—into narrowly owned modules:
+
+| Module | Responsibility |
+|---|---|
+| `app/gis/contracts.ts` | Versioned `GisPlan`, result, error, progress, limits, receipt, dataset/layer, and operation schemas |
+| `app/gis/operation-registry.ts` | Allowlisted operation names, implementation/version, validation status, required capabilities, and resource class |
+| `app/gis/kernel-client.ts` | Lazy Worker lifecycle, request correlation, progress, timeout, cancellation, crash recovery, and optional calibrated pool |
+| `app/gis/gdal-adapter.ts` | Translate a validated plan into fixed GDAL calls and normalize upstream responses/errors; no UI or project access |
+| `app/gis/assets.ts` | Explicit browser grants, OPFS reads/writes, hashes, range requests, storage quotas, and `.epia`/`.epiax` asset records |
+| `app/gis/receipts.ts` | Canonical processing receipts, input/output lineage, engine versions, parameters, warnings, exclusions, and elapsed time |
+| `app/gis/layer-plan.ts` | Engine-neutral layer, CRS, style, legend, filter, join, extent, and story-map representation |
+| `demo/gis-worker.ts` | Production Worker entry point that owns one initialized GDAL runtime and exposes only the operation registry |
+| `tests/fixtures/gis/` | Frozen inputs, expected metadata/results, tolerances, hashes, corrupt inputs, and resource-limit cases |
+
+The existing `demo/examples/gdal-wasm/` pages should remain runnable validation
+labs, but become clients of the production facade once extraction is complete.
+That prevents the demonstration code and the Maps module from drifting into two
+interpretations of the same operation.
+
+#### Initial operation contract
+
+Begin with a deliberately small registry rather than exposing every GDAL
+driver or command:
+
+| Operation | Initial purpose | Spike evidence |
+|---|---|---|
+| `gis.dataset.inspect` | Inventory format, layers, fields, geometry, raster dimensions, CRS, extent, and estimated work before execution | GDAL-WASM-01, 03, 08 |
+| `gis.vector.normalize` | Import a selected Shapefile/GeoPackage layer, reproject it, and emit normalized GeoJSON plus diagnostics | GDAL-WASM-01, 03, 08 |
+| `gis.geometry.validate` | Report invalid topology without changing the source | GDAL-WASM-05 |
+| `gis.geometry.repair` | Produce a separate review artifact with before/after topology evidence | GDAL-WASM-05 |
+| `gis.raster.warp` | Clip, reproject, resample, tile, compress, and derive bounded previews | GDAL-WASM-02 |
+| `gis.vector.spatialJoin` | Perform a bounded, deterministic point-in-polygon join | GDAL-WASM-04 |
+| `gis.raster.zonalStatistics` | Calculate disclosed zone coverage, NoData, sums, counts, and denominator diagnostics | GDAL-WASM-06 |
+| `gis.cog.materializeWindow` | Persist a checksummed bounded COG window for offline replay | GDAL-WASM-07 |
+| `gis.geopackage.write` | Write explicitly selected project layers and metadata to a portable GeoPackage | GDAL-WASM-08 |
+
+Each operation has its own typed request and result. There is no public
+`executeGdal(arguments)` escape hatch. Raw `ogr2ogr`, `gdalwarp`, `gdalinfo`,
+SQLite-dialect SQL, virtual paths, and driver options are private adapter
+details fixed or validated by the operation contract.
+
+Every request should include the contract version, operation, input asset IDs
+and SHA-256 digests, project/dataset revision, declared CRS or explicit
+unknown-CRS state, normalized parameters, limits profile, and cancellation ID.
+Every result should include output asset metadata and digest, source/output CRS,
+counts and bounds, exclusions/warnings, adapter/GDAL/PROJ/GEOS versions, exact
+effective parameters, duration, peak-memory estimate where available, and a
+deterministic receipt digest.
+
+#### Efficient browser runtime
+
+- Lazy-load and cache the GDAL runtime only on the first operation that requires
+  it. Do not include it in the initial application-shell dependency path.
+- Reuse one initialized Worker for sequential operations. Terminate and recreate
+  it after cancellation, fatal error, project teardown, memory-pressure signal,
+  or a configured work/memory threshold.
+- Use a calibrated pool only for independently partitionable work such as the
+  demonstrated spatial join. Cap the first release at four Workers and account
+  for the fact that each Worker owns a separate WASM heap and runtime.
+- Transfer `ArrayBuffer` ownership instead of cloning large files. Keep network,
+  credentials, range requests, OPFS, and package authority in the TypeScript
+  host; give the Worker only the explicitly granted bounded bytes and plan.
+- Preserve original assets. Derived layers, repaired geometry, normalized
+  vectors, raster windows, and previews receive new asset IDs, hashes, lineage,
+  and receipts rather than silently replacing their sources.
+- Cache reusable derived artifacts by input digest plus canonical plan digest.
+  A cache hit must still return the original receipt and pass output-integrity
+  verification.
+- Self-host the pinned runtime and its data file for GitLab/GitHub Pages and
+  offline use. The runtime belongs in the application cache, not inside every
+  `.epiax` project; project packages contain data artifacts and receipts.
+- Start with the reviewed upstream bundle. Consider a reduced custom build only
+  after production telemetry-free benchmarks identify unused drivers and CI can
+  reproduce the toolchain. NetCDF or GeoParquet support requires a separately
+  reviewed build or adapter and must not expand the initial kernel implicitly.
+
+#### Defensive boundary before production import
+
+GDAL parses untrusted binary and archive formats, so the pending defensive-input
+family is a release gate for ordinary user imports. Before enabling production
+Shapefile, GeoPackage, or raster ingestion, enforce:
+
+- compressed size, expanded size, entry count, archive-depth, and expansion-ratio
+  limits before extracting an archive;
+- feature, vertex, ring, field, layer, band, pixel, tile, string, and output-byte
+  limits before expensive allocation;
+- approved driver and creation-option allowlists, explicit layer selection, and
+  rejection of ambient paths, network virtual filesystems, sidecar traversal,
+  arbitrary SQL, and unreviewed remote references;
+- operation-specific timeouts, progress heartbeats, cancellation by Worker
+  termination, and a clean retry in a fresh Worker;
+- corrupt, truncated, adversarial, decompression-bomb, extreme-coordinate,
+  invalid-CRS, and topology-complexity fixtures in CI; and
+- a browser-memory budget tested on the lowest supported field device, not only
+  a developer workstation.
+
+WASM and a Worker improve isolation and responsiveness but do not make malformed
+geospatial input safe by themselves. A failed operation must leave the original
+asset and active project state unchanged.
+
+#### Delivery sequence
+
+| Slice | Deliverable | Acceptance gate |
+|---|---|---|
+| GIS-K01 — contracts and registry | Add the `epi-gis` plan/result/receipt schemas, operation registry, normalized errors, and fixture format | Schema round trips; unknown operations/options fail closed; no GDAL import in the application shell |
+| GIS-K02 — production Worker facade | Extract the typed Worker client, lazy loader, cancellation, timeout, crash recovery, and single-Worker reuse from the spike | Static hosting and offline reload work; cancellation releases the Worker; ordinary application startup does not fetch GDAL |
+| GIS-K03 — defensive ingestion | Add preflight archive/file inspection, all initial limits, hostile fixtures, and driver/virtual-filesystem allowlists | Corrupt and over-limit inputs fail before project mutation; memory and timeout budgets pass on supported browsers |
+| GIS-K04 — project asset lineage | Store original/derived asset metadata, digests, canonical plan, receipt, and cache key through OPFS and `.epia`/`.epiax` | Encrypted package round trip verifies every artifact; missing/evicted assets fail visibly; project changes clear stale results |
+| GIS-K05 — reference-layer parity path | Ship preview-first Shapefile ZIP and GeoPackage layer import through `inspect` then `vector.normalize` | User selects a layer and CRS consciously; known control points, counts, bounds, attributes, Unicode, nulls, and hashes pass fixtures |
+| GIS-K06 — raster path | Route Add Raster Layer through bounded inspect/warp/preview and persist an optional offline derivative | CRS, NoData, resampling, pixel limits, color breaks, source preservation, and offline replay are visible and tested |
+| GIS-K07 — governed spatial processing | Promote topology validation/repair, spatial join, zonal statistics, and COG-window materialization | Each method has a reviewed contract, independent expected results, disclosure-safe Output, and a reproducible receipt |
+| GIS-K08 — Epi workflow integration | Make Choropleth, Dot Density, project study areas, and later `MAP` consume `GisPlan` and named GIS results | UI and `.pgm7` produce the same canonical plan; nothing executes on open; renderer choice does not alter analytical results |
+| GIS-K09 — Epi-owned spatial analytics | Place spatial weights, Moran's I/LISA, Getis-Ord, H3 aggregation, density, and cluster methods behind Epi Info-owned Rust/WASM contracts where justified | Independent scientific validation, deterministic seeds/tolerances, privacy review, and browser/native parity precede validated status |
+| GIS-K10 — interoperability and optimization | Evaluate `.jGIS` interchange/optional viewer, custom driver builds, GeoParquet, Zarr, and NetCDF without changing the public facade | Separate dependency/license/size decision for each addition; no regression in Pages, offline, accessibility, or encrypted packaging |
+
+The first user-facing production slice should be **Add Reference Layer: Shapefile
+ZIP or GeoPackage**. It has the strongest direct legacy-parity value and exercises
+the most important kernel boundaries in one bounded workflow: explicit file
+grant, dataset inspection, layer choice, CRS review, reprojection, normalization,
+asset lineage, project packaging, rendering, and diagnostics. Raster integration
+should follow rather than lead because its memory, resampling, NoData, preview,
+and semantic-denominator choices require the more mature limits and receipt
+contract.
+
+#### Promotion and release policy
+
+An operation moves from `spike` to `candidate` only when it uses the production
+facade, has frozen contract fixtures and browser tests, records dependency and
+engine versions, enforces its resource limits, and round-trips through the
+project-asset contract. It moves from `candidate` to `validated` only after an
+independent implementation or trusted tool reproduces the declared result
+within reviewed tolerances and the responsible statistical/geospatial reviewer
+accepts the method and terminology.
+
+The operation registry—not the presence of a GDAL driver—defines Epi Info AI's
+supported GIS surface. UI labels, documentation, Epi Assist tools, and future
+commands must derive their capability/status claims from that registry. This is
+the GIS equivalent of keeping `epi-core` algorithms behind versioned,
+evidence-backed operation contracts.
 
 ## Recommended implementation order
 

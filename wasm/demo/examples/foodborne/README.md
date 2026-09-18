@@ -39,6 +39,12 @@ raster belong to one outbreak-investigation workflow.
   be recorded before use outside project testing. SHA-256:
   `cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1`.
 
+The learner-facing [`GIS_WORKFLOW_V0.1.md`](GIS_WORKFLOW_V0.1.md) explains the
+role, authority, and limitations of each asset. The packaged
+[`foodborne-gis-investigation.runbook.json`](foodborne-gis-investigation.runbook.json)
+walks through the workflow in the live Maps interface while clearly separating
+current behavior from the planned `epi-gis` processing and receipt boundary.
+
 ## Demo workflow
 
 1. Import the complete checksummed foodborne `.epia` package from
@@ -48,6 +54,8 @@ raster belong to one outbreak-investigation workflow.
 4. Plot `Latitude` and `Longitude` in Maps.
 5. Confirm the restored Toledo neighborhood layer has `name` labels enabled.
 6. Confirm the restored WorldPop GeoTIFF remains below vectors and points.
+7. Open **Help > Run Books > Foodborne GIS investigation v0.1** to compare raw
+   points, an H3 summary, neighborhood context, and raster context.
 
 The map assets are supporting artifacts for this foodborne example, not a
 separate epidemiologic dataset. The generator embeds their bytes, metadata,

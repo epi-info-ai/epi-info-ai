@@ -98,6 +98,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/classic-session.ts",
     "wasm/docs/design/charts-compatibility-inventory.md",
     "wasm/docs/review/geospatial_mapping.md",
+    "wasm/docs/design/epi-gis-kernel-v0.1.md",
     "COMMAND_SET.md",
     "wasm/app/programming/classic-program-surface.ts",
     "wasm/app/programming/classic-program.ts",
@@ -134,6 +135,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/README.md",
     "wasm/demo/examples/program-catalogs.json",
     "wasm/demo/examples/foodborne/README.md",
+    "wasm/demo/examples/foodborne/GIS_WORKFLOW_V0.1.md",
     "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv",
     "wasm/demo/examples/foodborne/foodborne-dialog-tour.pgm7",
     "wasm/demo/examples/foodborne/maps/city-of-toledo-neighborhoods.geojson",
@@ -169,6 +171,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/projects/foodborne-outbreak-investigation.epia",
     "wasm/demo/examples/projects/space-time-cluster-detection.epia.json",
     "wasm/demo/examples/foodborne/foodborne-investigation.runbook.json",
+    "wasm/demo/examples/foodborne/foodborne-gis-investigation.runbook.json",
     "wasm/demo/examples/cluster/space-time-cluster.runbook.json",
     "wasm/demo/examples/recordlink/recordlink.runbook.json",
     "wasm/demo/examples/gdal-wasm/README.md",
@@ -4278,9 +4281,9 @@ async function checkExampleProjectRepository() {
     "record-linkage",
   ]);
   const expected = new Map([
-    ["foodborne-outbreak-investigation", { project: "Foodborne Outbreak Investigation", forms: 1, records: 96 }],
-    ["space-time-cluster-detection", { project: "Space-Time Cluster Detection", forms: 1, records: 30 }],
-    ["record-linkage", { project: "Synthetic Patient Record Linkage", forms: 3, records: 21 }],
+    ["foodborne-outbreak-investigation", { project: "Foodborne Outbreak Investigation", forms: 1, records: 96, runbooks: 2 }],
+    ["space-time-cluster-detection", { project: "Space-Time Cluster Detection", forms: 1, records: 30, runbooks: 1 }],
+    ["record-linkage", { project: "Synthetic Patient Record Linkage", forms: 3, records: 21, runbooks: 1 }],
   ]);
   for (const entry of catalog.projects) {
     const filePath = resolve(dirname(catalogPath), entry.file);
@@ -4296,11 +4299,19 @@ async function checkExampleProjectRepository() {
     assert.equal(packageValue.project.forms.length, expectation.forms);
     assert.equal(packageValue.project.forms.reduce((sum, form) => sum + form.records.length, 0), expectation.records);
     assert.ok(packageValue.programs.length > 0, `${entry.id} must include a runnable teaching program`);
-    assert.equal(packageValue.runbooks?.length, 1, `${entry.id} must include one project-scoped runbook`);
+    assert.equal(packageValue.runbooks?.length, expectation.runbooks, `${entry.id} project-scoped runbook count`);
     if (entry.id === "foodborne-outbreak-investigation") {
+      assert.deepEqual(packageValue.runbooks?.map(({ id }) => id), [
+        "foodborne-investigation-project-tour",
+        "foodborne-gis-investigation-v0-1",
+      ], "the foodborne package must include both investigation runbooks");
       assert.equal(parsedArchive?.assets.length, 2, "the foodborne package must embed both map assets");
       assert.deepEqual(parsedArchive.assets.map(({ asset }) => asset.format), ["geojson", "geotiff"]);
-      assert.equal(packageValue.project.mapLayers?.length, 2, "the foodborne package must restore both project map layers");
+      assert.deepEqual(packageValue.project.mapLayers?.map(({ kind }) => kind), [
+        "case-cluster",
+        "geojson",
+        "raster",
+      ], "the foodborne package must restore its record binding and both contextual map layers");
     }
   }
 }

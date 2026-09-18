@@ -660,6 +660,15 @@ The detailed cumulative changes and validation increments follow.
 
 ## TODO
 
+- **Establish a Firefox, Safari/WebKit, and Chromium UI-navigation floor.** The
+  initial [cross-browser navigation review](wasm/docs/review/cross_browser_ui_navigation.md)
+  identifies the scrolling menubar/overlay boundary as the leading dropdown
+  clipping and hit-testing risk, and records separate dialog-focus, clipboard,
+  fullscreen, and OPFS capability risks. Add a focused Playwright navigation
+  suite for Chromium, Firefox, and WebKit; correct the overlay boundary;
+  centralize menu open/close/focus behavior; and require visible fallbacks
+  instead of silent no-ops before claiming cross-browser menu parity.
+
 - **Complete Check Code parity as a separate event-driven language and runtime.**
   Preserve the distinction between Form Designer Check Code and the Classic
   Analysis program runner. Build a Check Code Editor with the legacy
@@ -687,6 +696,12 @@ The detailed cumulative changes and validation increments follow.
   current command-parity and record-linkage checkpoint; require measured bundle
   cost, offline behavior, cancellation, accessibility, security, and independent
   output validation before deeper adoption.
+
+  The resulting [geospatial parity and mental-model review](wasm/docs/review/geospatial_mapping.md)
+  now anchors a bounded [`epi-gis` kernel v0.1 design](wasm/docs/design/epi-gis-kernel-v0.1.md).
+  The first kernel is an Epi-owned plan/result/receipt boundary over allowlisted
+  Worker operations; it does not expose raw GDAL commands or make the renderer
+  the analytical authority.
 
 - **Teaching Repositories V0.1 candidate.** The
   [teaching repository contract](wasm/docs/design/teaching-repository-contract.md)

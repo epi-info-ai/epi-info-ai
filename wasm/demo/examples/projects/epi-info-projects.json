@@ -7,11 +7,11 @@
     {
       "id": "foodborne-outbreak-investigation",
       "title": "Foodborne Outbreak Investigation",
-      "description": "96 synthetic investigation records with the Classic Analysis command tour, DIALOG tour, TABLES examples, quality profile, and embedded Toledo GeoJSON and GeoTIFF map layers.",
+      "description": "96 synthetic investigation records with Classic Analysis and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
       "file": "foodborne-outbreak-investigation.epia",
       "repository": "https://git.cdc.gov/epi-info-ai/foodborne-outbreak-investigation",
-      "bytes": 1477514,
-      "sha256": "58a090e933d7ce0451752943f8877439d6717ae999d834b47d241d192de7f2f7"
+      "bytes": 1481863,
+      "sha256": "72284425978ec358794a355b423f18b10d6ef93e3b4cd82e47c4af581512511e"
     },
     {
       "id": "space-time-cluster-detection",

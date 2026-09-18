@@ -143,6 +143,15 @@ export interface ProjectMapAsset {
 
 export type ProjectMapLayer = {
   id: string;
+  kind: "case-cluster";
+  sourceFormId: string;
+  name: string;
+  visible: boolean;
+  latitudeField: string;
+  longitudeField: string;
+  labelField: string;
+} | {
+  id: string;
   kind: "geojson";
   assetId: string;
   name: string;
@@ -484,31 +493,51 @@ function projectMapAssetAt(value: unknown, path: string): ProjectMapAsset {
   };
 }
 
-function projectMapLayerAt(value: unknown, path: string, assets: ReadonlyMap<string, ProjectMapAsset>): ProjectMapLayer {
+function projectMapLayerAt(
+  value: unknown,
+  path: string,
+  assets: ReadonlyMap<string, ProjectMapAsset>,
+  forms: ReadonlyMap<string, ProjectForm>,
+): ProjectMapLayer {
   const source = objectAt(value, path);
-  if (source.kind !== "geojson" && source.kind !== "raster") fail(`${path}.kind`, "must be geojson or raster");
+  if (source.kind !== "case-cluster" && source.kind !== "geojson" && source.kind !== "raster") {
+    fail(`${path}.kind`, "must be case-cluster, geojson, or raster");
+  }
+  if (typeof source.visible !== "boolean") fail(`${path}.visible`, "must be boolean");
+  const shared = {
+    id: nonEmptyString(source.id, `${path}.id`),
+    name: nonEmptyString(source.name, `${path}.name`),
+    visible: source.visible,
+  };
+  if (source.kind === "case-cluster") {
+    const sourceFormId = nonEmptyString(source.sourceFormId, `${path}.sourceFormId`);
+    const form = forms.get(sourceFormId);
+    if (!form) fail(`${path}.sourceFormId`, "must identify a form in this project");
+    const latitudeField = nonEmptyString(source.latitudeField, `${path}.latitudeField`);
+    const longitudeField = nonEmptyString(source.longitudeField, `${path}.longitudeField`);
+    const labelField = typeof source.labelField === "string" ? source.labelField : fail(`${path}.labelField`, "must be a string");
+    const fields = new Map(form.schema.fields.map((field) => [field.name, field]));
+    if (!fields.has(latitudeField)) fail(`${path}.latitudeField`, "must identify a field in the source form");
+    if (!fields.has(longitudeField)) fail(`${path}.longitudeField`, "must identify a field in the source form");
+    if (labelField && !fields.has(labelField)) fail(`${path}.labelField`, "must be blank or identify a field in the source form");
+    return { ...shared, kind: "case-cluster", sourceFormId, latitudeField, longitudeField, labelField };
+  }
   const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
   const asset = assets.get(assetId);
   if (!asset) fail(`${path}.assetId`, "must identify a project map asset");
   if (asset.format !== source.kind && !(source.kind === "raster" && asset.format === "geotiff")) {
     fail(`${path}.assetId`, "does not match the layer kind");
   }
-  if (typeof source.visible !== "boolean") fail(`${path}.visible`, "must be boolean");
-  const shared = {
-    id: nonEmptyString(source.id, `${path}.id`),
-    assetId,
-    name: nonEmptyString(source.name, `${path}.name`),
-    visible: source.visible,
-  };
+  const assetShared = { ...shared, assetId };
   if (source.kind === "geojson") {
     if (typeof source.labelsEnabled !== "boolean") fail(`${path}.labelsEnabled`, "must be boolean");
     if (typeof source.labelField !== "string" || source.labelField.length > 200) fail(`${path}.labelField`, "must be a string of at most 200 characters");
-    return { ...shared, kind: "geojson", labelField: source.labelField, labelsEnabled: source.labelsEnabled };
+    return { ...assetShared, kind: "geojson", labelField: source.labelField, labelsEnabled: source.labelsEnabled };
   }
   if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0.1 || source.opacity > 1) {
     fail(`${path}.opacity`, "must be from 0.1 through 1");
   }
-  return { ...shared, kind: "raster", opacity: source.opacity };
+  return { ...assetShared, kind: "raster", opacity: source.opacity };
 }
 
 function finiteCoordinate(value: unknown, path: string, minimum: number, maximum: number): number {
@@ -721,7 +750,8 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
   if (snapshot.mapLayers !== undefined) {
     if (!Array.isArray(snapshot.mapLayers)) fail("project.mapLayers", "must be an array");
     const assets = new Map((result.mapAssets ?? []).map((asset) => [asset.id, asset]));
-    result.mapLayers = snapshot.mapLayers.map((layer, index) => projectMapLayerAt(layer, `project.mapLayers[${index}]`, assets));
+    const formsById = new Map(forms.map((form) => [form.id, form]));
+    result.mapLayers = snapshot.mapLayers.map((layer, index) => projectMapLayerAt(layer, `project.mapLayers[${index}]`, assets, formsById));
     const ids = new Set<string>();
     for (const layer of result.mapLayers) {
       if (ids.has(layer.id)) fail("project.mapLayers", `contains duplicate layer id ${JSON.stringify(layer.id)}`);
