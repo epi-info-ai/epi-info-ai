@@ -221,15 +221,23 @@ demo matches what CI publishes.
   reset, or discard another contributor's work.
 - `origin` is authoritative CDC GitLab; `github` is the public replica; the
   default branch is `main`.
-- All contributors branch from current GitLab `main` and propose changes through
-  a GitLab merge request. Do not push directly to protected `main`. The merge
-  request must pass applicable CI, receive human review, and disclose parity
+- Contributors with CDC GitLab access branch from current GitLab `main` and
+  propose changes through a GitLab merge request. Do not push directly to
+  protected `main`. The merge request must pass applicable CI, receive human
+  review, and disclose parity
   status, validation evidence, privacy/security effects, changed documentation
   or examples, and known gaps. Resolve conflicts and rerun CI before merging;
   prefer a focused squash merge unless preserving separate commits is useful.
-- Do not independently merge or develop against GitHub `main` while GitLab is
-  authoritative. GitHub issues may inform work, but repository changes enter
-  through GitLab and are replicated only after merge, preventing split history.
+- Contributors are responsible for local checks and an honest evidence report,
+  not for privileged CI or deployment actions. Eligible branch/MR pipelines
+  should start automatically. If policy requires a protected/manual job the
+  contributor cannot start, mark it **maintainer CI required**; a maintainer
+  triggers/approves it and owns the resulting gate.
+- External contributors without CDC GitLab access may open a GitHub pull request
+  as a proposal. A maintainer imports the commit(s) into a GitLab branch while
+  preserving authorship, opens the authoritative merge request, and runs the
+  protected CI/review path. Do not independently merge GitHub `main` while
+  GitLab is authoritative.
 - In this project, **CPPR** means **commit, push to CDC GitLab, publish and verify
   GitLab Pages, replicate the same commit to GitHub, and verify GitHub Pages**.
   A successful push alone is not completion.
@@ -239,6 +247,9 @@ demo matches what CI publishes.
 - Report the commit SHA and both deployment results/links. If either host is
   blocked, state exactly which CPPR stages completed and remain pending.
 - Published links and the visible application version must remain aligned.
+- CPPR is performed only by a designated maintainer/release manager after merge.
+  Contributors do not need production credentials or permission to trigger
+  protected release jobs, publish Pages, or update the public mirror.
 
 External collaboration may eventually justify reversing repository roles. That
 is a governed migration, not dual-primary operation: declare a cutover date and

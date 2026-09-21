@@ -21,18 +21,26 @@ ignored `wasm/.secrets/` directory or an approved credential manager.
    the evidence source for that gate.
 4. Update parity inventories, architecture decisions, examples, test programs,
    validation evidence, and user documentation when the behavior changes.
-5. Open a GitLab merge request using the repository template. State whether the
-   change is parity, a browser adaptation, or a labeled new branch.
-6. Obtain human review and passing CI. Resolve conflicts against current `main`
-   and rerun affected checks before merge.
+5. If you have CDC GitLab access, open a GitLab merge request using the
+   repository template. State whether the change is parity, a browser
+   adaptation, or a labeled new branch. External contributors without CDC
+   GitLab access may instead open a GitHub pull request as a proposal; a
+   maintainer will carry it into GitLab while preserving attribution.
+6. Obtain human review and passing CI. Eligible pipelines should start
+   automatically. If you cannot start a protected/manual job, mark the merge
+   request **maintainer CI required**; a maintainer owns that gate. Resolve
+   conflicts against current `main` and rerun affected local checks.
 7. Prefer squash merge for a focused branch. Do not force-push or rewrite
    published `main` history.
-8. After merge, complete CPPR: verify GitLab Pages, replicate the exact merge
-   commit to GitHub, and verify GitHub Pages.
+8. After merge, a designated maintainer—not the contributor—completes CPPR:
+   approve protected release jobs, verify GitLab Pages, replicate the exact
+   merge commit to GitHub, and verify GitHub Pages.
 
-Do not merge independently into GitHub while GitLab is authoritative. A future
-move to GitHub-first external collaboration requires a documented cutover; the
-two repositories must never operate as competing writable authorities.
+Do not merge independently into GitHub `main` while GitLab is authoritative.
+A GitHub pull request is an external proposal until a maintainer imports and
+merges it through GitLab. A future move to GitHub-first external collaboration
+requires a documented cutover; the two repositories must never operate as
+competing writable authorities.
 
 ## Review floor
 

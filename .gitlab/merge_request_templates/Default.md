@@ -33,6 +33,8 @@ Describe the user outcome and why the change is needed.
 ## Merge readiness
 
 - [ ] Branch is current with GitLab `main`
-- [ ] Applicable CI passes
+- [ ] Applicable automatic CI passes, or **maintainer CI required** is declared below
 - [ ] Human review completed
 - [ ] Post-merge owner identified for GitLab Pages, GitHub replication, and GitHub Pages verification
+
+Protected/manual CI requiring a maintainer:
