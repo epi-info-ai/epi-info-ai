@@ -27,5 +27,20 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      name: "firefox-navigation",
+      testMatch: /cross-browser-navigation\.spec\.mjs/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit-navigation",
+      testMatch: /cross-browser-navigation\.spec\.mjs/,
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile-webkit-navigation",
+      testMatch: /cross-browser-navigation\.spec\.mjs/,
+      use: { ...devices["iPhone 13"] },
+    },
   ],
 });

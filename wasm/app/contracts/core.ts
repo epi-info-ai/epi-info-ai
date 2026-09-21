@@ -35,6 +35,13 @@ export interface FieldDefinition {
 export interface FormSchema {
   name: string;
   fields: FieldDefinition[];
+  checkCodeProgram?: FormCheckCodeProgram;
+}
+
+export interface FormCheckCodeProgram {
+  version: 1;
+  language: "epi-info-check-code";
+  source: string;
 }
 
 export interface DatasetProvenance {
@@ -63,7 +70,7 @@ export interface DeletedRecord {
 export interface ProjectAuditEvent {
   id: string;
   occurredAt: string;
-  action: "record-deleted" | "record-restored";
+  action: "record-deleted" | "record-restored" | "check-code-executed";
   formId: string;
   archiveId: string;
   detail: string;
@@ -403,6 +410,14 @@ function projectFormAt(value: unknown, path: string): ProjectForm {
     },
     records: form.records.map((record, index) => recordAt(record, `${path}.records[${index}]`)),
   };
+  if (schema.checkCodeProgram !== undefined) {
+    const program = objectAt(schema.checkCodeProgram, `${path}.schema.checkCodeProgram`);
+    if (program.version !== 1) fail(`${path}.schema.checkCodeProgram.version`, "must be 1");
+    if (program.language !== "epi-info-check-code") fail(`${path}.schema.checkCodeProgram.language`, "must be epi-info-check-code");
+    if (typeof program.source !== "string") fail(`${path}.schema.checkCodeProgram.source`, "must be a string");
+    if (program.source.length > 100_000) fail(`${path}.schema.checkCodeProgram.source`, "must not exceed 100,000 characters");
+    result.schema.checkCodeProgram = { version: 1, language: "epi-info-check-code", source: program.source };
+  }
   if (form.dataset !== undefined) result.dataset = datasetProvenanceAt(form.dataset, `${path}.dataset`);
   if (form.imports !== undefined) {
     if (!Array.isArray(form.imports)) fail(`${path}.imports`, "must be an array");
@@ -762,8 +777,8 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
     if (!Array.isArray(snapshot.auditLog)) fail("project.auditLog", "must be an array");
     result.auditLog = snapshot.auditLog.map((item, index) => {
       const event = objectAt(item, `project.auditLog[${index}]`);
-      if (event.action !== "record-deleted" && event.action !== "record-restored") {
-        fail(`project.auditLog[${index}].action`, "must be record-deleted or record-restored");
+      if (event.action !== "record-deleted" && event.action !== "record-restored" && event.action !== "check-code-executed") {
+        fail(`project.auditLog[${index}].action`, "must be record-deleted, record-restored, or check-code-executed");
       }
       const occurredAt = nonEmptyString(event.occurredAt, `project.auditLog[${index}].occurredAt`);
       if (!Number.isFinite(Date.parse(occurredAt))) fail(`project.auditLog[${index}].occurredAt`, "must be a valid date/time");

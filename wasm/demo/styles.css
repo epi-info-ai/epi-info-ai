@@ -111,7 +111,7 @@ a:focus-visible {
   display: flex;
   min-height: var(--shell-menubar-height);
   align-items: center;
-  overflow-x: auto;
+  overflow: visible;
   padding: 0 var(--space-1);
   background: #f2f4f5;
   border-bottom: 1px solid #9aaab4;
@@ -155,11 +155,14 @@ a:focus-visible {
 }
 
 .legacy-menu-popup {
-  position: absolute;
-  z-index: 30;
-  top: 100%;
+  position: fixed;
+  z-index: 100;
+  top: 0;
   left: 0;
-  min-width: 14.5rem;
+  min-width: min(14.5rem, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.25rem;
   background: #f7f9fa;
   border: 1px solid #7e929e;
@@ -2167,6 +2170,31 @@ select {
 
 .field-rules-dialog {
   max-width: 42rem;
+}
+
+.check-code-editor-dialog {
+  width: min(58rem, calc(100% - 2rem));
+}
+
+.check-code-editor-dialog textarea {
+  width: 100%;
+  min-height: 24rem;
+  resize: vertical;
+  font-family: Consolas, "Courier New", monospace;
+  tab-size: 2;
+}
+
+.check-code-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 0.5rem;
+}
+
+.check-code-diagnostics {
+  margin: 0.5rem 0 0;
+  padding-left: 1.4rem;
+  color: #7a2e0b;
 }
 
 .legacy-dialog.recordlink-review-dialog {

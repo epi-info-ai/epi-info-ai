@@ -63,6 +63,7 @@ export function initializeBrowserLocalization(
     select.value = registry.locale;
     status.textContent = "";
     dialog.showModal();
+    select.focus();
   });
 
   applyButton.addEventListener("click", () => {

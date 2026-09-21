@@ -1,0 +1,61 @@
+*** Epi Info AI foodborne Check Code tour
+*** This bounded source exercises definitions plus Form, Page, Record, and Field events.
+
+DefineVariables
+  DEFINE ReviewState STANDARD TEXTINPUT
+End-DefineVariables
+
+Form
+  Before
+    ASSIGN ReviewState = "Ready"
+  End-Before
+  After
+    ENABLE case_status
+  End-After
+End-Form
+
+Page EntryPage
+  Before
+    DIALOG "Review the foodborne case before saving."
+  End-Before
+  After
+    ENABLE onset_date
+  End-After
+End-Page
+
+Record
+  Before
+    CLEAR onset_time
+  End-Before
+  After
+    IF case_status = "Confirmed" THEN
+      ASSIGN ReviewState = "Reviewed"
+    ELSE
+      ASSIGN ReviewState = "Pending"
+    END-IF
+  End-After
+End-Record
+
+Field case_status
+  Before
+    ENABLE case_status
+  End-Before
+  After
+    IF case_status = "Confirmed" THEN
+      SET-REQUIRED onset_date
+      ENABLE onset_date
+      GOTO onset_date
+    ELSE
+      SET-NOT-REQUIRED onset_date
+    END-IF
+  End-After
+End-Field
+
+Field onset_date
+  After
+    IF onset_date <> "" THEN
+      UNHIDE onset_time
+      ENABLE onset_time
+    END-IF
+  End-After
+End-Field

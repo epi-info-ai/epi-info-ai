@@ -64,7 +64,7 @@ function showGeocodeResults(statement: SafeGeocodeStatement, query: string, cand
   requiredElement<HTMLDialogElement>("#geocode-results-dialog").showModal();
 }
 
-async function runGeocode(statement: SafeGeocodeStatement, button: HTMLButtonElement): Promise<void> {
+export async function runGeocode(statement: SafeGeocodeStatement, button: HTMLButtonElement): Promise<void> {
   const address = namedEntryControl(statement.addressField)?.value.trim() ?? "";
   const status = requiredElement<HTMLElement>("#record-status");
   button.disabled = true;
@@ -119,7 +119,7 @@ function applyFieldAction(statement: Exclude<SafeCheckCodeStatement, SafeGotoSta
   else if (statement.action === "set-not-required") target.required = false;
 }
 
-function entryControl(field: FieldDefinition): HTMLElement {
+function entryControl(field: FieldDefinition, programManaged: boolean): HTMLElement {
   if (field.type === "command-button") {
     const wrapper = document.createElement("div");
     wrapper.className = "record-field record-command-field";
@@ -131,7 +131,7 @@ function entryControl(field: FieldDefinition): HTMLElement {
     if (geocode) {
       const actions = document.createElement("div");
       actions.className = "record-command-actions";
-      button.addEventListener("click", () => void runGeocode(geocode, button));
+      if (!programManaged) button.addEventListener("click", () => void runGeocode(geocode, button));
       const preview = document.createElement("button");
       preview.type = "button";
       preview.className = "location-preview-button";
@@ -195,7 +195,7 @@ function entryControl(field: FieldDefinition): HTMLElement {
   error.className = "field-validation-message";
   error.setAttribute("aria-live", "polite");
   control.setAttribute("aria-describedby", error.id);
-  control.addEventListener("focusout", () => {
+  if (!programManaged) control.addEventListener("focusout", () => {
     const value = control instanceof HTMLInputElement && control.type === "checkbox" ? String(control.checked) : control.value;
     const actions = resolveAfterActions(field, value);
     for (const statement of actions) {
@@ -222,7 +222,7 @@ function entryControl(field: FieldDefinition): HTMLElement {
 
 export function renderEntryForm(schema: FormSchema): void {
   requiredElement("#data-title").textContent = schema.name;
-  requiredElement("#record-fields").replaceChildren(...schema.fields.map(entryControl));
+  requiredElement("#record-fields").replaceChildren(...schema.fields.map((field) => entryControl(field, Boolean(schema.checkCodeProgram))));
   const form = requiredElement<HTMLFormElement>("#record-form");
   const refreshCalculations = (): void => {
     const calculated = materializeCalculatedFields(schema, collectEntryRecord(form, schema));

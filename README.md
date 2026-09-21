@@ -668,6 +668,11 @@ The detailed cumulative changes and validation increments follow.
   suite for Chromium, Firefox, and WebKit; correct the overlay boundary;
   centralize menu open/close/focus behavior; and require visible fallbacks
   instead of silent no-ops before claiming cross-browser menu parity.
+  The first candidate now replaces the clipped popup positioning with a shared
+  viewport-overlay controller, adds predictable menu keyboard navigation and
+  Escape focus return, and adds a focused Playwright suite for Chromium,
+  Firefox, Desktop WebKit, and Mobile WebKit. Chromium passes locally; the
+  multi-engine Pages run remains the compatibility evidence gate.
 
 - **Complete Check Code parity as a separate event-driven language and runtime.**
   Preserve the distinction between Form Designer Check Code and the Classic
@@ -685,6 +690,17 @@ The detailed cumulative changes and validation increments follow.
   foodborne Check Code teaching project and automated fixtures for validation,
   skip logic, calculated fields, required/hidden state, dialog choices,
   geocoding, save/reopen fidelity, and rejected unsafe or unsupported code.
+  The bounded candidate is now available from Form Designer Tools and the
+  toolbar, with `.chk` open/save. It parses legacy `DefineVariables`, Form/View,
+  Record, Page, Field, Before, After, Click, bounded `IF`/`ELSE`, `ASSIGN`,
+  `CLEAR`, field state, `GOTO`, simple `DIALOG`, and `GEOCODE` syntax into
+  `epi-check-code-ast/0.1`. The complete source must validate before Apply.
+  The runtime executes deterministic Form → Page → Record → Field events,
+  enforces effect and navigation-cycle limits, and writes value-free project
+  audit events. The foodborne `.chk` tour exercises the complete disclosed
+  subset. Broader legacy statements/dialog variants, multi-page/form navigation,
+  exact desktop event-timing review, editor search/font enhancements, additional
+  browser engines, and experienced-user acceptance remain parity gates.
 
 - **Evaluate JupyterGIS as a later GIS integration layer.** The bounded
   [JupyterGIS architecture spike](wasm/docs/design/jupytergis-architecture-spike.md)

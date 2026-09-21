@@ -4435,6 +4435,68 @@ async function checkGdalWasmSpike() {
   assert.match(buildSource, /LICENSE\.fflate\.txt/);
 }
 
+async function checkTypedCheckCodeProgram() {
+  const module = await import(`${pathToFileURL(repositoryPath("wasm/app/check-code/check-code-program.ts")).href}?checkcode=${Date.now()}`);
+  const source = await readFile(repositoryPath("wasm/demo/examples/foodborne/foodborne-check-code-tour.chk"), "utf8");
+  const ast = module.parseCheckCodeProgram(source);
+  assert.equal(ast.schema, "epi-check-code-ast/0.1");
+  assert.equal(ast.definitions.length, 1);
+  assert.equal(ast.blocks.length, 5);
+  assert.deepEqual(ast.blocks.slice(0, 3).map(({ scope }) => scope), ["form", "page", "record"]);
+  const schema = {
+    name: "Foodborne Check Code fixture",
+    fields: [
+      { name: "case_status", prompt: "Case Status", type: "text", required: false },
+      { name: "onset_date", prompt: "Onset Date", type: "date", required: false },
+      { name: "onset_time", prompt: "Onset Time", type: "time", required: false },
+    ],
+  };
+  const compiled = module.compileFieldCheckCodeSubset(ast, schema);
+  assert.equal(compiled.executable, true);
+  assert.equal(compiled.reasons.length, 0);
+  assert.equal(compiled.fieldCheckCode.get("onset_date").after.length, 2);
+  const preserved = module.parseCheckCodeProgram("Form\nBefore\nDIALOG \"Review the form\"\nEnd-Before\nEnd-Form\n");
+  const preservedResult = module.compileFieldCheckCodeSubset(preserved, schema);
+  assert.equal(preservedResult.executable, true);
+  const invalid = module.parseCheckCodeProgram("Form\nBefore\nASSIGN MissingField = \"unsafe\"\nEnd-Before\nEnd-Form\n");
+  const invalidResult = module.compileFieldCheckCodeSubset(invalid, schema);
+  assert.equal(invalidResult.executable, false);
+  assert.match(invalidResult.reasons.join(" "), /MissingField/);
+  const cyclic = module.parseCheckCodeProgram("Field case_status\nAfter\nGOTO onset_date\nEnd-After\nEnd-Field\nField onset_date\nAfter\nGOTO case_status\nEnd-After\nEnd-Field\n");
+  const cyclicResult = module.compileFieldCheckCodeSubset(cyclic, schema);
+  assert.equal(cyclicResult.executable, false);
+  assert.match(cyclicResult.reasons.join(" "), /GOTO cycle detected/);
+  const runtimeModule = await import(`${pathToFileURL(repositoryPath("wasm/app/check-code/check-code-runtime.ts")).href}?checkruntime=${Date.now()}`);
+  const values = new Map([["case_status", "Confirmed"], ["onset_date", ""], ["onset_time", "08:30"]]);
+  const actions = [];
+  const dialogs = [];
+  const audits = [];
+  const runtime = runtimeModule.createCheckCodeRuntime(ast, schema, {
+    readField: (name) => values.get(name) ?? null,
+    writeField: (name, value) => values.set(name, value),
+    applyFieldAction: (action, name) => actions.push([action, name]),
+    gotoField: (name) => actions.push(["goto", name]),
+    showDialog: async (message) => { dialogs.push(message); },
+    runGeocode: async () => {},
+    audit: (event) => audits.push(event),
+  });
+  await runtime.run("form", "before");
+  assert.equal(runtime.variable("ReviewState"), "Ready");
+  await runtime.run("page", "before", "EntryPage");
+  assert.deepEqual(dialogs, ["Review the foodborne case before saving."]);
+  await runtime.run("record", "before");
+  assert.equal(values.get("onset_time"), null);
+  await runtime.run("field", "after", "case_status");
+  assert.deepEqual(actions.slice(-3), [["set-required", "onset_date"], ["enable", "onset_date"], ["goto", "onset_date"]]);
+  await runtime.run("record", "after");
+  assert.equal(runtime.variable("ReviewState"), "Reviewed");
+  assert.equal(audits.every(({ status }) => status === "succeeded"), true);
+  assert.throws(
+    () => module.parseCheckCodeProgram("Field case_status\nAfter\nEXECUTE evil.exe\nEnd-After\nEnd-Field"),
+    /Unsupported or malformed Check Code statement/,
+  );
+}
+
 async function run() {
   const checks = [
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
@@ -4470,6 +4532,7 @@ async function run() {
     ["browser localization and language-pack boundary", checkLocalizationBoundary],
     ["checksummed example-project repository", checkExampleProjectRepository],
     ["bounded GDAL WebAssembly Worker spike", checkGdalWasmSpike],
+    ["typed fail-closed Check Code program", checkTypedCheckCodeProgram],
   ];
 
   for (const [name, check] of checks) {

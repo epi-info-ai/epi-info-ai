@@ -71,7 +71,7 @@ jobs:
 
       - name: Run browser acceptance tests
         run: |
-          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright install --with-deps chromium firefox webkit
           pnpm run test:browser
 
       - name: Configure Pages artifact

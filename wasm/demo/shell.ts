@@ -24,11 +24,88 @@ function openMainMenu(): void {
 }
 
 const legacyMenus = [...document.querySelectorAll<HTMLDetailsElement>("details.legacy-menu")];
+let activeLegacyMenu: HTMLDetailsElement | null = null;
+
+function legacyMenuSummary(menu: HTMLDetailsElement): HTMLElement | null {
+  return menu.querySelector<HTMLElement>(":scope > summary");
+}
+
+function legacyMenuPopup(menu: HTMLDetailsElement): HTMLElement | null {
+  return menu.querySelector<HTMLElement>(":scope > .legacy-menu-popup");
+}
+
+function legacyMenuItems(menu: HTMLDetailsElement): HTMLElement[] {
+  return [...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]')]
+    .filter((item) => !(item instanceof HTMLButtonElement && item.disabled) && !item.hidden);
+}
+
+function siblingMenuSummaries(menu: HTMLDetailsElement): HTMLElement[] {
+  const parent = menu.parentElement;
+  if (!parent) return [];
+  return [...parent.children]
+    .filter((child): child is HTMLDetailsElement => child instanceof HTMLDetailsElement && child.classList.contains("legacy-menu"))
+    .map((sibling) => legacyMenuSummary(sibling))
+    .filter((summary): summary is HTMLElement => summary !== null);
+}
+
+function positionLegacyMenu(menu: HTMLDetailsElement): void {
+  if (!menu.open) return;
+  const summary = legacyMenuSummary(menu);
+  const popup = legacyMenuPopup(menu);
+  if (!summary || !popup) return;
+  const margin = 8;
+  const trigger = summary.getBoundingClientRect();
+  const popupBox = popup.getBoundingClientRect();
+  const availableBelow = Math.max(0, window.innerHeight - trigger.bottom - margin);
+  const availableAbove = Math.max(0, trigger.top - margin);
+  const placeAbove = availableBelow < Math.min(240, popup.scrollHeight) && availableAbove > availableBelow;
+  const availableHeight = Math.max(96, placeAbove ? availableAbove : availableBelow);
+  const top = placeAbove
+    ? Math.max(margin, trigger.top - Math.min(popup.scrollHeight, availableHeight))
+    : Math.min(window.innerHeight - margin, trigger.bottom);
+  const preferredLeft = menu.classList.contains("legacy-menu-right") ? trigger.right - popupBox.width : trigger.left;
+  const left = Math.max(margin, Math.min(preferredLeft, window.innerWidth - popupBox.width - margin));
+  popup.style.right = "auto";
+  popup.style.top = `${Math.round(top)}px`;
+  popup.style.left = `${Math.round(left)}px`;
+  popup.style.maxHeight = `${Math.floor(availableHeight)}px`;
+}
 
 function closeLegacyMenus(except: HTMLDetailsElement | null = null): void {
   for (const menu of legacyMenus) {
-    if (menu !== except) menu.open = false;
+    if (menu !== except) {
+      menu.open = false;
+      legacyMenuSummary(menu)?.setAttribute("aria-expanded", "false");
+    }
   }
+  activeLegacyMenu = except?.open ? except : null;
+}
+
+function openLegacyMenu(menu: HTMLDetailsElement, focus: "first" | "last" | "none" = "none"): void {
+  closeLegacyMenus(menu);
+  menu.open = true;
+  activeLegacyMenu = menu;
+  legacyMenuSummary(menu)?.setAttribute("aria-expanded", "true");
+  positionLegacyMenu(menu);
+  if (focus !== "none") {
+    queueMicrotask(() => {
+      const items = legacyMenuItems(menu);
+      (focus === "first" ? items[0] : items.at(-1))?.focus();
+    });
+  }
+}
+
+function moveBetweenLegacyMenus(menu: HTMLDetailsElement, offset: number): void {
+  const summaries = siblingMenuSummaries(menu);
+  const current = legacyMenuSummary(menu);
+  const index = current ? summaries.indexOf(current) : -1;
+  if (index < 0 || summaries.length === 0) return;
+  const target = summaries[(index + offset + summaries.length) % summaries.length];
+  if (!target) return;
+  const targetMenu = target.closest<HTMLDetailsElement>("details.legacy-menu");
+  if (!targetMenu) return;
+  openLegacyMenu(targetMenu, "first");
+  target.focus();
 }
 
 for (const button of document.querySelectorAll<HTMLElement>("[data-open-module], [data-module]")) {
@@ -56,21 +133,72 @@ statusBarButton.addEventListener("click", () => {
 });
 
 document.addEventListener("click", (event) => {
-  const target = event.target instanceof Node ? event.target : null;
-  const containingMenu = legacyMenus.find((menu) => target !== null && menu.contains(target)) ?? null;
-  closeLegacyMenus(containingMenu);
+  const target = event.target instanceof Element ? event.target : null;
+  const containingMenu = target?.closest<HTMLDetailsElement>("details.legacy-menu") ?? null;
+  const selectedItem = target?.closest<HTMLElement>(".legacy-menu-popup [role^='menuitem']") ?? null;
+  const opensSubmenu = selectedItem?.getAttribute("aria-haspopup") === "menu";
+  const reportsUnavailable = selectedItem?.getAttribute("aria-disabled") === "true";
+  if (!containingMenu || (selectedItem && !opensSubmenu && !reportsUnavailable)) closeLegacyMenus();
+  else closeLegacyMenus(containingMenu);
 });
 for (const menu of legacyMenus) {
+  const summary = legacyMenuSummary(menu);
+  summary?.setAttribute("aria-expanded", String(menu.open));
   menu.addEventListener("toggle", () => {
-    if (menu.open) closeLegacyMenus(menu);
+    summary?.setAttribute("aria-expanded", String(menu.open));
+    if (menu.open) {
+      closeLegacyMenus(menu);
+      activeLegacyMenu = menu;
+      positionLegacyMenu(menu);
+    } else if (activeLegacyMenu === menu) activeLegacyMenu = null;
   });
   menu.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    menu.open = false;
-    const summary = menu.querySelector<HTMLElement>("summary");
-    summary?.focus();
+    const items = legacyMenuItems(menu);
+    const itemIndex = event.target instanceof HTMLElement ? items.indexOf(event.target) : -1;
+    if (event.target === summary) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        menu.open = false;
+        summary?.focus();
+      } else if (["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        openLegacyMenu(menu, event.key === "ArrowUp" ? "last" : "first");
+      } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+        event.preventDefault();
+        moveBetweenLegacyMenus(menu, event.key === "ArrowRight" ? 1 : -1);
+      } else if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        const summaries = siblingMenuSummaries(menu);
+        (event.key === "Home" ? summaries[0] : summaries.at(-1))?.focus();
+      }
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      menu.open = false;
+      summary?.focus();
+      return;
+    }
+    if (event.key === "Tab") {
+      menu.open = false;
+      return;
+    }
+    if (itemIndex >= 0 && ["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+      event.preventDefault();
+      const nextIndex = event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? items.length - 1
+          : (itemIndex + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+      items[nextIndex]?.focus();
+    } else if (itemIndex >= 0 && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
+      event.preventDefault();
+      moveBetweenLegacyMenus(menu, event.key === "ArrowRight" ? 1 : -1);
+    }
   });
 }
+window.addEventListener("resize", () => { if (activeLegacyMenu) positionLegacyMenu(activeLegacyMenu); });
+document.addEventListener("scroll", () => { if (activeLegacyMenu) positionLegacyMenu(activeLegacyMenu); }, true);
 for (const button of document.querySelectorAll<HTMLElement>("[data-menu-message]")) {
   button.addEventListener("click", () => {
     requiredElement("#main-menu-status").textContent = button.dataset.menuMessage ?? "";

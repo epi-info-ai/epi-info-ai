@@ -12,10 +12,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=65" />
+    <link rel="stylesheet" href="styles.css?v=67" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
-    <script src="shell.js?v=4" defer></script>
-    <script type="module" src="app.js?v=111"></script>
+    <script src="shell.js?v=5" defer></script>
+    <script type="module" src="app.js?v=113"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -334,7 +334,7 @@
               <input id="form-csv-import" class="sr-only" type="file" accept=".csv,.tsv,.json,.xlsx,text/csv,text/tab-separated-values,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
               <button id="save-form" type="button">Save Form</button>
               <label class="toolbar-toggle" for="snap-to-grid"><input id="snap-to-grid" type="checkbox" checked /> Snap to Grid</label>
-              <button type="button" disabled>Check Code</button>
+              <button id="designer-toolbar-check-code" type="button">Check Code</button>
               <button id="designer-enter-data" type="button" data-open-module="data">Enter Data</button>
               <button id="restore-demo" class="danger-text" type="button">Restore Example</button>
             </div>
@@ -2106,6 +2106,44 @@
           <button class="dialog-primary" type="submit">OK</button>
           <button type="button" data-close-field-rules>Cancel</button>
         </div>
+      </form>
+    </dialog>
+
+    <dialog id="check-code-editor-dialog" class="legacy-dialog check-code-editor-dialog" aria-labelledby="check-code-editor-title">
+      <form id="check-code-editor-form">
+        <div class="legacy-dialog-titlebar">
+          <strong id="check-code-editor-title">Check Code Editor</strong>
+          <button type="button" data-close-check-code-editor aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p class="dialog-note">Legacy Form, Record, Page, and Field event source is parsed into a typed AST. The bounded runtime validates every reference before Apply, executes events in deterministic order, and disables the entire program when any statement is unsafe or unsupported.</p>
+          <div class="check-code-file-actions" aria-label="Check Code file actions">
+            <button id="check-code-new" type="button">New</button>
+            <button id="check-code-open" type="button">Open .chk...</button>
+            <button id="check-code-save" type="button">Save .chk...</button>
+            <input id="check-code-file" class="sr-only" type="file" accept=".chk,.txt,text/plain" />
+          </div>
+          <label for="check-code-source">Check Code</label>
+          <textarea id="check-code-source" rows="20" spellcheck="false" wrap="off"></textarea>
+          <p id="check-code-editor-status" class="dialog-note" role="status" aria-live="polite">Source has not been verified.</p>
+          <ul id="check-code-editor-diagnostics" class="check-code-diagnostics"></ul>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button id="check-code-verify" type="button">Verify Source</button>
+          <button id="check-code-apply" class="dialog-primary" type="submit" disabled>Apply Check Code</button>
+          <button type="button" data-close-check-code-editor>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="check-code-message-dialog" class="legacy-dialog check-code-message-dialog" aria-labelledby="check-code-message-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="check-code-message-title">Check Code Message</strong>
+          <button value="cancel" aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body"><p id="check-code-message"></p></div>
+        <div class="legacy-dialog-actions"><button class="dialog-primary" value="ok" autofocus>OK</button></div>
       </form>
     </dialog>
 

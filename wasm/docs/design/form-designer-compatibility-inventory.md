@@ -28,10 +28,10 @@ narrow this floor.
 | LEGACY-FORM-002 | Drag fields onto a dotted canvas and position them | MakeView canvas and mediator | Drag/drop canvas with optional snapping | Parity in progress; add selection, resizing, keyboard movement, ordering, and reviewed mobile adaptation. |
 | LEGACY-FORM-003 | Field definitions and type-specific attributes | `FieldDefinitionDialogs/` | Name, prompt, type, required, range, pattern, legal/comment-legal, unique, tab-stop, and calculated age | Preserve remaining read-only, repeat-last, groups, type-specific attributes, and legacy edge cases. |
 | LEGACY-FORM-004 | Tab order, Set First Tab, and Enable/Disable Tab | `HasTabStop`, `TabIndex`, and MakeView tab-order context menu | Schema order and per-field tab-stop | Preserve explicit ordering commands and reviewed keyboard behavior; disabling a tab does not hide or delete the field. |
-| LEGACY-FORM-005 | Check Code editor with field/view/page/record events | Check Code editor, grammar, and metadata Before/After/Click blocks | Rules dialog authors one typed After statement; imported legacy source is preserved only | Preserve learned full editor path and broader reviewed event/language compatibility. |
-| LEGACY-FORM-006 | Unconditional and conditional skip patterns | `GOTO`, `GOTOPAGE`, `GOTOFORM`, `IF/THEN/ELSE`; Enter runtime focus/page navigation | Same-form unconditional/equality `GOTO`, target validation, and cycle rejection | Field slice implemented; page/form targets, ELSE/composition, and full event semantics remain open. |
-| LEGACY-FORM-007 | Dynamic field state | `HIDE/UNHIDE`, `ENABLE/DISABLE`, `SET-REQUIRED/SET-NOT-REQUIRED`, group targeting | Allowlisted field-level actions in an After event | Field slice implemented; groups, multiple statements, event reset semantics, and broader compatibility remain open. |
-| LEGACY-FORM-008 | Verify Check Code and reject invalid references | parser validation and command-variable checks | Author/restore validation, same-form references, tab-stop target rules, statement limit, and GOTO cycle checks | Expand diagnostics and add compatibility fixtures for the remaining language. |
+| LEGACY-FORM-005 | Check Code editor with field/view/page/record events | Check Code editor, grammar, and metadata Before/After/Click blocks | Dedicated source editor, `.chk` open/save, typed AST, and bounded Form → Page → Record → Field Before/After/Click runtime | Event structure is restored for the disclosed subset; expand source-level legacy grammar and experienced-user differential review before parity. |
+| LEGACY-FORM-006 | Unconditional and conditional skip patterns | `GOTO`, `GOTOPAGE`, `GOTOFORM`, `IF/THEN/ELSE`; Enter runtime focus/page navigation | Same-form `GOTO`, composed `IF/ELSE`, reference validation, static cycle rejection, and per-record navigation budget | Same-form field navigation candidate complete; `GOTOPAGE`, `GOTOFORM`, multi-page rendering, and legacy timing review remain open. |
+| LEGACY-FORM-007 | Dynamic field state | `HIDE/UNHIDE`, `ENABLE/DISABLE`, `SET-REQUIRED/SET-NOT-REQUIRED`, group targeting | Allowlisted field actions execute in bounded event blocks, including wildcard expansion | Field actions candidate complete; groups and exact legacy reset/timing semantics require recovery and review. |
+| LEGACY-FORM-008 | Verify Check Code and reject invalid references | parser validation and command-variable checks | Whole-program verification validates fields/variables, duplicate scopes/names, statement limits, and GOTO cycles; any gap disables Apply | Add broader legacy grammar fixtures and line/column editor diagnostics; never partially execute rejected source. |
 | LEGACY-FORM-009 | Preview/test through Enter Data | MakeView-to-Enter workflow | Form Designer opens Enter Data | Preserve schema order and validation behavior across both modules. |
 | LEGACY-FORM-010 | Create/import forms from existing data | legacy project/data adapters | CSV, TSV, JSON records, and `.xlsx` adapters | New browser branch under the familiar form-creation workflow; legacy project/data adapters remain open. |
 | LEGACY-FORM-011 | Phone form-design workflow | No equivalent desktop-era layout | Wide canvas currently overflows narrow screens | New responsive adaptation: retain the old tree and canvas on wide screens; use focused explorer/canvas/properties views on phones. |
@@ -51,14 +51,17 @@ two ways:
 
 For the browser, tab-stop metadata therefore belongs to field presentation and
 navigation. Safe `GOTO` belongs to a versioned Check Code contract, not the field
-validation-rule union. The first allowlisted subset is field `After` event,
-optional equals/not-equals condition on that field, and same-form field target.
+validation-rule union. The current allowlisted subset covers Form, one or more
+named Page blocks, Record, and Field `Before`/`After` plus Field `Click`; typed
+definitions, equality and inequality `IF/ELSE`, `ASSIGN`, `CLEAR`, same-form
+`GOTO`, field-state actions, message `DIALOG`, and governed `GEOCODE` are
+supported.
 
 ## Safety and compatibility requirements
 
 - A target must exist in the same saved schema before the rule can run.
-- A navigation action may run at most once for a single field-leave event.
-- Self-targets are rejected and cycles are diagnosed before saving the form.
+- Navigation is limited to 16 effects per event and 32 effects per record session.
+- Self-targets and multi-field cycles are diagnosed before saving the form.
 - Hidden, disabled, or non-tab-stop targets require explicit future semantics;
   the initial subset does not silently redirect around them.
 - Imported or restored rules are runtime-validated before use.
@@ -78,5 +81,6 @@ optional equals/not-equals condition on that field, and same-form field target.
 - Geo-location template contract, explicit result selection, coordinate precision,
   failure-without-mutation behavior, and Case Cluster field handoff.
 
-Phase 4 completes the tested browser-safe vertical slice without declaring any
-`LEGACY-FORM-*` gap parity-complete.
+Phase 4 now includes a tested browser-safe event runtime and durable audit trail,
+without declaring the unimplemented legacy grammar or multi-page/form navigation
+parity-complete.

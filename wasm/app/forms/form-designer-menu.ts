@@ -109,7 +109,7 @@ export const FORM_DESIGNER_MENUS: readonly FormDesignerTopMenu[] = [
   },
   {
     key: "tools", label: "Tools", entries: [
-      gap("data-dictionary", "Data Dictionary"), gap("check-code", "Check Code Editor"), separator,
+      gap("data-dictionary", "Data Dictionary"), command("check-code", "Check Code Editor...", "designer-check-code"), separator,
       gap("import-epi6-rec", "Import Epi 6 Rec File"), gap("import-check-code", "Import Check Code"),
       gap("make-form-data-table", "Make Form from Data Table"),
       {

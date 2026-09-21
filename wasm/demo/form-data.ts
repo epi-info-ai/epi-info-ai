@@ -57,6 +57,7 @@ import {
   renderEntryForm as renderEntryFormView,
   renderEntryValidation,
   renderRecords as renderRecordList,
+  runGeocode,
   setEntryView,
 } from "../app/forms/entry-view.ts";
 import { loadProjectSnapshot } from "../app/forms/project-state.ts";
@@ -69,6 +70,8 @@ import { createSecureShareReceiver, createSecureShareSender } from "../app/share
 import { renderFormDesignerMenuContract } from "../app/forms/form-designer-menu.ts";
 import { renderEnterDataMenuContract } from "../app/forms/enter-data-menu.ts";
 import { buildDataQualityReport, type DuplicateGroup } from "../app/forms/data-quality.ts";
+import { compileFieldCheckCodeSubset, parseCheckCodeProgram, serializeFieldCheckCodeSubset, type CheckCodeCompileResult, type CheckCodeEvent, type CheckCodeProgramAst, type CheckCodeScope } from "../app/check-code/check-code-program.ts";
+import { createCheckCodeRuntime, type CheckCodeRuntime, type CheckCodeRuntimeAudit } from "../app/check-code/check-code-runtime.ts";
 import { materializeCalculatedFields, validateProjectRecords, validateRecord, validateRecords } from "../app/forms/validation.ts";
 import {
   loadBrowserJson as loadJson,
@@ -148,6 +151,12 @@ const DEFAULT_SCHEMA: FormSchema = {
 };
 
 let schema: FormSchema = loadJson(SCHEMA_KEY, DEFAULT_SCHEMA);
+let verifiedCheckCode: CheckCodeCompileResult | null = null;
+let activeCheckCodeAst: CheckCodeProgramAst | null = null;
+let activeCheckCodeRuntime: CheckCodeRuntime | null = null;
+let checkCodeQueue: Promise<void> = Promise.resolve();
+let checkCodeEntrySessionStarted = false;
+let checkCodeEntryListeners: AbortController | null = null;
 let records: EpiRecord[] = loadJson<EpiRecord[]>(RECORDS_KEY, []);
 let projectName = loadText(PROJECT_KEY, "Browser Project");
 let snapToGrid = loadText(SNAP_KEY, "true") !== "false";
@@ -737,7 +746,7 @@ function schemaFromDesigner(options: { allowEmpty?: boolean } = {}): FormSchema 
     const rules = JSON.parse(row.dataset.rules || "[]") as FieldValidationRule[];
     if (rules.length > 0) field.rules = rules;
     const checkCode = JSON.parse(row.dataset.checkCode || "{}") as FieldCheckCode;
-    if ((checkCode.after?.length ?? 0) > 0) field.checkCode = checkCode;
+    if ((checkCode.after?.length ?? 0) > 0 || (checkCode.click?.length ?? 0) > 0) field.checkCode = checkCode;
     return field;
   });
   if (fields.length === 0 && !options.allowEmpty) {
@@ -753,7 +762,74 @@ function schemaFromDesigner(options: { allowEmpty?: boolean } = {}): FormSchema 
   return {
     name: requiredElement("#form-name").value.trim() || "Untitled form",
     fields,
+    ...(schema.checkCodeProgram ? { checkCodeProgram: structuredClone(schema.checkCodeProgram) } : {}),
   };
+}
+
+function openCheckCodeEditor(): void {
+  try { schema = schemaFromDesigner(); }
+  catch (error) {
+    requiredElement("#form-status").textContent = error instanceof Error ? error.message : "Complete the form fields before editing Check Code.";
+    return;
+  }
+  const source = schema.checkCodeProgram?.source ?? serializeFieldCheckCodeSubset(schema);
+  requiredElement<HTMLTextAreaElement>("#check-code-source").value = source;
+  requiredElement("#check-code-editor-status").textContent = "Source has not been verified. Nothing executes from this editor until verification and Apply.";
+  requiredElement("#check-code-editor-diagnostics").replaceChildren();
+  requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
+  verifiedCheckCode = null;
+  requiredElement<HTMLDialogElement>("#check-code-editor-dialog").showModal();
+  requiredElement<HTMLTextAreaElement>("#check-code-source").focus();
+}
+
+function verifyCheckCodeEditor(): void {
+  const status = requiredElement("#check-code-editor-status");
+  const diagnostics = requiredElement("#check-code-editor-diagnostics");
+  try {
+    const ast = parseCheckCodeProgram(requiredElement<HTMLTextAreaElement>("#check-code-source").value);
+    const candidate = schemaFromDesigner();
+    const compiled = compileFieldCheckCodeSubset(ast, candidate);
+    verifiedCheckCode = compiled;
+    diagnostics.replaceChildren(...compiled.reasons.map((reason) => {
+      const item = document.createElement("li");
+      item.textContent = reason;
+      return item;
+    }));
+    requiredElement<HTMLButtonElement>("#check-code-apply").disabled = !compiled.executable;
+    status.textContent = compiled.executable
+      ? `Valid typed AST: ${ast.blocks.length} scope block${ast.blocks.length === 1 ? "" : "s"}; the complete source is executable by the bounded event runtime.`
+      : `Valid typed AST, but execution remains disabled for this source because ${compiled.reasons.length} capability gap${compiled.reasons.length === 1 ? " remains" : "s remain"}.`;
+  } catch (error) {
+    verifiedCheckCode = null;
+    requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
+    diagnostics.replaceChildren();
+    status.textContent = error instanceof Error ? error.message : "Check Code verification failed.";
+  }
+}
+
+function applyCheckCodeEditor(): void {
+  if (!verifiedCheckCode?.executable) throw new Error("Verify an entirely executable Check Code program before applying it.");
+  const source = requiredElement<HTMLTextAreaElement>("#check-code-source").value;
+  schema = schemaFromDesigner();
+  schema.checkCodeProgram = { version: 1, language: "epi-info-check-code", source };
+  schema.fields = schema.fields.map((field) => {
+    const checkCode = verifiedCheckCode?.fieldCheckCode.get(field.name);
+    const result = { ...field };
+    if (checkCode) result.checkCode = structuredClone(checkCode);
+    else delete result.checkCode;
+    return result;
+  });
+  validateProjectSnapshot({
+    ...structuredClone(projectState),
+    currentFormId,
+    forms: projectState.forms.map((form) => form.id === currentFormId ? { ...structuredClone(form), schema, records: structuredClone(records) } : structuredClone(form)),
+  });
+  renderDesigner();
+  renderEntryForm();
+  renderRecords();
+  syncCurrentForm();
+  requiredElement<HTMLDialogElement>("#check-code-editor-dialog").close("apply");
+  requiredElement("#form-status").textContent = "Verified Check Code applied. Save Form to persist the typed event program and field actions.";
 }
 
 function validatedDesignerSchema(): FormSchema {
@@ -1214,8 +1290,165 @@ function geolocationTemplateFields(): FieldDefinition[] {
   ];
 }
 
+function entryControl(name: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null {
+  const control = requiredElement<HTMLFormElement>("#record-form").elements.namedItem(name);
+  return control instanceof HTMLInputElement || control instanceof HTMLSelectElement
+    || control instanceof HTMLTextAreaElement || control instanceof HTMLButtonElement ? control : null;
+}
+
+function showCheckCodeMessage(message: string, signal?: AbortSignal): Promise<void> {
+  const dialog = requiredElement<HTMLDialogElement>("#check-code-message-dialog");
+  requiredElement("#check-code-message").textContent = message;
+  if (dialog.open) dialog.close("replaced");
+  dialog.showModal();
+  return new Promise<void>((resolve, reject) => {
+    const finish = (): void => {
+      signal?.removeEventListener("abort", cancel);
+      resolve();
+    };
+    const cancel = (): void => {
+      dialog.removeEventListener("close", finish);
+      if (dialog.open) dialog.close("cancelled");
+      reject(new DOMException("Check Code execution was cancelled.", "AbortError"));
+    };
+    dialog.addEventListener("close", finish, { once: true });
+    signal?.addEventListener("abort", cancel, { once: true });
+  });
+}
+
+function recordCheckCodeAudit(event: CheckCodeRuntimeAudit): void {
+  if (event.statements === 0) return;
+  const occurredAt = new Date().toISOString();
+  projectState.auditLog ??= [];
+  projectState.auditLog.push({
+    id: lifecycleId("audit"), occurredAt, action: "check-code-executed", formId: currentFormId,
+    archiveId: `check-code:${event.scope}:${event.event}:${event.name ?? ""}`,
+    detail: `Check Code ${event.scope}${event.name ? ` ${event.name}` : ""} ${event.event}: ${event.status}; ${event.statements} statement${event.statements === 1 ? "" : "s"}, ${event.effects} bounded effect${event.effects === 1 ? "" : "s"}.${event.diagnostic ? ` ${event.diagnostic}` : ""}`,
+  });
+  if (projectState.auditLog.length > 500) projectState.auditLog.splice(0, projectState.auditLog.length - 500);
+  syncCurrentForm();
+}
+
+let checkCodeSessionNavigations = 0;
+
+function initializeCheckCodeRuntime(): void {
+  activeCheckCodeAst = null;
+  activeCheckCodeRuntime = null;
+  checkCodeEntrySessionStarted = false;
+  checkCodeSessionNavigations = 0;
+  const source = schema.checkCodeProgram?.source;
+  if (!source) return;
+  try {
+    const ast = parseCheckCodeProgram(source);
+    const compiled = compileFieldCheckCodeSubset(ast, schema);
+    if (!compiled.executable) throw new Error(compiled.reasons.join(" "));
+    activeCheckCodeAst = ast;
+    activeCheckCodeRuntime = createCheckCodeRuntime(ast, schema, {
+      readField(name) {
+        const control = entryControl(name);
+        if (control instanceof HTMLInputElement && control.type === "checkbox") return control.checked;
+        return control && "value" in control ? control.value : null;
+      },
+      writeField(name, value) {
+        const control = entryControl(name);
+        if (!control || control instanceof HTMLButtonElement) return;
+        if (control instanceof HTMLInputElement && control.type === "checkbox") control.checked = value === true || /^(?:true|yes|1)$/i.test(String(value ?? ""));
+        else control.value = value === null ? "" : String(value);
+        control.dispatchEvent(new Event("input", { bubbles: true }));
+      },
+      applyFieldAction(action, name) {
+        const control = entryControl(name);
+        if (!control) return;
+        const wrapper = control.closest<HTMLElement>(".record-field");
+        if (action === "enable") control.disabled = false;
+        else if (action === "disable") control.disabled = true;
+        else if (action === "hide" && wrapper) { wrapper.hidden = true; control.disabled = true; }
+        else if (action === "unhide" && wrapper) { wrapper.hidden = false; control.disabled = false; }
+        else if (action === "set-required" && !(control instanceof HTMLButtonElement)) control.required = true;
+        else if (action === "set-not-required" && !(control instanceof HTMLButtonElement)) control.required = false;
+      },
+      gotoField(name) {
+        checkCodeSessionNavigations += 1;
+        if (checkCodeSessionNavigations > 32) throw new RangeError("Check Code stopped a probable navigation cycle after 32 GOTO effects in this record session.");
+        globalThis.setTimeout(() => {
+          entryControl(name)?.focus();
+          requiredElement("#record-status").textContent = `Check Code moved to ${name}.`;
+        }, 0);
+      },
+      showDialog: showCheckCodeMessage,
+      async runGeocode(addressField, latitudeField, longitudeField) {
+        const block = ast.blocks.find((candidate) => candidate.scope === "field"
+          && candidate.events.click?.some((statement) => statement.kind === "geocode"
+            && statement.addressField === addressField && statement.latitudeField === latitudeField && statement.longitudeField === longitudeField));
+        const button = block?.name ? entryControl(block.name) : null;
+        if (!(button instanceof HTMLButtonElement)) throw new Error("The GEOCODE command button is unavailable.");
+        await runGeocode({ kind: "geocode", addressField, latitudeField, longitudeField }, button);
+      },
+      audit: recordCheckCodeAudit,
+    });
+  } catch (error) {
+    requiredElement("#record-status").textContent = `Saved Check Code is disabled: ${error instanceof Error ? error.message : "verification failed"}`;
+  }
+}
+
+function hasCheckCodeEvent(scope: CheckCodeScope, event: CheckCodeEvent, name?: string): boolean {
+  return activeCheckCodeAst?.blocks.some((block) => block.scope === scope
+    && (block.name ?? "").toLocaleLowerCase("en-US") === (name ?? "").toLocaleLowerCase("en-US")
+    && (block.events[event]?.length ?? 0) > 0) ?? false;
+}
+
+async function runCheckCodeEvent(scope: CheckCodeScope, event: CheckCodeEvent, name?: string): Promise<void> {
+  if (!activeCheckCodeRuntime || !hasCheckCodeEvent(scope, event, name)) return;
+  const result = await activeCheckCodeRuntime.run(scope, event, name);
+  requiredElement("#record-status").textContent = `Check Code ${scope}${name ? ` ${name}` : ""} ${event} completed (${result.effects} bounded effect${result.effects === 1 ? "" : "s"}).`;
+}
+
+function queueCheckCodeEvent(scope: CheckCodeScope, event: CheckCodeEvent, name?: string): Promise<void> {
+  checkCodeQueue = checkCodeQueue.then(() => runCheckCodeEvent(scope, event, name)).catch((error) => {
+    requiredElement("#record-status").textContent = error instanceof Error ? error.message : "Check Code execution failed.";
+  });
+  return checkCodeQueue;
+}
+
+async function beginCheckCodeEntrySession(): Promise<void> {
+  if (!activeCheckCodeRuntime || checkCodeEntrySessionStarted) return;
+  checkCodeEntrySessionStarted = true;
+  checkCodeSessionNavigations = 0;
+  activeCheckCodeRuntime.resetStandardVariables();
+  await runCheckCodeEvent("form", "before");
+  for (const block of activeCheckCodeAst?.blocks.filter(({ scope }) => scope === "page") ?? []) await runCheckCodeEvent("page", "before", block.name);
+  await runCheckCodeEvent("record", "before");
+}
+
+async function endCheckCodeEntrySession(): Promise<void> {
+  if (!activeCheckCodeRuntime || !checkCodeEntrySessionStarted) return;
+  await runCheckCodeEvent("record", "after");
+  for (const block of [...(activeCheckCodeAst?.blocks.filter(({ scope }) => scope === "page") ?? [])].reverse()) await runCheckCodeEvent("page", "after", block.name);
+  await runCheckCodeEvent("form", "after");
+  checkCodeEntrySessionStarted = false;
+}
+
 function renderEntryForm() {
   renderEntryFormView(schema);
+  initializeCheckCodeRuntime();
+  const form = requiredElement<HTMLFormElement>("#record-form");
+  checkCodeEntryListeners?.abort();
+  checkCodeEntryListeners = new AbortController();
+  const listenerOptions = { signal: checkCodeEntryListeners.signal };
+  form.addEventListener("focusin", (event) => {
+    const name = event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement
+      || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLButtonElement ? event.target.name : "";
+    if (name) void queueCheckCodeEvent("field", "before", name);
+  }, listenerOptions);
+  form.addEventListener("focusout", (event) => {
+    const name = event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement
+      || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLButtonElement ? event.target.name : "";
+    if (name) void queueCheckCodeEvent("field", "after", name);
+  }, listenerOptions);
+  form.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button[name]") : null;
+    if (button?.name) void queueCheckCodeEvent("field", "click", button.name);
+  }, listenerOptions);
 }
 
 function renderRecords() {
@@ -1412,7 +1645,12 @@ function showModule(name: string): void {
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   }
-  if (name === "data") setEntryView("entry");
+  if (name === "data") {
+    setEntryView("entry");
+    checkCodeQueue = checkCodeQueue.then(beginCheckCodeEntrySession).catch((error) => {
+      requiredElement("#record-status").textContent = error instanceof Error ? error.message : "Check Code entry initialization failed.";
+    });
+  }
 }
 
 function showMainMenu() {
@@ -2038,6 +2276,54 @@ export function initializeFormDataDemo() {
     requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
     requiredElement<HTMLButtonElement>("#new-project").click();
   });
+  requiredElement("#designer-check-code").addEventListener("click", openCheckCodeEditor);
+  requiredElement("#designer-toolbar-check-code").addEventListener("click", openCheckCodeEditor);
+  requiredElement("#check-code-verify").addEventListener("click", verifyCheckCodeEditor);
+  requiredElement("#check-code-new").addEventListener("click", () => {
+    requiredElement<HTMLTextAreaElement>("#check-code-source").value = "*** New Epi Info Check Code program\n";
+    verifiedCheckCode = null;
+    requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
+    requiredElement("#check-code-editor-diagnostics").replaceChildren();
+    requiredElement("#check-code-editor-status").textContent = "New source created; verify it before applying.";
+  });
+  requiredElement("#check-code-open").addEventListener("click", () => requiredElement<HTMLInputElement>("#check-code-file").click());
+  requiredElement<HTMLInputElement>("#check-code-file").addEventListener("change", async (event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > 100_000) throw new RangeError("Check Code source exceeds 100,000 characters.");
+      requiredElement<HTMLTextAreaElement>("#check-code-source").value = await file.text();
+      verifiedCheckCode = null;
+      requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
+      requiredElement("#check-code-editor-diagnostics").replaceChildren();
+      requiredElement("#check-code-editor-status").textContent = `Opened ${file.name}; verify it before applying.`;
+    } catch (error) {
+      requiredElement("#check-code-editor-status").textContent = error instanceof Error ? error.message : "Unable to open Check Code source.";
+    } finally { input.value = ""; }
+  });
+  requiredElement("#check-code-save").addEventListener("click", () => {
+    const blob = new Blob([requiredElement<HTMLTextAreaElement>("#check-code-source").value], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${safeFileStem(schema.name)}.chk`;
+    link.click();
+    globalThis.setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    requiredElement("#check-code-editor-status").textContent = `Saved ${link.download}. Saving a file does not apply or execute it.`;
+  });
+  requiredElement("#check-code-source").addEventListener("input", () => {
+    verifiedCheckCode = null;
+    requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
+    requiredElement("#check-code-editor-status").textContent = "Source changed; verify it again before applying.";
+  });
+  requiredElement("#check-code-editor-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    try { applyCheckCodeEditor(); }
+    catch (error) { requiredElement("#check-code-editor-status").textContent = error instanceof Error ? error.message : "Unable to apply Check Code."; }
+  });
+  for (const button of requiredElements("[data-close-check-code-editor]")) {
+    button.addEventListener("click", () => requiredElement<HTMLDialogElement>("#check-code-editor-dialog").close("cancel"));
+  }
   requiredElement("#designer-new-form").addEventListener("click", () => requiredElement<HTMLButtonElement>("#new-form").click());
   requiredElement("#designer-project-storage").addEventListener("click", () => {
     requiredElement<HTMLDetailsElement>("#designer-file-menu").open = false;
@@ -2625,8 +2911,14 @@ export function initializeFormDataDemo() {
   });
 
   const recordForm = requiredElement<HTMLFormElement>("#record-form");
-  recordForm.addEventListener("submit", (event) => {
+  recordForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    await checkCodeQueue;
+    try { await endCheckCodeEntrySession(); }
+    catch (error) {
+      requiredElement("#record-status").textContent = error instanceof Error ? `Record not saved. ${error.message}` : "Record not saved because Check Code failed.";
+      return;
+    }
     const record = materializeCalculatedFields(schema, collectEntryRecord(recordForm, schema));
     const validationIssues = validateRecord(currentFormId, schema, record, records.length, records);
     renderEntryValidation(validationIssues);
@@ -2643,12 +2935,15 @@ export function initializeFormDataDemo() {
     renderEntryValidation([]);
     requiredElement("#new-record-title").textContent = "New record";
     requiredElement("#record-status").textContent = "Record saved locally.";
+    await beginCheckCodeEntrySession();
   });
 
   requiredElement("#reset-record").addEventListener("click", () => {
     requiredElement("#new-record-title").textContent = "New record";
     requiredElement("#record-status").textContent = "";
     renderEntryValidation([]);
+    checkCodeEntrySessionStarted = false;
+    globalThis.setTimeout(() => { void beginCheckCodeEntrySession(); }, 0);
   });
 
   requiredElement("#csv-export").addEventListener("click", exportCsv);
