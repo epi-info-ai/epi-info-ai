@@ -56,14 +56,24 @@ function positionLegacyMenu(menu: HTMLDetailsElement): void {
   const margin = 8;
   const trigger = summary.getBoundingClientRect();
   const popupBox = popup.getBoundingClientRect();
-  const availableBelow = Math.max(0, window.innerHeight - trigger.bottom - margin);
-  const availableAbove = Math.max(0, trigger.top - margin);
+  const requestedAnchorX = Number(menu.dataset.legacyMenuAnchorX);
+  const requestedAnchorY = Number(menu.dataset.legacyMenuAnchorY);
+  delete menu.dataset.legacyMenuAnchorX;
+  delete menu.dataset.legacyMenuAnchorY;
+  const hasPointerAnchor = Number.isFinite(requestedAnchorX) && Number.isFinite(requestedAnchorY);
+  const anchorTop = Math.max(margin, Math.min(hasPointerAnchor ? requestedAnchorY : trigger.top, window.innerHeight - margin));
+  const anchorBottom = Math.max(margin, Math.min(hasPointerAnchor ? requestedAnchorY : trigger.bottom, window.innerHeight - margin));
+  const availableBelow = Math.max(0, window.innerHeight - anchorBottom - margin);
+  const availableAbove = Math.max(0, anchorTop - margin);
   const placeAbove = availableBelow < Math.min(240, popup.scrollHeight) && availableAbove > availableBelow;
   const availableHeight = Math.max(96, placeAbove ? availableAbove : availableBelow);
+  const renderedHeight = Math.min(popup.scrollHeight, availableHeight);
   const top = placeAbove
-    ? Math.max(margin, trigger.top - Math.min(popup.scrollHeight, availableHeight))
-    : Math.min(window.innerHeight - margin, trigger.bottom);
-  const preferredLeft = menu.classList.contains("legacy-menu-right") ? trigger.right - popupBox.width : trigger.left;
+    ? Math.max(margin, anchorTop - renderedHeight)
+    : Math.max(margin, Math.min(anchorBottom, window.innerHeight - margin - renderedHeight));
+  const anchorLeft = hasPointerAnchor ? requestedAnchorX : trigger.left;
+  const anchorRight = hasPointerAnchor ? requestedAnchorX : trigger.right;
+  const preferredLeft = menu.classList.contains("legacy-menu-right") ? anchorRight - popupBox.width : anchorLeft;
   const left = Math.max(margin, Math.min(preferredLeft, window.innerWidth - popupBox.width - margin));
   popup.style.right = "auto";
   popup.style.top = `${Math.round(top)}px`;

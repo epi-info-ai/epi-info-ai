@@ -187,8 +187,8 @@ assert.equal(createHash("sha256").update(engineBytes).digest("hex"), engineManif
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
-assert.match(html, /src=["']app\.js\?v=113["']/);
-assert.match(html, /href=["']styles\.css\?v=67["']/);
+assert.match(html, /src=["']app\.js\?v=114["']/);
+assert.match(html, /href=["']styles\.css\?v=68["']/);
 assert.match(html, /id=["']app-version["'][^>]*>v0\.1\.0</);
 assert.match(html, /id=["']example-project-dialog["']/);
 assert.match(html, /id=["']teaching-repository-dialog["']/);

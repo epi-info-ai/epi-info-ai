@@ -1708,6 +1708,11 @@ select {
   border-bottom: 1px solid #abb8c0;
 }
 
+.designer-menu {
+  position: relative;
+  z-index: 41;
+}
+
 .designer-menu button,
 .designer-toolbar button,
 .toolbar-file-button,

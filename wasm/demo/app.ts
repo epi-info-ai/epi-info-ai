@@ -2912,6 +2912,9 @@ requiredElement("#dashboard-toolbar-commands").addEventListener("click", (event)
 requiredElement("#dashboard-canvas").addEventListener("contextmenu", (event) => {
   event.preventDefault();
   const menu = requiredElement<HTMLDetailsElement>("#dashboard-canvas-menu");
+  const pointer = event instanceof MouseEvent ? event : null;
+  menu.dataset.legacyMenuAnchorX = String(pointer?.clientX ?? window.innerWidth / 2);
+  menu.dataset.legacyMenuAnchorY = String(pointer?.clientY ?? window.innerHeight / 2);
   menu.open = true;
   menu.querySelector<HTMLElement>("summary")?.focus();
   requiredElement("#dashboard-command-status").textContent = "Canvas commands opened. Choose a familiar gadget or canvas operation.";

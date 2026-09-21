@@ -3630,11 +3630,13 @@ test("Program Editor safely runs the taught age-group RECODE and records history
   await page.locator("#view-menu summary").click();
   await page.locator("#view-program-line-numbers").click();
   await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeHidden();
+  await page.locator("#view-menu summary").click();
   await page.locator("#view-program-line-numbers").click();
   await expect(page.locator("#classic-program-source .cm-lineNumbers")).toBeVisible();
-  await page.locator('[data-program-tab-size="8"]').click();
-  await page.locator("#view-program-indent-tabs").click();
   await page.locator("#view-menu summary").click();
+  await page.locator('[data-program-tab-size="8"]').click();
+  await page.locator("#view-menu summary").click();
+  await page.locator("#view-program-indent-tabs").click();
   await expect(page.locator("#classic-program-tab-status")).toHaveText("Tab width 8 · Spaces");
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("epi-info-ai.program-editor-preferences.v1")))).toEqual({
     lineNumbers: true,
