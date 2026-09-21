@@ -1,0 +1,18 @@
+option,geography_level,geography_id,total_records,sex_available,sex_female,sex_male,sex_unknown_or_missing,age_available,age_under_1,age_1_4,age_5_14,age_15_24,age_25_44,age_45,age_unknown,lab_available,lab_positive,lab_negative,lab_other,lab_missing,doses_available,doses_0,doses_1,doses_2,doses_unknown_or_missing,case_definition_available,case_definition_yes,case_definition_no,case_definition_unknown_or_missing,onset_year_available,onset_year_2017,onset_year_2018,onset_year_2019,onset_year_2020,onset_year_2021,onset_year_2022,onset_year_2023,onset_year_unknown
+district_only,district_aggregate,Bo District,34,yes,16,18,0,no,,,,,,,,no,,,,,yes,13,7,6,8,yes,26,0,8,yes,0,0,0,0,0,0,0,34
+district_only,district_aggregate,Bombali District,24,yes,12,12,0,no,,,,,,,,yes,9,6,0,9,no,,,,,no,,,,yes,0,0,0,0,0,0,0,24
+district_only,district_aggregate,Bonthe District,20,yes,8,12,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,20
+district_only,district_aggregate,District unavailable,464,no,,,,no,,,,,,,,no,,,,,yes,47,19,8,390,no,,,,yes,0,0,0,0,0,0,0,464
+district_only,district_aggregate,Falaba District,38,yes,16,22,0,no,,,,,,,,no,,,,,no,,,,,yes,23,0,15,yes,0,0,0,0,0,0,0,38
+district_only,district_aggregate,Kailahun District,56,yes,33,23,0,yes,8,32,11,5,0,0,0,yes,5,17,0,34,no,,,,,no,,,,yes,0,0,0,0,0,0,0,56
+district_only,district_aggregate,Kambia District,310,yes,146,164,0,yes,43,182,61,13,11,0,0,no,,,,,no,,,,,yes,77,0,233,yes,0,0,0,0,0,0,0,310
+district_only,district_aggregate,Karene District,67,yes,32,35,0,no,,,,,,,,no,,,,,no,,,,,yes,9,0,58,yes,0,0,0,0,0,0,0,67
+district_only,district_aggregate,Kenema District,21,yes,11,10,0,no,,,,,,,,no,,,,,yes,5,6,0,10,yes,15,0,6,yes,0,0,0,0,0,0,0,21
+district_only,district_aggregate,Koinadugu District,25,yes,9,16,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,25
+district_only,district_aggregate,Kono District,80,yes,45,35,0,no,,,,,,,,no,,,,,no,,,,,yes,21,0,59,yes,0,0,0,0,0,0,0,80
+district_only,district_aggregate,Moyamba District,35,yes,23,12,0,no,,,,,,,,yes,12,13,0,10,no,,,,,yes,35,0,0,yes,0,0,0,0,0,0,0,35
+district_only,district_aggregate,Port Loko District,352,yes,184,168,0,no,,,,,,,,no,,,,,yes,40,15,9,288,yes,64,0,288,yes,0,0,0,0,0,0,0,352
+district_only,district_aggregate,Pujehun District,8,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,8
+district_only,district_aggregate,Tonkolili District,68,yes,31,37,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,68
+district_only,district_aggregate,Western Area Rural District,299,no,,,,no,,,,,,,,no,,,,,yes,54,22,11,212,yes,90,8,201,yes,0,0,0,0,0,0,0,299
+district_only,district_aggregate,Western Area Urban District,705,yes,327,378,0,yes,190,386,117,7,5,0,0,no,,,,,yes,319,131,64,191,yes,630,7,68,yes,0,0,0,0,0,0,0,705

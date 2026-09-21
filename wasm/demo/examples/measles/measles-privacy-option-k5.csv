@@ -1,0 +1,136 @@
+option,geography_level,geography_id,total_records,sex_available,sex_female,sex_male,sex_unknown_or_missing,age_available,age_under_1,age_1_4,age_5_14,age_15_24,age_25_44,age_45,age_unknown,lab_available,lab_positive,lab_negative,lab_other,lab_missing,doses_available,doses_0,doses_1,doses_2,doses_unknown_or_missing,case_definition_available,case_definition_yes,case_definition_no,case_definition_unknown_or_missing,onset_year_available,onset_year_2017,onset_year_2018,onset_year_2019,onset_year_2020,onset_year_2021,onset_year_2022,onset_year_2023,onset_year_unknown
+k5_small_unit_rollup,district_aggregate,Bo District,16,yes,7,9,0,no,,,,,,,,no,,,,,no,,,,,yes,11,0,5,yes,0,0,0,0,0,0,0,16
+k5_small_unit_rollup,district_aggregate,Bombali District,13,yes,7,6,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,13
+k5_small_unit_rollup,district_aggregate,Bonthe District,9,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,9
+k5_small_unit_rollup,district_aggregate,District unavailable,66,yes,27,39,0,no,,,,,,,,no,,,,,yes,7,6,5,48,yes,19,0,47,yes,0,0,0,0,0,0,0,66
+k5_small_unit_rollup,district_aggregate,Falaba District,13,yes,6,7,0,no,,,,,,,,no,,,,,no,,,,,yes,5,0,8,yes,0,0,0,0,0,0,0,13
+k5_small_unit_rollup,district_aggregate,Kailahun District,31,yes,20,11,0,no,,,,,,,,no,,,,,yes,0,7,10,14,no,,,,yes,0,0,0,0,0,0,0,31
+k5_small_unit_rollup,district_aggregate,Kambia District,28,yes,9,19,0,no,,,,,,,,no,,,,,no,,,,,yes,8,0,20,yes,0,0,0,0,0,0,0,28
+k5_small_unit_rollup,district_aggregate,Karene District,23,yes,11,12,0,no,,,,,,,,yes,0,0,0,23,yes,0,0,0,23,yes,0,0,23,yes,0,0,0,0,0,0,0,23
+k5_small_unit_rollup,district_aggregate,Kenema District,6,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,district_aggregate,Kono District,19,yes,12,7,0,no,,,,,,,,no,,,,,no,,,,,yes,9,0,10,yes,0,0,0,0,0,0,0,19
+k5_small_unit_rollup,district_aggregate,Moyamba District,16,yes,11,5,0,no,,,,,,,,no,,,,,no,,,,,yes,16,0,0,yes,0,0,0,0,0,0,0,16
+k5_small_unit_rollup,district_aggregate,Port Loko District,56,yes,35,21,0,no,,,,,,,,no,,,,,no,,,,,yes,14,0,42,yes,0,0,0,0,0,0,0,56
+k5_small_unit_rollup,district_aggregate,Pujehun District,8,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,district_aggregate,Tonkolili District,15,yes,7,8,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,15
+k5_small_unit_rollup,district_aggregate,Western Area Rural District,21,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,21
+k5_small_unit_rollup,district_aggregate,Western Area Urban District,40,yes,21,19,0,no,,,,,,,,no,,,,,yes,15,9,5,11,no,,,,yes,0,0,0,0,0,0,0,40
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0002,12,yes,7,5,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,12
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0003,13,no,,,,no,,,,,,,,yes,8,5,0,0,yes,7,0,0,6,yes,7,0,6,yes,0,0,0,0,0,0,0,13
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0007,14,yes,7,7,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,14
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0014,10,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,10
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0025,27,yes,10,17,0,no,,,,,,,,no,,,,,no,,,,,yes,11,0,16,yes,0,0,0,0,0,0,0,27
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0028,5,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0029,7,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0031,5,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0035,11,no,,,,no,,,,,,,,no,,,,,yes,5,0,0,6,yes,6,0,5,yes,0,0,0,0,0,0,0,11
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0036,10,yes,5,5,0,no,,,,,,,,no,,,,,no,,,,,yes,10,0,0,yes,0,0,0,0,0,0,0,10
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0038,8,no,,,,no,,,,,,,,yes,0,0,0,8,yes,0,0,0,8,yes,0,0,8,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0039,6,no,,,,no,,,,,,,,yes,0,0,0,6,yes,0,0,0,6,yes,0,0,6,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0041,6,no,,,,no,,,,,,,,yes,0,0,0,6,no,,,,,yes,6,0,0,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0043,6,no,,,,no,,,,,,,,no,,,,,yes,0,0,6,0,yes,6,0,0,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0048,7,no,,,,no,,,,,,,,yes,0,0,0,7,no,,,,,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0051,6,no,,,,no,,,,,,,,yes,0,0,0,6,no,,,,,yes,6,0,0,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0054,9,no,,,,no,,,,,,,,yes,0,0,0,9,yes,0,0,0,9,yes,0,0,9,yes,0,0,0,0,0,0,0,9
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0057,52,yes,35,17,0,no,,,,,,,,no,,,,,no,,,,,yes,8,0,44,yes,0,0,0,0,0,0,0,52
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0061,7,no,,,,no,,,,,,,,yes,0,0,0,7,no,,,,,yes,7,0,0,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0062,8,no,,,,no,,,,,,,,yes,0,0,0,8,yes,0,0,0,8,yes,0,0,8,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0066,5,no,,,,no,,,,,,,,yes,5,0,0,0,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0069,12,yes,6,6,0,no,,,,,,,,yes,0,0,0,12,yes,0,0,0,12,yes,0,0,12,yes,0,0,0,0,0,0,0,12
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0070,8,no,,,,no,,,,,,,,no,,,,,no,,,,,yes,8,0,0,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0076,7,no,,,,no,,,,,,,,no,,,,,yes,0,0,0,7,yes,0,0,7,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0079,33,yes,17,16,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,33
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0081,18,yes,9,9,0,no,,,,,,,,no,,,,,no,,,,,yes,5,0,13,yes,0,0,0,0,0,0,0,18
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0083,6,no,,,,no,,,,,,,,no,,,,,yes,0,0,0,6,yes,0,0,6,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0084,16,yes,8,8,0,no,,,,,,,,no,,,,,no,,,,,yes,9,0,7,yes,0,0,0,0,0,0,0,16
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0086,5,no,,,,no,,,,,,,,no,,,,,yes,5,0,0,0,yes,5,0,0,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0088,8,no,,,,no,,,,,,,,yes,0,0,0,8,yes,0,0,0,8,yes,0,0,8,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0089,21,yes,9,12,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,21
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0092,25,yes,15,10,0,no,,,,,,,,no,,,,,no,,,,,yes,16,0,9,yes,0,0,0,0,0,0,0,25
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0095,7,no,,,,no,,,,,,,,yes,0,0,0,7,yes,0,0,0,7,yes,7,0,0,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0097,5,no,,,,no,,,,,,,,yes,0,0,0,5,yes,0,0,0,5,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0099,7,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0101,25,yes,16,9,0,no,,,,,,,,yes,0,0,0,25,yes,0,0,0,25,yes,0,0,25,yes,0,0,0,0,0,0,0,25
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0102,64,yes,27,37,0,yes,18,40,6,0,0,0,0,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,64
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0114,5,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0115,9,no,,,,no,,,,,,,,no,,,,,yes,0,0,0,9,yes,0,0,9,yes,0,0,0,0,0,0,0,9
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0117,5,no,,,,no,,,,,,,,yes,0,0,0,5,no,,,,,yes,5,0,0,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0118,10,no,,,,no,,,,,,,,no,,,,,yes,0,0,0,10,yes,0,0,10,yes,0,0,0,0,0,0,0,10
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0119,8,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0120,12,yes,6,6,0,no,,,,,,,,no,,,,,yes,0,0,0,12,yes,0,0,12,yes,0,0,0,0,0,0,0,12
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0121,6,no,,,,no,,,,,,,,yes,0,0,0,6,yes,0,0,0,6,yes,0,0,6,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0123,53,yes,19,34,0,no,,,,,,,,yes,0,0,0,53,yes,0,0,0,53,yes,0,0,53,yes,0,0,0,0,0,0,0,53
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0124,5,no,,,,no,,,,,,,,yes,0,0,0,5,yes,5,0,0,0,yes,5,0,0,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0125,46,yes,22,24,0,no,,,,,,,,no,,,,,no,,,,,yes,38,0,8,yes,0,0,0,0,0,0,0,46
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0126,7,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0128,9,no,,,,no,,,,,,,,yes,0,0,0,9,yes,0,0,0,9,yes,0,0,9,yes,0,0,0,0,0,0,0,9
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0129,5,no,,,,no,,,,,,,,no,,,,,no,,,,,yes,5,0,0,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0134,14,yes,8,6,0,no,,,,,,,,no,,,,,no,,,,,yes,14,0,0,yes,0,0,0,0,0,0,0,14
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0135,5,yes,5,0,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0140,9,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,9
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0148,5,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0152,18,yes,7,11,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,18
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0155,6,no,,,,no,,,,,,,,yes,0,0,0,6,no,,,,,no,,,,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0156,6,no,,,,no,,,,,,,,yes,0,0,0,6,yes,0,0,0,6,yes,0,0,6,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0160,16,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,16
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0165,6,no,,,,no,,,,,,,,yes,0,0,0,6,yes,0,0,0,6,no,,,,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0168,6,no,,,,no,,,,,,,,yes,0,0,0,6,yes,0,0,0,6,yes,0,0,6,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0173,7,no,,,,no,,,,,,,,no,,,,,yes,0,0,0,7,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0175,5,no,,,,no,,,,,,,,yes,0,0,0,5,no,,,,,yes,5,0,0,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0178,5,no,,,,no,,,,,,,,no,,,,,yes,0,0,0,5,yes,0,0,5,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0179,60,yes,26,34,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,60
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0181,5,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0184,5,no,,,,no,,,,,,,,no,,,,,no,,,,,yes,5,0,0,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0185,8,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0189,31,yes,20,11,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,31
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0190,13,yes,5,8,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,13
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0194,8,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0195,8,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0196,15,yes,7,8,0,no,,,,,,,,yes,0,0,0,15,no,,,,,no,,,,yes,0,0,0,0,0,0,0,15
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0198,11,no,,,,no,,,,,,,,no,,,,,no,,,,,yes,6,0,5,yes,0,0,0,0,0,0,0,11
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0201,9,no,,,,yes,0,9,0,0,0,0,0,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,9
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0205,23,yes,11,12,0,no,,,,,,,,yes,0,0,0,23,yes,0,0,0,23,yes,0,0,23,yes,0,0,0,0,0,0,0,23
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0210,19,yes,7,12,0,yes,9,5,5,0,0,0,0,yes,0,0,0,19,no,,,,,yes,19,0,0,yes,0,0,0,0,0,0,0,19
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0211,8,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0215,388,yes,183,205,0,no,,,,,,,,no,,,,,yes,219,51,30,88,no,,,,yes,0,0,0,0,0,0,0,388
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0216,54,yes,28,26,0,no,,,,,,,,no,,,,,no,,,,,yes,7,0,47,yes,0,0,0,0,0,0,0,54
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0218,10,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,10
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0219,7,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0228,11,yes,5,6,0,no,,,,,,,,no,,,,,yes,0,0,0,11,no,,,,yes,0,0,0,0,0,0,0,11
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0231,34,yes,18,16,0,yes,6,22,6,0,0,0,0,yes,0,0,0,34,yes,11,6,0,17,no,,,,yes,0,0,0,0,0,0,0,34
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0236,19,yes,9,10,0,no,,,,,,,,no,,,,,yes,7,7,0,5,no,,,,yes,0,0,0,0,0,0,0,19
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0237,5,yes,5,0,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0239,234,no,,,,yes,47,122,54,6,5,0,0,no,,,,,yes,11,8,0,215,yes,13,6,215,yes,0,0,0,0,0,0,0,234
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0240,5,no,,,,no,,,,,,,,yes,5,0,0,0,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0243,7,no,,,,no,,,,,,,,yes,0,0,0,7,yes,0,0,0,7,yes,0,0,7,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0244,6,no,,,,yes,0,6,0,0,0,0,0,no,,,,,yes,0,0,0,6,yes,0,0,6,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0245,5,no,,,,no,,,,,,,,yes,5,0,0,0,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0247,8,no,,,,no,,,,,,,,yes,0,0,0,8,yes,0,0,0,8,yes,0,0,8,yes,0,0,0,0,0,0,0,8
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0249,10,no,,,,no,,,,,,,,yes,0,0,0,10,yes,0,0,0,10,yes,0,0,10,yes,0,0,0,0,0,0,0,10
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0250,7,no,,,,no,,,,,,,,yes,0,7,0,0,yes,0,0,0,7,yes,0,0,7,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0255,37,yes,18,19,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,37
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0262,7,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0263,7,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0266,6,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0269,5,yes,5,0,0,yes,0,5,0,0,0,0,0,yes,0,0,0,5,yes,0,0,0,5,yes,0,0,5,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0275,5,no,,,,no,,,,,,,,yes,0,0,0,5,yes,0,0,0,5,yes,0,0,5,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0278,7,no,,,,no,,,,,,,,no,,,,,no,,,,,yes,7,0,0,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0281,16,yes,6,10,0,no,,,,,,,,no,,,,,no,,,,,yes,6,0,10,yes,0,0,0,0,0,0,0,16
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0282,19,yes,5,14,0,no,,,,,,,,no,,,,,no,,,,,yes,5,0,14,yes,0,0,0,0,0,0,0,19
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0286,16,yes,9,7,0,no,,,,,,,,yes,0,0,0,16,yes,0,0,0,16,yes,0,0,16,yes,0,0,0,0,0,0,0,16
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0287,6,no,,,,no,,,,,,,,yes,0,6,0,0,no,,,,,no,,,,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0291,60,yes,21,39,0,no,,,,,,,,no,,,,,no,,,,,yes,38,0,22,yes,0,0,0,0,0,0,0,60
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0295,5,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0303,7,no,,,,no,,,,,,,,no,,,,,yes,0,0,0,7,yes,0,0,7,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0306,7,yes,0,7,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,7
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0307,6,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,6
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0309,58,yes,31,27,0,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,58
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0314,13,yes,6,7,0,no,,,,,,,,yes,0,0,0,13,no,,,,,yes,13,0,0,yes,0,0,0,0,0,0,0,13
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0316,14,yes,7,7,0,no,,,,,,,,no,,,,,no,,,,,yes,7,0,7,yes,0,0,0,0,0,0,0,14
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0321,5,no,,,,no,,,,,,,,yes,5,0,0,0,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0322,5,no,,,,no,,,,,,,,yes,0,0,0,5,yes,0,0,0,5,yes,0,0,5,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0323,55,no,,,,no,,,,,,,,no,,,,,yes,0,0,0,55,yes,0,0,55,yes,0,0,0,0,0,0,0,55
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0324,13,no,,,,no,,,,,,,,no,,,,,no,,,,,yes,6,0,7,yes,0,0,0,0,0,0,0,13
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0327,5,no,,,,no,,,,,,,,yes,0,0,0,5,yes,0,0,0,5,yes,0,0,5,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0329,5,no,,,,no,,,,,,,,no,,,,,no,,,,,no,,,,yes,0,0,0,0,0,0,0,5
+k5_small_unit_rollup,pseudonymous_reporting_unit,RU-0333,15,yes,10,5,0,no,,,,,,,,yes,0,0,0,15,yes,0,0,0,15,yes,0,0,15,yes,0,0,0,0,0,0,0,15

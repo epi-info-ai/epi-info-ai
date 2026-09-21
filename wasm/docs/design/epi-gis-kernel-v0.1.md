@@ -120,6 +120,82 @@ registered as roadmap candidates, not hidden options in these four operations.
 H3 remains in the Epi-owned spatial path until its contract is unified; it does
 not need GDAL.
 
+## Candidate spatial-index and trajectory engine: Spatio
+
+[`spatio`](https://github.com/pkvartsianyi/spatio) is an MIT-licensed Rust
+spatio-temporal database built on `geo` and `rstar`. It is useful input to the
+Epi-owned spatial path, but it is not a replacement for `epi-gis`, GDAL, PROJ,
+GEOS, epidemiologic spatial statistics, or the renderer. The reviewed `0.3.9`
+core provides in-memory R*-tree indexes, radius and bounding-box queries,
+nearest-neighbor search, point-in-polygon filtering, 2D/3D points, and movement
+trajectories.
+
+| Kernel need | Spatio fit | Epi Info AI decision |
+|---|---|---|
+| Point radius and bounding-box queries | Strong | Evaluate behind typed `epi-gis` operations |
+| Point-in-polygon candidate filtering | Strong | Compare with the validated spatial-join path; do not silently substitute engines |
+| Nearest-neighbor search | Promising | Require independent geographic-ordering tests before candidate status |
+| Moving-object trajectories | Strong specialized capability | Defer until a governed epidemiologic use case and privacy model exist |
+| Large point-set indexing | Strong | Benchmark the full core against direct `geo` plus `rstar` use |
+| CRS detection and reprojection | Not provided | Keep in the GDAL/PROJ adapter |
+| General vector formats and raster processing | Not provided | Keep in GDAL-WASM |
+| Topology validation and repair | Not equivalent to GEOS | Keep in the geometry adapter |
+| Epidemiologic spatial statistics | Not provided | Keep in Epi-owned, independently validated methods |
+| Rendering and map interaction | Not provided | Keep outside the compute kernel |
+| Browser storage and project transactions | Native append-only persistence does not match the browser contract | Keep OPFS, package authority, and commits in the TypeScript host |
+| Browser/WASM API | No published browser binding was identified in the review | Prove compatibility in an isolated Worker spike before adoption |
+
+Spatio was designed for real-time moving objects. Its Python binding, TCP
+server, native persistence, recovery, and filesystem behavior must not enter a
+browser bundle. A spike should compile only the minimum memory-safe core or,
+if that boundary remains too broad, use `geo` and `rstar` directly. The host
+must continue to supply bounded canonical inputs and persist canonical results;
+the engine must not receive OPFS, network, project, or credential authority.
+
+The candidate operation surface is deliberately smaller than Spatio's public
+API:
+
+- `gis.index.buildPoints`;
+- `gis.query.radius`;
+- `gis.query.boundingBox`;
+- `gis.query.nearest`;
+- `gis.query.pointsInPolygon`; and
+- `gis.trajectory.window`, deferred until its use case is approved.
+
+All operations remain registry-controlled, Worker-isolated, bounded by the
+effective limits profile, and recorded with engine and algorithm versions in
+the receipt. No UI, Epi Assist proposal, project, or `.pgm7` source receives a
+raw Spatio handle.
+
+### Scientific and browser validation gate
+
+The spike must run in GitLab CI and a browser validation page; do not generate
+native Rust test executables on CDC-managed Windows. It must:
+
+1. compile the selected dependency graph to `wasm32` without server, Python,
+   TCP, or native-filesystem dependencies;
+2. run in the dedicated GIS Worker with cancellation, timeout, memory, and
+   output limits;
+3. compare results with a transparent brute-force geodesic reference and
+   independently reviewed fixtures;
+4. cover duplicate and invalid coordinates, empty input, exact-boundary
+   points, ties, longitude wrap/date-line cases, high latitudes, polar limits,
+   and large-radius queries;
+5. verify that nearest-neighbor ordering is geographically correct rather than
+   merely the planar longitude/latitude ordering used to identify candidates;
+6. benchmark startup, WASM bytes, peak memory proxy, build time, insert time,
+   and query latency at representative field-data sizes;
+7. verify deterministic ordering, stable diagnostics, and equivalent results
+   across supported browsers; and
+8. compare the full Spatio core against a minimal Epi-owned wrapper around
+   `geo` and `rstar`.
+
+Adopt Spatio only if the measured implementation is smaller or safer to
+maintain than the direct-crate alternative and passes every scientific gate.
+Otherwise retain the algorithms and architecture review as evidence and use a
+minimal Epi-owned index adapter. Spatio remains a roadmap candidate and does
+not expand the four-operation v0.1 registry.
+
 ## Foodborne acceptance path
 
 The first end-to-end acceptance case uses the existing foodborne package:
