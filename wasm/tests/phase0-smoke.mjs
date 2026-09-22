@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { zipSync } from "fflate";
 
 const testsDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testsDirectory, "../..");
@@ -3700,7 +3701,7 @@ async function checkPortableProjectArchive() {
     { id: "geojson-study", kind: "geojson", assetId: geojsonDigest, name: "Study area", visible: true, labelField: "", labelsEnabled: false },
     { id: "raster-population", kind: "raster", assetId: geotiffDigest, name: "Population", visible: true, opacity: 0.7 },
   ];
-  const sourceBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x45, 0x50, 0x49, 0x2d, 0x47, 0x49, 0x53]);
+  const sourceBytes = zipSync({ "toledo.shp": new Uint8Array([1]), "toledo.shx": new Uint8Array([2]), "toledo.dbf": new Uint8Array([3]) });
   const sourceDigest = createHash("sha256").update(sourceBytes).digest("hex");
   const sourceAsset = {
     id: sourceDigest, fileName: "toledo-reference.zip", storage: "opfs",
