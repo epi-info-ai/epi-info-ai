@@ -1,0 +1,1 @@
+{"type":"Feature","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"properties":{"case_id":"axis-review-001","intendedLatitude":41.64,"intendedLongitude":-83.55},"geometry":{"type":"Point","coordinates":[41.64,-83.55]}}

@@ -1,0 +1,11 @@
+case_id,asset_file,asset_kind,expected_outcome,review_reason
+valid-control,valid-control.geojson,GeoJSON,accepted,valid WGS 84 point control
+misformatted-csv,misformatted.csv,CSV,rejected-unsupported-media,CSV field binding is not part of GIS-K03
+corrupt-geojson,corrupt-geojson.geojson,GeoJSON,rejected-malformed,invalid JSON syntax
+swapped-axis,swapped-latitude-longitude.geojson,GeoJSON,accepted-review-axis-order,coordinate pair is valid but intended axis order is reversed
+incorrect-sign,incorrect-coordinate-sign.geojson,GeoJSON,accepted-review-region,coordinate pair is valid but does not match the declared study area
+out-of-range,out-of-range-coordinate.geojson,GeoJSON,rejected-coordinate-range,longitude is outside the WGS 84 range
+non-finite,non-finite-coordinate.geojson,GeoJSON,rejected-non-finite,parsed coordinate is not finite
+feature-limit,too-many-features.geojson,GeoJSON,rejected-feature-limit,two features exceed the package limit of one
+nesting-limit,deeply-nested-geometry.geojson,GeoJSON,rejected-nesting-limit,geometry nesting exceeds eight levels
+property-limit,property-limit.geojson,GeoJSON,rejected-property-limit,JSON properties exceed the package limit of twenty

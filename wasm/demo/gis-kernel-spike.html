@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Epi Info AI — GIS kernel Worker spike</title>
+  <style>
+    body { max-width: 60rem; margin: 2rem auto; padding: 0 1rem; font: 1rem/1.5 system-ui, sans-serif; color: #17212b; }
+    button { margin-right: .5rem; padding: .55rem .8rem; }
+    pre { overflow: auto; padding: 1rem; background: #f2f5f7; border: 1px solid #ccd5db; }
+    [data-state="passed"] { color: #126b38; } [data-state="failed"] { color: #a32020; }
+  </style>
+</head>
+<body>
+  <main>
+    <p>NEW BRANCH · GIS-K02 ARCHITECTURE SPIKE</p>
+    <h1>Bounded dataset inspection</h1>
+    <p>This page exercises the typed GIS Worker boundary with a small local GeoJSON fixture. It does not load GDAL or mutate project state.</p>
+    <button id="run-inspect">Run inspection</button>
+    <button id="cancel-inspect" disabled>Cancel</button>
+    <p id="inspect-status" data-state="idle">Ready.</p>
+    <pre id="inspect-result" aria-live="polite"></pre>
+  </main>
+  <script type="module" src="./gis-kernel-spike.js"></script>
+</body>
+</html>

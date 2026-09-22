@@ -1,0 +1,27 @@
+{
+  "schema": "epi-gis-ingestion-test-package/0.1",
+  "packageId": "gis-defensive-ingestion-v0.1",
+  "purpose": "Uploadable defensive-ingestion assets for GIS-K03",
+  "syntheticOnly": true,
+  "defaultPlanLimits": {
+    "maxInputBytes": 4096,
+    "maxOutputBytes": 4096,
+    "maxFeatures": 1,
+    "maxCoordinates": 10,
+    "maxNestingDepth": 8,
+    "maxProperties": 20,
+    "timeoutMilliseconds": 1000
+  },
+  "cases": [
+    { "file": "valid-control.geojson", "mediaType": "application/geo+json", "expected": "accepted", "reason": "valid WGS 84 point" },
+    { "file": "misformatted.csv", "mediaType": "text/csv", "expected": "rejected-unsupported-media", "reason": "CSV field binding is not part of GIS-K03" },
+    { "file": "corrupt-geojson.geojson", "mediaType": "application/geo+json", "expected": "rejected-malformed", "reason": "invalid JSON syntax" },
+    { "file": "swapped-latitude-longitude.geojson", "mediaType": "application/geo+json", "expected": "accepted-review-axis-order", "reason": "coordinate pair is valid but intended axis order is reversed" },
+    { "file": "incorrect-coordinate-sign.geojson", "mediaType": "application/geo+json", "expected": "accepted-review-region", "reason": "coordinate pair is valid but does not match the declared study area" },
+    { "file": "out-of-range-coordinate.geojson", "mediaType": "application/geo+json", "expected": "rejected-coordinate-range", "reason": "longitude is outside [-180, 180]" },
+    { "file": "non-finite-coordinate.geojson", "mediaType": "application/geo+json", "expected": "rejected-non-finite", "reason": "parsed coordinate is not finite" },
+    { "file": "too-many-features.geojson", "mediaType": "application/geo+json", "expected": "rejected-feature-limit", "reason": "two features exceed the package limit of one" },
+    { "file": "deeply-nested-geometry.geojson", "mediaType": "application/geo+json", "expected": "rejected-nesting-limit", "reason": "geometry nesting exceeds eight levels" },
+    { "file": "property-limit.geojson", "mediaType": "application/geo+json", "expected": "rejected-property-limit", "reason": "JSON properties exceed the package limit of twenty" }
+  ]
+}

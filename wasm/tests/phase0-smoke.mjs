@@ -170,6 +170,8 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/projects/foodborne-outbreak-investigation.epia.json",
     "wasm/demo/examples/projects/foodborne-outbreak-investigation.epia",
     "wasm/demo/examples/projects/space-time-cluster-detection.epia.json",
+    "wasm/demo/examples/projects/gis-defensive-ingestion-teaching.epia.json",
+    "wasm/demo/examples/projects/gis-defensive-ingestion-test-cases.csv",
     "wasm/demo/examples/foodborne/foodborne-investigation.runbook.json",
     "wasm/demo/examples/foodborne/foodborne-gis-investigation.runbook.json",
     "wasm/demo/examples/cluster/space-time-cluster.runbook.json",
@@ -178,6 +180,11 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/gdal-wasm/THIRD_PARTY_NOTICES.md",
     "wasm/demo/examples/gdal-wasm/styles.css",
     "wasm/demo/examples/gdal-wasm/gdal-wasm-worker.ts",
+    "wasm/demo/examples/gis-defensive-ingestion/README.md",
+    "wasm/demo/examples/gis-defensive-ingestion/ingestion-test-package.json",
+    "wasm/demo/examples/gis-defensive-ingestion/gis-defensive-ingestion-test-cases.csv",
+    "wasm/demo/examples/gis-defensive-ingestion/gis-defensive-ingestion.programs.json",
+    "wasm/demo/examples/gis-defensive-ingestion/gis-defensive-ingestion.runbook.json",
     "wasm/demo/examples/gdal-wasm/reprojection/index.html",
     "wasm/demo/examples/gdal-wasm/reprojection/source-sites-epsg3857.geojson",
     "wasm/demo/examples/gdal-wasm/reprojection/expected-result.json",
@@ -4279,11 +4286,13 @@ async function checkExampleProjectRepository() {
     "foodborne-outbreak-investigation",
     "space-time-cluster-detection",
     "record-linkage",
+    "gis-defensive-ingestion-teaching",
   ]);
   const expected = new Map([
     ["foodborne-outbreak-investigation", { project: "Foodborne Outbreak Investigation", forms: 1, records: 96, runbooks: 2 }],
     ["space-time-cluster-detection", { project: "Space-Time Cluster Detection", forms: 1, records: 30, runbooks: 1 }],
     ["record-linkage", { project: "Synthetic Patient Record Linkage", forms: 3, records: 21, runbooks: 1 }],
+    ["gis-defensive-ingestion-teaching", { project: "GIS Defensive Ingestion Teaching Example", forms: 1, records: 10, runbooks: 1 }],
   ]);
   for (const entry of catalog.projects) {
     const filePath = resolve(dirname(catalogPath), entry.file);

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "dataset": {
+    "id": "gis-defensive-ingestion-test-cases",
+    "file": "gis-defensive-ingestion-test-cases.csv"
+  },
+  "programs": [
+    {
+      "id": "defensive-ingestion-review",
+      "title": "GIS defensive-ingestion review",
+      "description": "Loads the test-case catalog, filters the expected outcomes, and prompts the learner to select each uploadable asset for the GIS-K03 inspection spike.",
+      "requiredFields": ["case_id", "asset_file", "expected_outcome"],
+      "source": "DEFINE SelectedAsset TEXTINPUT\nHEADER 1 \"GIS defensive-ingestion teaching example\"\nTYPEOUT \"The project catalog describes ten synthetic GIS-K03 upload tests. The asset files remain local and are selected explicitly.\"\n\nREAD [Gis Defensive Ingestion Test Cases Form]\nLIST case_id asset_file asset_kind expected_outcome\n\nFREQ expected_outcome\n\nSELECT expected_outcome = \"accepted-review-axis-order\" OR expected_outcome = \"accepted-review-region\"\nLIST case_id asset_file expected_outcome review_reason\nCANCEL SELECT\n\nSELECT expected_outcome = \"rejected-unsupported-media\" OR expected_outcome = \"rejected-malformed\" OR expected_outcome = \"rejected-coordinate-range\" OR expected_outcome = \"rejected-non-finite\" OR expected_outcome = \"rejected-feature-limit\" OR expected_outcome = \"rejected-nesting-limit\" OR expected_outcome = \"rejected-property-limit\"\nLIST case_id asset_file expected_outcome review_reason\nCANCEL SELECT\n\nDIALOG \"Select a GeoJSON asset from the imported GIS defensive-ingestion example folder.\" SelectedAsset READ \"*.geojson\"\nEPIAI GIS INSPECT FILE=SelectedAsset RESULT=GisInspection CRS=CRS84\nDIALOG \"Select a CSV asset from the imported GIS defensive-ingestion example folder.\" SelectedAsset READ \"*.csv\"\nEPIAI GIS INSPECT FILE=SelectedAsset RESULT=GisCsvRejection CRS=CRS84\nTYPEOUT \"GIS INSPECT displays the bounded Worker receipt and diagnostics in Output.\"\n"
+    }
+  ]
+}

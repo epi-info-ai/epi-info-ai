@@ -8,6 +8,7 @@
 **/bin/
 **/obj/
 **/node_modules/
+**/.venv/
 **/dist/
 **/_output/
 **/coverage/

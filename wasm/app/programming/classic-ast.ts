@@ -222,6 +222,13 @@ export interface EpiAiQualityStatement extends ClassicNode {
   type: "EpiAiQualityStatement";
 }
 
+export interface EpiAiGisInspectStatement extends ClassicNode {
+  type: "EpiAiGisInspectStatement";
+  fileVariable: ClassicIdentifier;
+  resultName: ClassicIdentifier;
+  declaredCrs: "CRS84" | "EPSG:4326";
+}
+
 export interface EpiAiSpaceTimeClusterStatement extends ClassicNode {
   type: "EpiAiSpaceTimeClusterStatement";
   idField: ClassicIdentifier;
@@ -435,6 +442,7 @@ export type ClassicStatement =
   | ClassicBeepStatement
   | ClassicSetStatement
   | EpiAiQualityStatement
+  | EpiAiGisInspectStatement
   | EpiAiSpaceTimeClusterStatement
   | EpiAiClusterRenderStatement
   | EpiAiRecordLinkStatement
@@ -925,11 +933,19 @@ class ProgramParser {
     return { type: "BeepStatement", span: lineSpan(line) };
   }
 
-  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement | EpiAiSpaceTimeClusterStatement | EpiAiClusterRenderStatement | EpiAiRecordLinkStatement | EpiAiRecordLinkStageStatement {
+  private epiAi(line: SourceLine, rest: string): EpiAiQualityStatement | EpiAiGisInspectStatement | EpiAiSpaceTimeClusterStatement | EpiAiClusterRenderStatement | EpiAiRecordLinkStatement | EpiAiRecordLinkStageStatement {
     const tokens = words(rest);
     if (tokens[0]?.toUpperCase() === "QUALITY") {
       if (tokens.length === 2 && tokens[1] === "*") return { type: "EpiAiQualityStatement", span: lineSpan(line) };
       throw new ClassicSyntaxError(line.line, 1, "This bounded new branch uses EPIAI QUALITY * only.");
+    }
+    if (tokens[0]?.toUpperCase() === "GIS" && tokens[1]?.toUpperCase() === "INSPECT") {
+      if (tokens.length !== 5) throw new ClassicSyntaxError(line.line, 1, "EPIAI GIS INSPECT requires exactly FILE=variable RESULT=name CRS=CRS84.");
+      const file = optionValue(tokens, 2, line);
+      const result = optionValue(tokens, file.next, line);
+      const crs = optionValue(tokens, result.next, line);
+      if (file.key !== "FILE" || result.key !== "RESULT" || crs.key !== "CRS" || crs.next !== tokens.length || !["CRS84", "EPSG:4326"].includes(crs.value.toUpperCase())) throw new ClassicSyntaxError(line.line, 1, "EPIAI GIS INSPECT requires exactly FILE=variable RESULT=name CRS=CRS84.");
+      return { type: "EpiAiGisInspectStatement", fileVariable: identifier(file.value, line), resultName: identifier(result.value, line), declaredCrs: crs.value.toUpperCase() as "CRS84" | "EPSG:4326", span: lineSpan(line) };
     }
     if (tokens[0]?.toUpperCase() === "CLUSTER" && tokens[1]?.toUpperCase() === "RENDER") {
       if (tokens.length !== 3) throw new ClassicSyntaxError(line.line, 1, "EPIAI CLUSTER RENDER requires exactly RESULT=name.");
@@ -1011,7 +1027,7 @@ class ProgramParser {
       };
     }
     if (tokens[0]?.toUpperCase() !== "CLUSTER" || tokens[1]?.toUpperCase() !== "SPACE_TIME") {
-      throw new ClassicSyntaxError(line.line, 1, "This new-branch AST slice supports EPIAI QUALITY, EPIAI CLUSTER SPACE_TIME, EPIAI CLUSTER RENDER, and EPIAI RECORDLINK.");
+      throw new ClassicSyntaxError(line.line, 1, "This new-branch AST slice supports EPIAI QUALITY, EPIAI GIS INSPECT, EPIAI CLUSTER SPACE_TIME, EPIAI CLUSTER RENDER, and EPIAI RECORDLINK.");
     }
     const settings = new Map<string, string>();
     let cursor = 2;
