@@ -19,11 +19,12 @@ import { buildEpiAiQualityCommand, resolveEpiAiQualityCommand } from "./epi-ai-q
 import { buildSpaceTimeClusterCommand, buildSpaceTimeClusterRenderCommand, resolveSpaceTimeClusterCommand, resolveSpaceTimeClusterRenderCommand, type SpaceTimeClusterCommandInput } from "./epi-ai-space-time-cluster.ts";
 import { buildRecordLinkCommand, resolveRecordLinkCommand, type RecordLinkCommandInput } from "./epi-ai-recordlink.ts";
 import { buildFileConvertCommand, resolveFileConvertCommand } from "./file-convert.ts";
+import { buildEpiAiGisInspectCommand, resolveEpiAiGisInspectCommand } from "./epi-ai-gis.ts";
 import { buildClassicDialogCommand, resolveClassicDialogCommand, type ClassicDialogCommandInput } from "./classic-dialog.ts";
 import { buildClassicMatchCommand, resolveExecutableClassicMatchCommand, type ClassicMatchInput, type ExecutableClassicMatchInput } from "./classic-match.ts";
 import { resolveClassicConditionalLogisticCommand, type ClassicConditionalLogisticPlan } from "./classic-logistic.ts";
 
-export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "match" | "logistic" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "cluster-space-time" | "cluster-render" | "recordlink" | "recordlink-stage" | "file-convert";
+export type ClassicAnalysisCommandKind = "read" | "relate" | "write" | "merge" | "delete-table" | "delete-records" | "undelete-records" | "define" | "define-group" | "undefine" | "assign" | "recode" | "display" | "select" | "cancel-select" | "if" | "sort" | "cancel-sort" | "list" | "frequency" | "means" | "tables" | "match" | "logistic" | "summarize" | "graph" | "header" | "typeout" | "routeout" | "closeout" | "printout" | "dialog" | "beep" | "set-missing" | "set-missing-label" | "quality" | "gis-inspect" | "cluster-space-time" | "cluster-render" | "recordlink" | "recordlink-stage" | "file-convert";
 
 export type ClassicDefineVariableType = "NUMERIC" | "TEXTINPUT" | "YN" | "DATEFORMAT" | "DATETIMEFORMAT" | "TIMEFORMAT";
 export type ClassicDefineVariableScope = "STANDARD" | "GLOBAL" | "PERMANENT";
@@ -47,6 +48,7 @@ export type ClassicAnalysisCommandInput =
   | ({ kind: "dialog" } & ClassicDialogCommandInput)
   | { kind: "beep" }
   | { kind: "quality" }
+  | ({ kind: "gis-inspect" } & import("./epi-ai-gis.ts").EpiAiGisInspectCommandInput)
   | ({ kind: "cluster-space-time" } & SpaceTimeClusterCommandInput)
   | { kind: "cluster-render"; resultName: string }
   | ({ kind: "recordlink" } & RecordLinkCommandInput)
@@ -120,6 +122,7 @@ export function buildClassicAnalysisCommand(input: ClassicAnalysisCommandInput):
   if (input.kind === "logistic") return input.canonicalSource;
   if (input.kind === "beep") return "BEEP";
   if (input.kind === "quality") return buildEpiAiQualityCommand({ mode: "profile" });
+  if (input.kind === "gis-inspect") return buildEpiAiGisInspectCommand(input);
   if (input.kind === "cluster-space-time") return buildSpaceTimeClusterCommand(input);
   if (input.kind === "cluster-render") return buildSpaceTimeClusterRenderCommand(input.resultName);
   if (input.kind === "recordlink") return buildRecordLinkCommand(input);
@@ -306,6 +309,10 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
   if (statement.type === "EpiAiQualityStatement") {
     const plan = resolveEpiAiQualityCommand(source, fields);
     return { kind: "quality", source };
+  }
+  if (statement.type === "EpiAiGisInspectStatement") {
+    const plan = resolveEpiAiGisInspectCommand(source, variables);
+    return { kind: "gis-inspect", fileVariable: plan.fileVariable, resultName: plan.resultName, source };
   }
   if (statement.type === "EpiAiSpaceTimeClusterStatement") {
     const plan = resolveSpaceTimeClusterCommand(source, fields);

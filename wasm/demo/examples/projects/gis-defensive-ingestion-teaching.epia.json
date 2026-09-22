@@ -1,0 +1,177 @@
+{
+  "format": "epi-info-ai-project",
+  "version": 2,
+  "exportedAt": "2026-09-22T14:01:33.077Z",
+  "project": {
+    "name": "GIS Defensive Ingestion Teaching Example",
+    "currentFormId": "gis-defensive-ingestion-test-cases",
+    "forms": [
+      {
+        "id": "gis-defensive-ingestion-test-cases",
+        "schema": {
+          "name": "Gis Defensive Ingestion Test Cases Form",
+          "fields": [
+            {
+              "name": "case_id",
+              "prompt": "Case ID",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "asset_file",
+              "prompt": "Asset file",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "asset_kind",
+              "prompt": "Asset kind",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "expected_outcome",
+              "prompt": "Expected outcome",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "review_reason",
+              "prompt": "Review reason",
+              "type": "text",
+              "required": false
+            }
+          ]
+        },
+        "records": [
+          {
+            "case_id": "valid-control",
+            "asset_file": "valid-control.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "accepted",
+            "review_reason": "valid WGS 84 point control"
+          },
+          {
+            "case_id": "misformatted-csv",
+            "asset_file": "misformatted.csv",
+            "asset_kind": "CSV",
+            "expected_outcome": "rejected-unsupported-media",
+            "review_reason": "CSV field binding is not part of GIS-K03"
+          },
+          {
+            "case_id": "corrupt-geojson",
+            "asset_file": "corrupt-geojson.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "rejected-malformed",
+            "review_reason": "invalid JSON syntax"
+          },
+          {
+            "case_id": "swapped-axis",
+            "asset_file": "swapped-latitude-longitude.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "accepted-review-axis-order",
+            "review_reason": "coordinate pair is valid but intended axis order is reversed"
+          },
+          {
+            "case_id": "incorrect-sign",
+            "asset_file": "incorrect-coordinate-sign.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "accepted-review-region",
+            "review_reason": "coordinate pair is valid but does not match the declared study area"
+          },
+          {
+            "case_id": "out-of-range",
+            "asset_file": "out-of-range-coordinate.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "rejected-coordinate-range",
+            "review_reason": "longitude is outside the WGS 84 range"
+          },
+          {
+            "case_id": "non-finite",
+            "asset_file": "non-finite-coordinate.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "rejected-non-finite",
+            "review_reason": "parsed coordinate is not finite"
+          },
+          {
+            "case_id": "feature-limit",
+            "asset_file": "too-many-features.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "rejected-feature-limit",
+            "review_reason": "two features exceed the package limit of one"
+          },
+          {
+            "case_id": "nesting-limit",
+            "asset_file": "deeply-nested-geometry.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "rejected-nesting-limit",
+            "review_reason": "geometry nesting exceeds eight levels"
+          },
+          {
+            "case_id": "property-limit",
+            "asset_file": "property-limit.geojson",
+            "asset_kind": "GeoJSON",
+            "expected_outcome": "rejected-property-limit",
+            "review_reason": "JSON properties exceed the package limit of twenty"
+          }
+        ],
+        "dataset": {
+          "id": "gis-defensive-ingestion-test-cases",
+          "file": "gis-defensive-ingestion-test-cases.csv",
+          "sha256": "3706e63f5bbe8751c5356595ba2e9b0ce0ad4e8d875e1b1633ff8f00eca1558a"
+        }
+      }
+    ],
+    "version": 1,
+    "storage": {
+      "type": "browser"
+    }
+  },
+  "programs": [
+    {
+      "name": "defensive-ingestion-review",
+      "source": "DEFINE SelectedAsset TEXTINPUT\nHEADER 1 \"GIS defensive-ingestion teaching example\"\nTYPEOUT \"The project catalog describes ten synthetic GIS-K03 upload tests. The asset files remain local and are selected explicitly.\"\n\nREAD [Gis Defensive Ingestion Test Cases Form]\nLIST case_id asset_file asset_kind expected_outcome\n\nFREQ expected_outcome\n\nSELECT expected_outcome = \"accepted-review-axis-order\" OR expected_outcome = \"accepted-review-region\"\nLIST case_id asset_file expected_outcome review_reason\nCANCEL SELECT\n\nSELECT expected_outcome = \"rejected-unsupported-media\" OR expected_outcome = \"rejected-malformed\" OR expected_outcome = \"rejected-coordinate-range\" OR expected_outcome = \"rejected-non-finite\" OR expected_outcome = \"rejected-feature-limit\" OR expected_outcome = \"rejected-nesting-limit\" OR expected_outcome = \"rejected-property-limit\"\nLIST case_id asset_file expected_outcome review_reason\nCANCEL SELECT\n\nDIALOG \"Select a GeoJSON asset from the imported GIS defensive-ingestion example folder.\" SelectedAsset READ \"*.geojson\"\nEPIAI GIS INSPECT FILE=SelectedAsset RESULT=GisInspection\nDIALOG \"Select a CSV asset from the imported GIS defensive-ingestion example folder.\" SelectedAsset READ \"*.csv\"\nEPIAI GIS INSPECT FILE=SelectedAsset RESULT=GisCsvRejection\nTYPEOUT \"GIS INSPECT displays the bounded Worker receipt and diagnostics in Output.\"\n",
+      "language": "classic-analysis",
+      "author": "Epi Info AI",
+      "comment": "Loads the test-case catalog, filters the expected outcomes, and prompts the learner to select each uploadable asset for the GIS-K03 inspection spike.",
+      "createdAt": "2026-09-16T12:00:00.000Z",
+      "modifiedAt": "2026-09-16T12:00:00.000Z"
+    }
+  ],
+  "codeTables": [],
+  "runbooks": [
+    {
+      "id": "gis-defensive-ingestion-review",
+      "title": "GIS defensive-ingestion review",
+      "description": "Use the imported test catalog and the uploadable assets to review automatic GIS-K03 rejection versus cases requiring human axis or study-area review.",
+      "prerequisite": "Import the GIS Defensive Ingestion Teaching example project from File > Import Example Project. Keep the adjacent gis-defensive-ingestion asset folder available for explicit upload.",
+      "module": "forms",
+      "steps": [
+        {
+          "id": "open-program",
+          "title": "Open the saved teaching program",
+          "instruction": "Open Program Editor and select GIS defensive-ingestion review.",
+          "target": "#program-editor-open"
+        },
+        {
+          "id": "read-catalog",
+          "title": "Load the test-case catalog",
+          "instruction": "Run the program through the READ and LIST commands to review all ten synthetic test cases.",
+          "target": "#program-editor-run"
+        },
+        {
+          "id": "review-filter",
+          "title": "Review filter groups",
+          "instruction": "Run the selected commands for review-required coordinates and automatic rejection cases. Do not treat valid numeric ranges as proof of axis or sign correctness.",
+          "target": "#program-editor-run"
+        },
+        {
+          "id": "open-gis-spike",
+          "title": "Inspect uploadable assets",
+          "instruction": "Open the GIS-K02/K03 inspection page and select the listed GeoJSON or CSV asset. Compare the observed result with expected_outcome.",
+          "target": "#designer-open-project-web"
+        }
+      ]
+    }
+  ]
+}

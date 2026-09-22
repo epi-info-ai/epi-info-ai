@@ -11,6 +11,9 @@
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "node wasm/tests/phase0-smoke.mjs",
+    "test:gis": "node wasm/tests/gis-contract-smoke.mjs",
+    "test:gis:command": "node wasm/tests/epi-ai-gis-command-smoke.mjs",
+    "test:gis:fixtures": "node wasm/tests/gis-defensive-ingestion-smoke.mjs",
     "test:build": "node wasm/tests/build-smoke.mjs",
     "test:browser": "playwright test",
     "build": "node wasm/scripts/build.mjs",

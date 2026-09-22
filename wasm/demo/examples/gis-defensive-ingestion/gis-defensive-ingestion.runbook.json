@@ -1,0 +1,33 @@
+{
+  "id": "gis-defensive-ingestion-review",
+  "title": "GIS defensive-ingestion review",
+  "description": "Use the imported test catalog and the uploadable assets to review automatic GIS-K03 rejection versus cases requiring human axis or study-area review.",
+  "prerequisite": "Import the GIS Defensive Ingestion Teaching example project from File > Import Example Project. Keep the adjacent gis-defensive-ingestion asset folder available for explicit upload.",
+  "module": "forms",
+  "steps": [
+    {
+      "id": "open-program",
+      "title": "Open the saved teaching program",
+      "instruction": "Open Program Editor and select GIS defensive-ingestion review.",
+      "target": "#program-editor-open"
+    },
+    {
+      "id": "read-catalog",
+      "title": "Load the test-case catalog",
+      "instruction": "Run the program through the READ and LIST commands to review all ten synthetic test cases.",
+      "target": "#program-editor-run"
+    },
+    {
+      "id": "review-filter",
+      "title": "Review filter groups",
+      "instruction": "Run the selected commands for review-required coordinates and automatic rejection cases. Do not treat valid numeric ranges as proof of axis or sign correctness.",
+      "target": "#program-editor-run"
+    },
+    {
+      "id": "open-gis-spike",
+      "title": "Inspect uploadable assets",
+      "instruction": "Open the GIS-K02/K03 inspection page and select the listed GeoJSON or CSV asset. Compare the observed result with expected_outcome.",
+      "target": "#designer-open-project-web"
+    }
+  ]
+}
