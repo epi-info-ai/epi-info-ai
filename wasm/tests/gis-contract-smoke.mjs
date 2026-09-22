@@ -114,6 +114,7 @@ assert.equal(module.reviewReferenceLayerCrsV01(noPrjReference.candidates[0], "un
 assert.throws(() => module.inspectReferenceLayerPackageV01(zipStored(["../escape.shp"]), archiveLimits), /Unsafe ZIP entry path/);
 const gpkgHeader = new Uint8Array(16); gpkgHeader.set(new TextEncoder().encode("SQLite format 3\0"));
 assert.equal(module.inspectReferenceLayerPackageV01(gpkgHeader.buffer, archiveLimits).packageFormat, "GeoPackage");
+assert.throws(() => module.inspectReferenceLayerPackageV01(gpkgHeader.buffer, { ...archiveLimits, maxArchiveBytes: 8 }), /exceeds the maxArchiveBytes/);
 const reviewedCandidate = module.chooseReferenceLayerCandidateV01(referenceInspection, referenceInspection.candidates[0].id);
 assert.deepEqual(module.reviewReferenceLayerCrsV01(reviewedCandidate, "CRS84"), { declaredCrs: "CRS84", status: "accepted-wgs84", normalizationRequired: false });
 assert.deepEqual(module.reviewReferenceLayerCrsV01(reviewedCandidate, "EPSG:3857"), { declaredCrs: "EPSG:3857", status: "requires-reprojection", normalizationRequired: true });
@@ -124,11 +125,13 @@ assert.deepEqual(module.persistReferenceLayerLineageV01(lineage, "b".repeat(64))
 assert.throws(() => module.createReferenceLayerLineageV01({ planId: "plan-reference-2", fileName: "toledo.zip", sha256: "b".repeat(64), byteLength: 512, packageFormat: "ZIP", candidate: reviewedCandidate, crsReview: module.reviewReferenceLayerCrsV01(reviewedCandidate, "unknown") }), /unknown CRS/);
 const normalizationPlan = module.createReferenceLayerNormalizationPlanV01(lineage, { maxInputBytes: 1000, maxOutputBytes: 2000, maxFeatures: 100, maxCoordinates: 1000 });
 assert.deepEqual(normalizationPlan, { schema: "epi-gis-reference-normalize/0.1", planId: "plan-reference-1", source: { candidateId: reviewedCandidate.id, format: "Shapefile", declaredCrs: "CRS84", sha256: "a".repeat(64), byteLength: 512 }, targetCrs: "CRS84", outputFormat: "GeoJSON", limits: { maxInputBytes: 1000, maxOutputBytes: 2000, maxFeatures: 100, maxCoordinates: 1000 }, executionStatus: "planned" });
-assert.deepEqual(module.buildReferenceLayerGdalRequestV01(normalizationPlan), { sourceKind: "zip-shapefile", openVirtualFileSystems: ["vsizip"], ogr2ogrArguments: ["-f", "GeoJSON", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES"], outputName: "reference-plan-reference-1", limits: normalizationPlan.limits });
+assert.deepEqual(module.buildReferenceLayerGdalRequestV01(normalizationPlan), { sourceKind: "zip-shapefile", openVirtualFileSystems: ["vsizip"], ogr2ogrArguments: ["-f", "GeoJSON", "-s_srs", "EPSG:4326", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES"], outputName: "reference-plan-reference-1", limits: normalizationPlan.limits });
+const projectedNormalizationPlan = module.createReferenceLayerNormalizationPlanV01({ ...lineage, crs: { declaredCrs: "EPSG:3857", targetCrs: "CRS84", normalizationRequired: true }, status: "requires-reprojection" }, { maxInputBytes: 1000, maxOutputBytes: 2000, maxFeatures: 100, maxCoordinates: 1000 });
+assert.deepEqual(module.buildReferenceLayerGdalRequestV01(projectedNormalizationPlan).ogr2ogrArguments.slice(0, 8), ["-f", "GeoJSON", "-s_srs", "EPSG:3857", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES"]);
 const geopackageCandidate = { ...reviewedCandidate, id: "geopackage:root", format: "GeoPackage", displayName: "GeoPackage database", entries: [] };
 const geopackageLineage = module.createReferenceLayerLineageV01({ planId: "plan-reference-gpkg", fileName: "boundaries.gpkg", sha256: "e".repeat(64), byteLength: 1024, packageFormat: "GeoPackage", candidate: geopackageCandidate, crsReview: module.reviewReferenceLayerCrsV01(geopackageCandidate, "CRS84"), layerName: "case_sites" });
 const geopackagePlan = module.createReferenceLayerNormalizationPlanV01(geopackageLineage, { maxInputBytes: 1000, maxOutputBytes: 2000, maxFeatures: 100, maxCoordinates: 1000 });
-assert.deepEqual(module.buildReferenceLayerGdalRequestV01(geopackagePlan).ogr2ogrArguments, ["-f", "GeoJSON", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES", "-dialect", "SQLite", "-sql", 'SELECT * FROM "case_sites"']);
+assert.deepEqual(module.buildReferenceLayerGdalRequestV01(geopackagePlan).ogr2ogrArguments, ["-f", "GeoJSON", "-s_srs", "EPSG:4326", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES", "-dialect", "SQLite", "-sql", 'SELECT * FROM "case_sites"']);
 assert.throws(() => module.createReferenceLayerLineageV01({ planId: "plan-reference-gpkg-missing", fileName: "boundaries.gpkg", sha256: "f".repeat(64), byteLength: 1024, packageFormat: "GeoPackage", candidate: geopackageCandidate, crsReview: module.reviewReferenceLayerCrsV01(geopackageCandidate, "CRS84") }), /explicit layer name/);
 
 console.log("GIS contract smoke passed: four registered operations and defensive input validation.");

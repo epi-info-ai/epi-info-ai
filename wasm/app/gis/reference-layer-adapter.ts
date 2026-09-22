@@ -14,7 +14,8 @@ export function buildReferenceLayerGdalRequestV01(plan: ReferenceLayerNormalizat
   if (plan.outputFormat !== "GeoJSON" || plan.targetCrs !== "CRS84") throw new RangeError("The reference-layer adapter only emits CRS84 GeoJSON in v0.1.");
   const sourceKind = plan.source.format === "Shapefile" ? "zip-shapefile" : "geopackage";
   if (sourceKind === "geopackage" && !plan.source.layerName?.trim()) throw new RangeError("GeoPackage normalization requires an explicit layer name.");
-  const ogr2ogrArguments = ["-f", "GeoJSON", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES"];
+  const sourceCrs = plan.source.declaredCrs === "CRS84" ? "EPSG:4326" : plan.source.declaredCrs;
+  const ogr2ogrArguments = ["-f", "GeoJSON", "-s_srs", sourceCrs, "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES"];
   if (sourceKind === "geopackage") {
     const layerName = plan.source.layerName!.replaceAll('"', '""');
     ogr2ogrArguments.push("-dialect", "SQLite", "-sql", `SELECT * FROM "${layerName}"`);

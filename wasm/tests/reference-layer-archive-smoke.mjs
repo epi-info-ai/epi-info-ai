@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { build } from "esbuild";
+import { zipSync } from "fflate";
 
 const packageBundle = await build({ entryPoints: ["wasm/app/contracts/project-package.ts"], bundle: true, format: "esm", platform: "browser", write: false });
 const archiveBundle = await build({ entryPoints: ["wasm/app/contracts/project-archive.ts"], bundle: true, format: "esm", platform: "browser", write: false });
@@ -8,7 +9,7 @@ const packages = await import(`data:text/javascript;base64,${Buffer.from(package
 const archives = await import(`data:text/javascript;base64,${Buffer.from(archiveBundle.outputFiles[0].text).toString("base64")}`);
 
 const snapshot = JSON.parse(await readFile("wasm/tests/fixtures/phase0/project-snapshot-v1.json", "utf8"));
-const sourceBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x45, 0x50, 0x49, 0x2d, 0x47, 0x49, 0x53]);
+const sourceBytes = zipSync({ "toledo.shp": new Uint8Array([1]), "toledo.shx": new Uint8Array([2]), "toledo.dbf": new Uint8Array([3]) });
 const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", sourceBytes))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 const source = {
   id: digest,

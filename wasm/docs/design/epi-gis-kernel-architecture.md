@@ -499,10 +499,10 @@ GeoJSON with explicit input, output, feature, and coordinate limits. The
 installed-Chrome path now executes the reviewed Shapefile/GeoPackage request in
 the existing GDAL/WASM Worker, verifies the bounded GeoJSON output, stores the
 derived GeoJSON and its lineage in the project map-asset contract, and renders
-it. The original source package is not copied into project storage;
-the original source package is not converted or altered; it is stored separately in OPFS and included in
-portable `.epia`/`.epiax` archives with digest, size, and package-header
-verification.
+it. The original source package is not copied into the derived map asset or
+converted in place. It is stored separately in OPFS and included in portable
+`.epia`/`.epiax` archives with digest, size, package-header, and strict ZIP
+component verification.
 
 The adapter boundary is now also typed: a reviewed normalization plan can
 produce only the fixed Shapefile `/vsizip/` or GeoPackage opening mode and the

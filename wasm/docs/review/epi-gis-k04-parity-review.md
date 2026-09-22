@@ -16,8 +16,8 @@ and reopening the result from a portable project package.
 | Shapefile bundle completeness | Engine-free ZIP preflight and installed-Chrome normalization test | Browser candidate |
 | GeoPackage ambiguity | GDAL-generated three-layer fixture requires explicit `case_sites` selection | Adapted browser workflow |
 | CRS policy | CRS84/EPSG:4326 accepted; EPSG:3857 disclosed as reprojection; unknown rejected | Browser candidate |
-| Source integrity | SHA-256, byte length, package header, OPFS, and `.epia` round-trip checks | Browser candidate |
-| Derived output | Fixed GDAL adapter, CRS84 GeoJSON validation, exact three-record control comparison | Browser candidate |
+| Source integrity | SHA-256, byte length, package header, strict ZIP revalidation, OPFS, and `.epia` round-trip checks | Browser candidate |
+| Derived output | Fixed source/target CRS GDAL adapter, bounded GeoJSON feature/coordinate/geometry validation, and exact three-record control comparison | Browser candidate |
 | Legacy Epi-Map mental model | Add Reference Layer, explicit source review, visible diagnostics, no implicit layer choice | Requires experienced-user review |
 
 ## Known adaptation

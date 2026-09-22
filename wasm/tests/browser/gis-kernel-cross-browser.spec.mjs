@@ -17,15 +17,15 @@ async function openReferenceDialog(page, bytes, name = "reference.zip") {
 
 test("K04 reference preflight exposes incomplete bundles across browser engines", async ({ page }) => {
   const dialog = await openReferenceDialog(page, referenceZip(["toledo.shp", "toledo.shx"]));
-  await expect(dialog.locator("#reference-layer-candidate")).toHaveValue("shapefile:toledo");
-  await expect(dialog.locator("#reference-layer-candidate option")).toContainText("incomplete");
+  await expect(dialog.locator("#reference-layer-candidate")).toHaveValue("");
+  await expect(dialog.locator("#reference-layer-candidate option").filter({ hasText: "incomplete" })).toHaveText(/incomplete/);
   await expect(dialog.locator("#reference-layer-review")).toBeDisabled();
   await expect(dialog.locator("#reference-layer-diagnostics")).toContainText("missing");
 });
 
 test("K04 reference preflight exposes a complete Shapefile bundle across browser engines", async ({ page }) => {
   const dialog = await openReferenceDialog(page, referenceZip(["toledo.shp", "toledo.shx", "toledo.dbf", "toledo.prj"]));
-  await expect(dialog.locator("#reference-layer-candidate")).toHaveValue("shapefile:toledo");
+  await expect(dialog.locator("#reference-layer-candidate")).toHaveValue("");
   await dialog.locator("#reference-layer-candidate").selectOption("shapefile:toledo");
   await dialog.locator("#reference-layer-crs").selectOption("CRS84");
   await expect(dialog.locator("#reference-layer-review")).toBeEnabled();

@@ -82,6 +82,7 @@ function inspectGeoPackageCandidates(names: readonly string[]): ReferenceLayerCa
 
 export function inspectReferenceLayerPackageV01(bytes: ArrayBuffer, limits: GisArchiveLimitsV01): ReferenceLayerInspectionV01 {
   const input = new Uint8Array(bytes);
+  if (input.byteLength > limits.maxArchiveBytes) throw new RangeError("Reference layer input exceeds the maxArchiveBytes limit.");
   if (isGeoPackage(input)) {
     return {
       packageFormat: "GeoPackage",

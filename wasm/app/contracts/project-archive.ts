@@ -3,6 +3,7 @@ import { validateProjectPackage, type ProjectPackageV2 } from "./project-package
 import type { ProjectReferenceLayerSourceV1 } from "./core.ts";
 import { parsePmtilesHeader } from "../maps/pmtiles-import.ts";
 import { validateProjectMapAssetFile } from "../maps/project-map-assets.ts";
+import { inspectZipArchiveV01, type GisArchiveLimitsV01 } from "../gis/archive-ingestion.ts";
 
 export const PROJECT_ARCHIVE_FORMAT = "epi-info-ai-archive" as const;
 export const PROJECT_ARCHIVE_VERSION = 1 as const;
@@ -10,6 +11,14 @@ export const MAX_PROJECT_ARCHIVE_BYTES = 150 * 1024 * 1024;
 const MAX_MANIFEST_BYTES = 25 * 1024 * 1024;
 const MAGIC = new Uint8Array([0x45, 0x50, 0x49, 0x41, 0x01, 0x0d, 0x0a, 0x1a]);
 const HEADER_BYTES = 12;
+const MAX_REFERENCE_LAYER_SOURCE_BYTES = 100 * 1024 * 1024;
+const REFERENCE_LAYER_ARCHIVE_LIMITS: GisArchiveLimitsV01 = {
+  maxArchiveBytes: MAX_REFERENCE_LAYER_SOURCE_BYTES,
+  maxEntries: 500,
+  maxExpandedBytes: 500 * 1024 * 1024,
+  maxEntryBytes: 250 * 1024 * 1024,
+  maxCompressionRatio: 100,
+};
 
 interface ProjectArchiveManifest {
   format: typeof PROJECT_ARCHIVE_FORMAT;
@@ -71,11 +80,16 @@ async function validatePayload(asset: PortableProjectAsset, file: File): Promise
   if (await sha256(file) !== asset.sha256) throw new Error(`Embedded project asset ${asset.fileName} failed its SHA-256 check.`);
   if (!isOfflineMapAsset(asset)) {
     if (isReferenceLayerSource(asset)) {
-      const prefix = new Uint8Array(await file.slice(0, asset.packageFormat === "ZIP" ? 4 : 16).arrayBuffer());
-      const valid = asset.packageFormat === "ZIP"
-        ? prefix[0] === 0x50 && prefix[1] === 0x4b
-        : new TextDecoder().decode(prefix) === "SQLite format 3\0";
-      if (!valid) throw new Error(`Embedded reference-layer source ${asset.fileName} does not match its ${asset.packageFormat} header.`);
+      if (file.size > MAX_REFERENCE_LAYER_SOURCE_BYTES) throw new Error(`Embedded reference-layer source ${asset.fileName} exceeds the 100 MiB limit.`);
+      if (asset.packageFormat === "ZIP") {
+        const archive = inspectZipArchiveV01(await file.arrayBuffer(), REFERENCE_LAYER_ARCHIVE_LIMITS, {
+          allowedExtensions: [".shp", ".shx", ".dbf", ".prj", ".cpg"],
+        });
+        if (!archive.candidateFormats.includes("Shapefile")) throw new Error(`Embedded reference-layer source ${asset.fileName} is not a complete Shapefile archive.`);
+      } else {
+        const prefix = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+        if (new TextDecoder().decode(prefix) !== "SQLite format 3\0") throw new Error(`Embedded reference-layer source ${asset.fileName} does not match its GeoPackage header.`);
+      }
       return;
     }
     await validateProjectMapAssetFile(file, asset.format);

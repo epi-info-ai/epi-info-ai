@@ -60,6 +60,17 @@ function crc32(bytes: Uint8Array): number {
   return (value ^ 0xffffffff) >>> 0;
 }
 
+function validateExtraFields(bytes: Uint8Array, offset: number, length: number): void {
+  const end = offset + length;
+  for (let extra = offset; extra < end;) {
+    if (extra + 4 > end) throw new TypeError("ZIP extra field header exceeds the entry bounds.");
+    const fieldId = u16(bytes, extra); const fieldLength = u16(bytes, extra + 2);
+    if (extra + 4 + fieldLength > end) throw new TypeError("ZIP extra field exceeds the entry bounds.");
+    if (fieldId === 0x0001) throw new TypeError("ZIP64 extra fields are not supported.");
+    extra += 4 + fieldLength;
+  }
+}
+
 export interface GisZipInspectionOptionsV01 {
   allowedExtensions?: readonly string[];
 }
@@ -100,18 +111,14 @@ export function inspectZipArchiveV01(bytes: ArrayBuffer, limits: GisArchiveLimit
     if (names.has(normalizedName)) throw new TypeError(`ZIP contains duplicate or colliding entry names: ${name}`);
     names.add(normalizedName);
     if (name.endsWith("/") || ((externalAttributes >>> 16) & 0xf000) === 0xa000) throw new TypeError(`ZIP special or directory entry is not allowed: ${name}`);
-    for (let extra = cursor + 46; extra + 4 <= cursor + 46 + extraBytes;) {
-      const fieldId = u16(input, extra); const fieldLength = u16(input, extra + 2);
-      if (extra + 4 + fieldLength > cursor + 46 + extraBytes) throw new TypeError("ZIP extra field exceeds the central-directory entry bounds.");
-      if (fieldId === 0x0001) throw new TypeError("ZIP64 extra fields are not supported.");
-      extra += 4 + fieldLength;
-    }
+    validateExtraFields(input, cursor + 46 + nameBytes, extraBytes);
     const localNameBytes = localOffset + 30 <= input.byteLength ? u16(input, localOffset + 26) : 0;
     const localExtraBytes = localOffset + 30 <= input.byteLength ? u16(input, localOffset + 28) : 0;
     const localEnd = localOffset + 30 + localNameBytes + localExtraBytes + compressedBytes;
     if (endEntry > input.byteLength || localOffset + 30 > input.byteLength || u32(input, localOffset) !== ZIP_LOCAL || localEnd > input.byteLength) throw new TypeError("ZIP entry points outside the archive bounds.");
     if ((flags & 1) !== 0) throw new TypeError("Encrypted ZIP entries are not allowed.");
     if ((flags & 8) !== 0) throw new TypeError("ZIP data-descriptor entries are not allowed.");
+    validateExtraFields(input, localOffset + 30 + localNameBytes, localExtraBytes);
     if (u16(input, localOffset + 6) !== flags || u16(input, localOffset + 8) !== method || decodeName(input, localOffset + 30, localNameBytes) !== name) throw new TypeError(`ZIP local and central headers disagree for ${name}.`);
     if (u32(input, localOffset + 14) !== u32(input, cursor + 16) || u32(input, localOffset + 18) !== compressedBytes || u32(input, localOffset + 22) !== expandedEntryBytes) throw new TypeError(`ZIP local and central sizes disagree for ${name}.`);
     if (localEnd > centralOffset) throw new TypeError(`ZIP entry overlaps the central directory: ${name}`);

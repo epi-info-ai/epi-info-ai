@@ -28,6 +28,7 @@ import { createMapLibrePmtilesOverlay, type MapLibrePmtilesOverlay } from "../ap
 import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
 import { readProjectMapAsset, removeProjectMapAsset, storeProjectMapAsset } from "../app/maps/project-map-assets.ts";
 import { inspectReferenceLayerPackageV01, reviewReferenceLayerCrsV01, type ReferenceLayerCrsV01, type ReferenceLayerInspectionV01 } from "../app/gis/reference-layer.ts";
+import { inspectGeoJsonInputV01 } from "../app/gis/ingestion.ts";
 import { createVerifiedShapefileZipV01, extractVerifiedShapefileZipV01 } from "../app/gis/archive-ingestion.ts";
 import { createReferenceLayerLineageV01, persistReferenceLayerLineageV01 } from "../app/gis/reference-layer-lineage.ts";
 import { storeReferenceLayerSource, removeReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
@@ -2036,6 +2037,10 @@ export function initializeMaps(
     referenceLayerNormalizationPlan = null;
     referenceLayerDiagnostics.replaceChildren();
     if (!file) return;
+    if (file.size > 100 * 1024 * 1024) {
+      referenceLayerStatus.textContent = "Preflight rejected: the reference layer exceeds the 100 MiB input limit.";
+      return;
+    }
     referenceLayerStatus.textContent = `Preflighting ${file.name} locally...`;
     try {
       const inspection = inspectReferenceLayerPackageV01(await file.arrayBuffer(), {
@@ -2052,7 +2057,11 @@ export function initializeMaps(
       );
       referenceLayerCandidate.disabled = inspection.candidates.length === 0;
       referenceLayerCrs.disabled = inspection.candidates.length === 0;
-      referenceLayerDiagnostics.replaceChildren(...inspection.diagnostics.map((message) => { const item = document.createElement("li"); item.textContent = message; return item; }));
+      const diagnostics = [
+        ...inspection.diagnostics,
+        ...inspection.candidates.filter((candidate) => candidate.completeness === "incomplete").map((candidate) => `${candidate.displayName} is incomplete; missing ${candidate.missingEntries.join(", ")}.`),
+      ];
+      referenceLayerDiagnostics.replaceChildren(...diagnostics.map((message) => { const item = document.createElement("li"); item.textContent = message; return item; }));
       referenceLayerStatus.textContent = `${inspection.candidates.length} candidate layer${inspection.candidates.length === 1 ? "" : "s"} found. Review a candidate before any project change.`;
     } catch (error) {
       referenceLayerStatus.textContent = error instanceof Error ? `Preflight rejected: ${error.message}` : "Preflight rejected.";
@@ -2163,9 +2172,20 @@ export function initializeMaps(
         const outputPath = await client.call<{ local: string }>("ogr2ogr", dataset, [...request.ogr2ogrArguments], request.outputName);
         const outputBytes = await client.call<Uint8Array>("getFileBytes", outputPath);
         if (outputBytes.byteLength > request.limits.maxOutputBytes) throw new RangeError("Normalized GeoJSON exceeds the plan's maxOutputBytes limit.");
+        const outputBuffer = outputBytes.buffer.slice(outputBytes.byteOffset, outputBytes.byteOffset + outputBytes.byteLength) as ArrayBuffer;
+        const outputInspection = inspectGeoJsonInputV01(outputBuffer, {
+          schema: "epi-gis-plan/0.1",
+          id: request.outputName,
+          operation: "gis.dataset.inspect",
+          projectRevision: lineage.planId,
+          inputs: [{ assetId: request.outputName, sha256: "0".repeat(64), role: "reference-geography", mediaType: "application/geo+json", byteLength: outputBytes.byteLength, declaredCrs: "CRS84" }],
+          parameters: { layerName: selectedCandidate.displayName },
+          limits: { maxInputBytes: request.limits.maxOutputBytes, maxOutputBytes: request.limits.maxOutputBytes, maxFeatures: request.limits.maxFeatures, maxCoordinates: request.limits.maxCoordinates, maxNestingDepth: 100, maxProperties: 1_000_000, timeoutMilliseconds: 1_000 },
+          requestedOutputs: [{ id: "normalized", mediaType: "application/geo+json", disclosure: "aggregate" }],
+        });
+        if (outputInspection.format !== "GeoJSON") throw new TypeError("GDAL produced an invalid GeoJSON result.");
         const normalized = JSON.parse(new TextDecoder().decode(outputBytes)) as { type?: unknown; features?: unknown[] };
         if (normalized.type !== "FeatureCollection" || !Array.isArray(normalized.features)) throw new TypeError("GDAL produced an invalid GeoJSON FeatureCollection.");
-        const outputBuffer = outputBytes.buffer.slice(outputBytes.byteOffset, outputBytes.byteOffset + outputBytes.byteLength) as ArrayBuffer;
         const storedSource = await storeReferenceLayerSource(file, referenceLayerInspection!.packageFormat);
         currentReferenceLayerSource = storedSource;
         try {
