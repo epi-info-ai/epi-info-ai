@@ -1,5 +1,6 @@
 import type { OfflineMapAsset, ProjectMapAsset } from "./core.ts";
 import { validateProjectPackage, type ProjectPackageV2 } from "./project-package.ts";
+import type { ProjectReferenceLayerSourceV1 } from "./core.ts";
 import { parsePmtilesHeader } from "../maps/pmtiles-import.ts";
 import { validateProjectMapAssetFile } from "../maps/project-map-assets.ts";
 
@@ -17,7 +18,7 @@ interface ProjectArchiveManifest {
   assets: PortableProjectAsset[];
 }
 
-export type PortableProjectAsset = OfflineMapAsset | ProjectMapAsset;
+export type PortableProjectAsset = OfflineMapAsset | ProjectMapAsset | ProjectReferenceLayerSourceV1;
 
 export interface ProjectArchiveAsset {
   asset: PortableProjectAsset;
@@ -33,6 +34,7 @@ function linkedAssets(projectPackage: ProjectPackageV2): PortableProjectAsset[] 
   const assets: PortableProjectAsset[] = [
     ...(projectPackage.project.studyAreas ?? []).flatMap((studyArea) => studyArea.offlineMap.asset ? [studyArea.offlineMap.asset] : []),
     ...(projectPackage.project.mapAssets ?? []),
+    ...(projectPackage.project.referenceLayerSources ?? []),
   ];
   for (const asset of assets) {
     const sameDigest = assets.find((candidate) => candidate !== asset && candidate.sha256 === asset.sha256);
@@ -60,10 +62,22 @@ function isOfflineMapAsset(asset: PortableProjectAsset): asset is OfflineMapAsse
   return asset.format === "pmtiles-v3";
 }
 
+function isReferenceLayerSource(asset: PortableProjectAsset): asset is ProjectReferenceLayerSourceV1 {
+  return asset.format === "reference-package";
+}
+
 async function validatePayload(asset: PortableProjectAsset, file: File): Promise<void> {
   if (file.size !== asset.byteLength) throw new Error(`Embedded project asset ${asset.fileName} has the wrong byte length.`);
   if (await sha256(file) !== asset.sha256) throw new Error(`Embedded project asset ${asset.fileName} failed its SHA-256 check.`);
   if (!isOfflineMapAsset(asset)) {
+    if (isReferenceLayerSource(asset)) {
+      const prefix = new Uint8Array(await file.slice(0, asset.packageFormat === "ZIP" ? 4 : 16).arrayBuffer());
+      const valid = asset.packageFormat === "ZIP"
+        ? prefix[0] === 0x50 && prefix[1] === 0x4b
+        : new TextDecoder().decode(prefix) === "SQLite format 3\0";
+      if (!valid) throw new Error(`Embedded reference-layer source ${asset.fileName} does not match its ${asset.packageFormat} header.`);
+      return;
+    }
     await validateProjectMapAssetFile(file, asset.format);
     return;
   }

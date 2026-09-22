@@ -45,5 +45,20 @@ export default defineConfig({
       testMatch: /cross-browser-navigation\.spec\.mjs/,
       use: { ...devices["iPhone 13"] },
     },
+    {
+      name: "firefox-gis",
+      testMatch: /gis-kernel-cross-browser\.spec\.mjs/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit-gis",
+      testMatch: /gis-kernel-cross-browser\.spec\.mjs/,
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile-webkit-gis",
+      testMatch: /gis-kernel-cross-browser\.spec\.mjs/,
+      use: { ...devices["iPhone 13"] },
+    },
   ],
 });
