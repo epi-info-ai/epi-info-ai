@@ -37,8 +37,8 @@
       "description": "Ten synthetic uploadable GeoJSON and CSV cases with a saved program that filters expected outcomes and reviews GIS-K03 defensive-ingestion behavior.",
       "file": "gis-defensive-ingestion-teaching.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/epi-gis-kernel",
-      "bytes": 8057,
-      "sha256": "ab3fd881088555197ec98422e375c08f410d16773d9b08335e68798944d61258"
+      "bytes": 8077,
+      "sha256": "5f8ba0189d73f278717e3a8acce0b2d93c48e1b168c9ada86289a2f28e66f513"
     }
   ]
 }

@@ -3,3 +3,4 @@ export * from "./registry.ts";
 export * from "./worker-client.ts";
 export * from "./ingestion.ts";
 export * from "./utm-zone.ts";
+export * from "./archive-ingestion.ts";

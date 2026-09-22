@@ -50,8 +50,11 @@ GIS-K03 adds the engine-free [`ingestion.ts`](../../app/gis/ingestion.ts)
 preflight. It currently accepts only GeoJSON media types and rejects inputs
 that exceed byte, feature, coordinate, nesting, or property-count limits. It
 also rejects non-finite and out-of-range geographic coordinates before any
-renderer or GDAL adapter can receive them. Archive and driver inspection are
-still deferred until the reviewed allowlists and hostile-file fixtures exist.
+renderer or GDAL adapter can receive them. The engine-free ZIP preflight now
+checks central-directory bounds, entry counts, expansion budgets, compression
+ratios, encryption, UTF-8 names, and traversal paths, and identifies likely
+Shapefile/GeoPackage/GeoJSON bundles without extracting them. GDAL driver and
+virtual-filesystem allowlists remain deferred to the adapter slice.
 
 ## Reference hierarchy
 
@@ -468,8 +471,8 @@ does not convert coordinates and is never permission to accept projected input.
 The deterministic TypeScript helper covers the standard Norway and Svalbard
 UTM-zone exceptions and reports when a set of points spans multiple zones.
 
-Add preflight archive/file inspection, driver and virtual-filesystem allowlists,
-limits, hostile fixtures, and lowest-supported-device memory tests.
+Add driver and virtual-filesystem allowlists, archive fixtures covering hostile
+compression and malformed metadata, and lowest-supported-device memory tests.
 
 ### GIS-K04 - reference-layer parity slice
 

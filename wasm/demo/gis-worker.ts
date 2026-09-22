@@ -38,6 +38,8 @@ workerScope.addEventListener("message", async (event) => {
     if (input.byteLength !== event.data.inputBytes.byteLength) throw new RangeError("Input byte length does not match the plan.");
     if (await sha256(event.data.inputBytes) !== input.sha256.toLowerCase()) throw new Error("Input SHA-256 does not match the plan.");
     const data = inspectGeoJsonInputV01(event.data.inputBytes, plan);
+    const outputBytes = new TextEncoder().encode(JSON.stringify(data)).byteLength;
+    if (outputBytes > plan.limits.maxOutputBytes) throw new RangeError("GIS result exceeds the plan's maxOutputBytes limit.");
     const diagnostics = [] as const;
     workerScope.postMessage({ id, ok: true, result: { schema: "epi-gis-result/0.1", planId: plan.id, status: "succeeded", data, outputs: [], diagnostics, receipt: receipt(plan, "succeeded", diagnostics) } });
   } catch (error) {

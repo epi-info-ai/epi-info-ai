@@ -312,7 +312,7 @@ export function resolveSelectedClassicAnalysisCommand(source: string, fields: re
   }
   if (statement.type === "EpiAiGisInspectStatement") {
     const plan = resolveEpiAiGisInspectCommand(source, variables);
-    return { kind: "gis-inspect", fileVariable: plan.fileVariable, resultName: plan.resultName, source };
+    return { kind: "gis-inspect", fileVariable: plan.fileVariable, resultName: plan.resultName, declaredCrs: plan.declaredCrs, source };
   }
   if (statement.type === "EpiAiSpaceTimeClusterStatement") {
     const plan = resolveSpaceTimeClusterCommand(source, fields);

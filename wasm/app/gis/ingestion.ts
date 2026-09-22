@@ -11,14 +11,27 @@ function isGeographicCrs(value: string | "unknown"): boolean {
   return normalized === "EPSG:4326" || normalized === "CRS84" || normalized === "OGC:CRS84";
 }
 
+function embeddedCrsName(root: Record<string, unknown>): string | undefined {
+  if (!isObject(root.crs) || !isObject(root.crs.properties) || typeof root.crs.properties.name !== "string") return undefined;
+  return root.crs.properties.name;
+}
+
+function isWgs84CrsName(value: string): boolean {
+  const normalized = value.toUpperCase().replaceAll(" ", "");
+  return normalized === "CRS84" || normalized === "OGC:CRS84" || normalized === "EPSG:4326" || normalized.endsWith(":4326");
+}
+
 /** Defensive, engine-free preflight for the first supported vector format. */
 export function inspectGeoJsonInputV01(bytes: ArrayBuffer, plan: GisPlanV01): GisDatasetInspectResultV01 {
   const input = plan.inputs[0];
   if (!input) throw new RangeError("The inspect operation requires one input asset.");
   if (!supportedMediaTypes.has(input.mediaType.toLowerCase())) throw new TypeError(`Media type ${input.mediaType} is not allowed by GIS-K03; only GeoJSON is supported.`);
+  if (!isGeographicCrs(input.declaredCrs)) throw new RangeError("GIS-K03 accepts only explicitly declared WGS84 geographic coordinates (CRS84 or EPSG:4326); unknown and projected CRS values are rejected.");
   if (bytes.byteLength > plan.limits.maxInputBytes) throw new RangeError("Input exceeds the plan's maxInputBytes limit.");
   const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
   if (!isObject(parsed)) throw new TypeError("GIS-K02 inspect supports a GeoJSON object only.");
+  const embeddedCrs = embeddedCrsName(parsed);
+  if (embeddedCrs && !isWgs84CrsName(embeddedCrs)) throw new RangeError(`Embedded GeoJSON CRS ${embeddedCrs} conflicts with GIS-K03 WGS84-only coordinate policy.`);
 
   let propertyCount = 0;
   const scan = (value: unknown, depth: number): void => {
@@ -54,14 +67,25 @@ export function inspectGeoJsonInputV01(bytes: ArrayBuffer, plan: GisPlanV01): Gi
     }
     for (const child of value) visitCoordinates(child);
   };
+  const visitGeometry = (geometry: Record<string, unknown>): void => {
+    if (typeof geometry.type !== "string") throw new TypeError("GeoJSON geometry type is required.");
+    geometryTypes.add(geometry.type);
+    if (geometry.type === "GeometryCollection") {
+      if (!Array.isArray(geometry.geometries)) throw new TypeError("GeoJSON GeometryCollection geometries must be an array.");
+      for (const child of geometry.geometries) {
+        if (!isObject(child)) throw new TypeError("GeoJSON GeometryCollection contains a non-object geometry.");
+        visitGeometry(child);
+      }
+      return;
+    }
+    visitCoordinates(geometry.coordinates);
+  };
   for (const feature of features) {
     if (!isObject(feature)) throw new TypeError("FeatureCollection contains a non-object feature.");
     const geometry = feature.geometry;
     if (geometry !== null && !isObject(geometry)) throw new TypeError("GeoJSON feature geometry must be an object or null.");
     if (geometry) {
-      if (typeof geometry.type !== "string") throw new TypeError("GeoJSON geometry type is required.");
-      geometryTypes.add(geometry.type);
-      if (geometry.type !== "GeometryCollection") visitCoordinates(geometry.coordinates);
+      visitGeometry(geometry);
     }
     if (isObject(feature.properties)) for (const key of Object.keys(feature.properties)) fields.add(key);
   }

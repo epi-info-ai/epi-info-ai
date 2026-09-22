@@ -677,7 +677,19 @@ const classicProgramToolbarRun = requiredElement<HTMLButtonElement>("#classic-pr
 const classicProgramToolbarCancel = requiredElement<HTMLButtonElement>("#classic-program-toolbar-cancel");
 let classicProgramRunController: AbortController | null = null;
 const classicClusterResults = new Map<string, { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult }>();
-const classicSelectedFiles = new Map<string, { projectName: string; file: File }>();
+const classicSelectedFiles = new Map<string, { handle: string; projectName: string; file: File }>();
+const classicGisResults = new Map<string, { projectName: string; formName: string; result: GisDatasetInspectResultV01 }>();
+function clearClassicSessionResources(): void {
+  classicSelectedFiles.clear();
+  classicGisResults.clear();
+}
+function revokeClassicSelectedFile(name: string): void {
+  classicSelectedFiles.delete(name.toLocaleLowerCase("en-US"));
+}
+function assignClassicSessionVariable(name: string, value: Parameters<ClassicProgramSession["assignVariable"]>[1]): ReturnType<ClassicProgramSession["assignVariable"]> {
+  revokeClassicSelectedFile(name);
+  return classicProgramSession.assignVariable(name, value);
+}
 let renderedClusterMapEntry: { projectName: string; formName: string; result: SpaceTimeClusterInferenceResult } | null = null;
 let classicRecordLinkReviewContext: {
   projectName: string;
@@ -1056,6 +1068,7 @@ for (const [selector, replaceAll] of [["#classic-program-search-replace", false]
 refreshClassicProjectPrograms();
 renderClassicProgramDocumentState();
 globalThis.addEventListener("epi-info-project-changed", () => {
+  clearClassicSessionResources();
   classicProgramSession.reset(getCurrentProjectData());
   renderClassicProgramSession();
   refreshClassicProjectPrograms();
@@ -4896,8 +4909,8 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       const response = plan.input.kind === "message" ? { accepted: true as const } : await showClassicRuntimeInput(plan);
       assertClassicProgramNotCancelled(signal);
       if (response.accepted && response.value !== undefined && plan.target) {
-        classicProgramSession.assignVariable(plan.target.name, validateClassicDialogValue(plan, response.value));
-        if (plan.input.kind === "read-file" && response.file) classicSelectedFiles.set(plan.target.name.toLocaleLowerCase("en-US"), { projectName: project.projectName, file: response.file });
+        assignClassicSessionVariable(plan.target.name, validateClassicDialogValue(plan, response.value));
+        if (plan.input.kind === "read-file" && response.file) classicSelectedFiles.set(plan.target.name.toLocaleLowerCase("en-US"), { handle: crypto.randomUUID(), projectName: project.projectName, file: response.file });
       }
       const assignment = plan.target && response.accepted ? ` and assigned ${plan.target.name}` : plan.target ? "; the user cancelled and its target was unchanged" : "";
       classicProgramFeedback.textContent = `DIALOG displayed the reviewed ${plan.input.kind} variant${assignment}.${plan.binding ? ` The unavailable saved form name was bound to the only compatible current form, ${plan.binding.resolvedForm}; history records that resolved form.` : ""} No project records changed.`;
@@ -4915,7 +4928,7 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       const plan = resolveEpiAiGisInspectCommand(selectedSource, classicProgramSession.variables());
       const variable = classicProgramSession.variables().find((candidate) => candidate.name.toLocaleLowerCase("en-US") === plan.fileVariable.toLocaleLowerCase("en-US"));
       const selected = classicSelectedFiles.get(plan.fileVariable.toLocaleLowerCase("en-US"));
-      if (!variable || !selected || selected.projectName !== project.projectName || variable.value !== selected.file.name) {
+      if (!variable || !selected || !selected.handle || selected.projectName !== project.projectName || variable.value !== selected.file.name) {
         throw new RangeError(`EPIAI GIS INSPECT requires ${plan.fileVariable} to contain a file selected by DIALOG ... READ in this project.`);
       }
       const inputBytes = await selected.file.arrayBuffer();
@@ -4923,13 +4936,14 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       const sha256 = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
       const gisPlan: GisPlanV01 = {
         schema: "epi-gis-plan/0.1", id: crypto.randomUUID(), operation: "gis.dataset.inspect",
-        projectRevision: project.projectName, inputs: [{ assetId: selected.file.name, sha256, role: "records", mediaType: selected.file.type || "application/octet-stream", byteLength: selected.file.size, declaredCrs: "unknown" }],
+        projectRevision: project.projectName, inputs: [{ assetId: selected.file.name, sha256, role: "records", mediaType: selected.file.type || "application/octet-stream", byteLength: selected.file.size, declaredCrs: plan.declaredCrs }],
         parameters: {}, limits: { maxInputBytes: 4 * 1024 * 1024, maxOutputBytes: 256 * 1024, maxFeatures: 100_000, maxCoordinates: 1_000_000, maxNestingDepth: 64, maxProperties: 200, timeoutMilliseconds: 5_000 }, requestedOutputs: [],
       };
       const started = performance.now();
-      const result = await inspectGisDatasetInWorker(gisPlan, inputBytes, { signal });
+      const result = await inspectGisDatasetInWorker(gisPlan, inputBytes, signal ? { signal } : {});
       assertClassicProgramNotCancelled(signal);
       const data = result.data as GisDatasetInspectResultV01;
+      classicGisResults.set(plan.resultName.toLocaleLowerCase("en-US"), { projectName: project.projectName, formName: project.formName, result: data });
       requiredElement("#classic-gis-output-count").textContent = `${data.featureCount.toLocaleString("en-US")} features · ${(performance.now() - started).toFixed(1)} ms Worker`;
       requiredElement("#classic-gis-output-summary").textContent = `${selected.file.name} · ${data.format} · ${data.geometryTypes.join(", ") || "no geometry types"} · ${data.fields.length} fields · extent ${data.extent ? data.extent.join(", ") : "unavailable"}.`;
       requiredElement("#classic-gis-output-command").textContent = plan.canonicalSource;
@@ -5226,6 +5240,7 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       const removed = plan.mode === "all-standard"
         ? classicProgramSession.undefineAllStandard()
         : [classicProgramSession.undefineVariable(plan.variable!.name)];
+      for (const variable of removed) revokeClassicSelectedFile(variable.name);
       renderClassicProgramSession();
       classicProgramFeedback.textContent = plan.mode === "all-standard"
         ? `Undefined ${removed.length} Standard session variable${removed.length === 1 ? "" : "s"}. Record data was not changed.`
@@ -5241,7 +5256,7 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
     }
     if (command.kind === "assign") {
       const plan = resolveClassicAssignCommand(selectedSource, project.fields, classicProgramSession.variables());
-      const variable = classicProgramSession.assignVariable(plan.variable.name, plan.value);
+      const variable = assignClassicSessionVariable(plan.variable.name, plan.value);
       renderClassicProgramSession();
       classicProgramFeedback.textContent = `Assigned ${variable.name} = ${String(variable.value)} in this Classic session. Record data was not changed.`;
       classicProgramCommandStatus.textContent = "Selected ASSIGN command completed for one Standard session variable.";
@@ -5269,7 +5284,7 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
     if (command.kind === "if") {
       const plan = resolveClassicIfCommand(selectedSource, project.fields, classicProgramSession.variables());
       const result = evaluateClassicIf(plan, classicProgramSession.variables());
-      if (result.assignment) classicProgramSession.assignVariable(result.assignment.variable, result.assignment.value);
+      if (result.assignment) assignClassicSessionVariable(result.assignment.variable, result.assignment.value);
       renderClassicProgramSession();
       const effect = result.assignment
         ? `${result.assignment.variable} = ${String(result.assignment.value)}`
@@ -5285,6 +5300,7 @@ async function runSelectedClassicCommand(sourceOverride?: string, rethrow = fals
       return;
     }
     if (command.kind === "read") {
+      clearClassicSessionResources();
       project = classicProgramSession.read(command.table, [...getProjectDataSources(), ...classicProgramSession.outTables()]);
       renderClassicProgramSession();
       classicProgramFeedback.textContent = `Read ${project.records.length} records from ${project.formName}. Subsequent selected commands use this active data source.`;
@@ -5969,6 +5985,7 @@ requiredElement("#classic-delete-preview-apply").addEventListener("click", () =>
     if (!currentTarget) throw new RangeError("The DELETE TABLES target is no longer in the current project.");
     const reviewedTarget = stageClassicDeleteTable(currentTarget, pending.plan);
     applyClassicDeleteTableRecords(reviewedTarget);
+    clearClassicSessionResources();
     classicProgramSession.reset(getCurrentProjectData());
     renderClassicProgramSession();
     classicProgramFeedback.textContent = `DELETE TABLES applied: ${pending.plan.recordCount} records were removed from ${pending.plan.formName}; the form design was preserved.`;
@@ -6001,6 +6018,7 @@ requiredElement("#classic-delete-records-preview-apply").addEventListener("click
   try {
     applyClassicDeleteRecords(pending);
     const refreshed = getProjectDataSources().find((candidate) => candidate.formId === pending.formId)!;
+    clearClassicSessionResources();
     classicProgramSession.reset(refreshed);
     renderClassicProgramSession();
     classicProgramFeedback.textContent = `DELETE RECORDS applied: ${pending.matchedRecords} records moved to the Recycle Bin; ${pending.remainingRecords.length} remain active.`;
@@ -6033,6 +6051,7 @@ requiredElement("#classic-undelete-records-preview-apply").addEventListener("cli
   try {
     applyClassicUndeleteRecords(pending);
     const refreshed = getProjectDataSources().find((candidate) => candidate.formId === pending.formId)!;
+    clearClassicSessionResources();
     classicProgramSession.reset(refreshed);
     renderClassicProgramSession();
     classicProgramFeedback.textContent = `UNDELETE RECORDS applied: ${pending.restored.length} records restored; ${pending.remainingDeleted.length} remain in the Recycle Bin.`;
@@ -6486,6 +6505,7 @@ refreshRatesSelectors();
 try {
   initializeBrowserLocalization();
   initializeFormDataDemo();
+  clearClassicSessionResources();
   classicProgramSession.reset(getCurrentProjectData());
   renderClassicProgramSession();
   initializeEpiAssist(getCurrentProjectData);

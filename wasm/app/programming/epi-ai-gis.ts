@@ -6,6 +6,7 @@ export const EPIAI_GIS_INSPECT_VERSION = "epi-ai-gis-inspect-v0.1.0" as const;
 export interface EpiAiGisInspectCommandInput {
   fileVariable: string;
   resultName: string;
+  declaredCrs: "CRS84" | "EPSG:4326";
 }
 
 export interface EpiAiGisInspectPlan extends EpiAiGisInspectCommandInput {
@@ -19,7 +20,7 @@ function identifierToken(name: string): string {
 }
 
 export function buildEpiAiGisInspectCommand(input: EpiAiGisInspectCommandInput): string {
-  return `EPIAI GIS INSPECT FILE=${identifierToken(input.fileVariable)} RESULT=${identifierToken(input.resultName)}`;
+  return `EPIAI GIS INSPECT FILE=${identifierToken(input.fileVariable)} RESULT=${identifierToken(input.resultName)} CRS=${input.declaredCrs}`;
 }
 
 export function resolveEpiAiGisInspectCommand(
@@ -36,7 +37,8 @@ export function resolveEpiAiGisInspectCommand(
   return {
     fileVariable: fileVariable.name,
     resultName,
+    declaredCrs: statement.declaredCrs,
     version: EPIAI_GIS_INSPECT_VERSION,
-    canonicalSource: buildEpiAiGisInspectCommand({ fileVariable: fileVariable.name, resultName }),
+    canonicalSource: buildEpiAiGisInspectCommand({ fileVariable: fileVariable.name, resultName, declaredCrs: statement.declaredCrs }),
   };
 }
