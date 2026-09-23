@@ -9,20 +9,20 @@ and the evidence rules and detailed gaps are in the
 
 ## Snapshot
 
-Last reconciled: **2026-09-17**
+Last reconciled: **2026-09-22**
 
 | Measure | Count |
 |---|---:|
 | Legacy enum entries retained as the compatibility floor | 49 |
 | Visible in the legacy Command Explorer | 45 |
-| Typed AST/parser branches | 36 |
-| Typed source dialogs | 36 |
-| Selected execution or explicit reviewed handoff | 34 |
-| Bounded full-program components | 15 |
-| Browser-verified using checked-in `.pgm` and expected output | 28 |
+| Typed AST/parser branches | 37 |
+| Typed source dialogs | 37 |
+| Selected execution or explicit reviewed handoff | 36 |
+| Bounded full-program components | 17 |
+| Browser-verified using checked-in `.pgm` and expected output | 30 |
 | Legacy-parity-verified against reviewed desktop Epi Info output | 0 |
 | Browser-verified non-command settings entries | 1 |
-| Untouched command entries | 12 |
+| Untouched command entries | 11 |
 
 These counts describe implementation progress, not full parity. A command is
 not parity-complete merely because its syntax parses or one browser workflow

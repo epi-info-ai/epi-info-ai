@@ -2,9 +2,9 @@
 
 **Assessment date:** 2026-08-24  
 **Source reviewed:** [`Epi-Info/Epi-Info-Community-Edition`](https://github.com/Epi-Info/Epi-Info-Community-Edition), shallow clone at commit `4cd353c62c40b78d9d1f013b0f5a2bb685a5fca6` (2025-04-09)  
-**Local source snapshot:** [`source/Epi-Info-Community-Edition`](source/Epi-Info-Community-Edition)
+**Local source snapshot:** [`source/Epi-Info-Community-Edition`](../source/Epi-Info-Community-Edition)
 
-The official historical [`Epi Info 7 User Guide`](docs/reference/Epi-Info-7-User-Guide.pdf) is stored in this repository as the primary functional and terminology reference. Its provenance and checksum are recorded in [`docs/reference/README.md`](docs/reference/README.md).
+The official historical [`Epi Info 7 User Guide`](reference/Epi-Info-7-User-Guide.pdf) is stored in this repository as the primary functional and terminology reference. Its provenance and checksum are recorded in [`reference/README.md`](reference/README.md).
 
 ## Executive conclusion
 
@@ -56,8 +56,8 @@ not the core field-analysis workflow.
 The recommendation is therefore an owned, versioned `epi-core` facade that may
 wrap, fork, or replace selected implementations only after the project's robust
 validation gates. Details and current candidate status are recorded in the
-[Rust epidemiology landscape assessment](docs/research/rust-epidemiology-landscape.md)
-and [algorithm validation standard](docs/validation/algorithm-validation-standard.md).
+[Rust epidemiology landscape assessment](research/rust-epidemiology-landscape.md)
+and [algorithm validation standard](validation/algorithm-validation-standard.md).
 
 ## What was found in the source
 
@@ -71,7 +71,7 @@ The repository contains 44 C# projects and one VB project, all using legacy non-
 | `StatisticsRepository` | VB | 38 files / about 21,500 lines | .NET Framework 4.8 | Exact tests, 2×2 tables, regression, survival, complex samples |
 | `Epi.Analysis.Statistics` | C# | 19 files / about 8,400 lines | .NET Framework 4.8 | Analysis command orchestration, data shaping, HTML output |
 
-This separation is promising, but the project references exaggerate the true coupling. For example, [`Epi.Statistics.csproj`](source/Epi-Info-Community-Edition/Epi.Statistics/Epi.Statistics.csproj) references the very large `Epi.Core` assembly even though much of the useful numerical code uses only `System`, collections, LINQ, and `System.Data`.
+This separation is promising, but the project references exaggerate the true coupling. For example, [`Epi.Statistics.csproj`](../source/Epi-Info-Community-Edition/Epi.Statistics/Epi.Statistics.csproj) references the very large `Epi.Core` assembly even though much of the useful numerical code uses only `System`, collections, LINQ, and `System.Data`.
 
 `Epi.Core` itself is not a suitable WASM kernel. It contains approximately 800,000 lines in this checkout, much of it generated datasets and service proxies, and references Windows Forms, `System.Drawing`, `System.Design`, WCF/service APIs, Entity Framework, and other desktop-era infrastructure.
 
@@ -79,11 +79,11 @@ This separation is promising, but the project references exaggerate the true cou
 
 Several valuable files are already close to platform-neutral:
 
-- [`Single2x2.cs`](source/Epi-Info-Community-Edition/Epi.Statistics/Single2x2.cs) is about 400 lines of managed numerical code for exact limits, conditional maximum likelihood estimation, Mantel-Haenszel statistics, and Breslow-Day calculations.
-- [`SharedResources.cs`](source/Epi-Info-Community-Edition/Epi.Statistics/SharedResources.cs) contains managed probability-distribution functions.
-- [`Table.vb`](source/Epi-Info-Community-Edition/StatisticsRepository/Table.vb) exposes `SigTable(a, b, c, d, confidence)` and returns a structured `SingleTableResults` value with odds ratio, risk ratio, risk difference, confidence limits, chi-square tests, mid-p, and Fisher exact results.
-- [`EIExact.vb`](source/Epi-Info-Community-Edition/StatisticsRepository/EIExact.vb) implements the exact 2×2 calculations in managed code. `Table.vb` still declares an old `martinbb.dll` entry point, but the active `SigTable` path constructs `EIExact` instead of invoking that native function.
-- [`StatLib.vb`](source/Epi-Info-Community-Edition/StatisticsRepository/StatLib.vb) provides managed distribution calculations used by the table code.
+- [`Single2x2.cs`](../source/Epi-Info-Community-Edition/Epi.Statistics/Single2x2.cs) is about 400 lines of managed numerical code for exact limits, conditional maximum likelihood estimation, Mantel-Haenszel statistics, and Breslow-Day calculations.
+- [`SharedResources.cs`](../source/Epi-Info-Community-Edition/Epi.Statistics/SharedResources.cs) contains managed probability-distribution functions.
+- [`Table.vb`](../source/Epi-Info-Community-Edition/StatisticsRepository/Table.vb) exposes `SigTable(a, b, c, d, confidence)` and returns a structured `SingleTableResults` value with odds ratio, risk ratio, risk difference, confidence limits, chi-square tests, mid-p, and Fisher exact results.
+- [`EIExact.vb`](../source/Epi-Info-Community-Edition/StatisticsRepository/EIExact.vb) implements the exact 2×2 calculations in managed code. `Table.vb` still declares an old `martinbb.dll` entry point, but the active `SigTable` path constructs `EIExact` instead of invoking that native function.
+- [`StatLib.vb`](../source/Epi-Info-Community-Edition/StatisticsRepository/StatLib.vb) provides managed distribution calculations used by the table code.
 
 The direct obstacles in this seam are mostly removable packaging and legacy-language artifacts:
 
@@ -108,7 +108,7 @@ The legacy test project cannot simply be retained: it targets .NET Framework 4.5
 
 ### Analysis orchestration is more coupled than the algorithms
 
-[`Epi.Analysis.Statistics`](source/Epi-Info-Community-Edition/Epi.Analysis.Statistics) implements frequencies, means, tables, regression, survival, complex samples, and summarization. It is not an appropriate first extraction unit:
+[`Epi.Analysis.Statistics`](../source/Epi-Info-Community-Edition/Epi.Analysis.Statistics) implements frequencies, means, tables, regression, survival, complex samples, and summarization. It is not an appropriate first extraction unit:
 
 - It implements `EpiInfo.Plugin.IAnalysisStatistic` and depends on Epi analysis contexts.
 - It uses `DataTable`, `DataRow`, and `DataSet` extensively.
@@ -119,7 +119,7 @@ The legacy test project cannot simply be retained: it targets .NET Framework 4.5
 
 ### The desktop SQLite provider cannot be ported
 
-[`Epi.Data.SQLite`](source/Epi-Info-Community-Edition/Epi.Data.SQLite) uses `System.Data.SQLite`, EF6-era packages, file paths, and Windows Forms connection dialogs. Its project also references `Epi.Windows`. It is a Windows database adapter despite its database engine being SQLite.
+[`Epi.Data.SQLite`](../source/Epi-Info-Community-Edition/Epi.Data.SQLite) uses `System.Data.SQLite`, EF6-era packages, file paths, and Windows Forms connection dialogs. Its project also references `Epi.Windows`. It is a Windows database adapter despite its database engine being SQLite.
 
 The browser implementation should instead use SQLite's official WASM distribution in a dedicated Worker. SQLite documents OPFS-backed VFS options and notes that OPFS is Worker-only; it also documents concurrency and Safari-specific tradeoffs. The likely default is `opfs-sahpool` for single-project/single-tab use unless multi-tab concurrency is a requirement. See SQLite's [official persistence documentation](https://sqlite.org/wasm/doc/tip/persistence.md).
 
@@ -229,7 +229,7 @@ implementations in one provenance record. JupyterLite documents the
 [Pyodide browser kernel](https://jupyterlite.readthedocs.io/en/stable/howto/configure/kernels.html)
 and static-site deployment model used by the V0.1 lab.
 
-The UI should preserve Epi Info's recognizable module launcher, terminology, workspace arrangements, and primary task sequences so returning users can orient themselves immediately. Modern components should improve accessibility, responsiveness, validation, recovery, and progressive disclosure without unnecessarily relocating familiar actions. The detailed product decision is recorded in [`docs/design/ui-compatibility-strategy.md`](docs/design/ui-compatibility-strategy.md).
+The UI should preserve Epi Info's recognizable module launcher, terminology, workspace arrangements, and primary task sequences so returning users can orient themselves immediately. Modern components should improve accessibility, responsiveness, validation, recovery, and progressive disclosure without unnecessarily relocating familiar actions. The detailed product decision is recorded in [`design/ui-compatibility-strategy.md`](design/ui-compatibility-strategy.md).
 
 ## First proof of concept
 

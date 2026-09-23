@@ -20,6 +20,9 @@ Python-IDLE-style interactive REPL. Its Program Editor contains a multiline
 Explorer dialogs generate editable source, and `.PGM` programs can be saved or
 launched from the application command line. Epi Info AI preserves that model.
 An immediate prompt/console may be explored later only as a labelled new branch.
+The source survey, candidate interaction patterns, shared-kernel boundary, and
+phased implementation plan are maintained in the
+[command-line and interactive-console branch](command-line-branch.md).
 
 Primary legacy evidence includes:
 

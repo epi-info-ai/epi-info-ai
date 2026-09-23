@@ -36,7 +36,7 @@ async function checkRequiredAssetsAndUi() {
     "LICENSE",
     "package.json",
     "wasm/demo/index.html",
-    "wasm/ai-lessons-learned.md",
+    "wasm/docs/ai-lessons-learned.md",
     "wasm/demo/styles.css",
     "wasm/demo/app.ts",
     "wasm/demo/engine.ts",
@@ -547,8 +547,8 @@ async function checkRequiredAssetsAndUi() {
   ])), { data: 7, variables: 6, "select-if": 5, statistics: 8, "advanced-statistics": 7, output: 7, "user-defined": 4, "user-interaction": 4, options: 1 });
   assert.deepEqual(commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.explorer === "legacy-enum-only").map((entry) => entry.legacyName), ["Match", "Map", "Reports", "Help"]);
   const commandSet = await readFile(repositoryPath("COMMAND_SET.md"), "utf8");
-  assert.match(commandSet, /Typed AST\/parser branches \| 36 \|/);
-  assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 28 \|/);
+  assert.match(commandSet, /Typed AST\/parser branches \| 37 \|/);
+  assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 30 \|/);
   assert.match(commandSet, /Legacy-parity-verified against reviewed desktop Epi Info output \| 0 \|/);
   assert.match(commandSet, /## Implemented Epi Info AI new-branch commands/);
   assert.match(commandSet, /`EPIAI CLUSTER SPACE_TIME \.\.\. RESULT=name`/);

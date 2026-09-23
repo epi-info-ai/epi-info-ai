@@ -27,6 +27,50 @@ raster belong to one outbreak-investigation workflow.
 - [`foodborne-dialog-tour.pgm7`](foodborne-dialog-tour.pgm7) exercises the
   interactive `DIALOG` variants and downloads a separate CSV copy with `WRITE`.
 
+## Check Code exercise
+
+- [`foodborne-check-code-tour.chk`](foodborne-check-code-tour.chk) is the
+  form-bound, event-driven Check Code tour. It is deliberately separate from
+  Classic Analysis programs and demonstrates definitions, Form/Page/Record/
+  Field events, type-aware compound `IF/ELSE` expressions, `ASSIGN`, `CLEAR`, field state, yellow
+  `HIGHLIGHT`/`UNHIGHLIGHT`, same-form field `GOTO`, a titled typed
+  Yes/No `DIALOG` response, and a bounded `AUTOSEARCH` preview for an existing
+  ID. The search shows reviewed fields without replacing the learner's current
+  draft. Its age rule visibly flags values outside 0–120;
+  its null-aware onset rule demonstrates parentheses, `NOT`, `OR`, and `(.)`.
+  The packaged form assigns fields to EntryPage, Clinical, and ExposureLocation.
+  The tour demonstrates both a cross-page field `GOTO` and explicit
+  legacy `GOTOPAGE ExposureLocation`; only the active page receives its Page
+  Before/After events. The same source is retained as a reviewable `check-code`
+  project program and as the active form program.
+- [`foodborne-check-code-expressions.chk`](foodborne-check-code-expressions.chk)
+  exercises bounded arithmetic and concatenation plus `ABS`, `ROUND`, `STRLEN`,
+  `SUBSTRING`, `UPPERCASE`, `TXTTONUM`, and ISO-date `YEAR` without evaluating
+  generated JavaScript.
+
+- [`foodborne-check-code.runbook.json`](foodborne-check-code.runbook.json)
+  guides a learner through reviewing and verifying the source, applying it,
+  and triggering its visible behavior in Enter Data. The packaged foodborne
+  project carries both the source and this runbook.
+- [`foodborne-database-dialog-tour.chk`](foodborne-database-dialog-tour.chk)
+  is an optional focused tour for browser-adapted `DBVARIABLES`, `DBVALUES`,
+  `DBVIEWS`, and `DATABASES`. It lists the active schema, bounded distinct
+  values, registered project forms, and the active project store without
+  permitting arbitrary SQL or filesystem discovery.
+
+## Form Designer lab
+
+- [`foodborne-form-designer.runbook.json`](foodborne-form-designer.runbook.json)
+  is a learner-executed lab available from **Help > Automated Runbooks** after
+  importing this project. The learner adds a typed field, configures a
+  type-appropriate validation pattern, saves the form, inspects the separate
+  Check Code boundary, and tests the field in Enter Data.
+- Selected steps include bounded completion checks over visible control state.
+  The host reports verified/incomplete feedback and emits only the runbook ID,
+  step ID, outcome, and check kinds. It does not record field values, patient
+  data, or arbitrary screen telemetry. Reimporting the teaching project resets
+  the browser working copy.
+
 ## Maps used by this investigation
 
 - [`maps/city-of-toledo-neighborhoods.geojson`](maps/city-of-toledo-neighborhoods.geojson)

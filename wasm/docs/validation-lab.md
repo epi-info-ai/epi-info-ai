@@ -9,7 +9,7 @@ Python result, legacy Epi Info result when available, tolerance, and provenance 
 one browser-based notebook.
 
 The lab supports the repository's
-[algorithm validation standard](docs/validation/algorithm-validation-standard.md).
+[algorithm validation standard](validation/algorithm-validation-standard.md).
 It does not replace that standard, CI, or independent statistical review, and it
 is not a second production analysis engine. Python is used only for validation,
 exploration, fixture development, and discrepancy investigation. The browser
@@ -62,7 +62,7 @@ The lab keeps three kinds of parity separate:
 The 96-record foodborne-outbreak example is the initial coherent validation
 corpus. It is synthetic demonstration data and contains no real case records. The
 immutable source currently resides at
-[`demo/examples/foodborne/foodborne-outbreak-investigation.csv`](demo/examples/foodborne/foodborne-outbreak-investigation.csv).
+[`demo/examples/foodborne/foodborne-outbreak-investigation.csv`](../demo/examples/foodborne/foodborne-outbreak-investigation.csv).
 
 | Property | Frozen value |
 |---|---|

@@ -4,13 +4,15 @@ Browser-first modernization of CDC's Epi Info using a deterministic WebAssembly 
 
 ## Current project materials
 
-Project materials currently live in [`wasm/`](wasm/):
+Project materials are collected under [`wasm/docs/`](wasm/docs/):
 
-- [`project.md`](wasm/project.md) - original project concept;
-- [`feasibility-analysis.md`](wasm/feasibility-analysis.md) - source and WASM feasibility assessment;
+- [`architecture.md`](wasm/docs/architecture.md) - current browser, kernel, trust-boundary, and migration architecture;
+- [`status.md`](wasm/docs/status.md) - dated current capability, evidence, deployment, and priority snapshot;
+- [`project.md`](wasm/docs/project.md) - original project concept;
+- [`feasibility-analysis.md`](wasm/docs/feasibility-analysis.md) - source and WASM feasibility assessment;
 - [`docs/research/rust-epidemiology-landscape.md`](wasm/docs/research/rust-epidemiology-landscape.md) - assessed Rust algorithm and crate candidates;
 - [`docs/validation/algorithm-validation-standard.md`](wasm/docs/validation/algorithm-validation-standard.md) - mandatory evidence and release gates for every algorithm;
-- [`validation-lab.md`](wasm/validation-lab.md) - validation-corpus governance, executable-notebook contract, and foodborne-outbreak validation roadmap;
+- [`validation-lab.md`](wasm/docs/validation-lab.md) - validation-corpus governance, executable-notebook contract, and foodborne-outbreak validation roadmap;
 - [`docs/design/ui-compatibility-strategy.md`](wasm/docs/design/ui-compatibility-strategy.md) - familiar-but-modern UI strategy;
 - [`docs/design/legacy-capability-register.md`](wasm/docs/design/legacy-capability-register.md) - compatibility floor, backlog gap IDs, new branches, and deprecation/retirement log;
 - [`docs/design/menu-compatibility-registry.md`](wasm/docs/design/menu-compatibility-registry.md) - item-level menu paths, command-state/function parity, and lifecycle gaps;
@@ -237,7 +239,7 @@ provider API key. Static Pages without that gateway retain Granite and non-AI
 preview behavior. See the
 [Epi Assist new-branch inventory](wasm/docs/design/epi-assist-compatibility-inventory.md)
 
-[AI enablement lessons learned](wasm/ai-lessons-learned.md)
+[AI enablement lessons learned](wasm/docs/ai-lessons-learned.md)
 for the allowlist and production-readiness gates.
 The companion stratified notebook compares deployed WASM Mantel-Haenszel
 estimates and tests with direct independent Python formulas. The frequency
@@ -383,7 +385,7 @@ The detailed cumulative changes and validation increments follow.
   passphrase, authentication, inventory-review, and explicit-open workflow.
 
 - Added the Validation Lab charter, corpus-governance rules, evidence hierarchy,
-  notebook contract, and staged roadmap in `wasm/validation-lab.md`.
+  notebook contract, and staged roadmap in `wasm/docs/validation-lab.md`.
 - Promoted the synthetic 96-record foodborne example to a frozen candidate corpus
   with a checksummed, machine-readable potato-salad 2 x 2 derivation.
 - Migrated Katz risk-ratio, Wald odds-ratio, unpooled Wald risk-difference
@@ -658,7 +660,38 @@ The detailed cumulative changes and validation increments follow.
   visible audited fallback when browser audio is unavailable or blocked. The
   foodborne command tour now has 40 statements.
 
-## TODO
+## Progress from September 16 through September 22, 2026
+
+- Added bounded, browser-verified `MATCH` execution with a Rust/WASM Worker,
+  independent JupyterLite validation, aggregate-only review evidence, and a
+  matched case-control teaching project. Conditional `LOGISTIC` now completes
+  the first source-first matched case-control workflow as a clearly bounded
+  TypeScript candidate pending Rust migration and desktop differential review.
+- Advanced `EPIAI RECORDLINK` through reviewed candidate diagnostics, clerical
+  review, conflict-aware person clustering, replayable audit tables, and an
+  acknowledged DuckDB analytical output. Source mutation and automatic merge
+  remain fail-closed.
+- Advanced `EPIAI CLUSTER SPACE_TIME` and `RENDER` with cancellable Worker
+  execution, visible parameters and elapsed time, independent notebook evidence,
+  static and interactive map output, cluster tooltips, and a rank-by-rank story
+  tour. It remains a new-branch candidate, not SaTScan or legacy parity.
+- Expanded Check Code into a separate typed Form/Page/Record/Field event runtime
+  with editor verification, bounded navigation and actions, browser-adapted
+  dialogs, expressions/functions, session scopes, teaching fixtures, and
+  explicit fail-closed treatment of unsafe desktop capabilities. `IOCODE` is
+  preserved as typed source but deferred as a future governed package concern.
+- Added declarative, action-aware teaching runbooks; governed teaching-project
+  import; initial capability-package boundaries; command-line and package-manager
+  design records; and more complete collaborator guidance in `AGENTS.md`.
+- Established the `epi-gis` kernel architecture and defensive-ingestion work;
+  remaining security, format, CRS, resource-limit, and browser-evidence gates
+  stay explicit in the GIS design and review records.
+
+The concise current snapshot is maintained in
+[`wasm/docs/status.md`](wasm/docs/status.md); the sections above remain a dated
+historical progress record.
+
+## Ordered roadmap and open work
 
 - **Establish a Firefox, Safari/WebKit, and Chromium UI-navigation floor.** The
   initial [cross-browser navigation review](wasm/docs/review/cross_browser_ui_navigation.md)
@@ -692,15 +725,77 @@ The detailed cumulative changes and validation increments follow.
   geocoding, save/reopen fidelity, and rejected unsafe or unsupported code.
   The bounded candidate is now available from Form Designer Tools and the
   toolbar, with `.chk` open/save. It parses legacy `DefineVariables`, Form/View,
-  Record, Page, Field, Before, After, Click, bounded `IF`/`ELSE`, `ASSIGN`,
-  `CLEAR`, field state, `GOTO`, simple `DIALOG`, and `GEOCODE` syntax into
+  Record, Page, Field, Before, After, Click, bounded `IF`/`ELSE` with
+  type-aware `=`, `<>`, `!=`, `<`, `<=`, `>`, `>=`, `AND`, `OR`, `NOT`,
+  parentheses, and missing-value `(.)` expressions, `ASSIGN`, `LET`, `CLEAR`,
+  `ELSE-IF`, `ALWAYS`, bounded `SUB`/`CALL`, `UNDEFINE`, `BEEP`, field state
+  including `* EXCEPT`, `HIGHLIGHT`/`UNHIGHLIGHT`, `GOTO`, simple
+  typed and titled browser-safe `DIALOG` variants, and `GEOCODE` syntax into
   `epi-check-code-ast/0.1`. The complete source must validate before Apply.
   The runtime executes deterministic Form → Page → Record → Field events,
   enforces effect and navigation-cycle limits, and writes value-free project
-  audit events. The foodborne `.chk` tour exercises the complete disclosed
-  subset. Broader legacy statements/dialog variants, multi-page/form navigation,
-  exact desktop event-timing review, editor search/font enhancements, additional
-  browser engines, and experienced-user acceptance remain parity gates.
+  audit events. A validated page model now limits Page events to the active
+  page and supports legacy `GOTOPAGE` plus absolute and relative page `GOTO`, including
+  cross-page field focus. The foodborne, cluster-detection, and record-linkage
+  teaching packages carry compatible Check Code in their forms and as
+  reviewable project programs. An adapted `GOTOFORM` candidate now resolves
+  only a unique form in the open project, validates and retains the current
+  unsaved draft, executes bounded origin-exit and destination-entry events, and
+  rejects self, missing, ambiguous, and probable-cycle navigation. The
+  record-linkage lesson exercises this two-form transition. `SAVE-RECORD`,
+  `NEWRECORD`, and `QUIT`/`EXIT` use the ordinary validated entry lifecycle only
+  from a Command Button Click event and terminate the originating event.
+  Typed arithmetic, concatenation, and an initial deterministic function set
+  (`ABS`, `ROUND`, `STRLEN`, `SUBSTRING`, `UPPERCASE`, `TXTTONUM`, `YEAR`,
+  `MONTH`, and `DAY`) now execute after whole-program type validation. Explicit
+  Undo/Redo controls share CodeMirror's keyboard history. Browser-adapted
+  `GLOBAL` variables persist for the current tab session and `PERMANENT`
+  variables persist only in the local browser profile; neither is silently
+  included in a project export. Broader legacy functions, exact desktop scope,
+  relationship/save behavior, and event-timing review plus
+  broader syntax-assistance enhancements, additional browser engines, and experienced-user acceptance
+  remain parity gates. `AUTOSEARCH` now has a bounded browser-adapted
+  candidate: it exact-matches current-form records using verified key fields,
+  honors `DISPLAYLIST`, `CONTINUENEW`, and `ALWAYS` source, and presents at
+  most 25 matches and 12 fields. It never silently replaces the current draft
+  or opens an existing record; that edit-identity behavior remains a disclosed
+  parity gap.
+  `IOCODE` is deferred as a future TODO requiring deeper investigation. Its typed seven-Text-field
+  migration boundary remains readable but fails closed; its separate
+  Occupational Epidemiology package architecture, model/service governance,
+  provenance, privacy, and validation gates are recorded in the
+  [IOCODE browser-adapter assessment](wasm/docs/design/iocode-browser-adapter.md).
+  No code is guessed and no occupational description is transmitted.
+  The compatibility inventory now records a deliberate exclusion boundary:
+  arbitrary `EXECUTE`, DLL/.NET loading, OS command-line inspection, ambient
+  paths, and filesystem/process waits will not receive direct browser parity.
+  Imported source remains reviewable but cannot Apply. Explicit user-picked
+  files, signed packages, packaged programs, and safe help routes are separate
+  capability-gated adaptations rather than loopholes in that exclusion.
+
+- **Develop the command-line and interactive-console branch.** Preserve the
+  legacy ability to launch and run `.pgm7` programs and the familiar Program
+  Editor selection/full-program behavior, then add an optional browser command
+  console, deterministic non-interactive runner, and JupyterLite Epi kernel over
+  one typed execution gateway. The
+  [legacy survey and phased roadmap](wasm/docs/design/command-line-branch.md)
+  require common AST/plans, explicit project/session context, output/history,
+  receipts, cancellation, capability checks, offline behavior, and statistical
+  validation. No surface may expose an operating-system shell or bypass the
+  command allowlist. The console and Jupyter paths are new branches, not desktop
+  parity claims.
+
+- **Add Check Code exercises to the published GitLab/GitHub example projects.**
+  Extend each suitable foodborne, cluster-detection, record-linkage, and future
+  surveillance teaching repository with dataset-specific `.chk` source, an
+  explanatory runbook, expected visible behavior, and negative/error cases.
+  Declare and checksum every artifact in the teaching manifest, embed it in the
+  downloadable project package, preserve it as inert source until the learner
+  explicitly verifies and applies it, and test both online installation and
+  offline package reopening. Do not force Check Code into an example whose form
+  and learning objective do not justify entry-time logic; record that decision
+  explicitly instead. GitLab and GitHub replicas must resolve to the same pinned
+  example version and pass the same parser, runtime, browser, and package tests.
 
 - **Evaluate JupyterGIS as a later GIS integration layer.** The bounded
   [JupyterGIS architecture spike](wasm/docs/design/jupytergis-architecture-spike.md)
@@ -719,7 +814,7 @@ The detailed cumulative changes and validation increments follow.
   Worker operations; it does not expose raw GDAL commands or make the renderer
   the analytical authority.
 
-- **Teaching Repositories V0.1 candidate.** The
+- **Advance Teaching Repositories beyond the V0.1 candidate.** The
   [teaching repository contract](wasm/docs/design/teaching-repository-contract.md)
   and [example project repository contract](wasm/docs/design/example-project-repository-contract.md)
   and **Help > Teaching Repositories** now preview the public foodborne manifest,
@@ -730,7 +825,74 @@ The detailed cumulative changes and validation increments follow.
   locally imported teaching archives, uninstall/update/quota workflows, private
   repository identity, and a curated signed/revocable index.
 
-- **Build governed Space-Time Cluster Detection as the active new branch.** The
+- **Develop Package Management Plan V0.1.** Define two deliberately separate
+  lifecycles: a browser-safe content manager for projects, teaching modules,
+  datasets, programs, runbooks, maps, notebooks, and allowlisted model artifacts;
+  and an administrator-controlled release manager for Epi Info AI TypeScript/WASM
+  kernels. Cover discovery, inspection, signature and policy verification,
+  dependency/capability resolution, install, pin, update, downgrade, uninstall,
+  revocation, offline export/import, storage quotas, schema migration, atomic
+  rollback, and durable receipts. Specify the release manifest → signed curated
+  catalog → signed package manifest → content-addressed artifacts → installed
+  lockfile chain; GitLab/GitHub/approved internal mirrors; delegated publishers;
+  restrictive-network catalog snapshots; UI and automation interfaces; CI
+  publication gates; and recovery from expired, compromised, or withdrawn
+  packages. Use the retained desktop module loader, application updater, and
+  Data Packager only as historical inputs: old Epi Info did not expose a modern
+  user-facing package registry, so this remains a governed new branch rather
+  than a parity claim. Keep the detailed security baseline aligned with the
+  [package-manager branch plan](wasm/docs/design/package-manager-branch.md) and
+  [teaching repository contract](wasm/docs/design/teaching-repository-contract.md).
+
+- **Develop a governed machine-learning-for-epidemiologists teaching package.**
+  Add an **ML Package** profile that users can create, validate, export, publish,
+  inspect, and import through the existing project/teaching-package workflow.
+  Publish packages as inert, revision-pinned teaching repositories or protected
+  `.epiax` archives rather than part of the Classic Analysis parity claim.
+  Begin with synthetic surveillance data
+  and auditable logistic-regression and small decision-tree exercises covering
+  data quality, leakage, imbalance, temporal validation, sensitivity,
+  specificity, predictive values, calibration, thresholds, subgroup
+  performance, explainability, privacy, and the distinction among prediction,
+  association, causal inference, and cluster detection. Include a data
+  dictionary, starter and completed Epi Info AI programs, guided runbook,
+  JupyterLite validation notebook, expected metrics, model card, deliberately
+  flawed comparison exercises, and adaptive-learning competency checkpoints.
+  The package manifest must distinguish datasets, schemas, preprocessing plans,
+  programs, notebooks, expected aggregate results, model cards, and optional
+  allowlisted portable model artifacts. Import first shows provenance, license,
+  privacy classification, hashes, sizes, required kernel capabilities, and
+  compatibility; it never trains, evaluates, or scores automatically. Packages
+  cannot contain executable scripts, native binaries, serialized Python objects,
+  credentials, arbitrary model operators, or their own runtime. Epi Info AI
+  supplies the versioned TypeScript/WASM execution kernel and records reviewed
+  training, validation, scoring, export, and derived-package receipts.
+  The curated distribution should be an importable, signed **Epi Info AI
+  Learning Module**: its manifest and every declared artifact are covered by a
+  trusted publisher signature, an approved catalog pins the exact digest and
+  revision, and the importer reports valid, invalid, expired, revoked, or
+  untrusted status before installation. A valid signature establishes origin
+  and integrity—not permission to execute bundled code. Any required ML kernel
+  or WASM capability is delivered separately through the administrator-approved
+  Epi Info AI software release channel; the learning module only declares a
+  compatible kernel/capability range. Offline installations can verify a signed
+  catalog snapshot and package without contacting GitLab or GitHub.
+  Every downloadable Epi Info AI release must identify the exact signed curated
+  catalog snapshot it trusts. That catalog lists every approved learning module
+  by immutable version, digest, size, publisher, compatibility range, and
+  revocation state; package bytes may remain on GitLab/GitHub or approved mirrors
+  and are always fetched and installed by digest. The first implementation should
+  adopt TUF-style separated trust roles and expiry/rollback protection,
+  OCI-style content descriptors, an exact installed-module lockfile, and
+  packaged verification evidence. It must not claim TUF, Sigstore, OCI, or SLSA
+  conformance until the corresponding formats and verification behavior are
+  implemented and tested.
+  Any future `EPIAI MODEL TRAIN`, `VALIDATE`, or `EXPLAIN` commands must produce
+  typed bounded plans, local-only execution receipts, reproducible splits, and
+  human-reviewed outputs before the package can claim a validated learning
+  outcome.
+
+- **Validate and promote governed Space-Time Cluster Detection beyond its active candidate.** The
   proposed programming-language form is `EPIAI CLUSTER SPACE_TIME`; it does not
   adopt the name of an external product. Use an established open-source
   [scan-statistics implementation](https://github.com/scanstatistics/satscan)
@@ -864,7 +1026,7 @@ The detailed cumulative changes and validation increments follow.
   receipts, cross-device testing, and independent security review. It must not
   claim automatic nearby-device discovery or silently import received data.
 
-- **Ordinary Classic Analysis `TABLES` candidate complete at V0.11.** The
+- **Close the remaining ordinary Classic Analysis `TABLES` parity gates beyond V0.11.** The
   browser-verified floor renders unstratified and multi-stratum categorical counts, row/column
   percentages, totals, expected counts, Pearson chi-square/df/probability, and
   sparse-cell warnings for two fields and one `STRATAVAR`. A true observed 2 × 2
@@ -896,9 +1058,9 @@ The detailed cumulative changes and validation increments follow.
   corpora, desktop differential evidence, Rust migration, and review remain open.
   See the [Complex Sample Tables method contract](wasm/docs/validation/complex-sample-tables-method-contract.md).
 
-- **Complex Sample Frequencies V0.1 candidate.** `FREQ ... PSUVAR=...` now restores the legacy Advanced Statistics path with optional design stratum, numeric weight, linear/logit limits, the inspected legacy design-effect behavior, and session `OUTTABLE` read-back. The foodborne design fields are explicitly mechanical test proxies. See the [CSF method contract](wasm/docs/validation/complex-sample-frequency-method-contract.md).
+- **Close the remaining Complex Sample Frequencies parity gates beyond V0.1.** `FREQ ... PSUVAR=...` now restores the legacy Advanced Statistics path with optional design stratum, numeric weight, linear/logit limits, the inspected legacy design-effect behavior, and session `OUTTABLE` read-back. The foodborne design fields are explicitly mechanical test proxies. See the [CSF method contract](wasm/docs/validation/complex-sample-frequency-method-contract.md).
 
-- **Complex Sample Means V0.1 candidate.** `MEANS ... PSUVAR=...` now reports
+- **Close the remaining Complex Sample Means parity gates beyond V0.1.** `MEANS ... PSUVAR=...` now reports
   survey-domain means, Taylor standard errors, legacy t limits, and a two-domain
   mean difference. Its foodborne design fields are mechanical test proxies; the
   JupyterLite lab independently reproduces the calculations in Python. A clearly

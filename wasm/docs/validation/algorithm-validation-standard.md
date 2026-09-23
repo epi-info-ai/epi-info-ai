@@ -227,7 +227,7 @@ references, fixtures, tolerances, discrepancies, and provenance to appear togeth
 without treating Python as a second production engine.
 
 The repository-level corpus and notebook design is maintained in
-[`validation-lab.md`](../../validation-lab.md). Notebook demonstrations are
+[`validation-lab.md`](../validation-lab.md). Notebook demonstrations are
 informative, not approval gates. They must:
 
 - load the same versioned fixtures and release WASM artifact used by CI;

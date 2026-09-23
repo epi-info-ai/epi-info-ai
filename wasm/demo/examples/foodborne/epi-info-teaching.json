@@ -36,8 +36,8 @@
     {
       "path": "wasm/demo/examples/foodborne/README.md",
       "mediaType": "text/markdown",
-      "sha256": "ae48a160b14dfdb2f4eaad21807dc0d964f62b8da5ab1ed08a0f9c0537161dc0",
-      "bytes": 3601,
+      "sha256": "268a0c4691f57a22f4a058444b99c958d2941d49cd3d4300c650471bbe1409b8",
+      "bytes": 6301,
       "role": "lesson"
     }
   ]

@@ -23,9 +23,12 @@ repository. Selecting **Import** performs these steps in order:
 
 Import never executes a saved program. The analyst must inspect and run it.
 Project-scoped runbooks are validated package content and are registered only
-while their project is active. A runbook may highlight a control and observe a
-learner's click or change to advance, but it does not perform the substantive
-action. Orientation and review steps require the learner to acknowledge Next.
+while their project is active. A runbook may highlight a control, observe a
+learner's click or change, and apply bounded declarative completion checks over
+non-sensitive UI state, but it does not perform the substantive action. The
+host reports verified/incomplete feedback without emitting observed values;
+password, file, and hidden input values cannot be evidence. Orientation and
+review steps require the learner to acknowledge Next.
 
 Catalog URLs are limited to the application's own origin, CDC GitLab, and the
 GitHub raw-content host. Project packages are bounded at 150 MiB. The current
