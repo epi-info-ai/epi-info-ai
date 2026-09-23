@@ -59,6 +59,7 @@ jobs:
           pnpm run test:gis:points
           pnpm run test:gis:choropleth
           pnpm run test:gis:choropleth:fixture
+          pnpm run test:gis:dot-density
 
       - name: Install Python
         uses: actions/setup-python@v7

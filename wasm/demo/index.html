@@ -652,7 +652,7 @@
                   <button id="map-add-h3" type="button">H3 Hexagons...</button>
                   <button id="map-add-raster" type="button">GeoTIFF Raster...</button>
                   <button id="map-add-choropleth" type="button">Choropleth</button>
-                  <button type="button" disabled>Dot Density</button>
+                  <button id="map-add-dot-density" type="button">Dot Density</button>
                 </div>
               </details>
               <button id="map-add-reference-layer" type="button">Add Reference Layer</button>
@@ -717,6 +717,7 @@
                       <label><input id="map-location-layer-toggle" type="checkbox" checked /> Current location</label>
                     <div id="map-geojson-layers" class="map-geojson-layers"></div>
                     <div id="map-choropleth-layers" class="map-geojson-layers"></div>
+                    <div id="map-dot-density-layers" class="map-geojson-layers"></div>
                     <div id="map-h3-layers" class="map-h3-layers"></div>
                     <div id="map-raster-layers" class="map-raster-layers"></div>
                     <details id="map-point-diagnostics-panel" class="map-point-diagnostics" hidden>
@@ -2424,6 +2425,32 @@
           <details id="choropleth-diagnostics-panel" hidden><summary id="choropleth-diagnostics-summary">No join diagnostics.</summary><ul id="choropleth-diagnostics-list"></ul></details>
         </div>
         <div class="legacy-dialog-actions"><button class="dialog-primary" value="add" type="submit">Add Choropleth</button><button value="cancel" type="button" data-close-choropleth>Cancel</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="dot-density-dialog" class="legacy-dialog" aria-labelledby="dot-density-dialog-title">
+      <form id="dot-density-form" method="dialog">
+        <div class="legacy-dialog-titlebar"><strong id="dot-density-dialog-title">Add Dot Density</strong><button type="button" data-close-dot-density aria-label="Close">x</button></div>
+        <label for="dot-density-boundary-asset">Boundary GeoJSON asset</label>
+        <select id="dot-density-boundary-asset" required><option value="">Choose a stored GeoJSON asset</option></select>
+        <label for="dot-density-data-source">Data form</label>
+        <select id="dot-density-data-source" required><option value="">Choose a data form</option></select>
+        <label for="dot-density-boundary-key">Boundary key field</label>
+        <select id="dot-density-boundary-key" required><option value="">Choose a boundary property</option></select>
+        <label for="dot-density-data-key">Data key field</label>
+        <select id="dot-density-data-key" required><option value="">Choose a data key</option></select>
+        <label for="dot-density-value-field">Value field</label>
+        <select id="dot-density-value-field" required><option value="">Choose a numeric value</option></select>
+        <label for="dot-density-value-per-dot">Value per dot</label>
+        <input id="dot-density-value-per-dot" type="number" min="0.000001" step="any" value="10" required />
+        <label for="dot-density-placement">Placement</label>
+        <select id="dot-density-placement"><option value="seeded-jitter">Seeded jitter</option><option value="deterministic-grid">Deterministic grid</option></select>
+        <label for="dot-density-color">Dot color</label><input id="dot-density-color" type="text" value="#2255aa" pattern="#[0-9a-fA-F]{6}" required />
+        <label for="dot-density-opacity">Opacity <output id="dot-density-opacity-value" for="dot-density-opacity">80%</output></label>
+        <input id="dot-density-opacity" type="range" min="10" max="100" step="5" value="80" />
+        <label for="dot-density-legend-title">Legend title</label><input id="dot-density-legend-title" type="text" value="Value per dot" maxlength="100" required />
+        <p id="dot-density-dialog-status" class="dialog-note" role="status" aria-live="polite">Choose a stored GeoJSON boundary asset.</p>
+        <div class="legacy-dialog-actions"><button class="dialog-primary" value="add" type="submit">Add Dot Density</button><button value="cancel" type="button" data-close-dot-density>Cancel</button></div>
       </form>
     </dialog>
 

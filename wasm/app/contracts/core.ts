@@ -202,6 +202,27 @@ export type ProjectMapLayer = {
   filter?: { field: string; operator: string; value?: string };
 } | {
   id: string;
+  kind: "dot-density";
+  assetId: string;
+  sourceFormId: string;
+  name: string;
+  visible: boolean;
+  boundaryKeyField: string;
+  dataKeyField: string;
+  valueField: string;
+  joinNormalization: "exact" | "trim-casefold";
+  valuePerDot: number;
+  rounding: "floor" | "nearest" | "ceil";
+  seed: number;
+  placementMethod: "seeded-jitter" | "deterministic-grid";
+  dotColor: string;
+  dotRadiusPixels: number;
+  opacity: number;
+  legendTitle: string;
+  maxDotsPerFeature: number;
+  maxTotalDots: number;
+} | {
+  id: string;
   kind: "choropleth";
   assetId: string;
   sourceFormId: string;
@@ -663,8 +684,8 @@ function projectMapLayerAt(
   forms: ReadonlyMap<string, ProjectForm>,
 ): ProjectMapLayer {
   const source = objectAt(value, path);
-  if (source.kind !== "case-cluster" && source.kind !== "spot-map" && source.kind !== "choropleth" && source.kind !== "geojson" && source.kind !== "raster") {
-    fail(`${path}.kind`, "must be case-cluster, spot-map, choropleth, geojson, or raster");
+  if (source.kind !== "case-cluster" && source.kind !== "spot-map" && source.kind !== "choropleth" && source.kind !== "dot-density" && source.kind !== "geojson" && source.kind !== "raster") {
+    fail(`${path}.kind`, "must be case-cluster, spot-map, choropleth, dot-density, geojson, or raster");
   }
   if (typeof source.visible !== "boolean") fail(`${path}.visible`, "must be boolean");
   const shared = {
@@ -725,6 +746,32 @@ function projectMapLayerAt(
     if (typeof source.noDataColor !== "string" || !/^#[0-9a-f]{6}$/i.test(source.noDataColor)) fail(`${path}.noDataColor`, "must be a six-digit hex color");
     const legendTitle = nonEmptyString(source.legendTitle, `${path}.legendTitle`);
     return { ...shared, kind: "choropleth", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, classification: { method: classification.method, classCount: classification.classCount, ...(Array.isArray(breaks) ? { breaks } : {}) }, palette: source.palette, opacity: source.opacity, noDataColor: source.noDataColor, legendTitle };
+  }
+  if (source.kind === "dot-density") {
+    const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
+    const asset = assets.get(assetId);
+    if (!asset || asset.format !== "geojson") fail(`${path}.assetId`, "must identify a GeoJSON project asset");
+    const sourceFormId = nonEmptyString(source.sourceFormId, `${path}.sourceFormId`);
+    const form = forms.get(sourceFormId);
+    if (!form) fail(`${path}.sourceFormId`, "must identify a form in this project");
+    const fields = new Map(form.schema.fields.map((field) => [field.name, field]));
+    const boundaryKeyField = nonEmptyString(source.boundaryKeyField, `${path}.boundaryKeyField`);
+    const dataKeyField = nonEmptyString(source.dataKeyField, `${path}.dataKeyField`);
+    const valueField = nonEmptyString(source.valueField, `${path}.valueField`);
+    if (!fields.has(dataKeyField)) fail(`${path}.dataKeyField`, "must identify a field in the source form");
+    if (!fields.has(valueField)) fail(`${path}.valueField`, "must identify a field in the source form");
+    if (source.joinNormalization !== "exact" && source.joinNormalization !== "trim-casefold") fail(`${path}.joinNormalization`, "must be exact or trim-casefold");
+    if (typeof source.valuePerDot !== "number" || !Number.isFinite(source.valuePerDot) || source.valuePerDot <= 0) fail(`${path}.valuePerDot`, "must be a positive finite number");
+    if (source.rounding !== "floor" && source.rounding !== "nearest" && source.rounding !== "ceil") fail(`${path}.rounding`, "is not supported");
+    if (typeof source.seed !== "number" || !Number.isSafeInteger(source.seed) || source.seed < 0 || source.seed > 0xffffffff) fail(`${path}.seed`, "must be a uint32");
+    if (source.placementMethod !== "seeded-jitter" && source.placementMethod !== "deterministic-grid") fail(`${path}.placementMethod`, "is not supported");
+    if (typeof source.dotColor !== "string" || !/^#[0-9a-f]{6}$/i.test(source.dotColor)) fail(`${path}.dotColor`, "must be a six-digit hex color");
+    if (typeof source.dotRadiusPixels !== "number" || !Number.isFinite(source.dotRadiusPixels) || source.dotRadiusPixels <= 0 || source.dotRadiusPixels > 20) fail(`${path}.dotRadiusPixels`, "must be from greater than 0 through 20");
+    if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0 || source.opacity > 1) fail(`${path}.opacity`, "must be from 0 through 1");
+    const legendTitle = nonEmptyString(source.legendTitle, `${path}.legendTitle`);
+    if (typeof source.maxDotsPerFeature !== "number" || !Number.isSafeInteger(source.maxDotsPerFeature) || source.maxDotsPerFeature < 1) fail(`${path}.maxDotsPerFeature`, "must be a positive integer");
+    if (typeof source.maxTotalDots !== "number" || !Number.isSafeInteger(source.maxTotalDots) || source.maxTotalDots < 1 || source.maxDotsPerFeature > source.maxTotalDots) fail(`${path}.maxTotalDots`, "must be a positive integer at least as large as maxDotsPerFeature");
+    return { ...shared, kind: "dot-density", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, valuePerDot: source.valuePerDot, rounding: source.rounding, seed: source.seed, placementMethod: source.placementMethod, dotColor: source.dotColor, dotRadiusPixels: source.dotRadiusPixels, opacity: source.opacity, legendTitle, maxDotsPerFeature: source.maxDotsPerFeature, maxTotalDots: source.maxTotalDots };
   }
   const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
   const asset = assets.get(assetId);

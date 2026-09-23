@@ -41,6 +41,9 @@ import { buildChoroplethJoinDiagnosticsV01, joinChoroplethDataToBoundariesV01, t
 import { classifyChoroplethValuesV01 } from "../app/gis/choropleth-classification.ts";
 import { buildChoroplethLegendModelV01 } from "../app/gis/choropleth-presentation.ts";
 import { filterChoroplethDataRowsV01 } from "../app/gis/choropleth-interaction.ts";
+import { createDotDensityLayerRecipeV01, type DotDensityLayerRecipeV01 } from "../app/gis/dot-density.ts";
+import { buildDotDensityPipelineV01 } from "../app/gis/dot-density-pipeline.ts";
+import { buildDotDensityPresentationV01 } from "../app/gis/dot-density-presentation.ts";
 import { GdalWorkerClient, type GdalDataset, type GdalDatasetInfo, type GdalOpenedDataset } from "./examples/gdal-wasm/gdal-wasm-worker.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
@@ -106,6 +109,15 @@ interface ChoroplethLayerEntry {
   bounds: LeafletBounds;
   asset: ProjectMapAsset;
   recipe: ChoroplethLayerRecipeV01;
+  diagnostics: Array<{ code: string; message: string; rowIndex?: number; featureIndex?: number }>;
+}
+
+interface DotDensityLayerEntry {
+  layer: LeafletLayer;
+  name: string;
+  bounds: LeafletBounds;
+  asset: ProjectMapAsset;
+  recipe: DotDensityLayerRecipeV01;
   diagnostics: Array<{ code: string; message: string; rowIndex?: number; featureIndex?: number }>;
 }
 
@@ -190,6 +202,7 @@ let timeLapseState: TimeLapseState | null = null;
 let clusterTourState: ClusterTourState | null = null;
 const geoJsonLayers = new Map<string, GeoJsonLayerEntry>();
 const choroplethLayers = new Map<string, ChoroplethLayerEntry>();
+const dotDensityLayers = new Map<string, DotDensityLayerEntry>();
 const h3Layers = new Map<string, H3LayerEntry>();
 const rasterLayers = new Map<string, RasterLayerEntry>();
 const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
@@ -212,7 +225,7 @@ export function mapPaneForGeometryType(type: string): string {
 }
 
 function updateLayerCount() {
-  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + choroplethLayers.size + h3Layers.size + rasterLayers.size;
+  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + choroplethLayers.size + dotDensityLayers.size + h3Layers.size + rasterLayers.size;
   requiredElement("#map-layer-count").textContent = String(count);
 }
 
@@ -243,7 +256,7 @@ function renderPointDiagnostics(diagnostics: readonly PointLayerDiagnosticV01[])
 
 function persistProjectMapLayers(): void {
   if (!saveProjectMapState || !map) return;
-  const assets = [...geoJsonLayers.values(), ...choroplethLayers.values(), ...rasterLayers.values()]
+  const assets = [...geoJsonLayers.values(), ...choroplethLayers.values(), ...dotDensityLayers.values(), ...rasterLayers.values()]
     .map(({ asset }) => asset)
     .filter((asset, index, values) => values.findIndex((candidate) => candidate.id === asset.id) === index);
   const layers: ProjectMapLayer[] = [
@@ -285,6 +298,28 @@ function persistProjectMapLayers(): void {
       opacity: entry.recipe.opacity,
       noDataColor: entry.recipe.noDataColor,
       legendTitle: entry.recipe.legend.title,
+    })),
+    ...[...dotDensityLayers].map(([id, entry]): ProjectMapLayer => ({
+      id,
+      kind: "dot-density",
+      assetId: entry.asset.id,
+      sourceFormId: entry.recipe.dataSourceFormId,
+      name: entry.name,
+      visible: map.hasLayer(entry.layer),
+      boundaryKeyField: entry.recipe.boundaryKeyField,
+      dataKeyField: entry.recipe.dataKeyField,
+      valueField: entry.recipe.valueField,
+      joinNormalization: "trim-casefold",
+      valuePerDot: entry.recipe.valuePerDot,
+      rounding: entry.recipe.rounding,
+      seed: entry.recipe.seed,
+      placementMethod: entry.recipe.placementMethod,
+      dotColor: entry.recipe.dotColor,
+      dotRadiusPixels: entry.recipe.dotRadiusPixels,
+      opacity: entry.recipe.opacity,
+      legendTitle: entry.recipe.legendTitle,
+      maxDotsPerFeature: entry.recipe.maxDotsPerFeature,
+      maxTotalDots: entry.recipe.maxTotalDots,
     })),
     ...[...rasterLayers].map(([id, entry]): ProjectMapLayer => ({
       id,
@@ -819,7 +854,9 @@ function resetMapWorkspace() {
     if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
   }
   choroplethLayers.clear();
+  dotDensityLayers.clear();
   renderChoroplethLayerList();
+  renderDotDensityLayerList();
   for (const entry of h3Layers.values()) {
     if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
   }
@@ -927,7 +964,7 @@ function expandGeoJsonFeatures(geojson: SupportedGeoJson): GeoJsonFeature[] {
 }
 
 function refreshMapEmptyState() {
-  requiredElement("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || choroplethLayers.size > 0 || h3Layers.size > 0 || rasterLayers.size > 0;
+  requiredElement("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || choroplethLayers.size > 0 || dotDensityLayers.size > 0 || h3Layers.size > 0 || rasterLayers.size > 0;
 }
 
 function renderGeoJsonLayerList() {
@@ -1473,6 +1510,103 @@ function renderChoroplethLayerList(): void {
   container.replaceChildren(...rows);
 }
 
+function renderDotDensityLayerList(): void {
+  const container = requiredElement("#map-dot-density-layers");
+  const rows: HTMLElement[] = [];
+  for (const [id, entry] of dotDensityLayers) {
+    const row = document.createElement("span");
+    row.className = "map-geojson-layer map-dot-density-layer";
+    const label = document.createElement("label");
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = map.hasLayer(entry.layer);
+    toggle.dataset.dotDensityToggle = id;
+    const name = document.createElement("span");
+    name.className = "map-geojson-layer-name";
+    name.textContent = `${entry.name} · Dot Density`;
+    label.append(toggle, name);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "map-layer-remove";
+    remove.dataset.dotDensityRemove = id;
+    remove.setAttribute("aria-label", `Remove ${entry.name}`);
+    remove.textContent = "x";
+    row.append(label, remove);
+    const diagnostics = document.createElement("small");
+    diagnostics.className = "map-choropleth-diagnostics";
+    diagnostics.textContent = entry.diagnostics.length > 0 ? `${entry.diagnostics.length} diagnostic${entry.diagnostics.length === 1 ? "" : "s"}` : "No diagnostics";
+    row.append(diagnostics);
+    rows.push(row);
+    const legend = document.createElement("div");
+    legend.className = "map-choropleth-legend";
+    const title = document.createElement("strong");
+    title.textContent = entry.recipe.legendTitle;
+    const detail = document.createElement("span");
+    detail.textContent = `${entry.recipe.valuePerDot.toLocaleString()} value per dot`;
+    legend.append(title, detail);
+    rows.push(legend);
+  }
+  container.replaceChildren(...rows);
+}
+
+function featureCoordinateBounds(feature: GeoJsonFeature): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  const positions: number[][] = [];
+  const collect = (value: unknown): void => {
+    if (!Array.isArray(value)) return;
+    const x = value[0];
+    const y = value[1];
+    if (value.length >= 2 && typeof x === "number" && typeof y === "number") { positions.push([x, y]); return; }
+    value.forEach(collect);
+  };
+  collect((feature.geometry as { coordinates?: unknown } | null)?.coordinates);
+  if (positions.length === 0 || positions.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) return null;
+  return { minX: Math.min(...positions.map((position) => position[0]!)), minY: Math.min(...positions.map((position) => position[1]!)), maxX: Math.max(...positions.map((position) => position[0]!)), maxY: Math.max(...positions.map((position) => position[1]!)) };
+}
+
+function addDotDensityLayer(
+  geojson: SupportedGeoJson,
+  asset: ProjectMapAsset,
+  data: MapDataSource,
+  recipe: DotDensityLayerRecipeV01,
+  options: { id?: string; visible?: boolean; persist?: boolean } = {},
+): void {
+  const features = expandGeoJsonFeatures(geojson);
+  const boundaries = features.map((feature, featureIndex) => ({ featureIndex, properties: feature.properties || {} }));
+  const bounds = features.map((feature, featureIndex) => { const extent = featureCoordinateBounds(feature); return extent ? { featureIndex, ...extent } : null; }).filter((value): value is { featureIndex: number; minX: number; minY: number; maxX: number; maxY: number } => value !== null);
+  const geometries = new Map<number, { type: "Polygon" | "MultiPolygon"; coordinates: readonly unknown[] }>();
+  features.forEach((feature, featureIndex) => {
+    const geometry = feature.geometry;
+    if (geometry && (geometry.type === "Polygon" || geometry.type === "MultiPolygon")) geometries.set(featureIndex, geometry as { type: "Polygon" | "MultiPolygon"; coordinates: readonly unknown[] });
+  });
+  const result = buildDotDensityPipelineV01(recipe, {
+    boundaries,
+    rows: data.records.map((values, rowIndex) => ({ rowIndex, values })),
+    boundaryKeyField: recipe.boundaryKeyField,
+    dataKeyField: recipe.dataKeyField,
+    valueField: recipe.valueField,
+    normalization: "trim-casefold",
+    bounds,
+    geometries: geometries as never,
+  });
+  const presentation = buildDotDensityPresentationV01(result.clipping.candidates, recipe, result.legend);
+  const layer = L.geoJSON(presentation, {
+    pane: "epi-point-pane",
+    pointToLayer: (_feature: unknown, latlng: unknown) => L.circleMarker(latlng, { radius: recipe.dotRadiusPixels, color: recipe.dotColor, fillColor: recipe.dotColor, fillOpacity: recipe.opacity, weight: 1 }),
+  });
+  layer.addTo(ensureMap());
+  const layerBounds = layer.getBounds();
+  const id = options.id ?? globalThis.crypto?.randomUUID?.() ?? `dot-density-${Date.now()}`;
+  const diagnostics = [...result.join.diagnostics, ...result.preview.diagnostics, ...result.clipping.diagnostics];
+  dotDensityLayers.set(id, { layer, name: `${data.formName} · ${recipe.legendTitle}`, bounds: layerBounds, asset, recipe, diagnostics });
+  if (options.visible === false && map.hasLayer(layer)) map.removeLayer(layer);
+  renderDotDensityLayerList();
+  updateLayerCount();
+  refreshMapEmptyState();
+  requiredElement("#map-status").textContent = `Added Dot Density “${recipe.legendTitle}” with ${result.clipping.keptCount.toLocaleString()} dots; ${diagnostics.length} diagnostic${diagnostics.length === 1 ? "" : "s"}.`;
+  if (layerBounds.isValid()) ensureMap().fitBounds(layerBounds.pad(0.12), { maxZoom: 16 });
+  if (options.persist !== false) persistProjectMapLayers();
+}
+
 function addChoroplethLayer(
   geojson: SupportedGeoJson,
   asset: ProjectMapAsset,
@@ -1861,6 +1995,30 @@ async function restoreProjectMapLayers(
           legend: { title: definition.legendTitle, showLabels: true, showNoData: true },
         });
         addChoroplethLayer(geojson, asset, data, recipe, { id: definition.id, visible: definition.visible, persist: false });
+      } else if (definition.kind === "dot-density" && asset.format === "geojson") {
+        const data = dataSources.get(definition.sourceFormId);
+        if (!data) throw new Error("Dot Density data form is unavailable");
+        const { geojson } = parseGeoJson(await file.text());
+        const recipe = createDotDensityLayerRecipeV01({
+          boundaryAssetId: asset.id,
+          boundaryLayerName: definition.name,
+          boundaryKeyField: definition.boundaryKeyField,
+          dataSourceFormId: definition.sourceFormId,
+          dataKeyField: definition.dataKeyField,
+          valueField: definition.valueField,
+          valuePerDot: definition.valuePerDot,
+          rounding: definition.rounding,
+          seed: definition.seed,
+          placementMethod: definition.placementMethod,
+          clipping: "polygon-interior",
+          dotColor: definition.dotColor,
+          dotRadiusPixels: definition.dotRadiusPixels,
+          opacity: definition.opacity,
+          legendTitle: definition.legendTitle,
+          maxDotsPerFeature: definition.maxDotsPerFeature,
+          maxTotalDots: definition.maxTotalDots,
+        });
+        addDotDensityLayer(geojson, asset, data, recipe, { id: definition.id, visible: definition.visible, persist: false });
       } else if (definition.kind === "geojson" && asset.format === "geojson") {
         const { geojson, featureCount } = parseGeoJson(await file.text());
         addGeoJsonLayer(geojson, featureCount, definition.name, definition.labelField, asset, {
@@ -1885,6 +2043,7 @@ async function restoreProjectMapLayers(
   if (sequence !== projectLayerRestoreSequence) return;
   renderGeoJsonLayerList();
   renderChoroplethLayerList();
+  renderDotDensityLayerList();
   renderRasterLayerList();
   updateLayerCount();
   refreshMapEmptyState();
@@ -2014,6 +2173,22 @@ export function initializeMaps(
   const choroplethStatus = requiredElement("#choropleth-dialog-status");
   let choroplethBoundaryGeojson: SupportedGeoJson | null = null;
   let choroplethDialogSources: MapDataSource[] = [];
+  const dotDensityDialog = requiredElement<HTMLDialogElement>("#dot-density-dialog");
+  const dotDensityForm = requiredElement<HTMLFormElement>("#dot-density-form");
+  const dotDensityAsset = requiredElement<HTMLSelectElement>("#dot-density-boundary-asset");
+  const dotDensityDataSource = requiredElement<HTMLSelectElement>("#dot-density-data-source");
+  const dotDensityBoundaryKey = requiredElement<HTMLSelectElement>("#dot-density-boundary-key");
+  const dotDensityDataKey = requiredElement<HTMLSelectElement>("#dot-density-data-key");
+  const dotDensityValueField = requiredElement<HTMLSelectElement>("#dot-density-value-field");
+  const dotDensityValuePerDot = requiredElement<HTMLInputElement>("#dot-density-value-per-dot");
+  const dotDensityPlacement = requiredElement<HTMLSelectElement>("#dot-density-placement");
+  const dotDensityColor = requiredElement<HTMLInputElement>("#dot-density-color");
+  const dotDensityOpacity = requiredElement<HTMLInputElement>("#dot-density-opacity");
+  const dotDensityOpacityValue = requiredElement("#dot-density-opacity-value");
+  const dotDensityLegendTitle = requiredElement<HTMLInputElement>("#dot-density-legend-title");
+  const dotDensityStatus = requiredElement("#dot-density-dialog-status");
+  let dotDensityBoundaryGeojson: SupportedGeoJson | null = null;
+  let dotDensityDialogSources: MapDataSource[] = [];
   const referenceLayerDialog = requiredElement<HTMLDialogElement>("#reference-layer-dialog");
   const referenceLayerForm = requiredElement<HTMLFormElement>("#reference-layer-form");
   const referenceLayerFile = requiredElement<HTMLInputElement>("#reference-layer-file");
@@ -2088,6 +2263,38 @@ export function initializeMaps(
     choroplethBoundaryGeojson = null;
     choroplethStatus.textContent = assets.length > 0 ? "Choose a stored GeoJSON boundary asset." : "Add a GeoJSON boundary layer first; Choropleth uses stored local assets.";
     choroplethOpacityValue.textContent = `${choroplethOpacity.value}%`;
+  };
+  const populateDotDensityBoundaryFields = async (): Promise<void> => {
+    const asset = currentProjectSnapshot?.()?.mapAssets?.find((candidate) => candidate.id === dotDensityAsset.value && candidate.format === "geojson");
+    dotDensityBoundaryKey.replaceChildren(option("", "Choose a boundary property"));
+    dotDensityBoundaryGeojson = null;
+    if (!asset) return;
+    try {
+      dotDensityBoundaryGeojson = parseGeoJson(await (await readProjectMapAsset(asset)).text()).geojson;
+      const properties = new Set<string>();
+      for (const feature of expandGeoJsonFeatures(dotDensityBoundaryGeojson)) for (const key of Object.keys(feature.properties || {})) properties.add(key);
+      dotDensityBoundaryKey.replaceChildren(option("", "Choose a boundary property"), ...[...properties].sort().map((key) => option(key, key)));
+      dotDensityStatus.textContent = `${properties.size} boundary properties available.`;
+    } catch (error) { dotDensityStatus.textContent = error instanceof Error ? `Boundary asset rejected: ${error.message}` : "Boundary asset rejected."; }
+  };
+  const populateDotDensityDataFields = (): void => {
+    const data = dotDensityDialogSources.find((candidate) => candidate.formId === dotDensityDataSource.value);
+    const fields = data?.fields.filter((field) => field.type !== "command-button") ?? [];
+    const makeOptions = (empty: string) => [option("", empty), ...fields.map((field) => option(field.name, `${field.prompt} (${field.name})`))];
+    dotDensityDataKey.replaceChildren(...makeOptions("Choose a data key"));
+    dotDensityValueField.replaceChildren(...makeOptions("Choose a numeric value"));
+  };
+  const prepareDotDensityDialog = (): void => {
+    const assets = currentProjectSnapshot?.()?.mapAssets?.filter((asset) => asset.format === "geojson") ?? [];
+    dotDensityAsset.replaceChildren(option("", "Choose a stored GeoJSON asset"), ...assets.map((asset) => option(asset.id, asset.fileName)));
+    dotDensityDialogSources = mapContext === "current-form" ? [getCurrentData()] : getDataSources();
+    dotDensityDataSource.replaceChildren(option("", "Choose a data form"), ...dotDensityDialogSources.map((data) => option(data.formId, `${data.projectName} / ${data.formName} (${data.records.length} records)`)));
+    if (mapContext === "current-form") dotDensityDataSource.value = dotDensityDialogSources[0]?.formId ?? "";
+    populateDotDensityDataFields();
+    dotDensityBoundaryKey.replaceChildren(option("", "Choose a boundary property"));
+    dotDensityBoundaryGeojson = null;
+    dotDensityStatus.textContent = assets.length > 0 ? "Choose a stored GeoJSON boundary asset." : "Add a GeoJSON boundary layer first; Dot Density uses stored local assets.";
+    dotDensityOpacityValue.textContent = `${dotDensityOpacity.value}%`;
   };
   layerPanel.addEventListener("toggle", updateLayerPanelToggle);
   updateLayerPanelToggle();
@@ -2477,6 +2684,51 @@ export function initializeMaps(
       choroplethStatus.textContent = error instanceof Error ? `Choropleth rejected: ${error.message}` : "Choropleth rejected.";
     }
   });
+  requiredElement("#map-add-dot-density").addEventListener("click", () => {
+    requiredElement("#map-add-layer-menu").open = false;
+    dotDensityForm.reset();
+    dotDensityValuePerDot.value = "10";
+    dotDensityPlacement.value = "seeded-jitter";
+    dotDensityColor.value = "#2255aa";
+    dotDensityOpacity.value = "80";
+    dotDensityLegendTitle.value = "Value per dot";
+    prepareDotDensityDialog();
+    dotDensityDialog.showModal();
+  });
+  dotDensityAsset.addEventListener("change", () => { void populateDotDensityBoundaryFields(); });
+  dotDensityDataSource.addEventListener("change", populateDotDensityDataFields);
+  dotDensityOpacity.addEventListener("input", () => { dotDensityOpacityValue.textContent = `${dotDensityOpacity.value}%`; });
+  for (const button of requiredElements("[data-close-dot-density]")) button.addEventListener("click", () => dotDensityDialog.close("cancel"));
+  dotDensityForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!eventForm(event).reportValidity()) return;
+    const asset = currentProjectSnapshot?.()?.mapAssets?.find((candidate) => candidate.id === dotDensityAsset.value && candidate.format === "geojson");
+    const data = dotDensityDialogSources.find((candidate) => candidate.formId === dotDensityDataSource.value);
+    if (!asset || !data || !dotDensityBoundaryGeojson) { dotDensityStatus.textContent = "Choose a stored GeoJSON asset and data form first."; return; }
+    try {
+      const recipe = createDotDensityLayerRecipeV01({
+        boundaryAssetId: asset.id,
+        boundaryLayerName: asset.fileName,
+        boundaryKeyField: dotDensityBoundaryKey.value,
+        dataSourceFormId: data.formId,
+        dataKeyField: dotDensityDataKey.value,
+        valueField: dotDensityValueField.value,
+        valuePerDot: Number(dotDensityValuePerDot.value),
+        rounding: "nearest",
+        seed: 12345,
+        placementMethod: dotDensityPlacement.value as "seeded-jitter" | "deterministic-grid",
+        clipping: "polygon-interior",
+        dotColor: dotDensityColor.value,
+        dotRadiusPixels: 3,
+        opacity: Number(dotDensityOpacity.value) / 100,
+        legendTitle: dotDensityLegendTitle.value.trim(),
+        maxDotsPerFeature: 1000,
+        maxTotalDots: 10000,
+      });
+      addDotDensityLayer(dotDensityBoundaryGeojson, asset, data, recipe);
+      dotDensityDialog.close("add");
+    } catch (error) { dotDensityStatus.textContent = error instanceof Error ? `Dot Density rejected: ${error.message}` : "Dot Density rejected."; }
+  });
   requiredElement("#map-add-reference-layer").addEventListener("click", () => {
     requiredElement("#map-add-layer-menu").open = false;
     referenceLayerForm.reset();
@@ -2807,6 +3059,30 @@ export function initializeMaps(
     updateLayerCount();
     refreshMapEmptyState();
     requiredElement("#map-status").textContent = `Removed Choropleth “${entry.name}”.`;
+  });
+  requiredElement("#map-dot-density-layers").addEventListener("change", (event) => {
+    const target = eventControl(event);
+    const id = target.dataset.dotDensityToggle;
+    if (!id) return;
+    const entry = dotDensityLayers.get(id);
+    if (!entry) return;
+    if (target.checked) entry.layer.addTo(ensureMap());
+    else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    persistProjectMapLayers();
+    requiredElement("#map-status").textContent = `${entry.name} ${target.checked ? "shown" : "hidden"}.`;
+  });
+  requiredElement("#map-dot-density-layers").addEventListener("click", (event) => {
+    const id = eventControl(event).dataset.dotDensityRemove;
+    if (!id) return;
+    const entry = dotDensityLayers.get(id);
+    if (!entry) return;
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    dotDensityLayers.delete(id);
+    persistProjectMapLayers();
+    renderDotDensityLayerList();
+    updateLayerCount();
+    refreshMapEmptyState();
+    requiredElement("#map-status").textContent = `Removed Dot Density “${entry.name}”.`;
   });
   requiredElement("#map-h3-layers").addEventListener("change", (event) => {
     const target = eventControl(event);

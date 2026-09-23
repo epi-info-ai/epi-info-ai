@@ -209,3 +209,38 @@ test("K06 Choropleth teaching fixture joins values, renders a legend, and persis
   await page.locator("#map-layer-panel-toggle").click();
   await expect(page.locator("#map-choropleth-layers")).toContainText("Case rate");
 });
+
+test("K07 Dot Density teaching fixture renders dots, diagnostics, and restores", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.getByRole("button", { name: "Create Forms", exact: true }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/gis-k07-dot-density/county-values.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("imported 3 records");
+  await page.locator("#designer-enter-data").click();
+  await page.locator("#enter-open-maps").click();
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await page.getByRole("button", { name: "GeoJSON Layer...", exact: true }).click();
+  const geojsonDialog = page.locator("#geojson-dialog");
+  await geojsonDialog.locator("#geojson-file").setInputFiles("wasm/demo/examples/gis-k07-dot-density/county-boundaries.geojson");
+  await geojsonDialog.getByRole("button", { name: "Add Layer", exact: true }).click();
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await page.getByRole("button", { name: "Dot Density", exact: true }).click();
+  const dialog = page.locator("#dot-density-dialog");
+  await expect(dialog).toBeVisible();
+  await dialog.locator("#dot-density-boundary-asset").selectOption({ label: "county-boundaries.geojson" });
+  await dialog.locator("#dot-density-boundary-key").selectOption("GEOID");
+  await dialog.locator("#dot-density-data-key").selectOption("county_fips");
+  await dialog.locator("#dot-density-value-field").selectOption("cases");
+  await dialog.locator("#dot-density-legend-title").fill("Cases per dot");
+  await dialog.getByRole("button", { name: "Add Dot Density", exact: true }).click();
+  await expect(page.locator("#map-status")).toContainText("Added Dot Density");
+  await page.locator("#map-layer-panel-toggle").click();
+  await expect(page.locator("#map-dot-density-layers")).toContainText("Dot Density");
+  await expect(page.locator("#map-dot-density-layers")).toContainText("Cases per dot");
+  await expect(page.locator("#map-dot-density-layers")).toContainText("diagnostic");
+  await page.locator('.module-rail [data-module="forms"]').click();
+  await page.locator('.module-rail [data-module="maps"]').click();
+  await expect(page.locator("#map-status")).toContainText("Restored 2 project map layers", { timeout: 15_000 });
+  await page.locator("#map-layer-panel-toggle").click();
+  await expect(page.locator("#map-dot-density-layers")).toContainText("Cases per dot");
+});
