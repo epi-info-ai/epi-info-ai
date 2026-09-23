@@ -1,10 +1,14 @@
 # Epi Info AI migration plan
 
+**Status:** active phased roadmap with completed-slice records
+
+**Last reviewed:** 2026-09-22
+
 ## Purpose
 
 This plan moves the working browser demo toward the target Epi Info AI product
 without stopping delivery or replacing the familiar Epi Info workflow all at
-once. It covers three coordinated migrations:
+once. It covers four coordinated migrations:
 
 1. JavaScript feature code to TypeScript.
 2. Deterministic epidemiologic calculations to a Rust/WASM kernel.
@@ -68,13 +72,14 @@ delivery work needed to make those migrations safe.
 
 ## Current baseline
 
-The current slice is a static HTML/CSS application with transitional ES-module JavaScript,
-a small dependency-free Rust WASM artifact, vendored Leaflet, browser-local form
-and record state, CSV import/export, maps, and single-user Supabase snapshot sync.
-The pinned TypeScript/esbuild foundation checks maintained source and creates
-`wasm/dist`; GitLab CI publishes only that generated artifact. The temporary
-source-copy Pages fallback was removed after two successful generated-artifact
-deployments.
+The current prototype is a static browser application whose maintained feature
+code is strict TypeScript, with Rust/WASM epidemiology kernels, reviewed vendored
+browser dependencies, local project and record state, import/export and encrypted
+project packages, mapping/GIS candidates, Classic Analysis and Check Code typed
+runtimes, teaching projects/runbooks, and single-user Supabase snapshot sync.
+The pinned TypeScript/esbuild foundation creates `wasm/dist`; GitLab and GitHub
+CI publish independently generated artifacts. Candidate status never substitutes
+for the command, compatibility, security, or scientific evidence gates.
 
 Before changing the build or module boundaries, capture a baseline checklist:
 
@@ -501,13 +506,13 @@ The Rust kernel owns deterministic epidemiologic computation, not DOM, storage,
 authentication, formatting, or AI interpretation.
 
 All work in this phase must pass the repository's
-[algorithm validation standard](docs/validation/algorithm-validation-standard.md).
+[algorithm validation standard](validation/algorithm-validation-standard.md).
 The [Validation Lab plan](validation-lab.md) defines how immutable fixtures,
 legacy output, independent Python references, and the release Rust/WASM artifact
 are brought together, beginning with the canonical foodborne-outbreak corpus.
 Candidate Rust crates are implementation options behind the owned `epi-core`
 facade, not trusted result sources. See the
-[Rust epidemiology landscape assessment](docs/research/rust-epidemiology-landscape.md).
+[Rust epidemiology landscape assessment](research/rust-epidemiology-landscape.md).
 
 ### Programming curriculum and reference corpus
 
@@ -517,7 +522,7 @@ repeatable investigations. Use the following CDC materials as behavioral evidenc
 and sources for acceptance fixtures:
 
 The classified source list and promotion workflow are maintained in the
-[programming curriculum corpus](docs/design/programming-curriculum-corpus.md) and
+[programming curriculum corpus](design/programming-curriculum-corpus.md) and
 its machine-readable registry. Curriculum priority describes representative user
 workflows; legacy source and grammar still decide detailed semantics.
 
@@ -670,7 +675,7 @@ for comparison during one release and is then removed.
 The gap between the legacy Program Editor/Check Code Editor and a safe modern
 browser IDE is the roadmap for this phase. The complete capability floor, stable
 gap IDs, new branches, six implementation waves, and closure rules are maintained
-in the [programming IDE compatibility inventory](docs/design/programming-ide-compatibility-inventory.md).
+in the [programming IDE compatibility inventory](design/programming-ide-compatibility-inventory.md).
 
 **First executable V0.1 slice complete:** Classic Analysis now exposes visible
 editable source, Verify Program, Run Commands, trusted canonical output, structured
@@ -818,7 +823,7 @@ application operations and Rust/WASM kernel.
 
 The implementation and remaining distribution, performance, security, privacy,
 and governance gates are maintained in the
-[Epi Assist new-branch inventory](docs/design/epi-assist-compatibility-inventory.md).
+[Epi Assist new-branch inventory](design/epi-assist-compatibility-inventory.md).
 Do not describe local inference as a fully offline deployment until model artifacts
 are integrity-pinned and delivered from an approved or packaged source.
 
@@ -1174,7 +1179,11 @@ its package integrity and publisher are verifiable, denial and failure behavior 
 tested, its UI uses host accessibility/responsive behavior, and its outputs carry
 provenance.
 
-## Immediate next slice
+## Completed Program Editor foundation and remaining gaps
+
+This section is a cumulative implementation record, not the current queue. The
+ordered live backlog is maintained in the repository README and the dated
+[`status.md`](status.md).
 
 The **saved PGM lifecycle** is now a tested candidate: project program list,
 guarded New/Open/Save/Save As/Delete, Author/Comments/Created/Updated metadata,
@@ -1404,16 +1413,16 @@ forms still fail closed. This remains a browser revival candidate, not a legacy
 parity claim.
 
 **MATCH source and corpus discovery complete:** the
-[evidence archive](docs/research/match-command-sources-and-data.md) links the
+[evidence archive](research/match-command-sources-and-data.md) links the
 official CDC archive, CDC Stacks manuals, dated Wayback captures for removed
 guide pages, and the applicable local legacy source. It identifies a checked-in
 130-observation case-control workbook with 65 complete 1:1 matched sets as the
 primary teaching candidate, plus a 30,000-row synthetic 1:2 matched-logistic
 stress corpus and an incomplete Rely/Toxic Shock Syndrome recovery candidate.
-The proposed [paired-analysis method contract](docs/validation/matched-pairs-method-contract.md)
+The proposed [paired-analysis method contract](validation/matched-pairs-method-contract.md)
 now freezes the first bounded 1:1 semantics, output requirements, exclusions,
 zero/infinity states, and a 21-record hand-auditable fixture. The independent
-[`validate-match.ipynb`](validation-lab/content/validate-match.ipynb) lab
+[`validate-match.ipynb`](../validation-lab/content/validate-match.ipynb) lab
 reconstructs the matched sets and supplies SciPy, boundary, and metamorphic
 evidence without calling a MATCH engine. The typed result contract and bounded
 record-to-pair derivation are now implemented in

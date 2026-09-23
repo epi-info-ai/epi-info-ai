@@ -74,7 +74,7 @@ demo.
 | Output | 7 | 6 | HEADER, literal TYPEOUT, in-session ROUTEOUT/CLOSEOUT, and reviewed bare PRINTOUT have bounded browser paths; Storing Output preserves its familiar settings dialog in browser-local storage and is correctly classified as UI, not source syntax |
 | User-Defined Commands | 4 | 4 | Visible gaps; RUNPGM requires bounded project resolution; arbitrary EXECUTE is blocked |
 | User Interaction | 4 | 3 | DIALOG now covers the full legacy grammar through typed, session-scoped browser adaptations; no-option BEEP uses local Web Audio with visible fallback; HELP and QUIT adaptations remain gaps. Exact masks and legacy database-dialog differences still require differential review. |
-| Options | 1 | 1 | Visible gap; session-scoped SET semantics required |
+| Options | 1 | 1 | Browser-verified bounded `SET` candidate covers ordered missing-value behavior; broader legacy options and desktop differential review remain open |
 
 ## Port inventory snapshot
 
@@ -83,13 +83,13 @@ snapshot makes its current implementation states easy to review:
 
 | State | Count | Commands |
 |---|---:|---|
-| Typed AST/parser | 37 | The prior 36 entries plus retained `LOGISTIC` syntax and options |
-| Typed source dialog | 36 | Same 36 command entries; MATCH authors the dormant row-column dialog form |
-| Selected execution or reviewed handoff | 35 | The prior 34 entries plus bounded conditional `LOGISTIC`; destructive commands and `PRINTOUT` require reviewed handoffs |
-| Bounded full-program component | 16 | The prior fifteen components plus conditional `LOGISTIC` |
+| Typed AST/parser | 37 | Includes retained `LOGISTIC` syntax/options and the complete inspected `DIALOG` grammar |
+| Typed source dialog | 37 | Field-aware builders or settings surfaces exist for every entry counted here; presence is not semantic parity |
+| Selected execution or reviewed handoff | 36 | Includes bounded conditional `LOGISTIC`; destructive commands and `PRINTOUT` require reviewed handoffs |
+| Bounded full-program component | 17 | Includes source-ordered candidates such as conditional `LOGISTIC`, `DIALOG`, and `BEEP` while broader variants remain gated |
+| Browser-verified command entries | 30 | Each has a checked-in validation input and asserted expected output; none is yet legacy-parity-verified |
+| Untouched command entries | 11 | Retained in the 49-entry floor without parser, dialog, selected execution, or full-program execution |
 | Browser-verified non-command settings UI | 1 | Storing Output; the legacy dialog generates no command text |
-| Completely untouched | 11 | Recorded individually in the machine registry; none may disappear from the compatibility floor |
-| Browser-verified with foodborne `.pgm` + expected output | 28 | The prior 27 entries plus no-option `BEEP` |
 | Legacy-parity-verified | 0 | No command may enter this row without reviewed desktop Epi Info output |
 
 The implementation columns describe port progress, not parity closure. For

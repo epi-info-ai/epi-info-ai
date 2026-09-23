@@ -1,5 +1,9 @@
 # Epi Info AI architecture
 
+**Status:** current architecture and implementation-boundary record
+
+**Last reviewed:** 2026-09-22
+
 ## Purpose
 
 Epi Info AI is a browser-first application that preserves the familiar Epi Info
@@ -13,8 +17,10 @@ calculate epidemiologic results itself. Python supports scientific validation,
 test-data generation, agent research, and optional exploratory analysis; it is not
 the primary browser application language or a second trusted statistics engine.
 
-This document distinguishes the code that exists in the current 2 x 2 candidate kernel from
-the intended product architecture.
+This document distinguishes the capabilities in the current browser prototype
+from the intended product architecture. A capability listed here is not a legacy
+parity claim; the compatibility and validation registries remain authoritative
+for evidence status.
 
 ## Language standard
 
@@ -80,8 +86,8 @@ from loading a focused Epi kernel. These budgets must be measured on supported
 low-resource devices before an Advanced Analysis workspace is promoted.
 
 Every algorithm and third-party numerical dependency is governed by the
-[algorithm validation standard](docs/validation/algorithm-validation-standard.md).
-The current [Rust epidemiology landscape assessment](docs/research/rust-epidemiology-landscape.md)
+[algorithm validation standard](validation/algorithm-validation-standard.md).
+The current [Rust epidemiology landscape assessment](research/rust-epidemiology-landscape.md)
 supports an Epi Info-owned `epi-core` facade: candidate crates may implement a
 method behind that facade only after independent evidence, native/WASM parity,
 source/dependency review, and statistical approval. Upstream claims of SciPy, R,
@@ -228,6 +234,17 @@ rules. They may share tokens, expressions, source infrastructure, diagnostics, a
 host capabilities, but one dialect must not silently inherit semantics from the
 other merely because command names overlap.
 
+The Check Code compatibility floor does not grant desktop authority to the
+browser. `EXECUTE`, DLL/.NET object loading and invocation, `COMMANDLINE`,
+ambient-path `RUNPGM`, `GETPATH`, and filesystem/process wait commands are
+deliberately non-executable. They remain recognizable migration gaps so imported
+source can be diagnosed, but no direct parity implementation is planned. Signed
+WASM/extensions, packaged programs, help content, and user-selected files require
+separate capability-labelled contracts with independent review; they cannot be
+reached by translating one of those legacy statements. The disposition matrix is
+maintained in
+[`form-designer-compatibility-inventory.md`](design/form-designer-compatibility-inventory.md#deliberately-excluded-desktop-authority).
+
 ### Transitional TypeScript implementation
 
 The first maintained language boundary is `app/programming/classic-ast.ts`. It
@@ -369,7 +386,13 @@ project access operational. Plugin compatibility follows explicit host API versi
 an incompatible plugin is disabled with an actionable explanation rather than run
 with uncertain behavior.
 
-## Current 2 x 2 slice
+## Representative browser-to-WASM vertical slice
+
+The diagram preserves the earliest validated 2 x 2 path as a concrete boundary
+example. It is no longer a complete topology of the application: Classic
+Analysis, Check Code, project packaging, teaching repositories, governed
+new-branch commands, and GIS Workers are described in the responsibility tables
+and their linked design records below.
 
 ```mermaid
 flowchart LR
@@ -393,12 +416,11 @@ flowchart LR
     APP --> UI
 ```
 
-The production build compiles maintained modules from `demo/` into `dist/` with
-external source maps; GitLab Pages publishes `dist/`. During the incremental
-transition, esbuild accepts either a `.ts` or legacy `.js` source for each module,
-so modules can move independently without a flag-day rewrite. Modules that consume
-TypeScript runtime contracts are bundled at that boundary; raw TypeScript source is
-not copied into the published artifact.
+The production build compiles maintained TypeScript modules from `demo/` and
+`app/` into `dist/` with external source maps; GitLab and GitHub Pages publish
+the generated artifact. A deliberately small JavaScript bootstrap and reviewed
+vendored dependencies remain where required. Raw TypeScript source is not copied
+into the published artifact.
 
 The browser loads `app.js` as an ES module. It imports `engine.js`, which loads
 `epi2x2.wasm` before accepting a calculation. All computation is local; the demo
@@ -476,7 +498,9 @@ legacy-to-browser evidence and acceptance gates are maintained in
 | Parse and apply the bounded `DEFINE TEXTINPUT -> numeric RECODE -> FREQ [STRATAVAR]` program plan | `app/programming/classic-program.ts` | Transitional TypeScript executable specification; source is never evaluated; migrate command slices to Rust `epi-lang` and delete replaced execution paths |
 | Parse the initial Classic language surface into versioned typed statements/expressions with source spans | `app/programming/classic-ast.ts` | Transitional TypeScript AST/parser fixture source; Rust `epi-lang` is the target authority, and parsing alone does not authorize execution |
 | Validate and load dataset-bound example-program catalogs | `app/programming/classic-examples.ts` + `demo/examples/*/*.programs.json` | Each use-case bundle owns its programs and supporting artifacts; the foodborne dataset currently supplies three `DEFINE -> RECODE -> FREQ` examples and two TABLES examples, and the app treats JSON catalogs as validated external data using the same AST-to-plan boundary as user source |
-| Discover and install host-neutral teaching repositories | `app/teaching/repository.ts` + [`docs/design/teaching-repository-contract.md`](docs/design/teaching-repository-contract.md) | New-branch V0.1 over the existing dataset-bound catalogs. The foodborne fixture previews a manifest, fetches only a full GitHub commit SHA, verifies declared lengths/digests, installs to OPFS, re-verifies reads, and registers its program catalog. Installation grants no execution authority; visible programs still pass the core AST, semantic, review, history, and allowlist path. |
+| Discover and install host-neutral teaching repositories | `app/teaching/repository.ts` + [`docs/design/teaching-repository-contract.md`](design/teaching-repository-contract.md) | New-branch V0.1 over the existing dataset-bound catalogs. The foodborne fixture previews a manifest, fetches only a full GitHub commit SHA, verifies declared lengths/digests, installs to OPFS, re-verifies reads, and registers its program catalog. Installation grants no execution authority; visible programs still pass the core AST, semantic, review, history, and allowlist path. |
+| Preview and install governed inert capability assets | `app/packages/capability-package.ts` + [`docs/design/package-manager-branch.md`](design/package-manager-branch.md) | New-branch Phase 1 pilot limited to the Occupational Epidemiology IOCODE package. A visible plan separates import approval, scientific approval, signature status, and authority; the allowlisted manifest pins a full revision, rejects executable/network/dependency requests and unsafe artifacts, verifies length/SHA-256 across approved GitLab/GitHub mirrors, commits inert files to OPFS, and records a value-free receipt. The current package is integrity-checked but unsigned and scientifically disabled; installation cannot make IOCODE executable. |
+| Guide and verify learner-executed UI practice | `app/help/runbooks.ts` + `app/contracts/project-package.ts` + [`docs/design/automated-runbooks.md`](design/automated-runbooks.md) | New-branch V0.4. Project packages may carry declarative runbooks with stable targets and bounded completion checks. The host reports verified/incomplete state and emits an in-memory evidence event containing IDs, outcome, and check kinds only; it never records observed values or performs the learner's action. Persistence, capability/rubric mapping, consent, and competency inference remain behind the adaptive-learning-kernel boundary. |
 | Edit and highlight bounded Epi Info source; show line/column and configurable indentation; offer schema-aware completion; run live syntax diagnostics | `app/programming/classic-editor.ts` | TypeScript + CodeMirror 6 presentation client; during migration it uses the TypeScript scaffold, then consumes Rust `epi-lang` diagnostics/completions through generated bindings; suggestions and diagnostics have no execution authority |
 | Store the browser-local V0.1 command history contract | `app/programming/run-history.ts` | TypeScript; unified origins and immutable hosted provenance remain open |
 | Select finite numeric observations, report exclusions, and assemble `epi.means` | `demo/engine.ts` + `app/contracts/engine.ts` | TypeScript adapter; descriptive formulas, sorting, quartiles, and mode are Rust/WASM |
@@ -484,7 +508,7 @@ legacy-to-browser evidence and acceptance gates are maintained in
 | Form schema designer, Project Explorer, palette, drag/drop, and snap preference | `demo/form-data.ts` | TypeScript |
 | Project data-store dialog, Supabase connection test, record entry, and line list | `demo/form-data.ts` | TypeScript |
 | Typed field rules, calculated-age materialization, signed decimal-degree coordinate precision, and saved-record validation | `app/contracts/validation.ts` + `app/forms/validation.ts` | TypeScript; deterministic product behavior, not epidemiologic kernel computation |
-| Safe allowlisted Check Code statements and entry-time field actions | `app/contracts/check-code.ts` + `app/forms/entry-view.ts` | TypeScript; arbitrary imported code is never evaluated |
+| Safe allowlisted Check Code statements, source editor, and entry-time field actions | `app/check-code/check-code-editor.ts` + `app/check-code/check-code-program.ts` + `demo/form-data.ts` + `app/forms/entry-view.ts` | CodeMirror 6 supplies persistent font/indent/line-number preferences, find/replace, line/column state, and typed-parser lint markers without execution authority. The separate verify/apply boundary remains mandatory; arbitrary imported code is never evaluated. Adapted `GOTOFORM` receives only the validated current-project form catalog, preserves a validated browser-session draft, orders exit/entry events through the same runtime, terminates the originating event, and shares its navigation budget across form runtimes; it has no project/file discovery or implicit record-save authority. Adapted `AUTOSEARCH` receives only active-form records and verified fields, returns a bounded local preview, and cannot replace the draft or open a stored record until record-edit identity has its own safe contract |
 | Legacy `GEOCODE` Click command, provider response validation, explicit result selection, and coordinate-field mutation | `app/contracts/check-code.ts` + `app/forms/geocoding.ts` + `app/forms/entry-view.ts` | TypeScript; provider-neutral contract with a demonstration-only OpenStreetMap Nominatim adapter |
 | Completeness, validation issues, duplicate candidates, Recycle Bin, and audit UI | `app/forms/data-quality.ts` + `demo/form-data.ts` | TypeScript; lifecycle data is part of the validated project snapshot |
 | Delimited parsing, CSV export, and schema inference | `app/forms/csv.ts` | TypeScript |
@@ -531,10 +555,6 @@ and the responsive module workspaces. Neither contains statistical logic.
 
 ```text
 wasm/
-|-- architecture.md                 This document
-|-- migration-plan.md               Phased execution and acceptance gates
-|-- project.md                      Product and system direction
-|-- feasibility-analysis.md         Port feasibility findings
 |-- app/
 |   |-- contracts/                  Strict project, map, and engine contracts
 |   |-- forms/                      Entry, validation, Data Quality, CSV, import, and project-state modules
@@ -542,6 +562,12 @@ wasm/
 |-- scripts/                        Production build and preview tooling
 |-- dist/                           Generated, ignored Pages artifact
 |-- docs/
+|   |-- architecture.md             This document
+|   |-- migration-plan.md           Phased execution and acceptance gates
+|   |-- project.md                  Product and system direction
+|   |-- feasibility-analysis.md     Port feasibility findings
+|   |-- ai-lessons-learned.md       AI prompt/model/behavior observations
+|   |-- validation-lab.md           Validation-corpus and notebook governance
 |   |-- design/                     UI compatibility decisions
 |   `-- reference/                  Epi Info user documentation
 |-- engine-rust/
@@ -592,7 +618,7 @@ wasm/
    results. Promoted fixtures record method, package version, tolerance, and review.
 11. Optional Python execution is sandboxed and visibly exploratory. It cannot claim
    the provenance of a validated Rust-backed `epi.*` operation.
-12. The [legacy capability register](docs/design/legacy-capability-register.md) is
+12. The [legacy capability register](design/legacy-capability-register.md) is
    the backlog and compatibility floor. New branches, deprecations, and
    retirements are recorded there in the same change that implements them.
 13. Legacy imports produce a runnable projection plus preserved source metadata
@@ -621,7 +647,7 @@ three typed actions in V0.1: focus Data Quality, run an existing Frequency
 (optionally with one validated stratification field), or run an existing Epi
 Curve. Unknown actions and fields, wrong date types, malformed
 responses, and model failures enable nothing. See the
-[Epi Assist inventory](docs/design/epi-assist-compatibility-inventory.md).
+[Epi Assist inventory](design/epi-assist-compatibility-inventory.md).
 
 ### Foundation-model provider gateway
 
@@ -849,9 +875,11 @@ new functionality follows the legacy capability register and later phases.
   fixtures plus experienced-user review before exposing it outside a clearly
   labeled revival/new branch.
 - [x] Establish a host-owned declarative walkthrough service and Help entry with
-  a foodborne Program Editor runbook. The V0.1 host owns spotlighting and
-  action-aware progression, navigates only between modules, and leaves loading
-  and execution to explicit user actions.
+  project-scoped teaching runbooks. The V0.4 host owns spotlighting,
+  action-aware progression, and bounded completion checks while leaving every
+  substantive workflow action to the learner. The Foodborne Form Designer lab
+  is the first verified end-to-end fixture; its in-memory evidence event omits
+  observed values and is not yet a competency claim.
 - [ ] Expand the runbook service to every user-facing page. Page and approved plugin contributions
   provide versioned step metadata and stable semantic targets; the host owns
   highlighting, focus, accessibility, responsive presentation, persistence of
@@ -925,24 +953,22 @@ new functionality follows the legacy capability register and later phases.
 Until this item is complete, hosted projects are single-user working copies and
 the application does not merge data entered by different people.
 
-## Not implemented yet
+## Material capabilities not implemented yet
 
-The current slice includes a validated V2 JSON project envelope, familiar File >
-Open Project / Save Project As, an official migrated Sample fixture, a project/form tree, drag-and-drop form designer,
-and line-list proof of concept, but not the full Epi Info project or check-code
-model. The data-store dialog currently creates browser-local demo state; it does
-not create SQL Server or SQLite databases. Project Storage can connect the current
-project to Supabase, authenticate by email or an enabled GitHub provider, and upload/download an RLS-protected JSON
-snapshot with revision conflict checks. The current sync model is an intentionally simple
-whole-project snapshot rather than normalized form and record tables. The Maps slice keeps the manual's two
-launch contexts separate: Main Menu -> Create Maps opens a standalone map with a
-project/form data-source selector, while Enter Data -> Maps links the map to the
-current form and allows a mapped record to be reopened in Enter Data. Both paths
-support Add Data Layer -> Case Cluster, browser-local GeoJSON reference layers with zoom-dependent polygon labels, configurable H3 aggregation layers, cumulative date/time animation, compact layer controls, fullscreen mapping, and browser geolocation. New Project can optionally capture a dataset-independent WGS 84 study-area bounding polygon, plan an offline zoom/package budget, and attach a validated PMTiles v3 archive. Raster packages render through Leaflet and vector MVT packages through a non-interactive MapLibre canvas beneath the familiar overlays, both from OPFS after runtime integrity verification and without online tile requests. Form Designer and Enter Data also include a bounded legacy Geo-location/`GEOCODE` path with explicit candidate selection and Case Cluster handoff. Its direct public Nominatim adapter is suitable only for light demonstration use: a production deployment needs an approved configurable provider or server-side boundary with privacy, capacity, policy, and audit controls. The slice does not
-yet provide external databases, shapefiles, satellite imagery, choropleths, spatial
-analysis, full legacy geocoding parity, reviewed cartographic style parity, offline-package backup/recovery, or field-offline acceptance. The slice also does
-not yet include the final ZIP/SQLite `.epia` container, direct browser `.mdb`
-import, SQLite/OPFS persistence, dashboards, service-worker
-offline installation, a plugin runtime/catalog, production-governed AI orchestration, a Pyodide
-Advanced Analysis workspace, Python bindings, or remote services. Those are
-target-architecture components and should not be inferred from this demo.
+The prototype now includes validated project envelopes, `.epia`/`.epiax`
+packaging, guarded project lifecycle, Form Designer, line-list entry, a bounded
+typed Check Code runtime, Visual Dashboard candidates, Classic Analysis command
+candidates, teaching repositories and runbooks, map assets, Access table-data
+conversion candidates, and governed cluster/record-linkage branches. These are
+independently gated candidates; they do not collectively establish desktop parity
+or production authorization.
+
+Major open architecture items include complete legacy project and Access-object
+migration; SQLite/OPFS as the operational project store; normalized multi-user
+record synchronization; service-worker offline installation; a signed,
+revocable package catalog and approved plugin runtime; production-governed AI
+orchestration; the optional Pyodide Advanced Analysis workspace and Python
+bindings; full Classic Analysis and Check Code semantics; full legacy mapping,
+geocoding, cartographic, and field-offline acceptance; and reviewed remote-service
+boundaries. The compatibility registers and dated
+[`status.md`](status.md) provide the narrower current evidence state.
