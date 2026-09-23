@@ -56,6 +56,7 @@ jobs:
           pnpm run test:gis:fixtures
           pnpm run test:gis:command
           pnpm run test:gis:archive
+          pnpm run test:gis:points
 
       - name: Install Python
         uses: actions/setup-python@v7

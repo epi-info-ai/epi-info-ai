@@ -3001,6 +3001,14 @@ select {
   color: #405865;
 }
 
+.epi-square-marker {
+  width: 12px !important;
+  height: 12px !important;
+  border: 2px solid #7f1d1d;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
 .map-toolbar #map-status {
   margin-left: auto;
 }

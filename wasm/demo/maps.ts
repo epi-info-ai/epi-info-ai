@@ -35,6 +35,7 @@ import { storeReferenceLayerSource, removeReferenceLayerSource } from "../app/gi
 import { createReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
 import { buildReferenceLayerGdalRequestV01 } from "../app/gis/reference-layer-adapter.ts";
 import type { ReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
+import { buildPointLayerPreviewV01, clusterPointLayerV01, createPointLayerRecordRefV01, summarizePointLayerDiagnosticsV01, type DisplayPointClusterV01, type PointLayerDiagnosticV01, type PointLayerFilterV01 } from "../app/gis/point-layer.ts";
 import { GdalWorkerClient, type GdalDataset, type GdalDatasetInfo, type GdalOpenedDataset } from "./examples/gdal-wasm/gdal-wasm-worker.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
@@ -165,6 +166,11 @@ let activeRecordLayerId = "";
 let activeRecordLatitudeField = "";
 let activeRecordLongitudeField = "";
 let activeRecordLabelField = "";
+let activeRecordLayerKind: "case-cluster" | "spot-map" = "case-cluster";
+let activeRecordMarkerStyle: "circle" | "square" = "circle";
+let activeRecordMarkerColor = "#df291e";
+let activeRecordFilter: PointLayerFilterV01 | null = null;
+let activeRecordDiagnostics: PointLayerDiagnosticV01[] = [];
 let activeRecordOpenHandler: OpenRecordHandler | null = null;
 let timeLapseState: TimeLapseState | null = null;
 let clusterTourState: ClusterTourState | null = null;
@@ -195,6 +201,31 @@ function updateLayerCount() {
   requiredElement("#map-layer-count").textContent = String(count);
 }
 
+function renderPointDiagnostics(diagnostics: readonly PointLayerDiagnosticV01[]): void {
+  const panel = requiredElement<HTMLDetailsElement>("#map-point-diagnostics-panel");
+  const summary = requiredElement("#map-point-diagnostics-summary");
+  const list = requiredElement<HTMLUListElement>("#map-point-diagnostics-list");
+  const counts = summarizePointLayerDiagnosticsV01(diagnostics);
+  list.replaceChildren();
+  if (diagnostics.length === 0) {
+    panel.hidden = true;
+    summary.textContent = "No skipped rows.";
+    return;
+  }
+  panel.hidden = false;
+  summary.textContent = `${counts.totalSkipped.toLocaleString()} skipped: ${counts.missingCoordinate} missing, ${counts.invalidCoordinate} invalid, ${counts.filtered} filtered, ${counts.limitExceeded} over limit.`;
+  for (const diagnostic of diagnostics.slice(0, 100)) {
+    const item = document.createElement("li");
+    item.textContent = `Row ${diagnostic.recordIndex + 1}: ${diagnostic.message}`;
+    list.append(item);
+  }
+  if (diagnostics.length > 100) {
+    const item = document.createElement("li");
+    item.textContent = `${diagnostics.length - 100} additional diagnostics are summarized above.`;
+    list.append(item);
+  }
+}
+
 function persistProjectMapLayers(): void {
   if (!saveProjectMapState || !map) return;
   const assets = [...geoJsonLayers.values(), ...rasterLayers.values()]
@@ -203,13 +234,16 @@ function persistProjectMapLayers(): void {
   const layers: ProjectMapLayer[] = [
     ...(caseClusterAdded && activeData && activeRecordLatitudeField && activeRecordLongitudeField ? [{
       id: activeRecordLayerId || `case-cluster-${activeData.formId}`,
-      kind: "case-cluster" as const,
+      kind: activeRecordLayerKind,
       sourceFormId: activeData.formId,
       name: requiredElement("#map-record-layer-name").textContent || `Case Cluster: ${activeData.formName}`,
       visible: map.hasLayer(recordLayer),
       latitudeField: activeRecordLatitudeField,
       longitudeField: activeRecordLongitudeField,
       labelField: activeRecordLabelField,
+      markerStyle: activeRecordMarkerStyle,
+      markerColor: activeRecordMarkerColor,
+      ...(activeRecordFilter ? { filter: activeRecordFilter } : {}),
     }] : []),
     ...[...geoJsonLayers].map(([id, entry]): ProjectMapLayer => ({
       id,
@@ -524,7 +558,10 @@ function ensureMap() {
   recordLayer = L.layerGroup().addTo(map);
   locationLayer = L.layerGroup().addTo(map);
   L.control.scale({ imperial: true, metric: true }).addTo(map);
-  map.on("zoomend", updateGeoJsonLabelVisibility);
+  map.on("zoomend", () => {
+    updateGeoJsonLabelVisibility();
+    if (activeRecordLayerKind === "case-cluster" && activeRecordPoints.length > 0) renderRecordMarkers(activeRecordPoints);
+  });
   return map;
 }
 
@@ -765,8 +802,11 @@ function resetMapWorkspace() {
   activeRecordLatitudeField = "";
   activeRecordLongitudeField = "";
   activeRecordLabelField = "";
+  activeRecordDiagnostics = [];
   activeRecordOpenHandler = null;
   requiredElement("#map-point-count").textContent = "0";
+  requiredElement<HTMLButtonElement>("#map-record-layer-edit").hidden = true;
+  renderPointDiagnostics([]);
   requiredElement("#map-record-layer-name").textContent = "Case Cluster";
   requiredElement("#map-record-layer-toggle").checked = true;
   requiredElement("#map-location-layer-toggle").checked = true;
@@ -785,10 +825,31 @@ function markerPopup(record: EpiRecord, labelField: string, latitude: number, lo
   content.append(heading, coordinates);
   if (mapContext === "current-form") {
     const hint = document.createElement("small");
-    hint.textContent = "Double-click to open this record in Enter Data.";
-    content.append(hint);
+    hint.textContent = "Double-click the marker or use the button to open this record in Enter Data.";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Open source record";
+    button.addEventListener("click", () => openAuthorizedRecord(record));
+    content.append(hint, button);
   }
   return content;
+}
+
+function openAuthorizedRecord(record: EpiRecord): void {
+  if (mapContext !== "current-form" || !activeData || !activeRecordOpenHandler) {
+    requiredElement("#map-status").textContent = "Record linkback is available only when Maps is launched from the current form.";
+    return;
+  }
+  const recordIndex = activeRecordPoints.find(({ record: candidate }) => candidate === record)?.recordIndex;
+  if (recordIndex === undefined) {
+    requiredElement("#map-status").textContent = "The selected record is no longer part of the active point layer.";
+    return;
+  }
+  const reference = createPointLayerRecordRefV01(activeData.formId, recordIndex);
+  const opened = activeRecordOpenHandler(reference.sourceFormId, reference.recordIndex);
+  requiredElement("#map-status").textContent = opened
+    ? `Opened source record ${reference.recordIndex + 1} in Enter Data.`
+    : "The source record could not be opened; no other data was exposed.";
 }
 
 function geoJsonPopup(feature: GeoJsonFeature): HTMLDivElement | null {
@@ -1272,23 +1333,71 @@ export function buildTimeLapseStops(mappedRecords: MapPoint[], timeField: string
     .map((stop) => ({ ...stop, label: formatTimeStop(stop.timestamp, stop.kind) }));
 }
 
+function clusterPopup(cluster: DisplayPointClusterV01): HTMLDivElement {
+  const content = document.createElement("div");
+  const heading = document.createElement("strong");
+  heading.textContent = `${cluster.points.length} nearby records`;
+  const detail = document.createElement("p");
+  detail.textContent = "Zoom in or activate a member below to inspect its source record.";
+  content.append(heading, detail);
+  const members = document.createElement("ul");
+  for (const point of cluster.points.slice(0, 10)) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = activeRecordLabelField && point.record[activeRecordLabelField]
+      ? String(point.record[activeRecordLabelField])
+      : `Record ${point.recordIndex + 1}`;
+    button.addEventListener("click", () => {
+      if (mapContext === "current-form") openAuthorizedRecord(point.record);
+    });
+    item.append(button);
+    members.append(item);
+  }
+  content.append(members);
+  if (cluster.points.length > 10) {
+    const more = document.createElement("small");
+    more.textContent = `${cluster.points.length - 10} additional members remain in this cluster.`;
+    content.append(more);
+  }
+  return content;
+}
+
 function renderRecordMarkers(mappedRecords: MapPoint[]): void {
   recordLayer.clearLayers();
-  for (const { record, recordIndex, latitude, longitude } of mappedRecords) {
-    const marker = L.circleMarker([latitude, longitude], {
-      pane: "epi-point-pane",
-      radius: 6,
-      color: "#9f221b",
-      weight: 2,
-      fillColor: "#df291e",
-      fillOpacity: 0.84,
-    }).bindPopup(markerPopup(record, activeRecordLabelField, latitude, longitude));
+  const displayClusters = activeRecordLayerKind === "case-cluster"
+    ? clusterPointLayerV01(mappedRecords, map.getZoom(), 15)
+    : mappedRecords.map((point) => ({ latitude: point.latitude, longitude: point.longitude, points: [point], isCluster: false }));
+  for (const cluster of displayClusters) {
+    if (cluster.isCluster) {
+      const marker = L.circleMarker([cluster.latitude, cluster.longitude], {
+        pane: "epi-point-pane",
+        radius: Math.min(20, 8 + Math.sqrt(cluster.points.length) * 2),
+        color: "#7f1d1d",
+        weight: 2,
+        fillColor: "#f0a202",
+        fillOpacity: 0.9,
+      });
+      marker.bindPopup(clusterPopup(cluster));
+      marker.on("click", () => map.setView([cluster.latitude, cluster.longitude], Math.min(map.getZoom() + 2, 18)));
+      marker.addTo(recordLayer);
+      continue;
+    }
+    const { record, recordIndex, latitude, longitude } = cluster.points[0]!;
+    const marker = activeRecordMarkerStyle === "square"
+      ? L.marker([latitude, longitude], { pane: "epi-point-pane", icon: L.divIcon({ className: "epi-square-marker", html: "", iconSize: [12, 12], iconAnchor: [6, 6] }) })
+      : L.circleMarker([latitude, longitude], { pane: "epi-point-pane", radius: 6, color: activeRecordMarkerColor, weight: 2, fillColor: activeRecordMarkerColor, fillOpacity: 0.84 });
+    marker.bindPopup(markerPopup(record, activeRecordLabelField, latitude, longitude));
     if (mapContext === "current-form" && activeRecordOpenHandler) {
       marker.on("dblclick", () => {
-        if (activeRecordOpenHandler && activeData) activeRecordOpenHandler(activeData.formId, recordIndex);
+      if (mapContext === "current-form") openAuthorizedRecord(record);
       });
     }
     marker.addTo(recordLayer);
+    if (activeRecordMarkerStyle === "square") {
+      const element = marker.getElement?.() as HTMLElement | undefined;
+      if (element) element.style.backgroundColor = activeRecordMarkerColor;
+    }
   }
 }
 
@@ -1374,6 +1483,10 @@ function plotRecords(
     latitudeField?: string;
     longitudeField?: string;
     labelField?: string;
+    kind?: "case-cluster" | "spot-map";
+    markerStyle?: "circle" | "square";
+    markerColor?: string;
+    filter?: PointLayerFilterV01 | null;
     visible?: boolean;
     persist?: boolean;
   } = {},
@@ -1389,18 +1502,29 @@ function plotRecords(
   ensureMap();
   closeTimeLapse(false);
   clearClusterTour();
-  const mappedRecords = extractMapPoints(data.records, latitudeField, longitudeField);
+  const preview = buildPointLayerPreviewV01(data.records, {
+    latitudeField,
+    longitudeField,
+    ...(options.filter ? { filter: options.filter } : {}),
+  });
+  const mappedRecords = preview.points;
   activeData = data;
   activeRecordPoints = mappedRecords;
-  activeRecordLayerId = options.id || `case-cluster-${data.formId}`;
+  activeRecordLayerKind = options.kind ?? "case-cluster";
+  activeRecordLayerId = options.id || `${activeRecordLayerKind}-${data.formId}`;
   activeRecordLatitudeField = latitudeField;
   activeRecordLongitudeField = longitudeField;
   activeRecordLabelField = labelField;
+  activeRecordMarkerStyle = options.markerStyle ?? "circle";
+  activeRecordMarkerColor = options.markerColor ?? "#df291e";
+  activeRecordFilter = options.filter ?? null;
+  activeRecordDiagnostics = preview.diagnostics;
   activeRecordOpenHandler = openRecord;
   renderRecordMarkers(mappedRecords);
   const points = mappedRecords.map(({ latitude, longitude }) => [latitude, longitude]);
   setMapHeading(data);
-  requiredElement("#map-record-layer-name").textContent = options.name || `Case Cluster: ${data.formName}`;
+  requiredElement("#map-record-layer-name").textContent = options.name || `${activeRecordLayerKind === "spot-map" ? "Spot Map" : "Case Cluster"}: ${data.formName}`;
+  requiredElement<HTMLButtonElement>("#map-record-layer-edit").hidden = false;
   requiredElement("#map-point-count").textContent = String(points.length);
   caseClusterAdded = points.length > 0;
   const visible = options.visible !== false;
@@ -1409,10 +1533,11 @@ function plotRecords(
   refreshMapEmptyState();
   updateLayerCount();
   requiredElement("#map-status").textContent = points.length > 0
-    ? `Mapped ${points.length} valid record${points.length === 1 ? "" : "s"}.`
+    ? `Mapped ${points.length} valid record${points.length === 1 ? "" : "s"}; skipped ${preview.skippedCount.toLocaleString()}.`
     : "No valid coordinates were found in the selected fields.";
   lastBounds = points.length > 0 ? L.latLngBounds(points) : null;
   if (lastBounds?.isValid()) map.fitBounds(lastBounds.pad(0.18), { maxZoom: 15 });
+  renderPointDiagnostics(activeRecordDiagnostics);
   if (options.persist) persistProjectMapLayers();
 }
 
@@ -1532,21 +1657,25 @@ async function restoreProjectMapLayers(
   for (const definition of snapshot?.mapLayers ?? []) {
     if (sequence !== projectLayerRestoreSequence) return;
     try {
-      if (definition.kind === "case-cluster") {
+      if (definition.kind === "case-cluster" || definition.kind === "spot-map") {
         const data = dataSources.get(definition.sourceFormId);
         if (!data) throw new Error("source form is unavailable");
         plotRecords(data, openRecord, {
           id: definition.id,
           name: definition.name,
+          kind: definition.kind,
           latitudeField: definition.latitudeField,
           longitudeField: definition.longitudeField,
           labelField: definition.labelField,
+          markerStyle: definition.markerStyle,
+          markerColor: definition.markerColor,
+          filter: definition.filter ? definition.filter as PointLayerFilterV01 : null,
           visible: definition.visible,
           persist: false,
         });
         continue;
       }
-      const asset = assets.get(definition.assetId);
+      const asset = assets.get("assetId" in definition ? definition.assetId : "");
       if (!asset) throw new Error("missing asset metadata");
       const file = await readProjectMapAsset(asset);
       if (definition.kind === "geojson" && asset.format === "geojson") {
@@ -1611,6 +1740,7 @@ function configureLaunch(
 function prepareCaseClusterDialog(
   getCurrentData: () => MapDataSource,
   getDataSources: () => MapDataSource[],
+  kind: "case-cluster" | "spot-map" = "case-cluster",
 ): MapDataSource[] {
   const source = requiredElement("#map-data-source");
   const title = requiredElement("#case-cluster-dialog-title");
@@ -1620,7 +1750,7 @@ function prepareCaseClusterDialog(
     option(data.formId, `${data.projectName} / ${data.formName} (${data.records.length} records)`)
   )));
   if (mapContext === "current-form") {
-    title.textContent = "Case Cluster - Current Form";
+    title.textContent = `${kind === "spot-map" ? "Spot Map" : "Case Cluster"} - Current Form`;
     description.textContent = "Use the form currently open in Enter Data (equivalent to selecting No for external data in Epi Info 7).";
     source.value = sources[0]?.formId || "";
   } else {
@@ -1634,6 +1764,15 @@ function prepareCaseClusterDialog(
     requiredElement("#map-longitude-field").replaceChildren(option("", "Select a data source first"));
     requiredElement("#map-label-field").replaceChildren(option("", "Select a data source first"));
   }
+  const filterField = requiredElement<HTMLSelectElement>("#map-filter-field");
+  const dataFields = activeData?.fields.filter((field) => field.type !== "command-button") ?? [];
+  filterField.replaceChildren(option("", "No filter"), ...dataFields.map((field) => option(field.name, `${field.prompt} (${field.name})`)));
+  requiredElement<HTMLSelectElement>("#map-marker-style").value = "circle";
+  requiredElement<HTMLInputElement>("#map-marker-color").value = "#df291e";
+  requiredElement<HTMLInputElement>("#map-filter-value").value = "";
+  requiredElement("#map-point-dialog-note").textContent = kind === "spot-map"
+    ? "Spot Map shows individual valid rows; filters and marker settings are saved with the layer."
+    : "Case Cluster remains a visual aggregation feature, not statistical cluster detection.";
   return sources;
 }
 
@@ -1693,6 +1832,7 @@ export function initializeMaps(
   const layerPanelToggle = requiredElement("#map-layer-panel-toggle");
   const offlineReimportFile = requiredElement<HTMLInputElement>("#map-offline-reimport-file");
   let dialogSources: MapDataSource[] = [];
+  let dialogPointLayerKind: "case-cluster" | "spot-map" = "case-cluster";
   let geoJsonInspectionVersion = 0;
   const updateH3ResolutionDescription = () => {
     const resolution = Number(h3Resolution.value);
@@ -1801,13 +1941,50 @@ export function initializeMaps(
   }
   requiredElement("#map-add-case-cluster").addEventListener("click", () => {
     requiredElement("#map-add-layer-menu").open = false;
-    dialogSources = prepareCaseClusterDialog(getCurrentData, getDataSources);
+    dialogPointLayerKind = "case-cluster";
+    dialogSources = prepareCaseClusterDialog(getCurrentData, getDataSources, dialogPointLayerKind);
+    caseClusterDialog.showModal();
+  });
+  requiredElement("#map-add-spot-map").addEventListener("click", () => {
+    requiredElement("#map-add-layer-menu").open = false;
+    dialogPointLayerKind = "spot-map";
+    dialogSources = prepareCaseClusterDialog(getCurrentData, getDataSources, dialogPointLayerKind);
+    caseClusterDialog.showModal();
+  });
+  requiredElement<HTMLButtonElement>("#map-record-layer-edit").addEventListener("click", () => {
+    if (!activeData) {
+      requiredElement("#map-status").textContent = "The point-layer source is no longer available for editing.";
+      return;
+    }
+    dialogPointLayerKind = activeRecordLayerKind;
+    dialogSources = prepareCaseClusterDialog(getCurrentData, getDataSources, dialogPointLayerKind);
+    const source = requiredElement<HTMLSelectElement>("#map-data-source");
+    source.value = activeData.formId;
+    activeData = dialogSources.find((data) => data.formId === source.value) || null;
+    if (!activeData) {
+      requiredElement("#map-status").textContent = "The point-layer source is no longer available for editing.";
+      return;
+    }
+    populateFieldSelectors(activeData);
+    const filterField = requiredElement<HTMLSelectElement>("#map-filter-field");
+    filterField.replaceChildren(option("", "No filter"), ...activeData.fields.filter((field) => field.type !== "command-button").map((field) => option(field.name, `${field.prompt} (${field.name})`)));
+    requiredElement<HTMLSelectElement>("#map-latitude-field").value = activeRecordLatitudeField;
+    requiredElement<HTMLSelectElement>("#map-longitude-field").value = activeRecordLongitudeField;
+    requiredElement<HTMLSelectElement>("#map-label-field").value = activeRecordLabelField;
+    requiredElement<HTMLSelectElement>("#map-marker-style").value = activeRecordMarkerStyle;
+    requiredElement<HTMLInputElement>("#map-marker-color").value = activeRecordMarkerColor;
+    requiredElement<HTMLSelectElement>("#map-filter-operator").value = activeRecordFilter?.operator ?? "equals";
+    filterField.value = activeRecordFilter?.field ?? "";
+    requiredElement<HTMLInputElement>("#map-filter-value").value = activeRecordFilter?.value ?? "";
     caseClusterDialog.showModal();
   });
   requiredElement("#map-data-source").addEventListener("change", (event) => {
     const target = eventControl(event);
     activeData = dialogSources.find((data) => data.formId === target.value) || null;
-    if (activeData) populateFieldSelectors(activeData);
+    if (activeData) {
+      populateFieldSelectors(activeData);
+      requiredElement<HTMLSelectElement>("#map-filter-field").replaceChildren(option("", "No filter"), ...activeData.fields.filter((field) => field.type !== "command-button").map((field) => option(field.name, `${field.prompt} (${field.name})`)));
+    }
   });
   for (const button of requiredElements("[data-close-case-cluster]")) {
     button.addEventListener("click", () => caseClusterDialog.close("cancel"));
@@ -1815,7 +1992,21 @@ export function initializeMaps(
   requiredElement("#case-cluster-form").addEventListener("submit", (event) => {
     event.preventDefault();
     if (!eventForm(event).reportValidity()) return;
-    plotRecords(activeData, openRecord, { persist: true });
+    const filterField = requiredElement<HTMLSelectElement>("#map-filter-field").value;
+    const filterOperator = requiredElement<HTMLSelectElement>("#map-filter-operator").value as PointLayerFilterV01["operator"];
+    const filterValue = requiredElement<HTMLInputElement>("#map-filter-value").value;
+    const filter = filterField ? { field: filterField, operator: filterOperator, ...(filterValue ? { value: filterValue } : {}) } : null;
+    if (filter && !["is-empty", "is-not-empty"].includes(filter.operator) && !filter.value) {
+      requiredElement("#map-point-dialog-note").textContent = "Enter a filter value or choose an empty-value operator.";
+      return;
+    }
+    plotRecords(activeData, openRecord, {
+      kind: dialogPointLayerKind,
+      markerStyle: requiredElement<HTMLSelectElement>("#map-marker-style").value as "circle" | "square",
+      markerColor: requiredElement<HTMLInputElement>("#map-marker-color").value,
+      filter,
+      persist: true,
+    });
     caseClusterDialog.close("plot");
   });
   requiredElement("#map-create-timelapse").addEventListener("click", () => {

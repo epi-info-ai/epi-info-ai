@@ -134,3 +134,40 @@ test("K04 imports, selects, and normalizes one layer from a generated GeoPackage
     [-83.53741, 41.65281], [-83.53127, 41.64892], [-83.54863, 41.65734],
   ]);
 });
+
+test("K05 Spot Map and Case Cluster teaching fixture expose diagnostics and editable state", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.getByRole("button", { name: "Create Forms", exact: true }).click();
+  await page.locator("#import-rows-with-form").check();
+  await page.locator("#form-csv-import").setInputFiles("wasm/demo/examples/gis-k05-point-layers/gis-k05-point-layer.csv");
+  await expect(page.locator("#csv-form-status")).toContainText("imported 6 records");
+  await page.locator("#designer-enter-data").click();
+  await page.locator("#enter-open-maps").click();
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await page.getByRole("button", { name: "Spot Map", exact: true }).click();
+  const dialog = page.locator("#case-cluster-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("#map-latitude-field")).toHaveValue("latitude");
+  await expect(page.locator("#map-longitude-field")).toHaveValue("longitude");
+  await page.locator("#map-label-field").selectOption("description");
+  await page.locator("#map-marker-style").selectOption("square");
+  await page.locator("#map-marker-color").fill("#2255aa");
+  await page.locator("#map-filter-field").selectOption("status");
+  await page.locator("#map-filter-operator").selectOption("equals");
+  await page.locator("#map-filter-value").fill("Case");
+  await dialog.getByRole("button", { name: "OK", exact: true }).click();
+  await expect(page.locator("#map-record-layer-name")).toContainText("Spot Map");
+  await page.locator("#map-layer-panel-toggle").click();
+  await expect(page.locator("#map-point-diagnostics-panel")).toBeVisible();
+  await expect(page.locator("#map-point-diagnostics-summary")).toContainText("skipped");
+  await page.locator("#map-record-layer-edit").click();
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("#map-marker-style")).toHaveValue("square");
+  await expect(page.locator("#map-filter-field")).toHaveValue("status");
+  await expect(page.locator("#map-filter-value")).toHaveValue("Case");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await page.getByRole("button", { name: "Case Cluster", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+});

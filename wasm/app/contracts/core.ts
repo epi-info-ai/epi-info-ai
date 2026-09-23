@@ -190,13 +190,16 @@ export interface ProjectReferenceLayerSourceV1 {
 
 export type ProjectMapLayer = {
   id: string;
-  kind: "case-cluster";
+  kind: "case-cluster" | "spot-map";
   sourceFormId: string;
   name: string;
   visible: boolean;
   latitudeField: string;
   longitudeField: string;
   labelField: string;
+  markerStyle: "circle" | "square";
+  markerColor: string;
+  filter?: { field: string; operator: string; value?: string };
 } | {
   id: string;
   kind: "geojson";
@@ -643,8 +646,8 @@ function projectMapLayerAt(
   forms: ReadonlyMap<string, ProjectForm>,
 ): ProjectMapLayer {
   const source = objectAt(value, path);
-  if (source.kind !== "case-cluster" && source.kind !== "geojson" && source.kind !== "raster") {
-    fail(`${path}.kind`, "must be case-cluster, geojson, or raster");
+  if (source.kind !== "case-cluster" && source.kind !== "spot-map" && source.kind !== "geojson" && source.kind !== "raster") {
+    fail(`${path}.kind`, "must be case-cluster, spot-map, geojson, or raster");
   }
   if (typeof source.visible !== "boolean") fail(`${path}.visible`, "must be boolean");
   const shared = {
@@ -652,7 +655,7 @@ function projectMapLayerAt(
     name: nonEmptyString(source.name, `${path}.name`),
     visible: source.visible,
   };
-  if (source.kind === "case-cluster") {
+  if (source.kind === "case-cluster" || source.kind === "spot-map") {
     const sourceFormId = nonEmptyString(source.sourceFormId, `${path}.sourceFormId`);
     const form = forms.get(sourceFormId);
     if (!form) fail(`${path}.sourceFormId`, "must identify a form in this project");
@@ -663,7 +666,21 @@ function projectMapLayerAt(
     if (!fields.has(latitudeField)) fail(`${path}.latitudeField`, "must identify a field in the source form");
     if (!fields.has(longitudeField)) fail(`${path}.longitudeField`, "must identify a field in the source form");
     if (labelField && !fields.has(labelField)) fail(`${path}.labelField`, "must be blank or identify a field in the source form");
-    return { ...shared, kind: "case-cluster", sourceFormId, latitudeField, longitudeField, labelField };
+    const markerStyle = source.markerStyle === undefined ? "circle" : source.markerStyle;
+    if (markerStyle !== "circle" && markerStyle !== "square") fail(`${path}.markerStyle`, "must be circle or square");
+    const markerColor = source.markerColor === undefined ? "#df291e" : source.markerColor;
+    if (typeof markerColor !== "string" || !/^#[0-9a-f]{6}$/i.test(markerColor)) fail(`${path}.markerColor`, "must be a six-digit hex color");
+    let filter: { field: string; operator: string; value?: string } | undefined;
+    if (source.filter !== undefined) {
+      const filterSource = objectAt(source.filter, `${path}.filter`);
+      const filterField = nonEmptyString(filterSource.field, `${path}.filter.field`);
+      const allowedOperators = ["equals", "not-equals", "contains", "greater-than", "greater-or-equal", "less-than", "less-or-equal", "is-empty", "is-not-empty"];
+      if (typeof filterSource.operator !== "string" || !allowedOperators.includes(filterSource.operator)) fail(`${path}.filter.operator`, "is not a supported point-layer operator");
+      if (!["is-empty", "is-not-empty"].includes(String(filterSource.operator)) && typeof filterSource.value !== "string") fail(`${path}.filter.value`, "must be a string for this operator");
+      if (!fields.has(filterField)) fail(`${path}.filter.field`, "must identify a field in the source form");
+      filter = { field: filterField, operator: String(filterSource.operator), ...(typeof filterSource.value === "string" ? { value: filterSource.value } : {}) };
+    }
+    return { ...shared, kind: source.kind, sourceFormId, latitudeField, longitudeField, labelField, markerStyle, markerColor, ...(filter ? { filter } : {}) };
   }
   const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
   const asset = assets.get(assetId);

@@ -9,3 +9,4 @@ export * from "./reference-layer-lineage.ts";
 export * from "./reference-layer-sources.ts";
 export * from "./reference-layer-normalization.ts";
 export * from "./reference-layer-adapter.ts";
+export * from "./point-layer.ts";

@@ -142,6 +142,8 @@ const requiredFiles = [
   "examples/gdal-wasm/runtime/gdal3WebAssembly.data",
   "examples/gdal-wasm/runtime/LICENSE.gdal3.js.txt",
   "examples/gis-defensive-ingestion/README.md",
+  "examples/gis-k05-point-layers/README.md",
+  "examples/gis-k05-point-layers/gis-k05-point-layer.csv",
   "examples/gis-defensive-ingestion/ingestion-test-package.json",
   "examples/gis-defensive-ingestion/valid-control.geojson",
   "examples/gis-defensive-ingestion/misformatted.csv",

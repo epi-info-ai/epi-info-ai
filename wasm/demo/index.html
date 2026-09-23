@@ -647,6 +647,7 @@
                 <summary>Add Data Layer</summary>
                 <div class="map-toolbar-dropdown">
                   <button id="map-add-case-cluster" type="button">Case Cluster</button>
+                  <button id="map-add-spot-map" type="button">Spot Map</button>
                   <button id="map-add-geojson" type="button">GeoJSON Layer...</button>
                   <button id="map-add-h3" type="button">H3 Hexagons...</button>
                   <button id="map-add-raster" type="button">GeoTIFF Raster...</button>
@@ -712,11 +713,16 @@
                   <div class="map-layer-drawer-body">
                     <div class="map-layer-list">
                       <label><input id="map-record-layer-toggle" type="checkbox" checked /> <span id="map-record-layer-name">Case Cluster</span> (<strong id="map-point-count">0</strong>)</label>
+                      <button id="map-record-layer-edit" type="button" hidden>Edit point layer</button>
                       <label><input id="map-location-layer-toggle" type="checkbox" checked /> Current location</label>
-                      <div id="map-geojson-layers" class="map-geojson-layers"></div>
-                      <div id="map-h3-layers" class="map-h3-layers"></div>
-                      <div id="map-raster-layers" class="map-raster-layers"></div>
-                    </div>
+                    <div id="map-geojson-layers" class="map-geojson-layers"></div>
+                    <div id="map-h3-layers" class="map-h3-layers"></div>
+                    <div id="map-raster-layers" class="map-raster-layers"></div>
+                    <details id="map-point-diagnostics-panel" class="map-point-diagnostics" hidden>
+                      <summary id="map-point-diagnostics-summary">No skipped rows.</summary>
+                      <ul id="map-point-diagnostics-list"></ul>
+                    </details>
+                  </div>
                     <p class="map-privacy-note">Coordinates stay in this browser. Street tiles are requested from OpenStreetMap when online.</p>
                   </div>
                 </details>
@@ -2289,7 +2295,22 @@
           <select id="map-longitude-field" required></select>
           <label for="map-label-field">Display label</label>
           <select id="map-label-field"></select>
-          <p class="dialog-note">Rows without valid WGS 84 coordinates will be skipped.</p>
+          <label for="map-marker-style">Marker style</label>
+          <select id="map-marker-style"><option value="circle">Circle</option><option value="square">Square</option></select>
+          <label for="map-marker-color">Marker color</label>
+          <input id="map-marker-color" type="color" value="#df291e" />
+          <label for="map-filter-field">Filter field <span class="dialog-note">(optional)</span></label>
+          <select id="map-filter-field"></select>
+          <label for="map-filter-operator">Filter operator</label>
+          <select id="map-filter-operator">
+            <option value="equals">equals</option><option value="not-equals">does not equal</option><option value="contains">contains</option>
+            <option value="greater-than">greater than</option><option value="greater-or-equal">greater than or equal</option>
+            <option value="less-than">less than</option><option value="less-or-equal">less than or equal</option>
+            <option value="is-empty">is empty</option><option value="is-not-empty">is not empty</option>
+          </select>
+          <label for="map-filter-value">Filter value</label>
+          <input id="map-filter-value" type="text" maxlength="200" />
+          <p id="map-point-dialog-note" class="dialog-note">Rows without valid WGS 84 coordinates will be skipped.</p>
         </div>
         <div class="legacy-dialog-actions">
           <button class="dialog-primary" value="plot" type="submit">OK</button>
