@@ -46,6 +46,8 @@ async function markdownFilesUnder(relativePath) {
 }
 
 async function checkDocumentationIntegrity() {
+  const optionalLegacySourceRoot = repositoryPath("wasm/source/Epi-Info-Community-Edition");
+  const optionalLegacySourceAvailable = await readdir(optionalLegacySourceRoot).then((entries) => entries.length > 0, () => false);
   const markdownFiles = [
     ...await markdownFilesUnder("README.md"),
     ...await markdownFilesUnder("COMMAND_SET.md"),
@@ -63,6 +65,7 @@ async function checkDocumentationIntegrity() {
       if (!target) continue;
       try { target = decodeURIComponent(target); } catch { assert.fail(`${file} contains an invalid encoded Markdown target: ${target}`); }
       const resolved = resolve(dirname(file), target);
+      if (!optionalLegacySourceAvailable && resolved.startsWith(optionalLegacySourceRoot)) continue;
       await assert.doesNotReject(stat(resolved), `${file} links to missing relative target ${target}`);
     }
   }
