@@ -16,6 +16,10 @@ group:
 - [`../recordlink/recordlink-synthetic-project.epia.json`](../recordlink/recordlink-synthetic-project.epia.json)
   contains both synthetic sources, known truth links, and the governed
   RECORDLINK workflow and runbook.
+- [`gis-defensive-ingestion-teaching.epia.json`](gis-defensive-ingestion-teaching.epia.json)
+  contains a ten-record GIS defensive-ingestion catalog, a saved filtering
+  program, and a review runbook. Its uploadable CSV and GeoJSON assets remain
+  in [`../gis-defensive-ingestion/`](../gis-defensive-ingestion/).
 
 Run `node --experimental-strip-types wasm/scripts/generate-example-projects.mjs`
 from the repository root after changing the source CSV or program catalogs. The

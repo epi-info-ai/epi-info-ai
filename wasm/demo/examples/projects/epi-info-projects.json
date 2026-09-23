@@ -30,6 +30,15 @@
       "repository": "https://git.cdc.gov/epi-info-ai/recordlink",
       "bytes": 19095,
       "sha256": "8bdff295f50bc4af928e9cec6f67de1d75c5198b8372d727d509adefbd06cae5"
+    },
+    {
+      "id": "gis-defensive-ingestion-teaching",
+      "title": "GIS Defensive Ingestion Teaching Example",
+      "description": "Ten synthetic uploadable GeoJSON and CSV cases with a saved program that filters expected outcomes and reviews GIS-K03 defensive-ingestion behavior.",
+      "file": "gis-defensive-ingestion-teaching.epia.json",
+      "repository": "https://git.cdc.gov/epi-info-ai/epi-gis-kernel",
+      "bytes": 8077,
+      "sha256": "5f8ba0189d73f278717e3a8acce0b2d93c48e1b168c9ada86289a2f28e66f513"
     }
   ]
 }

@@ -16,6 +16,8 @@ const maintainedModules = [
   "form-data",
   "cluster-worker",
   "cluster-worker-client",
+  "gis-worker",
+  "gis-kernel-spike",
   "matched-worker",
   "matched-worker-client",
   "maps",
@@ -24,7 +26,7 @@ const maintainedModules = [
   "stratified-worker-client",
   "supabase-sync",
 ];
-const bundledModules = new Set(["app", "cluster-worker", "epi-assist", "epi-assist-worker", "form-data", "maps", "matched-worker", "stratified-worker", "supabase-sync"]);
+const bundledModules = new Set(["app", "cluster-worker", "epi-assist", "epi-assist-worker", "form-data", "gis-kernel-spike", "gis-worker", "maps", "matched-worker", "stratified-worker", "supabase-sync"]);
 
 async function existingSource(baseName) {
   for (const extension of [".ts", ".js"]) {

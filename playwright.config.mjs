@@ -13,7 +13,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:41739",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
-    video: "retain-on-failure",
+    video: process.env.EPI_INFO_USE_INSTALLED_CHROME === "1" ? "off" : "retain-on-failure",
   },
   webServer: {
     command: "node wasm/scripts/preview.mjs",
@@ -25,7 +25,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(process.env.EPI_INFO_USE_INSTALLED_CHROME === "1" ? { channel: "chrome" } : {}),
+      },
     },
     {
       name: "firefox-navigation",
@@ -40,6 +43,21 @@ export default defineConfig({
     {
       name: "mobile-webkit-navigation",
       testMatch: /cross-browser-navigation\.spec\.mjs/,
+      use: { ...devices["iPhone 13"] },
+    },
+    {
+      name: "firefox-gis",
+      testMatch: /gis-kernel-cross-browser\.spec\.mjs/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit-gis",
+      testMatch: /gis-kernel-cross-browser\.spec\.mjs/,
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile-webkit-gis",
+      testMatch: /gis-kernel-cross-browser\.spec\.mjs/,
       use: { ...devices["iPhone 13"] },
     },
   ],

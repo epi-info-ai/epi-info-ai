@@ -1,7 +1,9 @@
 import type { OfflineMapAsset, ProjectMapAsset } from "./core.ts";
 import { validateProjectPackage, type ProjectPackageV2 } from "./project-package.ts";
+import type { ProjectReferenceLayerSourceV1 } from "./core.ts";
 import { parsePmtilesHeader } from "../maps/pmtiles-import.ts";
 import { validateProjectMapAssetFile } from "../maps/project-map-assets.ts";
+import { inspectZipArchiveV01, type GisArchiveLimitsV01 } from "../gis/archive-ingestion.ts";
 
 export const PROJECT_ARCHIVE_FORMAT = "epi-info-ai-archive" as const;
 export const PROJECT_ARCHIVE_VERSION = 1 as const;
@@ -9,6 +11,14 @@ export const MAX_PROJECT_ARCHIVE_BYTES = 150 * 1024 * 1024;
 const MAX_MANIFEST_BYTES = 25 * 1024 * 1024;
 const MAGIC = new Uint8Array([0x45, 0x50, 0x49, 0x41, 0x01, 0x0d, 0x0a, 0x1a]);
 const HEADER_BYTES = 12;
+const MAX_REFERENCE_LAYER_SOURCE_BYTES = 100 * 1024 * 1024;
+const REFERENCE_LAYER_ARCHIVE_LIMITS: GisArchiveLimitsV01 = {
+  maxArchiveBytes: MAX_REFERENCE_LAYER_SOURCE_BYTES,
+  maxEntries: 500,
+  maxExpandedBytes: 500 * 1024 * 1024,
+  maxEntryBytes: 250 * 1024 * 1024,
+  maxCompressionRatio: 100,
+};
 
 interface ProjectArchiveManifest {
   format: typeof PROJECT_ARCHIVE_FORMAT;
@@ -17,7 +27,7 @@ interface ProjectArchiveManifest {
   assets: PortableProjectAsset[];
 }
 
-export type PortableProjectAsset = OfflineMapAsset | ProjectMapAsset;
+export type PortableProjectAsset = OfflineMapAsset | ProjectMapAsset | ProjectReferenceLayerSourceV1;
 
 export interface ProjectArchiveAsset {
   asset: PortableProjectAsset;
@@ -33,6 +43,7 @@ function linkedAssets(projectPackage: ProjectPackageV2): PortableProjectAsset[] 
   const assets: PortableProjectAsset[] = [
     ...(projectPackage.project.studyAreas ?? []).flatMap((studyArea) => studyArea.offlineMap.asset ? [studyArea.offlineMap.asset] : []),
     ...(projectPackage.project.mapAssets ?? []),
+    ...(projectPackage.project.referenceLayerSources ?? []),
   ];
   for (const asset of assets) {
     const sameDigest = assets.find((candidate) => candidate !== asset && candidate.sha256 === asset.sha256);
@@ -60,10 +71,27 @@ function isOfflineMapAsset(asset: PortableProjectAsset): asset is OfflineMapAsse
   return asset.format === "pmtiles-v3";
 }
 
+function isReferenceLayerSource(asset: PortableProjectAsset): asset is ProjectReferenceLayerSourceV1 {
+  return asset.format === "reference-package";
+}
+
 async function validatePayload(asset: PortableProjectAsset, file: File): Promise<void> {
   if (file.size !== asset.byteLength) throw new Error(`Embedded project asset ${asset.fileName} has the wrong byte length.`);
   if (await sha256(file) !== asset.sha256) throw new Error(`Embedded project asset ${asset.fileName} failed its SHA-256 check.`);
   if (!isOfflineMapAsset(asset)) {
+    if (isReferenceLayerSource(asset)) {
+      if (file.size > MAX_REFERENCE_LAYER_SOURCE_BYTES) throw new Error(`Embedded reference-layer source ${asset.fileName} exceeds the 100 MiB limit.`);
+      if (asset.packageFormat === "ZIP") {
+        const archive = inspectZipArchiveV01(await file.arrayBuffer(), REFERENCE_LAYER_ARCHIVE_LIMITS, {
+          allowedExtensions: [".shp", ".shx", ".dbf", ".prj", ".cpg"],
+        });
+        if (!archive.candidateFormats.includes("Shapefile")) throw new Error(`Embedded reference-layer source ${asset.fileName} is not a complete Shapefile archive.`);
+      } else {
+        const prefix = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+        if (new TextDecoder().decode(prefix) !== "SQLite format 3\0") throw new Error(`Embedded reference-layer source ${asset.fileName} does not match its GeoPackage header.`);
+      }
+      return;
+    }
     await validateProjectMapAssetFile(file, asset.format);
     return;
   }

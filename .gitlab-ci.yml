@@ -20,6 +20,10 @@ browser-baseline:
     - node wasm/scripts/refresh-wasm-manifest.mjs
     - pnpm run typecheck
     - pnpm run test
+    - pnpm run test:gis
+    - pnpm run test:gis:fixtures
+    - pnpm run test:gis:command
+    - pnpm run test:gis:archive
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'

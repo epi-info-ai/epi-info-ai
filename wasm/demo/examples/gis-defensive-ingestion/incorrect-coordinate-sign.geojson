@@ -1,0 +1,1 @@
+{"type":"Feature","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"properties":{"case_id":"sign-review-001","expectedRegion":"Toledo-Ohio"},"geometry":{"type":"Point","coordinates":[83.55,41.64]}}

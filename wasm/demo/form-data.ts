@@ -10,6 +10,7 @@
   type ProjectSnapshotV1,
   type ProjectMapAsset,
   type ProjectMapLayer,
+  type ProjectReferenceLayerSourceV1,
   type ProjectStudyArea,
 } from "../app/contracts/core.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
@@ -66,6 +67,7 @@ import { offlineMapProvider } from "../app/maps/offline-map-estimator.ts";
 import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
 import { readStoredPmtilesFile } from "../app/maps/pmtiles-reader.ts";
 import { readProjectMapAsset, removeProjectMapAsset, restoreProjectMapAsset } from "../app/maps/project-map-assets.ts";
+import { readReferenceLayerSource, removeReferenceLayerSource, restoreReferenceLayerSource, projectReferencesReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
 import { createSecureShareReceiver, createSecureShareSender } from "../app/share/webrtc-transfer.ts";
 import { renderFormDesignerMenuContract } from "../app/forms/form-designer-menu.ts";
 import { renderEnterDataMenuContract } from "../app/forms/enter-data-menu.ts";
@@ -593,8 +595,8 @@ export function detachCurrentOfflineMapAsset(sha256: string): void {
   globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
 }
 
-export function replaceCurrentProjectMapState(assets: ProjectMapAsset[], layers: ProjectMapLayer[]): void {
-  const candidate = validateProjectSnapshot({ ...projectState, mapAssets: structuredClone(assets), mapLayers: structuredClone(layers) });
+export function replaceCurrentProjectMapState(assets: ProjectMapAsset[], layers: ProjectMapLayer[], referenceLayerSources: ProjectReferenceLayerSourceV1[] = projectState.referenceLayerSources ?? []): void {
+  const candidate = validateProjectSnapshot({ ...projectState, mapAssets: structuredClone(assets), mapLayers: structuredClone(layers), referenceLayerSources: structuredClone(referenceLayerSources) });
   projectState = candidate;
   if (!syncCurrentForm()) throw new Error("The project map layers could not be saved.");
   globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
@@ -1756,6 +1758,10 @@ function projectMapAssets(snapshot: ProjectSnapshotV1): ProjectMapAsset[] {
   return snapshot.mapAssets ?? [];
 }
 
+function projectReferenceLayerSources(snapshot: ProjectSnapshotV1): ProjectReferenceLayerSourceV1[] {
+  return snapshot.referenceLayerSources ?? [];
+}
+
 async function saveProjectPackage(): Promise<void> {
   if (!hasActiveProject) {
     requiredElement("#main-menu-status").textContent = "Open or create a project before exporting a project package.";
@@ -1787,6 +1793,9 @@ async function createCompleteProjectArchive(): Promise<{ archive: Blob; assetCou
   }
   for (const asset of projectMapAssets(packageValue.project)) {
     archiveAssets.push({ asset, file: await readProjectMapAsset(asset) });
+  }
+  for (const source of projectReferenceLayerSources(packageValue.project)) {
+    archiveAssets.push({ asset: source, file: await readReferenceLayerSource(source) });
   }
   return {
     archive: await createProjectArchive(packageValue, archiveAssets),
@@ -1885,11 +1894,14 @@ export async function openProjectPackage(file: File): Promise<void> {
     }
     packageValue = parseProjectPackage(await file.text());
   }
+  const retainedReferenceSources = projectReferenceLayerSources(projectState);
   const restoredAssets: ProjectArchiveAsset[] = [];
   try {
     for (const embedded of embeddedAssets) {
       if (embedded.asset.format === "pmtiles-v3") {
         restoredAssets.push({ asset: await restorePmtilesAsset(embedded.asset, embedded.file), file: embedded.file });
+      } else if (embedded.asset.format === "reference-package") {
+        restoredAssets.push({ asset: await restoreReferenceLayerSource(embedded.asset, embedded.file), file: embedded.file });
       } else {
         restoredAssets.push({ asset: await restoreProjectMapAsset(embedded.asset, embedded.file), file: embedded.file });
       }
@@ -1897,7 +1909,11 @@ export async function openProjectPackage(file: File): Promise<void> {
   } catch (error) {
     await Promise.all(restoredAssets.map(({ asset }) => asset.format === "pmtiles-v3"
       ? removePmtilesAsset(asset).catch(() => undefined)
-      : removeProjectMapAsset(asset).catch(() => undefined)));
+      : asset.format === "reference-package"
+        ? projectReferencesReferenceLayerSource(asset, retainedReferenceSources)
+          ? Promise.resolve()
+          : removeReferenceLayerSource(asset).catch(() => undefined)
+        : removeProjectMapAsset(asset).catch(() => undefined)));
     throw error;
   }
   for (const area of packageValue.project.studyAreas ?? []) {
@@ -1907,13 +1923,21 @@ export async function openProjectPackage(file: File): Promise<void> {
     if (restored?.asset.format === "pmtiles-v3") area.offlineMap.asset = restored.asset;
   }
   packageValue.project.mapAssets = (packageValue.project.mapAssets ?? []).map((asset) => {
-    const restored = restoredAssets.find((candidate) => candidate.asset.format !== "pmtiles-v3" && candidate.asset.sha256 === asset.sha256);
-    return restored && restored.asset.format !== "pmtiles-v3" ? restored.asset : asset;
+    const restored = restoredAssets.find((candidate) => (candidate.asset.format === "geojson" || candidate.asset.format === "geotiff") && candidate.asset.sha256 === asset.sha256);
+    return restored && (restored.asset.format === "geojson" || restored.asset.format === "geotiff") ? restored.asset : asset;
+  });
+  packageValue.project.referenceLayerSources = (packageValue.project.referenceLayerSources ?? []).map((source) => {
+    const restored = restoredAssets.find((candidate) => candidate.asset.format === "reference-package" && candidate.asset.sha256 === source.sha256);
+    return restored?.asset.format === "reference-package" ? restored.asset : source;
   });
   if (!closeCurrentProject("Current project saved to Recent Projects before opening a project package.")) {
     await Promise.all(restoredAssets.map(({ asset }) => asset.format === "pmtiles-v3"
       ? removePmtilesAsset(asset).catch(() => undefined)
-      : removeProjectMapAsset(asset).catch(() => undefined)));
+      : asset.format === "reference-package"
+        ? projectReferencesReferenceLayerSource(asset, retainedReferenceSources)
+          ? Promise.resolve()
+          : removeReferenceLayerSource(asset).catch(() => undefined)
+        : removeProjectMapAsset(asset).catch(() => undefined)));
     throw new Error("The selected package was not opened because the current project could not be closed safely.");
   }
   projectPackageExtras = {

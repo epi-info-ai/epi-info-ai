@@ -165,6 +165,25 @@ await writePackage(
   [await runbook("cluster/space-time-cluster.runbook.json")],
 );
 
+const gisIngestionForm = await datasetForm(
+  "gis-defensive-ingestion/gis-defensive-ingestion-test-cases.csv",
+  "gis-defensive-ingestion-test-cases",
+  "gis-defensive-ingestion-test-cases",
+);
+const gisIngestionPrograms = await catalogPrograms("gis-defensive-ingestion/gis-defensive-ingestion.programs.json");
+await writePackage(
+  "gis-defensive-ingestion-teaching.epia.json",
+  {
+    version: 1,
+    name: "GIS Defensive Ingestion Teaching Example",
+    currentFormId: gisIngestionForm.id,
+    storage: { type: "browser" },
+    forms: [gisIngestionForm],
+  },
+  gisIngestionPrograms,
+  [await runbook("gis-defensive-ingestion/gis-defensive-ingestion.runbook.json")],
+);
+
 const recordLinkPackagePath = path.join(examplesRoot, "recordlink", "recordlink-synthetic-project.epia.json");
 const recordLinkPackage = JSON.parse(await readFile(recordLinkPackagePath, "utf8"));
 recordLinkPackage.programs[0].source = await readFile(path.join(examplesRoot, "recordlink", "recordlink-command-tour.pgm7"), "utf8");
@@ -193,6 +212,13 @@ const projects = [
     description: "Two synthetic patient sources, known truth links, source quality review, explainable RECORDLINK classification, and bounded local clerical review.",
     file: "../recordlink/recordlink-synthetic-project.epia.json",
     repository: "https://git.cdc.gov/epi-info-ai/recordlink",
+  },
+  {
+    id: "gis-defensive-ingestion-teaching",
+    title: "GIS Defensive Ingestion Teaching Example",
+    description: "Ten synthetic uploadable GeoJSON and CSV cases with a saved program that filters expected outcomes and reviews GIS-K03 defensive-ingestion behavior.",
+    file: "gis-defensive-ingestion-teaching.epia.json",
+    repository: "https://git.cdc.gov/epi-info-ai/epi-gis-kernel",
   },
 ];
 
