@@ -16,11 +16,13 @@
     "test:gis:fixtures": "node wasm/tests/gis-defensive-ingestion-smoke.mjs",
     "test:gis:archive": "node wasm/tests/reference-layer-archive-smoke.mjs",
     "test:gis:points": "node wasm/tests/gis-point-layer-smoke.mjs",
+    "test:gis:choropleth": "node wasm/tests/gis-choropleth-smoke.mjs",
+    "test:gis:choropleth:fixture": "node wasm/tests/gis-choropleth-fixture-smoke.mjs",
     "test:build": "node wasm/tests/build-smoke.mjs",
     "test:browser": "playwright test",
     "build": "node wasm/scripts/build.mjs",
     "preview": "node wasm/scripts/preview.mjs",
-    "check": "tsc --project tsconfig.json --noEmit && node wasm/tests/phase0-smoke.mjs && node wasm/tests/gis-contract-smoke.mjs && node wasm/tests/gis-defensive-ingestion-smoke.mjs && node wasm/tests/epi-ai-gis-command-smoke.mjs && node wasm/tests/reference-layer-archive-smoke.mjs && node wasm/tests/gis-point-layer-smoke.mjs && node wasm/scripts/build.mjs && node wasm/tests/build-smoke.mjs"
+    "check": "tsc --project tsconfig.json --noEmit && node wasm/tests/phase0-smoke.mjs && node wasm/tests/gis-contract-smoke.mjs && node wasm/tests/gis-defensive-ingestion-smoke.mjs && node wasm/tests/epi-ai-gis-command-smoke.mjs && node wasm/tests/reference-layer-archive-smoke.mjs && node wasm/tests/gis-point-layer-smoke.mjs && node wasm/tests/gis-choropleth-smoke.mjs && node wasm/tests/gis-choropleth-fixture-smoke.mjs && node wasm/scripts/build.mjs && node wasm/tests/build-smoke.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.0",

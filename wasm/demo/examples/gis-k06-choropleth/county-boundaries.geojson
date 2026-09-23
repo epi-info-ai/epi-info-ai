@@ -1,0 +1,9 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","properties":{"GEOID":"OH-001","NAME":"Alpha"},"geometry":{"type":"Polygon","coordinates":[[[-83.60,41.60],[-83.55,41.60],[-83.55,41.65],[-83.60,41.65],[-83.60,41.60]]]}},
+    {"type":"Feature","properties":{"GEOID":"OH-002","NAME":"Beta"},"geometry":{"type":"Polygon","coordinates":[[[-83.55,41.60],[-83.50,41.60],[-83.50,41.65],[-83.55,41.65],[-83.55,41.60]]]}},
+    {"type":"Feature","properties":{"GEOID":"OH-003","NAME":"Gamma"},"geometry":{"type":"Polygon","coordinates":[[[-83.60,41.65],[-83.55,41.65],[-83.55,41.70],[-83.60,41.70],[-83.60,41.65]]]}},
+    {"type":"Feature","properties":{"GEOID":"OH-004","NAME":"Delta"},"geometry":{"type":"Polygon","coordinates":[[[-83.55,41.65],[-83.50,41.65],[-83.50,41.70],[-83.55,41.70],[-83.55,41.65]]]}}
+  ]
+}

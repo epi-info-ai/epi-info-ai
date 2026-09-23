@@ -57,6 +57,8 @@ jobs:
           pnpm run test:gis:command
           pnpm run test:gis:archive
           pnpm run test:gis:points
+          pnpm run test:gis:choropleth
+          pnpm run test:gis:choropleth:fixture
 
       - name: Install Python
         uses: actions/setup-python@v7
