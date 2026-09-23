@@ -35,7 +35,13 @@ export interface FieldDefinition {
 export interface FormSchema {
   name: string;
   fields: FieldDefinition[];
+  pages?: FormPageDefinition[];
   checkCodeProgram?: FormCheckCodeProgram;
+}
+
+export interface FormPageDefinition {
+  name: string;
+  fields: string[];
 }
 
 export interface FormCheckCodeProgram {
@@ -451,6 +457,31 @@ function projectFormAt(value: unknown, path: string): ProjectForm {
     },
     records: form.records.map((record, index) => recordAt(record, `${path}.records[${index}]`)),
   };
+  if (schema.pages !== undefined) {
+    if (!Array.isArray(schema.pages) || schema.pages.length === 0) fail(`${path}.schema.pages`, "must be a non-empty array when present");
+    if (schema.pages.length > 100) fail(`${path}.schema.pages`, "must not exceed 100 pages");
+    const pageNames = new Set<string>();
+    const assignedFields = new Set<string>();
+    result.schema.pages = schema.pages.map((value, pageIndex) => {
+      const pagePath = `${path}.schema.pages[${pageIndex}]`;
+      const page = objectAt(value, pagePath);
+      const name = nonEmptyString(page.name, `${pagePath}.name`).trim();
+      const normalizedName = name.toLocaleLowerCase("en-US");
+      if (pageNames.has(normalizedName)) fail(`${path}.schema.pages`, `contains duplicate page name ${JSON.stringify(name)}`);
+      pageNames.add(normalizedName);
+      if (!Array.isArray(page.fields)) fail(`${pagePath}.fields`, "must be an array");
+      const pageFields = page.fields.map((field, fieldIndex) => nonEmptyString(field, `${pagePath}.fields[${fieldIndex}]`));
+      for (const field of pageFields) {
+        if (!fieldNames.has(field)) fail(`${pagePath}.fields`, `references missing field ${JSON.stringify(field)}`);
+        if (assignedFields.has(field)) fail(`${path}.schema.pages`, `assigns field ${JSON.stringify(field)} to more than one page`);
+        assignedFields.add(field);
+      }
+      return { name, fields: pageFields };
+    });
+    for (const field of fields) {
+      if (!assignedFields.has(field.name)) fail(`${path}.schema.pages`, `does not assign field ${JSON.stringify(field.name)} to a page`);
+    }
+  }
   if (schema.checkCodeProgram !== undefined) {
     const program = objectAt(schema.checkCodeProgram, `${path}.schema.checkCodeProgram`);
     if (program.version !== 1) fail(`${path}.schema.checkCodeProgram.version`, "must be 1");

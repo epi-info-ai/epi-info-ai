@@ -31,12 +31,63 @@ async function assertFile(relativePath) {
   assert.ok(metadata.size > 0, `${relativePath} must not be empty`);
 }
 
+async function markdownFilesUnder(relativePath) {
+  const absolute = repositoryPath(relativePath);
+  const metadata = await stat(absolute);
+  if (metadata.isFile()) return absolute.endsWith(".md") ? [absolute] : [];
+  const files = [];
+  for (const entry of await readdir(absolute, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "source") continue;
+    const child = `${relativePath}/${entry.name}`;
+    if (entry.isDirectory()) files.push(...await markdownFilesUnder(child));
+    else if (entry.isFile() && entry.name.endsWith(".md")) files.push(repositoryPath(child));
+  }
+  return files;
+}
+
+async function checkDocumentationIntegrity() {
+  const optionalLegacySourceRoot = repositoryPath("wasm/source/Epi-Info-Community-Edition");
+  const optionalLegacySourceAvailable = await readdir(optionalLegacySourceRoot).then((entries) => entries.length > 0, () => false);
+  const markdownFiles = [
+    ...await markdownFilesUnder("README.md"),
+    ...await markdownFilesUnder("COMMAND_SET.md"),
+    ...await markdownFilesUnder("AGENTS.md"),
+    ...await markdownFilesUnder("wasm/docs"),
+    ...await markdownFilesUnder("wasm/demo/examples"),
+  ];
+  assert.ok(markdownFiles.length >= 80, "the maintained documentation set must remain discoverable");
+  for (const file of markdownFiles) {
+    const source = await readFile(file, "utf8");
+    for (const match of source.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+      let target = match[1].trim().replace(/^<|>$/g, "");
+      if (/^(?:https?:|mailto:|data:|javascript:|#)/i.test(target)) continue;
+      target = target.split("#", 1)[0].split("?", 1)[0];
+      if (!target) continue;
+      try { target = decodeURIComponent(target); } catch { assert.fail(`${file} contains an invalid encoded Markdown target: ${target}`); }
+      const resolved = resolve(dirname(file), target);
+      if (!optionalLegacySourceAvailable && resolved.startsWith(optionalLegacySourceRoot)) continue;
+      await assert.doesNotReject(stat(resolved), `${file} links to missing relative target ${target}`);
+    }
+  }
+  const status = await readFile(repositoryPath("wasm/docs/status.md"), "utf8");
+  assert.match(status, /\*\*Last reviewed:\*\* \d{4}-\d{2}-\d{2}/);
+  assert.match(status, /No Classic Analysis command currently meets every\s+legacy-parity gate/);
+  const migration = await readFile(repositoryPath("wasm/docs/migration-plan.md"), "utf8");
+  assert.doesNotMatch(migration, /^## Immediate next slice$/m);
+}
+
 async function checkRequiredAssetsAndUi() {
   const requiredFiles = [
     "LICENSE",
     "package.json",
     "wasm/demo/index.html",
     "wasm/docs/ai-lessons-learned.md",
+    "wasm/docs/architecture.md",
+    "wasm/docs/feasibility-analysis.md",
+    "wasm/docs/migration-plan.md",
+    "wasm/docs/project.md",
+    "wasm/docs/status.md",
+    "wasm/docs/validation-lab.md",
     "wasm/demo/styles.css",
     "wasm/demo/app.ts",
     "wasm/demo/engine.ts",
@@ -94,6 +145,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/app/programming/epi-ai-recordlink-audit.ts",
     "wasm/app/programming/epi-ai-recordlink-output.ts",
     "wasm/app/projects/example-repository.ts",
+    "wasm/app/packages/capability-package.ts",
     "wasm/app/programming/file-convert.ts",
     "wasm/app/programming/classic-command-parity.ts",
     "wasm/app/programming/classic-session.ts",
@@ -175,6 +227,10 @@ async function checkRequiredAssetsAndUi() {
     "wasm/demo/examples/projects/gis-defensive-ingestion-test-cases.csv",
     "wasm/demo/examples/foodborne/foodborne-investigation.runbook.json",
     "wasm/demo/examples/foodborne/foodborne-gis-investigation.runbook.json",
+    "wasm/demo/examples/foodborne/foodborne-check-code.runbook.json",
+    "wasm/demo/examples/foodborne/foodborne-form-designer.runbook.json",
+    "wasm/demo/examples/foodborne/foodborne-check-code-tour.chk",
+    "wasm/demo/examples/foodborne/foodborne-database-dialog-tour.chk",
     "wasm/demo/examples/cluster/space-time-cluster.runbook.json",
     "wasm/demo/examples/recordlink/recordlink.runbook.json",
     "wasm/demo/examples/gdal-wasm/README.md",
@@ -547,9 +603,21 @@ async function checkRequiredAssetsAndUi() {
   ])), { data: 7, variables: 6, "select-if": 5, statistics: 8, "advanced-statistics": 7, output: 7, "user-defined": 4, "user-interaction": 4, options: 1 });
   assert.deepEqual(commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.explorer === "legacy-enum-only").map((entry) => entry.legacyName), ["Match", "Map", "Reports", "Help"]);
   const commandSet = await readFile(repositoryPath("COMMAND_SET.md"), "utf8");
-  assert.match(commandSet, /Typed AST\/parser branches \| 37 \|/);
-  assert.match(commandSet, /Browser-verified using checked-in `\.pgm` and expected output \| 30 \|/);
-  assert.match(commandSet, /Legacy-parity-verified against reviewed desktop Epi Info output \| 0 \|/);
+  const commandCounts = {
+    "Legacy enum entries retained as the compatibility floor": commandParity.CLASSIC_COMMAND_PARITY.length,
+    "Visible in the legacy Command Explorer": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.explorer === "visible").length,
+    "Typed AST/parser branches": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.parser !== "none").length,
+    "Typed source dialogs": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.dialog !== "gap").length,
+    "Selected execution or explicit reviewed handoff": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.selectedExecution !== "none").length,
+    "Bounded full-program components": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.fullProgramExecution !== "none").length,
+    "Browser-verified using checked-in `.pgm` and expected output": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.parityStatus === "browser-verified").length,
+    "Legacy-parity-verified against reviewed desktop Epi Info output": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.parityStatus === "legacy-parity-verified").length,
+    "Browser-verified non-command settings entries": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.sourceCommand.startsWith("N/A") && entry.parityStatus === "browser-verified").length,
+    "Untouched command entries": commandParity.CLASSIC_COMMAND_PARITY.filter((entry) => entry.parser === "none" && entry.dialog === "gap" && entry.selectedExecution === "none" && entry.fullProgramExecution === "none").length,
+  };
+  for (const [label, count] of Object.entries(commandCounts)) {
+    assert.ok(commandSet.includes(`| ${label} | ${count} |`), `COMMAND_SET.md must report the derived ${label} count (${count})`);
+  }
   assert.match(commandSet, /## Implemented Epi Info AI new-branch commands/);
   assert.match(commandSet, /`EPIAI CLUSTER SPACE_TIME \.\.\. RESULT=name`/);
   assert.match(commandSet, /`EPIAI CLUSTER RENDER RESULT=name`/);
@@ -1852,7 +1920,15 @@ FREQ AgeGroup STRATAVAR=Sex`;
   assert.equal(recordLinkPackageContract.validateProjectPackage(recordLinkProject).project.name, "Synthetic Patient Record Linkage");
   assert.deepEqual(recordLinkProject.project.forms.map(({ schema }) => schema.name), ["patient_registry_a", "surveillance_b", "true_links"]);
   assert.deepEqual(recordLinkProject.project.forms.map(({ records }) => records.length), [8, 8, 5]);
-  assert.deepEqual(recordLinkProject.programs.map(({ name }) => name), ["recordlink-command-tour"]);
+  assert.deepEqual(recordLinkProject.programs.map(({ name }) => name), [
+    "recordlink-command-tour", "patient-registry-a-check-code", "surveillance-b-check-code",
+  ]);
+  assert.deepEqual(recordLinkProject.programs.map(({ language }) => language), ["classic-analysis", "check-code", "check-code"]);
+  assert.equal(recordLinkProject.project.forms[0].schema.pages.length, 2);
+  assert.equal(recordLinkProject.project.forms[1].schema.pages.length, 2);
+  assert.match(recordLinkProject.project.forms[0].schema.checkCodeProgram.source, /GOTOPAGE Demographics/);
+  assert.match(recordLinkProject.project.forms[1].schema.checkCodeProgram.source, /GOTOPAGE Demographics/);
+  assert.equal(recordLinkProject.project.forms[2].schema.checkCodeProgram, undefined, "truth evidence is not an entry form");
   const packagedRecordLinkAst = classicAst.parseClassicProgram(recordLinkProject.programs[0].source);
   assert.deepEqual(packagedRecordLinkAst.body.map(({ type }) => type), recordLinkAst.body.map(({ type }) => type));
   assert.equal(packagedRecordLinkAst.body.filter(({ type }) => type === "ListStatement").length, 2);
@@ -2548,7 +2624,7 @@ FREQ AgeGroup STRATAVAR=Sex`;
   const teachingManifest = teaching.validateTeachingRepositoryManifest(teachingManifestValue);
   assert.equal(teachingManifest.id, "org.epi-info-ai.foodborne-outbreak");
   assert.equal(teachingManifest.source.revision, "4dccfbaa79e62f7bee4c9c9c8a84e00453ed3b48");
-  assert.deepEqual(teachingManifest.artifacts.map(({ role }) => role), ["dataset", "program-catalog", "program", "lesson"]);
+  assert.deepEqual(teachingManifest.artifacts.map(({ role }) => role), ["dataset", "program-catalog", "program", "lesson", "program", "lesson", "lesson", "program"]);
   for (const artifact of teachingManifest.artifacts) {
     const bytes = await readFile(repositoryPath(artifact.path));
     assert.equal(bytes.length, artifact.bytes, `${artifact.path} teaching byte length must remain pinned`);
@@ -4302,10 +4378,10 @@ async function checkExampleProjectRepository() {
     "gis-defensive-ingestion-teaching",
   ]);
   const expected = new Map([
-    ["foodborne-outbreak-investigation", { project: "Foodborne Outbreak Investigation", forms: 1, records: 96, runbooks: 2 }],
-    ["space-time-cluster-detection", { project: "Space-Time Cluster Detection", forms: 1, records: 30, runbooks: 1 }],
-    ["record-linkage", { project: "Synthetic Patient Record Linkage", forms: 3, records: 21, runbooks: 1 }],
-    ["gis-defensive-ingestion-teaching", { project: "GIS Defensive Ingestion Teaching Example", forms: 1, records: 10, runbooks: 1 }],
+    ["foodborne-outbreak-investigation", { project: "Foodborne Outbreak Investigation", forms: 1, records: 96, runbooks: 4, checkCodeRelevant: true }],
+    ["space-time-cluster-detection", { project: "Space-Time Cluster Detection", forms: 1, records: 30, runbooks: 1, checkCodeRelevant: true }],
+    ["record-linkage", { project: "Synthetic Patient Record Linkage", forms: 3, records: 21, runbooks: 1, checkCodeRelevant: true }],
+    ["gis-defensive-ingestion-teaching", { project: "GIS Defensive Ingestion Teaching Example", forms: 1, records: 10, runbooks: 1, checkCodeRelevant: false }],
   ]);
   for (const entry of catalog.projects) {
     const filePath = resolve(dirname(catalogPath), entry.file);
@@ -4321,12 +4397,20 @@ async function checkExampleProjectRepository() {
     assert.equal(packageValue.project.forms.length, expectation.forms);
     assert.equal(packageValue.project.forms.reduce((sum, form) => sum + form.records.length, 0), expectation.records);
     assert.ok(packageValue.programs.length > 0, `${entry.id} must include a runnable teaching program`);
+    const hasCheckCode = packageValue.programs.some(({ language }) => language === "check-code");
+    assert.equal(hasCheckCode, expectation.checkCodeRelevant, `${entry.id} Check Code must match its declared teaching relevance`);
     assert.equal(packageValue.runbooks?.length, expectation.runbooks, `${entry.id} project-scoped runbook count`);
     if (entry.id === "foodborne-outbreak-investigation") {
       assert.deepEqual(packageValue.runbooks?.map(({ id }) => id), [
         "foodborne-investigation-project-tour",
         "foodborne-gis-investigation-v0-1",
-      ], "the foodborne package must include both investigation runbooks");
+        "foodborne-check-code-tour",
+        "foodborne-form-designer-lab",
+      ], "the foodborne package must include all four investigation runbooks");
+      const designerRunbook = packageValue.runbooks?.find(({ id }) => id === "foodborne-form-designer-lab");
+      assert.ok(designerRunbook?.steps.some(({ evidence }) => (evidence?.checks.length ?? 0) >= 5), "the Form Designer lab must carry bounded completion evidence");
+      assert.match(packageValue.project.forms[0].schema.checkCodeProgram?.source ?? "", /HIGHLIGHT onset_date/);
+      assert.equal(packageValue.project.forms[0].schema.pages?.length, 3);
       assert.equal(parsedArchive?.assets.length, 2, "the foodborne package must embed both map assets");
       assert.deepEqual(parsedArchive.assets.map(({ asset }) => asset.format), ["geojson", "geotiff"]);
       assert.deepEqual(packageValue.project.mapLayers?.map(({ kind }) => kind), [
@@ -4334,6 +4418,11 @@ async function checkExampleProjectRepository() {
         "geojson",
         "raster",
       ], "the foodborne package must restore its record binding and both contextual map layers");
+    } else if (entry.id === "space-time-cluster-detection") {
+      assert.equal(packageValue.project.forms[0].schema.pages?.length, 2);
+      assert.match(packageValue.project.forms[0].schema.checkCodeProgram?.source ?? "", /Coordinate review/);
+    } else if (entry.id === "record-linkage") {
+      assert.deepEqual(packageValue.project.forms.map(({ schema }) => Boolean(schema.checkCodeProgram)), [true, true, false]);
     }
   }
 }
@@ -4462,21 +4551,52 @@ async function checkTypedCheckCodeProgram() {
   const source = await readFile(repositoryPath("wasm/demo/examples/foodborne/foodborne-check-code-tour.chk"), "utf8");
   const ast = module.parseCheckCodeProgram(source);
   assert.equal(ast.schema, "epi-check-code-ast/0.1");
-  assert.equal(ast.definitions.length, 1);
-  assert.equal(ast.blocks.length, 5);
-  assert.deepEqual(ast.blocks.slice(0, 3).map(({ scope }) => scope), ["form", "page", "record"]);
+  assert.equal(ast.definitions.length, 3);
+  assert.equal(ast.subroutines.length, 1);
+  assert.equal(ast.blocks.length, 11);
+  assert.deepEqual(ast.blocks.slice(0, 4).map(({ scope }) => scope), ["form", "page", "page", "page"]);
   const schema = {
     name: "Foodborne Check Code fixture",
     fields: [
+      { name: "id", prompt: "ID", type: "text", required: false },
       { name: "case_status", prompt: "Case Status", type: "text", required: false },
+      { name: "age", prompt: "Age", type: "number", required: false },
+      { name: "sex", prompt: "Sex", type: "text", required: false },
       { name: "onset_date", prompt: "Onset Date", type: "date", required: false },
       { name: "onset_time", prompt: "Onset Time", type: "time", required: false },
+      { name: "hospitalization_date", prompt: "Hospitalization Date", type: "date", required: false },
+      { name: "specimen_date", prompt: "Specimen Date", type: "date", required: false },
+      { name: "interview_date", prompt: "Interview Date", type: "date", required: false },
+      { name: "latitude", prompt: "Latitude", type: "number", required: false },
+      { name: "longitude", prompt: "Longitude", type: "number", required: false },
+      { name: "household_neighborhood", prompt: "Neighborhood", type: "text", required: false },
+      { name: "save_button", prompt: "Save record", type: "command-button", required: false },
+      { name: "save_record", prompt: "Save through Check Code", type: "command-button", required: false },
+    ],
+    pages: [
+      { name: "EntryPage", fields: ["id", "case_status", "age", "sex", "save_button", "save_record"] },
+      { name: "Clinical", fields: ["onset_date", "onset_time", "hospitalization_date", "specimen_date", "interview_date"] },
+      { name: "ExposureLocation", fields: ["latitude", "longitude", "household_neighborhood"] },
     ],
   };
   const compiled = module.compileFieldCheckCodeSubset(ast, schema);
   assert.equal(compiled.executable, true);
   assert.equal(compiled.reasons.length, 0);
-  assert.equal(compiled.fieldCheckCode.get("onset_date").after.length, 2);
+  assert.equal(compiled.fieldCheckCode.get("onset_date"), undefined, "compound conditions remain in the typed runtime instead of the legacy per-field lowering");
+  assert.equal(compiled.fieldCheckCode.get("age"), undefined, "compound conditions remain in the typed runtime instead of the legacy per-field lowering");
+  const expressionProgram = module.parseCheckCodeProgram(`Field age
+After
+IF age >= 18 AND (case_status = "Confirmed" OR case_status = "Probable") THEN
+HIGHLIGHT age
+END-IF
+End-After
+End-Field
+`);
+  assert.equal(module.compileFieldCheckCodeSubset(expressionProgram, schema).executable, true);
+  const incompatibleExpression = module.parseCheckCodeProgram("Field age\nAfter\nIF age > TRUE THEN\nHIGHLIGHT age\nEND-IF\nEnd-After\nEnd-Field\n");
+  const incompatibleExpressionResult = module.compileFieldCheckCodeSubset(incompatibleExpression, schema);
+  assert.equal(incompatibleExpressionResult.executable, false);
+  assert.match(incompatibleExpressionResult.reasons.join(" "), /cannot compare number with boolean/i);
   const preserved = module.parseCheckCodeProgram("Form\nBefore\nDIALOG \"Review the form\"\nEnd-Before\nEnd-Form\n");
   const preservedResult = module.compileFieldCheckCodeSubset(preserved, schema);
   assert.equal(preservedResult.executable, true);
@@ -4488,39 +4608,500 @@ async function checkTypedCheckCodeProgram() {
   const cyclicResult = module.compileFieldCheckCodeSubset(cyclic, schema);
   assert.equal(cyclicResult.executable, false);
   assert.match(cyclicResult.reasons.join(" "), /GOTO cycle detected/);
+  const pageGoto = module.parseCheckCodeProgram("Form\nBefore\nGOTO +1\nEnd-Before\nEnd-Form\n");
+  assert.equal(pageGoto.blocks[0].events.before[0].targetType, "page");
+  const pageGotoResult = module.compileFieldCheckCodeSubset(pageGoto, schema);
+  assert.equal(pageGotoResult.executable, true);
+  const namedPageGoto = module.parseCheckCodeProgram("Form\nBefore\nGOTOPAGE ExposureLocation\nEnd-Before\nEnd-Form\n");
+  assert.equal(namedPageGoto.blocks[0].events.before[0].targetType, "page");
+  assert.equal(module.compileFieldCheckCodeSubset(namedPageGoto, schema).executable, true);
+  const missingPageGoto = module.parseCheckCodeProgram("Form\nBefore\nGOTOPAGE MissingPage\nEnd-Before\nEnd-Form\n");
+  assert.match(module.compileFieldCheckCodeSubset(missingPageGoto, schema).reasons.join(" "), /does not exist/);
+  const formGoto = module.parseCheckCodeProgram("Field case_status\nAfter\nGOTOFORM surveillance_b\nDIALOG \"This statement must not run after navigation\"\nEnd-After\nEnd-Field\n");
+  assert.equal(formGoto.blocks[0].events.after[0].targetType, "form");
+  const projectContext = {
+    currentFormId: "patient_registry_a",
+    forms: [
+      { id: "patient_registry_a", name: "Patient registry A" },
+      { id: "surveillance_b", name: "Surveillance B" },
+    ],
+  };
+  assert.equal(module.compileFieldCheckCodeSubset(formGoto, schema, projectContext).executable, true);
+  const missingFormGoto = module.parseCheckCodeProgram("Field case_status\nAfter\nGOTOFORM absent_form\nEnd-After\nEnd-Field\n");
+  assert.match(module.compileFieldCheckCodeSubset(missingFormGoto, schema, projectContext).reasons.join(" "), /does not exist in the current project/);
+  const selfFormGoto = module.parseCheckCodeProgram("Field case_status\nAfter\nGOTOFORM patient_registry_a\nEnd-After\nEnd-Field\n");
+  assert.match(module.compileFieldCheckCodeSubset(selfFormGoto, schema, projectContext).reasons.join(" "), /cannot target the current form/);
+  const exitFormGoto = module.parseCheckCodeProgram("Form\nAfter\nGOTOFORM surveillance_b\nEnd-After\nEnd-Form\n");
+  assert.match(module.compileFieldCheckCodeSubset(exitFormGoto, schema, projectContext).reasons.join(" "), /exit events remain deterministic/);
+  const languageCompletion = module.parseCheckCodeProgram(`DefineVariables
+DEFINE ReviewState STANDARD TEXTINPUT
+End-DefineVariables
+Sub ReviewAdult
+  LET ReviewState = "Adult"
+  DISABLE * EXCEPT age
+  BEEP
+End-Sub
+Field age
+After
+  IF age < 5 THEN
+    LET ReviewState = "Young child"
+  ELSE-IF age < 18 THEN
+    LET ReviewState = "Child"
+  ELSE-IF age < 65 THEN
+    CALL ReviewAdult
+  ELSE
+    LET ReviewState = "Older adult"
+  END-IF
+  ALWAYS
+    HIGHLIGHT age
+  END
+  UNDEFINE ReviewState
+End-After
+End-Field
+`);
+  assert.equal(languageCompletion.subroutines.length, 1);
+  assert.equal(languageCompletion.blocks[0].events.after[0].otherwise[0].kind, "if", "ELSE-IF is represented as a typed nested branch");
+  assert.equal(module.compileFieldCheckCodeSubset(languageCompletion, schema).executable, true);
+  const recursiveCall = module.parseCheckCodeProgram("Sub One\nCALL Two\nEnd-Sub\nSub Two\nCALL One\nEnd-Sub\nForm\nBefore\nCALL One\nEnd-Before\nEnd-Form\n");
+  assert.match(module.compileFieldCheckCodeSubset(recursiveCall, schema).reasons.join(" "), /CALL cycle detected/);
+  const saveRecordProgram = module.parseCheckCodeProgram("Field save_button\nClick\nSAVE-RECORD\nDIALOG \"must not run\"\nEnd-Click\nEnd-Field\n");
+  assert.equal(module.compileFieldCheckCodeSubset(saveRecordProgram, schema).executable, true);
+  const unsafeSavePlacement = module.parseCheckCodeProgram("Form\nBefore\nSAVE-RECORD\nEnd-Before\nEnd-Form\n");
+  assert.match(module.compileFieldCheckCodeSubset(unsafeSavePlacement, schema).reasons.join(" "), /only in a Field Click event/);
+  const commented = module.parseCheckCodeProgram("/* heading\ncontinues */\nForm\nBefore\nDIALOG \"https://example.invalid/review\" // visible note\nEnd-Before\nEnd-Form\n");
+  assert.equal(commented.blocks[0].events.before[0].kind, "dialog");
+  assert.equal(commented.blocks[0].events.before[0].message, "https://example.invalid/review");
+  assert.throws(
+    () => module.parseCheckCodeProgram("Form\nBefore\n/* comment without an end\nDIALOG \"hidden\"\nEnd-Before\nEnd-Form\n"),
+    /Line 3: Multiline comment is missing \*\//,
+  );
+  const dialogVariants = module.parseCheckCodeProgram(`DefineVariables
+DEFINE TextAnswer STANDARD TEXTINPUT
+DEFINE NumericAnswer STANDARD NUMERIC
+DEFINE YesNoAnswer STANDARD YN
+DEFINE DateAnswer STANDARD DATEFORMAT
+DEFINE TimeAnswer STANDARD TIMEFORMAT
+DEFINE DateTimeAnswer STANDARD DATETIMEFORMAT
+DEFINE ChoiceAnswer STANDARD TEXTINPUT
+DEFINE FieldAnswer STANDARD TEXTINPUT
+DEFINE ValueAnswer STANDARD TEXTINPUT
+DEFINE ViewAnswer STANDARD TEXTINPUT
+DEFINE DatabaseAnswer STANDARD TEXTINPUT
+End-DefineVariables
+Form
+Before
+DIALOG "Message" TITLETEXT="Review"
+DIALOG "Text" TextAnswer TEXTINPUT "AAAA" TITLETEXT="Text response"
+DIALOG "Number" NumericAnswer NUMERIC "##.##"
+DIALOG "Implicit number" NumericAnswer
+DIALOG "Proceed?" YesNoAnswer YN
+DIALOG "Date" DateAnswer DATEFORMAT "MM/DD/YYYY"
+DIALOG "Time" TimeAnswer TIMEFORMAT
+DIALOG "Moment" DateTimeAnswer DATETIMEFORMAT
+DIALOG "Choose" ChoiceAnswer "Confirmed","Probable","Suspect" TITLETEXT="Classification"
+DIALOG "Choose field" FieldAnswer DBVARIABLES TITLETEXT="Fields"
+DIALOG "Choose status" ValueAnswer DBVALUES foodborne_outbreak_investigation case_status TITLETEXT="Statuses"
+DIALOG "Choose view" ViewAnswer DBVIEWS TITLETEXT="Project forms"
+DIALOG "Choose database" DatabaseAnswer DATABASES TITLETEXT="Project stores"
+End-Before
+End-Form
+`);
+  const parsedDialogs = dialogVariants.blocks[0].events.before;
+  assert.deepEqual(parsedDialogs.map(({ inputType }) => inputType ?? "message"), [
+    "message", "text", "number", "number", "yes-no", "date", "time", "date-time", "choice", "choice", "choice", "choice", "choice",
+  ]);
+  assert.equal(parsedDialogs[0].title, "Review");
+  assert.deepEqual(parsedDialogs[8].choices, ["Confirmed", "Probable", "Suspect"]);
+  assert.deepEqual(parsedDialogs[9].dataSource, { kind: "db-variables" });
+  assert.deepEqual(parsedDialogs[10].dataSource, { kind: "db-values", table: "foodborne_outbreak_investigation", variable: "case_status" });
+  assert.deepEqual(parsedDialogs[11].dataSource, { kind: "db-views" });
+  assert.deepEqual(parsedDialogs[12].dataSource, { kind: "databases" });
+  assert.equal(module.compileFieldCheckCodeSubset(dialogVariants, schema).executable, true);
+  const incompatibleDialog = module.parseCheckCodeProgram("DefineVariables\nDEFINE Wrong STANDARD NUMERIC\nEnd-DefineVariables\nForm\nBefore\nDIALOG \"Text\" Wrong TEXTINPUT\nEnd-Before\nEnd-Form\n");
+  const incompatibleDialogResult = module.compileFieldCheckCodeSubset(incompatibleDialog, schema);
+  assert.equal(incompatibleDialogResult.executable, false);
+  assert.match(incompatibleDialogResult.reasons.join(" "), /incompatible type/);
   const runtimeModule = await import(`${pathToFileURL(repositoryPath("wasm/app/check-code/check-code-runtime.ts")).href}?checkruntime=${Date.now()}`);
-  const values = new Map([["case_status", "Confirmed"], ["onset_date", ""], ["onset_time", "08:30"]]);
+  const calculationProgram = module.parseCheckCodeProgram(`DefineVariables
+DEFINE Calculated STANDARD NUMERIC
+DEFINE CalendarValue STANDARD NUMERIC
+DEFINE PowerModulo STANDARD NUMERIC
+DEFINE NegativeRound STANDARD NUMERIC
+DEFINE Label STANDARD TEXTINPUT
+DEFINE ReviewFlag STANDARD YN
+End-DefineVariables
+Form
+Before
+ASSIGN Calculated = ROUND(ABS(age - 40) / 3, 2)
+ASSIGN CalendarValue = YEAR(interview_date) + MONTH(interview_date) + DAY(interview_date)
+ASSIGN PowerModulo = 2 ^ 3 MOD 3
+ASSIGN NegativeRound = ROUND(-1.5)
+ASSIGN Label = UPPERCASE(SUBSTRING(case_status, 1, 4)) & "-" & STRLEN(case_status)
+ASSIGN ReviewFlag = NO
+IF TXTTONUM("18") <= age AND YEAR(interview_date) = 2026 THEN
+  ASSIGN ReviewFlag = YES
+END-IF
+End-Before
+End-Form
+`);
+  assert.equal(module.compileFieldCheckCodeSubset(calculationProgram, schema).executable, true);
+  assert.equal(calculationProgram.blocks[0].events.before[0].value.kind, "function");
+  assert.equal(calculationProgram.blocks[0].events.before[1].value.kind, "binary");
+  const calculationFields = new Map([["age", 34], ["case_status", "Confirmed"], ["interview_date", "2026-01-12"]]);
+  const calculationRuntime = runtimeModule.createCheckCodeRuntime(calculationProgram, schema, {
+    readField: (name) => calculationFields.get(name) ?? null,
+    writeField: (name, value) => calculationFields.set(name, value),
+    applyFieldAction: () => {}, gotoField: () => {}, gotoPage: () => {}, gotoForm: () => {}, beep: () => {}, requestRecordAction: () => {},
+    autoSearch: async () => {}, showDialog: async () => ({ accepted: false }), resolveDialogChoices: async () => [], runGeocode: async () => {}, audit: () => {},
+  });
+  await calculationRuntime.run("form", "before");
+  assert.equal(calculationRuntime.variable("Calculated"), 2);
+  assert.equal(calculationRuntime.variable("CalendarValue"), 2039);
+  assert.equal(calculationRuntime.variable("PowerModulo"), 2);
+  assert.equal(calculationRuntime.variable("NegativeRound"), -2);
+  assert.equal(calculationRuntime.variable("Label"), "CONF-9");
+  assert.equal(calculationRuntime.variable("ReviewFlag"), true);
+  const scopedProgram = module.parseCheckCodeProgram(`DefineVariables
+DEFINE SessionCount GLOBAL NUMERIC
+DEFINE ProfileCount PERMANENT NUMERIC
+DEFINE DraftCount STANDARD NUMERIC
+End-DefineVariables
+Form
+Before
+IF SessionCount = (.) THEN
+  ASSIGN SessionCount = 0
+END-IF
+IF ProfileCount = (.) THEN
+  ASSIGN ProfileCount = 0
+END-IF
+ASSIGN SessionCount = SessionCount + 1
+ASSIGN ProfileCount = ProfileCount + 1
+ASSIGN DraftCount = 1
+End-Before
+End-Form
+`);
+  assert.equal(module.compileFieldCheckCodeSubset(scopedProgram, schema).executable, true);
+  const scopedValues = new Map();
+  const scopedHost = {
+    readField: () => null, writeField: () => {}, applyFieldAction: () => {}, gotoField: () => {}, gotoPage: () => {}, gotoForm: () => {},
+    beep: () => {}, requestRecordAction: () => {}, autoSearch: async () => {}, showDialog: async () => ({ accepted: false }),
+    resolveDialogChoices: async () => [], runGeocode: async () => {}, audit: () => {},
+    readScopedVariable: (definition) => scopedValues.get(`${definition.scope}:${definition.name.toLowerCase()}`)?.value,
+    writeScopedVariable: (definition, value) => {
+      const storageKey = `${definition.scope}:${definition.name.toLowerCase()}`;
+      if (value === undefined) scopedValues.delete(storageKey);
+      else scopedValues.set(storageKey, { valueType: definition.valueType, value });
+    },
+  };
+  const firstScopedRuntime = runtimeModule.createCheckCodeRuntime(scopedProgram, schema, scopedHost);
+  await firstScopedRuntime.run("form", "before");
+  assert.equal(firstScopedRuntime.variable("SessionCount"), 1);
+  assert.equal(firstScopedRuntime.variable("ProfileCount"), 1);
+  assert.equal(firstScopedRuntime.variable("DraftCount"), 1);
+  firstScopedRuntime.resetStandardVariables();
+  assert.equal(firstScopedRuntime.variable("DraftCount"), null, "Standard variables reset with the entry session");
+  const secondScopedRuntime = runtimeModule.createCheckCodeRuntime(scopedProgram, schema, scopedHost);
+  await secondScopedRuntime.run("form", "before");
+  assert.equal(secondScopedRuntime.variable("SessionCount"), 2, "Global variables are restored by the browser-session host");
+  assert.equal(secondScopedRuntime.variable("ProfileCount"), 2, "Permanent variables are restored by the browser-profile host");
+  assert.equal(secondScopedRuntime.variable("DraftCount"), 1, "Standard variables do not survive a runtime instance");
+  assert.throws(() => module.parseCheckCodeProgram("Form\nBefore\nASSIGN age = FETCH(\"https://example.invalid\")\nEnd-Before\nEnd-Form\n"), /not in the browser-safe Check Code allowlist/);
+  const invalidCalculation = module.parseCheckCodeProgram("Form\nBefore\nASSIGN age = case_status + 1\nEnd-Before\nEnd-Form\n");
+  assert.match(module.compileFieldCheckCodeSubset(invalidCalculation, schema).reasons.join(" "), /requires numeric expressions/);
+  const dialogValues = {
+    TextAnswer: "reviewed",
+    NumericAnswer: 12.5,
+    YesNoAnswer: true,
+    DateAnswer: "2026-09-21",
+    TimeAnswer: "14:30",
+    DateTimeAnswer: "2026-09-21T14:30",
+    ChoiceAnswer: "Probable",
+    FieldAnswer: "case_status",
+    ValueAnswer: "Confirmed",
+    ViewAnswer: "Foodborne Check Code fixture",
+    DatabaseAnswer: "Foodborne project",
+  };
+  const dialogRuntime = runtimeModule.createCheckCodeRuntime(dialogVariants, schema, {
+    readField: () => null,
+    writeField: () => {},
+    applyFieldAction: () => {},
+    gotoField: () => {},
+    gotoPage: () => {},
+    gotoForm: () => {},
+    beep: () => {},
+    requestRecordAction: () => {},
+    autoSearch: async () => {},
+    showDialog: async (request) => ({ accepted: true, value: request.target ? dialogValues[request.target] : undefined }),
+    resolveDialogChoices: async (source) => source.kind === "db-variables" ? ["case_status", "onset_date"]
+      : source.kind === "db-values" ? ["Confirmed", "Probable"]
+      : source.kind === "db-views" ? ["Foodborne Check Code fixture"] : ["Foodborne project"],
+    runGeocode: async () => {},
+    audit: () => {},
+  });
+  await dialogRuntime.run("form", "before");
+  for (const [name, value] of Object.entries(dialogValues)) assert.equal(dialogRuntime.variable(name), value);
+  const cancelledDialogRuntime = runtimeModule.createCheckCodeRuntime(dialogVariants, schema, {
+    readField: () => null,
+    writeField: () => {},
+    applyFieldAction: () => {},
+    gotoField: () => {},
+    gotoPage: () => {},
+    gotoForm: () => {},
+    beep: () => {},
+    requestRecordAction: () => {},
+    autoSearch: async () => {},
+    showDialog: async () => ({ accepted: false }),
+    resolveDialogChoices: async () => [],
+    runGeocode: async () => {},
+    audit: () => {},
+  });
+  await cancelledDialogRuntime.run("form", "before");
+  assert.equal(cancelledDialogRuntime.variable("TextAnswer"), null, "Cancel must continue without assigning a response");
+  const oversizedDialogRuntime = runtimeModule.createCheckCodeRuntime(dialogVariants, schema, {
+    readField: () => null,
+    writeField: () => {},
+    applyFieldAction: () => {},
+    gotoField: () => {},
+    gotoPage: () => {},
+    gotoForm: () => {},
+    beep: () => {},
+    requestRecordAction: () => {},
+    autoSearch: async () => {},
+    showDialog: async () => ({ accepted: false }),
+    resolveDialogChoices: async () => Array.from({ length: 251 }, (_, index) => `Value ${index + 1}`),
+    runGeocode: async () => {},
+    audit: () => {},
+  });
+  await assert.rejects(() => oversizedDialogRuntime.run("form", "before"), /250-choice browser limit/);
+  const values = new Map([["case_status", "Confirmed"], ["age", 34], ["onset_date", ""], ["onset_time", "08:30"]]);
   const actions = [];
+  const pageNavigations = [];
   const dialogs = [];
+  const formNavigations = [];
   const audits = [];
+  let beepCount = 0;
   const runtime = runtimeModule.createCheckCodeRuntime(ast, schema, {
     readField: (name) => values.get(name) ?? null,
     writeField: (name, value) => values.set(name, value),
     applyFieldAction: (action, name) => actions.push([action, name]),
     gotoField: (name) => actions.push(["goto", name]),
-    showDialog: async (message) => { dialogs.push(message); },
+    gotoPage: (target) => pageNavigations.push(target),
+    gotoForm: (target) => formNavigations.push(target),
+    beep: () => {},
+    requestRecordAction: () => {},
+    autoSearch: async () => {},
+    showDialog: async (request) => { dialogs.push(request); return { accepted: true, value: request.inputType === "yes-no" ? true : undefined }; },
+    resolveDialogChoices: async () => [],
     runGeocode: async () => {},
     audit: (event) => audits.push(event),
   });
+  const formGotoRuntime = runtimeModule.createCheckCodeRuntime(formGoto, schema, {
+    readField: (name) => values.get(name) ?? null,
+    writeField: (name, value) => values.set(name, value),
+    applyFieldAction: () => {},
+    gotoField: () => {},
+    gotoPage: () => {},
+    gotoForm: (target) => formNavigations.push(target),
+    beep: () => {},
+    requestRecordAction: () => {},
+    autoSearch: async () => {},
+    showDialog: async (request) => { dialogs.push(request); return { accepted: true }; },
+    resolveDialogChoices: async () => [],
+    runGeocode: async () => {},
+    audit: () => {},
+  });
+  const dialogCountBeforeFormGoto = dialogs.length;
+  await formGotoRuntime.run("field", "after", "case_status");
+  assert.deepEqual(formNavigations, ["surveillance_b"]);
+  assert.equal(dialogs.length, dialogCountBeforeFormGoto, "GOTOFORM terminates the current event before later statements execute");
+  const completionActions = [];
+  const completionRuntime = runtimeModule.createCheckCodeRuntime(languageCompletion, schema, {
+    readField: (name) => values.get(name) ?? null,
+    writeField: (name, value) => values.set(name, value),
+    applyFieldAction: (action, name) => completionActions.push([action, name]),
+    gotoField: () => {},
+    gotoPage: () => {},
+    gotoForm: () => {},
+    beep: () => { beepCount += 1; },
+    requestRecordAction: () => {},
+    autoSearch: async () => {},
+    showDialog: async () => ({ accepted: true }),
+    resolveDialogChoices: async () => [],
+    runGeocode: async () => {},
+    audit: () => {},
+  });
+  values.set("age", 34);
+  await completionRuntime.run("field", "after", "age");
+  assert.equal(beepCount, 1);
+  assert.equal(completionActions.some(([action, name]) => action === "disable" && name === "age"), false, "EXCEPT retains the excluded field");
+  assert.equal(completionActions.filter(([action]) => action === "disable").length, schema.fields.length - 1);
+  assert.deepEqual(completionActions.at(-1), ["highlight", "age"]);
+  assert.equal(completionRuntime.variable("ReviewState"), undefined, "UNDEFINE removes the Standard variable for this session");
+  const autoSearchProgram = module.parseCheckCodeProgram("Field id\nAfter\nAUTOSEARCH id DISPLAYLIST id age sex case_status CONTINUENEW ALWAYS\nEnd-After\nEnd-Field\n");
+  const autoSearchStatement = autoSearchProgram.blocks[0].events.after[0];
+  assert.deepEqual(autoSearchStatement, {
+    kind: "autosearch", keys: ["id"], display: ["id", "age", "sex", "case_status"], always: true, continueNew: true, line: 3,
+  });
+  assert.equal(module.compileFieldCheckCodeSubset(autoSearchProgram, schema).executable, true);
+  const invalidAutoSearch = module.parseCheckCodeProgram("Field id\nAfter\nAUTOSEARCH missing DISPLAYLIST age\nEnd-After\nEnd-Field\n");
+  assert.match(module.compileFieldCheckCodeSubset(invalidAutoSearch, schema).reasons.join(" "), /missing/);
+  const autoSearchRequests = [];
+  const autoSearchRuntime = runtimeModule.createCheckCodeRuntime(autoSearchProgram, schema, {
+    readField: (name) => values.get(name) ?? null,
+    writeField: () => {},
+    applyFieldAction: () => {},
+    gotoField: () => {},
+    gotoPage: () => {},
+    gotoForm: () => {},
+    beep: () => {},
+    requestRecordAction: () => {},
+    autoSearch: async (request) => { autoSearchRequests.push(request); },
+    showDialog: async () => ({ accepted: true }),
+    resolveDialogChoices: async () => [],
+    runGeocode: async () => {},
+    audit: () => {},
+  });
+  await autoSearchRuntime.run("field", "after", "id");
+  assert.deepEqual(autoSearchRequests[0], autoSearchStatement);
+  const ioCodeSchema = {
+    name: "Occupational surveillance",
+    fields: [
+      { name: "Industry", prompt: "Industry", type: "text", required: false },
+      { name: "Occupation", prompt: "Occupation", type: "text", required: false },
+      { name: "ICode", prompt: "Industry code", type: "text", required: false },
+      { name: "OCode", prompt: "Occupation code", type: "text", required: false },
+      { name: "ITitle", prompt: "Industry title", type: "text", required: false },
+      { name: "OTitle", prompt: "Occupation title", type: "text", required: false },
+      { name: "Scheme", prompt: "Coding scheme", type: "text", required: false },
+      { name: "GetIOCodes", prompt: "Get I/O Codes", type: "command-button", required: false },
+    ],
+  };
+  const ioCodeProgram = module.parseCheckCodeProgram("Field GetIOCodes\nClick\nIOCODE Industry, Occupation, ICode, OCode, ITitle, OTitle, Scheme\nEnd-Click\nEnd-Field\n");
+  assert.deepEqual(ioCodeProgram.blocks[0].events.click[0], {
+    kind: "iocode", industryField: "Industry", occupationField: "Occupation", industryCodeField: "ICode", occupationCodeField: "OCode",
+    industryTitleField: "ITitle", occupationTitleField: "OTitle", schemeField: "Scheme", line: 3,
+  });
+  const ioCodeCompile = module.compileFieldCheckCodeSubset(ioCodeProgram, ioCodeSchema);
+  assert.equal(ioCodeCompile.executable, false);
+  assert.match(ioCodeCompile.reasons.join(" "), /Occupational Epidemiology package/);
+  const installedIoCodeCompile = module.compileFieldCheckCodeSubset(ioCodeProgram, ioCodeSchema, {
+    capabilities: [{ id: "io.coder.review/0.1", installed: true, executable: false, packageTitle: "Occupational Epidemiology: IOCODE", reason: "No coding model is included." }],
+  });
+  assert.equal(installedIoCodeCompile.executable, false);
+  assert.match(installedIoCodeCompile.reasons.join(" "), /installed and integrity-checked/);
+  assert.match(installedIoCodeCompile.reasons.join(" "), /scientific execution is not approved/);
+  assert.throws(
+    () => module.parseCheckCodeProgram("Field GetIOCodes\nClick\nIOCODE Industry, Occupation, ICode\nEnd-Click\nEnd-Field\n"),
+    /exactly seven comma-separated text fields/,
+  );
+  const ioCodeRuntime = runtimeModule.createCheckCodeRuntime(ioCodeProgram, ioCodeSchema, {
+    readField: () => null,
+    writeField: () => { throw new Error("IOCODE must not write fields without an approved adapter."); },
+    applyFieldAction: () => {}, gotoField: () => {}, gotoPage: () => {}, gotoForm: () => {}, beep: () => {}, requestRecordAction: () => {},
+    autoSearch: async () => {}, showDialog: async () => ({ accepted: true }), resolveDialogChoices: async () => [], runGeocode: async () => {}, audit: () => {},
+  });
+  await assert.rejects(() => ioCodeRuntime.run("field", "click", "GetIOCodes"), /cannot execute without the governed Occupational Epidemiology package/);
+  const recordActions = [];
+  const recordActionRuntime = runtimeModule.createCheckCodeRuntime(saveRecordProgram, schema, {
+    readField: () => null,
+    writeField: () => {},
+    applyFieldAction: () => {},
+    gotoField: () => {},
+    gotoPage: () => {},
+    gotoForm: () => {},
+    beep: () => {},
+    requestRecordAction: (action) => recordActions.push(action),
+    autoSearch: async () => {},
+    showDialog: async (request) => { dialogs.push(request); return { accepted: true }; },
+    resolveDialogChoices: async () => [],
+    runGeocode: async () => {},
+    audit: () => {},
+  });
+  const dialogCountBeforeSave = dialogs.length;
+  await recordActionRuntime.run("field", "click", "save_button");
+  assert.deepEqual(recordActions, ["save"]);
+  assert.equal(dialogs.length, dialogCountBeforeSave, "record lifecycle effects terminate the originating event");
   await runtime.run("form", "before");
   assert.equal(runtime.variable("ReviewState"), "Ready");
   await runtime.run("page", "before", "EntryPage");
-  assert.deepEqual(dialogs, ["Review the foodborne case before saving."]);
+  assert.equal(dialogs[0].message, "Continue reviewing this foodborne case?");
+  assert.equal(dialogs[0].title, "Foodborne case review");
+  assert.equal(dialogs[0].inputType, "yes-no");
+  assert.equal(runtime.variable("ContinueReview"), true);
   await runtime.run("record", "before");
   assert.equal(values.get("onset_time"), null);
   await runtime.run("field", "after", "case_status");
-  assert.deepEqual(actions.slice(-3), [["set-required", "onset_date"], ["enable", "onset_date"], ["goto", "onset_date"]]);
+  assert.deepEqual(actions.slice(-4), [["highlight", "onset_date"], ["set-required", "onset_date"], ["enable", "onset_date"], ["goto", "onset_date"]]);
+  values.set("case_status", "Probable");
+  await runtime.run("field", "after", "case_status");
+  assert.deepEqual(actions.slice(-2), [["unhighlight", "onset_date"], ["set-not-required", "onset_date"]]);
+  values.set("case_status", "Confirmed");
   await runtime.run("record", "after");
   assert.equal(runtime.variable("ReviewState"), "Reviewed");
+  await runtime.run("field", "after", "age");
+  assert.deepEqual(actions.at(-1), ["unhighlight", "age"]);
+  values.set("age", 130);
+  await runtime.run("field", "after", "age");
+  assert.deepEqual(actions.at(-1), ["highlight", "age"]);
+  assert.equal(dialogs.at(-1).title, "Age plausibility review");
+  values.set("onset_date", null);
+  const onsetActionCount = actions.length;
+  await runtime.run("field", "after", "onset_date");
+  assert.equal(actions.length, onsetActionCount, "missing onset dates must not reveal the time field");
+  values.set("onset_date", "2026-01-10");
+  await runtime.run("field", "after", "onset_date");
+  assert.deepEqual(actions.slice(-2), [["unhide", "onset_time"], ["enable", "onset_time"]]);
+  values.set("interview_date", "2026-01-12");
+  await runtime.run("field", "after", "interview_date");
+  assert.equal(pageNavigations.at(-1), "ExposureLocation");
   assert.equal(audits.every(({ status }) => status === "succeeded"), true);
+  const clusterPackage = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/projects/space-time-cluster-detection.epia.json"), "utf8"));
+  const clusterCheckCode = await readFile(repositoryPath("wasm/demo/examples/cluster/space-time-cluster-check-code-tour.chk"), "utf8");
+  assert.equal(module.compileFieldCheckCodeSubset(module.parseCheckCodeProgram(clusterCheckCode), clusterPackage.project.forms[0].schema).executable, true);
+  const recordLinkPackage = JSON.parse(await readFile(repositoryPath("wasm/demo/examples/recordlink/recordlink-synthetic-project.epia.json"), "utf8"));
+  for (const [formIndex, file] of [[0, "patient-registry-a-check-code.chk"], [1, "surveillance-b-check-code.chk"]]) {
+    const checkCode = await readFile(repositoryPath(`wasm/demo/examples/recordlink/${file}`), "utf8");
+    const result = module.compileFieldCheckCodeSubset(
+      module.parseCheckCodeProgram(checkCode),
+      recordLinkPackage.project.forms[formIndex].schema,
+      {
+        currentFormId: recordLinkPackage.project.forms[formIndex].id,
+        forms: recordLinkPackage.project.forms.map((form) => ({ id: form.id, name: form.schema.name })),
+      },
+    );
+    assert.equal(result.executable, true, `${file} must compile against its packaged form: ${result.reasons.join(" ")}`);
+  }
   assert.throws(
     () => module.parseCheckCodeProgram("Field case_status\nAfter\nEXECUTE evil.exe\nEnd-After\nEnd-Field"),
     /Unsupported or malformed Check Code statement/,
   );
 }
 
+async function checkCapabilityPackageBoundary() {
+  const module = await import(`${pathToFileURL(repositoryPath("wasm/app/packages/capability-package.ts")).href}?capability=${Date.now()}`);
+  const manifest = JSON.parse(await readFile(repositoryPath("wasm/tests/fixtures/capability-package/epi-info-capability.json"), "utf8"));
+  const validated = module.validateCapabilityPackageManifest(manifest);
+  assert.equal(validated.id, "org.cdc.epi-info-ai.occupational-epidemiology-iocode");
+  assert.equal(validated.activation.executable, false);
+  assert.equal(validated.activation.network, false);
+  assert.equal(validated.approval.scientificExecution, "not-approved");
+  assert.equal(validated.source.revision, "28b8862ca9da6c4d2374d8105863a6235ab1eaa5");
+  assert.equal(validated.artifacts.length, 3);
+  const executable = structuredClone(manifest);
+  executable.activation.executable = true;
+  assert.throws(() => module.validateCapabilityPackageManifest(executable), /activation\.executable must be false/);
+  const networked = structuredClone(manifest);
+  networked.activation.network = true;
+  assert.throws(() => module.validateCapabilityPackageManifest(networked), /activation\.network must be false/);
+  const script = structuredClone(manifest);
+  script.artifacts[0].path = "worker.js";
+  script.artifacts[0].mediaType = "text/javascript";
+  assert.throws(() => module.validateCapabilityPackageManifest(script), /not an allowed inert package path/);
+}
+
 async function run() {
   const checks = [
+    ["documentation links and status authority", checkDocumentationIntegrity],
     ["required assets and familiar UI landmarks", checkRequiredAssetsAndUi],
     ["TypeScript source language boundary", checkSourceLanguageBoundary],
     ["WASM checksum and exports", checkWasmArtifact],
@@ -4555,6 +5136,7 @@ async function run() {
     ["checksummed example-project repository", checkExampleProjectRepository],
     ["bounded GDAL WebAssembly Worker spike", checkGdalWasmSpike],
     ["typed fail-closed Check Code program", checkTypedCheckCodeProgram],
+    ["governed inert capability-package boundary", checkCapabilityPackageBoundary],
   ];
 
   for (const [name, check] of checks) {

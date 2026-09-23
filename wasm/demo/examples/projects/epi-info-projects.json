@@ -7,11 +7,11 @@
     {
       "id": "foodborne-outbreak-investigation",
       "title": "Foodborne Outbreak Investigation",
-      "description": "96 synthetic investigation records with Classic Analysis and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
+      "description": "96 synthetic investigation records with Classic Analysis, Check Code, and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
       "file": "foodborne-outbreak-investigation.epia",
       "repository": "https://git.cdc.gov/epi-info-ai/foodborne-outbreak-investigation",
-      "bytes": 1481863,
-      "sha256": "72284425978ec358794a355b423f18b10d6ef93e3b4cd82e47c4af581512511e"
+      "bytes": 1500349,
+      "sha256": "1f0b4ea36e8a282839d87746697d4e8c1a95334453643b7ce29be4f913f43ac9"
     },
     {
       "id": "space-time-cluster-detection",
@@ -19,8 +19,8 @@
       "description": "30 synthetic fever/rash events with a planted cluster, reproducible analysis parameters, mapping, and story-tour output.",
       "file": "space-time-cluster-detection.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/space-time-cluster-detection",
-      "bytes": 12656,
-      "sha256": "f521a0e1520bfbd412fdfa13fe302166fa9957c5bc5ed2ef0dd9e7f3f1e6d1be"
+      "bytes": 15598,
+      "sha256": "62623e2fdd9344cbb55e52c56e09886198a8808ff0e1275a7264ced254a5a23a"
     },
     {
       "id": "record-linkage",
@@ -28,8 +28,8 @@
       "description": "Two synthetic patient sources, known truth links, source quality review, explainable RECORDLINK classification, and bounded local clerical review.",
       "file": "../recordlink/recordlink-synthetic-project.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/recordlink",
-      "bytes": 19095,
-      "sha256": "8bdff295f50bc4af928e9cec6f67de1d75c5198b8372d727d509adefbd06cae5"
+      "bytes": 25161,
+      "sha256": "06dd0a6a24daa21bda847b7e53a85cb1a55f1298315e99b56119e7c9073e6ed3"
     },
     {
       "id": "gis-defensive-ingestion-teaching",

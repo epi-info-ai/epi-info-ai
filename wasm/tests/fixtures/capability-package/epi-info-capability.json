@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "epi.package/0.1",
+  "id": "org.cdc.epi-info-ai.occupational-epidemiology-iocode",
+  "version": "0.1.0",
+  "artifactType": "epi.capability-assets",
+  "publisher": "org.cdc.epi-info-ai",
+  "title": "Occupational Epidemiology: IOCODE",
+  "description": "Synthetic package-import pilot for the typed IOCODE capability boundary.",
+  "source": {
+    "authoritative": "https://git.cdc.gov/epi-info-ai/package-occupational-epidemiology",
+    "mirrors": ["https://github.com/epi-info-ai/iocode-occupational-epidemiology"],
+    "revision": "28b8862ca9da6c4d2374d8105863a6235ab1eaa5"
+  },
+  "license": "Apache-2.0",
+  "compatibility": {
+    "application": ">=0.2.0 <0.3.0",
+    "capabilities": ["check-code.iocode.syntax/0.1", "io.coder.review/0.1"]
+  },
+  "privacy": {
+    "classification": "public-synthetic",
+    "containsRecordData": false
+  },
+  "approval": {
+    "installation": "approved-synthetic-demo",
+    "scientificExecution": "not-approved",
+    "reason": "No coding model or reference taxonomy is included."
+  },
+  "activation": {
+    "adapter": "io.coder.review/0.1",
+    "executable": false,
+    "network": false
+  },
+  "artifacts": [
+    {
+      "role": "check-code-example",
+      "path": "examples/iocode-check-code-tour.chk",
+      "mediaType": "text/vnd.epi.check-code",
+      "bytes": 240,
+      "digest": "sha256:2bd82c5ed0d765f631649e1aee0ccd7a35b29f38344a2f41a946d65692014d6f"
+    },
+    {
+      "role": "validation",
+      "path": "fixtures/package-boundary.json",
+      "mediaType": "application/json",
+      "bytes": 739,
+      "digest": "sha256:640ad36466b1e35a05a5e532053f3148b40ed2bd969d02b719803f5c88aaafdc"
+    },
+    {
+      "role": "model-card",
+      "path": "docs/model-card-placeholder.md",
+      "mediaType": "text/markdown",
+      "bytes": 842,
+      "digest": "sha256:7636c8c0052482f01450311f7a70e9ab96e829e4b1171c64abb544a2588778c1"
+    }
+  ],
+  "dependencies": [],
+  "signatures": {
+    "profile": "catalog-target",
+    "status": "pending-protected-ci"
+  }
+}

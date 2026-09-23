@@ -79,6 +79,10 @@ const requiredFiles = [
   "examples/foodborne/foodborne-dialog-tour.pgm7",
   "examples/foodborne/foodborne-investigation.runbook.json",
   "examples/foodborne/foodborne-gis-investigation.runbook.json",
+  "examples/foodborne/foodborne-check-code-tour.chk",
+  "examples/foodborne/foodborne-check-code.runbook.json",
+  "examples/foodborne/foodborne-form-designer.runbook.json",
+  "examples/foodborne/foodborne-database-dialog-tour.chk",
   "examples/foodborne/maps/city-of-toledo-neighborhoods.geojson",
   "examples/foodborne/maps/worldpop-toledo-population-density.tif",
   "examples/cluster/README.md",
@@ -86,6 +90,7 @@ const requiredFiles = [
   "examples/cluster/space-time-cluster-command-tour.pgm7",
   "examples/cluster/space-time-cluster-synthetic-v0.1.programs.json",
   "examples/cluster/space-time-cluster.runbook.json",
+  "examples/cluster/space-time-cluster-check-code-tour.chk",
   "examples/matched-case-control/README.md",
   "examples/matched-case-control/DATA_DICTIONARY.md",
   "examples/matched-case-control/case-control-database-example.xlsx",
@@ -109,6 +114,8 @@ const requiredFiles = [
   "examples/projects/gis-defensive-ingestion-teaching.epia.json",
   "examples/projects/gis-defensive-ingestion-test-cases.csv",
   "examples/recordlink/recordlink.runbook.json",
+  "examples/recordlink/patient-registry-a-check-code.chk",
+  "examples/recordlink/surveillance-b-check-code.chk",
   "examples/gdal-wasm/README.md",
   "examples/gdal-wasm/THIRD_PARTY_NOTICES.md",
   "examples/gdal-wasm/LICENSE.fflate.txt",
@@ -209,11 +216,12 @@ assert.equal(createHash("sha256").update(engineBytes).digest("hex"), engineManif
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
-assert.match(html, /src=["']app\.js\?v=115["']/);
-assert.match(html, /href=["']styles\.css\?v=68["']/);
-assert.match(html, /id=["']app-version["'][^>]*>v0\.1\.0</);
+assert.match(html, /src=["']app\.js\?v=126["']/);
+assert.match(html, /href=["']styles\.css\?v=72["']/);
+assert.match(html, /id=["']app-version["'][^>]*>v0\.2\.0</);
 assert.match(html, /id=["']example-project-dialog["']/);
 assert.match(html, /id=["']teaching-repository-dialog["']/);
+assert.match(html, /id=["']capability-package-dialog["']/);
 assert.match(html, /id=["']study-area-dialog["']/);
 assert.match(html, /id=["']main-menu["']/);
 assert.match(html, /id=["']file-menu["']/);

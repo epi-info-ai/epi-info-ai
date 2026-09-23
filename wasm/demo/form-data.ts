@@ -12,6 +12,7 @@
   type ProjectMapLayer,
   type ProjectReferenceLayerSourceV1,
   type ProjectStudyArea,
+  type RecordValue,
 } from "../app/contracts/core.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
 import type { ClassicDeleteRecordsResult } from "../app/programming/classic-delete-records.ts";
@@ -53,13 +54,16 @@ import {
 import { readTabularFile } from "../app/forms/importers.ts";
 import { applyDataImport, buildDataImportPreview, candidateImportKeys, suggestedImportKey, type DataImportMode, type DataImportPreview } from "../app/forms/import-preview.ts";
 import {
+  activeEntryPage,
   collectEntryRecord,
+  effectiveFormPages,
   initializeEntryView,
   renderEntryForm as renderEntryFormView,
   renderEntryValidation,
   renderRecords as renderRecordList,
   runGeocode,
   setEntryView,
+  showEntryPage,
 } from "../app/forms/entry-view.ts";
 import { loadProjectSnapshot } from "../app/forms/project-state.ts";
 import { initializeStudyAreaPicker, openStudyAreaPicker } from "../app/forms/study-area-picker.ts";
@@ -72,8 +76,10 @@ import { createSecureShareReceiver, createSecureShareSender } from "../app/share
 import { renderFormDesignerMenuContract } from "../app/forms/form-designer-menu.ts";
 import { renderEnterDataMenuContract } from "../app/forms/enter-data-menu.ts";
 import { buildDataQualityReport, type DuplicateGroup } from "../app/forms/data-quality.ts";
-import { compileFieldCheckCodeSubset, parseCheckCodeProgram, serializeFieldCheckCodeSubset, type CheckCodeCompileResult, type CheckCodeEvent, type CheckCodeProgramAst, type CheckCodeScope } from "../app/check-code/check-code-program.ts";
+import { compileFieldCheckCodeSubset, parseCheckCodeProgram, serializeFieldCheckCodeSubset, type CheckCodeAutoSearchRequest, type CheckCodeCompileResult, type CheckCodeDefinition, type CheckCodeDialogRequest, type CheckCodeEvent, type CheckCodeProgramAst, type CheckCodeScope } from "../app/check-code/check-code-program.ts";
+import { createCheckCodeSourceEditor, type CheckCodeEditorPreferences, type CheckCodeEditorTabSize, type CheckCodeSourceEditor } from "../app/check-code/check-code-editor.ts";
 import { createCheckCodeRuntime, type CheckCodeRuntime, type CheckCodeRuntimeAudit } from "../app/check-code/check-code-runtime.ts";
+import { installedCapabilityStatus, IOCODE_CAPABILITY_ID } from "../app/packages/capability-package.ts";
 import { materializeCalculatedFields, validateProjectRecords, validateRecord, validateRecords } from "../app/forms/validation.ts";
 import {
   loadBrowserJson as loadJson,
@@ -96,6 +102,51 @@ const PROJECT_EXTRAS_KEY = "epi-info-ai.project-extras.v1";
 const SNAP_KEY = "epi-info-ai.snap-to-grid.v1";
 const SUPABASE_CONFIG_KEY = "epi-info-ai.supabase-config.v1";
 const GRID_SIZE = 12;
+const CHECK_CODE_EDITOR_PREFERENCES_KEY = "epi-info-ai.check-code-editor-preferences.v1";
+const CHECK_CODE_PERMANENT_VARIABLES_KEY = "epi-info-ai.check-code-permanent-variables.v1";
+const CHECK_CODE_EDITOR_FONT_FAMILIES = ["Consolas", "Cascadia Mono", "Courier New", "Lucida Console", "Arial", "Times New Roman"] as const;
+
+interface StoredCheckCodeVariable { valueType: CheckCodeDefinition["valueType"]; value: RecordValue }
+
+const checkCodeGlobalVariables = new Map<string, StoredCheckCodeVariable>();
+
+function checkCodeVariableKey(name: string): string { return name.toLocaleLowerCase("en-US"); }
+
+function isStoredRecordValue(value: unknown): value is RecordValue {
+  return value === null || typeof value === "string" || typeof value === "boolean"
+    || (typeof value === "number" && Number.isFinite(value));
+}
+
+function readPermanentCheckCodeVariables(): Record<string, StoredCheckCodeVariable> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CHECK_CODE_PERMANENT_VARIABLES_KEY) ?? "{}") as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, StoredCheckCodeVariable] => {
+      const candidate = entry[1] as Partial<StoredCheckCodeVariable> | null;
+      return Boolean(candidate && typeof candidate.valueType === "string" && isStoredRecordValue(candidate.value));
+    }));
+  } catch { return {}; }
+}
+
+function readCheckCodeScopedVariable(definition: CheckCodeDefinition): RecordValue | undefined {
+  const variable = definition.scope === "global"
+    ? checkCodeGlobalVariables.get(checkCodeVariableKey(definition.name))
+    : readPermanentCheckCodeVariables()[checkCodeVariableKey(definition.name)];
+  return variable?.valueType === definition.valueType ? variable.value : undefined;
+}
+
+function writeCheckCodeScopedVariable(definition: CheckCodeDefinition, value: RecordValue | undefined): void {
+  const variableKey = checkCodeVariableKey(definition.name);
+  if (definition.scope === "global") {
+    if (value === undefined) checkCodeGlobalVariables.delete(variableKey);
+    else checkCodeGlobalVariables.set(variableKey, { valueType: definition.valueType, value });
+    return;
+  }
+  const values = readPermanentCheckCodeVariables();
+  if (value === undefined) delete values[variableKey];
+  else values[variableKey] = { valueType: definition.valueType, value };
+  try { localStorage.setItem(CHECK_CODE_PERMANENT_VARIABLES_KEY, JSON.stringify(values)); }
+  catch { throw new Error(`Unable to persist PERMANENT Check Code variable ${definition.name} in this browser profile.`); }
+}
 
 type FormDomControl = HTMLElement & HTMLInputElement & HTMLSelectElement & HTMLDialogElement
   & HTMLFormElement & HTMLDetailsElement;
@@ -150,15 +201,24 @@ const DEFAULT_SCHEMA: FormSchema = {
     { name: "exposure", prompt: "Primary exposure", type: "text", required: false },
     { name: "age", prompt: "Age", type: "number", required: false, rules: [{ kind: "range", valueType: "number", min: 0, max: 120 }] },
   ],
+  pages: [{ name: "EntryPage", fields: ["case_id", "onset_date", "ill", "exposure", "age"] }],
 };
 
 let schema: FormSchema = loadJson(SCHEMA_KEY, DEFAULT_SCHEMA);
+let checkCodeSourceEditor: CheckCodeSourceEditor;
+let checkCodeSearchMode: "find" | "replace" = "find";
 let verifiedCheckCode: CheckCodeCompileResult | null = null;
 let activeCheckCodeAst: CheckCodeProgramAst | null = null;
 let activeCheckCodeRuntime: CheckCodeRuntime | null = null;
 let checkCodeQueue: Promise<void> = Promise.resolve();
 let checkCodeEntrySessionStarted = false;
+let activeCheckCodePageStarted = false;
 let checkCodeEntryListeners: AbortController | null = null;
+let pendingCheckCodeFormTarget: string | null = null;
+let pendingCheckCodeRecordAction: "save" | "new" | "quit" | null = null;
+let checkCodeFormExitActive = false;
+let preserveCheckCodeNavigationBudget = false;
+const checkCodeEntryDrafts = new Map<string, EpiRecord>();
 let records: EpiRecord[] = loadJson<EpiRecord[]>(RECORDS_KEY, []);
 let projectName = loadText(PROJECT_KEY, "Browser Project");
 let snapToGrid = loadText(SNAP_KEY, "true") !== "false";
@@ -166,6 +226,49 @@ const loadedProject = loadProjectSnapshot(PROJECT_STATE_KEY, PROJECT_RECOVERY_KE
 let projectLoadWarning = loadedProject.warning;
 let activeRulesRow: HTMLTableRowElement | null = null;
 let activeDuplicateGroup: DuplicateGroup | null = null;
+
+function readCheckCodeEditorPreferences(): CheckCodeEditorPreferences {
+  try {
+    const value = JSON.parse(localStorage.getItem(CHECK_CODE_EDITOR_PREFERENCES_KEY) ?? "null") as Partial<CheckCodeEditorPreferences> | null;
+    const tabSize = value?.tabSize === 2 || value?.tabSize === 4 || value?.tabSize === 8 ? value.tabSize : 4;
+    const fontFamily = typeof value?.fontFamily === "string" && CHECK_CODE_EDITOR_FONT_FAMILIES.includes(value.fontFamily as typeof CHECK_CODE_EDITOR_FONT_FAMILIES[number]) ? value.fontFamily : "Consolas";
+    const requestedSize = Number(value?.fontSize);
+    return {
+      lineNumbers: value?.lineNumbers ?? true,
+      tabSize,
+      indentWithTabs: value?.indentWithTabs ?? true,
+      fontFamily,
+      fontSize: Number.isInteger(requestedSize) && requestedSize >= 8 && requestedSize <= 32 ? requestedSize : 15,
+    };
+  } catch {
+    return { lineNumbers: true, tabSize: 4, indentWithTabs: true, fontFamily: "Consolas", fontSize: 15 };
+  }
+}
+
+let checkCodeEditorPreferences = readCheckCodeEditorPreferences();
+
+function saveCheckCodeEditorPreferences(): void {
+  try { localStorage.setItem(CHECK_CODE_EDITOR_PREFERENCES_KEY, JSON.stringify(checkCodeEditorPreferences)); }
+  catch { /* The editor remains usable when preference storage is unavailable. */ }
+}
+
+function renderCheckCodeEditorPreferences(): void {
+  const lineNumbers = requiredElement<HTMLButtonElement>("#check-code-line-numbers");
+  lineNumbers.setAttribute("aria-pressed", String(checkCodeEditorPreferences.lineNumbers));
+  lineNumbers.textContent = `${checkCodeEditorPreferences.lineNumbers ? "✓ " : ""}Line numbers`;
+  requiredElement<HTMLSelectElement>("#check-code-tab-size").value = String(checkCodeEditorPreferences.tabSize);
+  requiredElement<HTMLInputElement>("#check-code-indent-tabs").checked = checkCodeEditorPreferences.indentWithTabs;
+  requiredElement("#check-code-font-status").textContent = `${checkCodeEditorPreferences.fontFamily} · ${checkCodeEditorPreferences.fontSize} px`;
+  requiredElement("#check-code-tab-status").textContent = `Tab width ${checkCodeEditorPreferences.tabSize} · ${checkCodeEditorPreferences.indentWithTabs ? "Tabs" : "Spaces"}`;
+}
+
+function persistAndApplyCheckCodeEditorPreferences(): void {
+  saveCheckCodeEditorPreferences();
+  checkCodeSourceEditor.setLineNumbers(checkCodeEditorPreferences.lineNumbers);
+  checkCodeSourceEditor.setTabSettings(checkCodeEditorPreferences.tabSize, checkCodeEditorPreferences.indentWithTabs);
+  checkCodeSourceEditor.setFont(checkCodeEditorPreferences.fontFamily, checkCodeEditorPreferences.fontSize);
+  renderCheckCodeEditorPreferences();
+}
 function loadProjectPackageExtras(): {
   programs: ProjectProgram[];
   codeTables: ProjectCodeTable[];
@@ -308,6 +411,15 @@ function syncCurrentForm(): boolean {
     saveJson(RECORDS_KEY, records),
     saveJson(PROJECT_EXTRAS_KEY, projectPackageExtras),
   ].every(Boolean);
+}
+
+function checkCodeCompileContext() {
+  const ioCode = installedCapabilityStatus(IOCODE_CAPABILITY_ID);
+  return {
+    currentFormId,
+    forms: projectState.forms.map((form) => ({ id: form.id, name: form.id === currentFormId ? schema.name : form.schema.name })),
+    capabilities: [{ id: IOCODE_CAPABILITY_ID, ...ioCode }],
+  };
 }
 
 function rememberCurrentProject(): boolean {
@@ -761,9 +873,19 @@ function schemaFromDesigner(options: { allowEmpty?: boolean } = {}): FormSchema 
   if (new Set(names).size !== names.length) {
     throw new Error("Field names must be unique.");
   }
+  const known = new Set(names);
+  const pages = (schema.pages ?? []).map((page) => ({
+    name: page.name,
+    fields: page.fields.filter((name) => known.has(name)),
+  }));
+  const assigned = new Set(pages.flatMap(({ fields }) => fields));
+  const unassigned = names.filter((name) => !assigned.has(name));
+  if (fields.length > 0 && pages.length === 0) pages.push({ name: "EntryPage", fields: [] });
+  if (pages[0]) pages[0].fields.push(...unassigned);
   return {
     name: requiredElement("#form-name").value.trim() || "Untitled form",
     fields,
+    ...(pages.length ? { pages } : {}),
     ...(schema.checkCodeProgram ? { checkCodeProgram: structuredClone(schema.checkCodeProgram) } : {}),
   };
 }
@@ -775,22 +897,29 @@ function openCheckCodeEditor(): void {
     return;
   }
   const source = schema.checkCodeProgram?.source ?? serializeFieldCheckCodeSubset(schema);
-  requiredElement<HTMLTextAreaElement>("#check-code-source").value = source;
+  const projectPrograms = projectPackageExtras.programs.filter(({ language }) => language === "check-code");
+  const programSelect = requiredElement<HTMLSelectElement>("#check-code-project-program");
+  programSelect.replaceChildren(
+    new Option("Choose packaged Check Code", ""),
+    ...projectPrograms.map((program, index) => new Option(program.name, String(index))),
+  );
+  requiredElement<HTMLButtonElement>("#check-code-project-program-open").disabled = true;
+  checkCodeSourceEditor.setValue(source);
   requiredElement("#check-code-editor-status").textContent = "Source has not been verified. Nothing executes from this editor until verification and Apply.";
   requiredElement("#check-code-editor-diagnostics").replaceChildren();
   requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
   verifiedCheckCode = null;
   requiredElement<HTMLDialogElement>("#check-code-editor-dialog").showModal();
-  requiredElement<HTMLTextAreaElement>("#check-code-source").focus();
+  checkCodeSourceEditor.focus();
 }
 
 function verifyCheckCodeEditor(): void {
   const status = requiredElement("#check-code-editor-status");
   const diagnostics = requiredElement("#check-code-editor-diagnostics");
   try {
-    const ast = parseCheckCodeProgram(requiredElement<HTMLTextAreaElement>("#check-code-source").value);
+    const ast = parseCheckCodeProgram(checkCodeSourceEditor.getValue());
     const candidate = schemaFromDesigner();
-    const compiled = compileFieldCheckCodeSubset(ast, candidate);
+    const compiled = compileFieldCheckCodeSubset(ast, candidate, checkCodeCompileContext());
     verifiedCheckCode = compiled;
     diagnostics.replaceChildren(...compiled.reasons.map((reason) => {
       const item = document.createElement("li");
@@ -801,17 +930,19 @@ function verifyCheckCodeEditor(): void {
     status.textContent = compiled.executable
       ? `Valid typed AST: ${ast.blocks.length} scope block${ast.blocks.length === 1 ? "" : "s"}; the complete source is executable by the bounded event runtime.`
       : `Valid typed AST, but execution remains disabled for this source because ${compiled.reasons.length} capability gap${compiled.reasons.length === 1 ? " remains" : "s remain"}.`;
+    checkCodeSourceEditor.refreshDiagnostics();
   } catch (error) {
     verifiedCheckCode = null;
     requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
     diagnostics.replaceChildren();
     status.textContent = error instanceof Error ? error.message : "Check Code verification failed.";
+    checkCodeSourceEditor.refreshDiagnostics();
   }
 }
 
 function applyCheckCodeEditor(): void {
   if (!verifiedCheckCode?.executable) throw new Error("Verify an entirely executable Check Code program before applying it.");
-  const source = requiredElement<HTMLTextAreaElement>("#check-code-source").value;
+  const source = checkCodeSourceEditor.getValue();
   schema = schemaFromDesigner();
   schema.checkCodeProgram = { version: 1, language: "epi-info-check-code", source };
   schema.fields = schema.fields.map((field) => {
@@ -1298,10 +1429,126 @@ function entryControl(name: string): HTMLInputElement | HTMLSelectElement | HTML
     || control instanceof HTMLTextAreaElement || control instanceof HTMLButtonElement ? control : null;
 }
 
-function showCheckCodeMessage(message: string, signal?: AbortSignal): Promise<void> {
+function showCheckCodeMessage(request: CheckCodeDialogRequest, signal?: AbortSignal): Promise<{ accepted: boolean; value?: RecordValue }> {
   const dialog = requiredElement<HTMLDialogElement>("#check-code-message-dialog");
-  requiredElement("#check-code-message").textContent = message;
+  const input = requiredElement<HTMLInputElement>("#check-code-dialog-input");
+  const select = requiredElement<HTMLSelectElement>("#check-code-dialog-select");
+  const inputLabel = requiredElement<HTMLElement>("#check-code-dialog-input-label");
+  const mask = requiredElement<HTMLElement>("#check-code-dialog-mask");
+  const cancelButton = requiredElement<HTMLButtonElement>("#check-code-dialog-cancel");
+  requiredElement("#check-code-message-title").textContent = request.title || "Check Code Message";
+  requiredElement("#check-code-message").textContent = request.message;
+  inputLabel.hidden = true;
+  select.hidden = true;
+  input.required = false;
+  input.value = "";
+  input.removeAttribute("step");
+  mask.textContent = request.mask ? `Format: ${request.mask}` : "";
+  mask.hidden = !request.mask;
+  cancelButton.hidden = !request.target;
+  if (request.target) {
+    if (request.inputType === "choice" || request.inputType === "yes-no") {
+      const choices = request.inputType === "yes-no" ? [["", "Choose Yes or No"], ["true", "Yes"], ["false", "No"]] : [["", "Choose a value"], ...(request.choices ?? []).map((choice) => [choice, choice])];
+      select.replaceChildren(...choices.map(([value, label]) => new Option(label, value)));
+      select.required = true;
+      select.hidden = false;
+    } else {
+      input.type = request.inputType === "number" ? "number" : request.inputType === "date" ? "date"
+        : request.inputType === "time" ? "time" : request.inputType === "date-time" ? "datetime-local" : "text";
+      if (request.inputType === "number") input.step = "any";
+      input.required = true;
+      inputLabel.hidden = false;
+    }
+  }
   if (dialog.open) dialog.close("replaced");
+  dialog.returnValue = "";
+  dialog.showModal();
+  if (request.target) globalThis.setTimeout(() => (select.hidden ? input : select).focus(), 0);
+  return new Promise<{ accepted: boolean; value?: RecordValue }>((resolve, reject) => {
+    const finish = (): void => {
+      signal?.removeEventListener("abort", cancel);
+      if (dialog.returnValue !== "ok") { resolve({ accepted: false }); return; }
+      if (!request.target) { resolve({ accepted: true }); return; }
+      if (!select.hidden) {
+        if (select.value === "") { resolve({ accepted: false }); return; }
+        resolve({ accepted: true, value: request.inputType === "yes-no" ? select.value === "true" : select.value });
+        return;
+      }
+      resolve({ accepted: true, value: request.inputType === "number" ? Number(input.value) : input.value });
+    };
+    const cancel = (): void => {
+      dialog.removeEventListener("close", finish);
+      if (dialog.open) dialog.close("cancelled");
+      reject(new DOMException("Check Code execution was cancelled.", "AbortError"));
+    };
+    dialog.addEventListener("close", finish, { once: true });
+    signal?.addEventListener("abort", cancel, { once: true });
+  });
+}
+
+const CHECK_CODE_AUTOSEARCH_MAX_RECORDS = 10_000;
+const CHECK_CODE_AUTOSEARCH_MAX_MATCHES = 25;
+const CHECK_CODE_AUTOSEARCH_MAX_DISPLAY_FIELDS = 12;
+
+function checkCodeSearchValue(field: FieldDefinition, value: RecordValue): string | number | boolean | null {
+  if (value === null || value === "") return null;
+  if (field.type === "number") {
+    const numeric = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(numeric) ? numeric : String(value).trim();
+  }
+  if (field.type === "checkbox" || field.type === "yes-no") {
+    if (typeof value === "boolean") return value;
+    if (/^(?:true|yes|1|\(\+\))$/i.test(String(value))) return true;
+    if (/^(?:false|no|0|\(-\))$/i.test(String(value))) return false;
+  }
+  return String(value).trim().toLocaleLowerCase("en-US");
+}
+
+function showCheckCodeAutoSearch(request: CheckCodeAutoSearchRequest, signal?: AbortSignal): Promise<void> {
+  if (records.length > CHECK_CODE_AUTOSEARCH_MAX_RECORDS) {
+    throw new RangeError(`AUTOSEARCH is limited to ${CHECK_CODE_AUTOSEARCH_MAX_RECORDS.toLocaleString("en-US")} active-form records in this browser candidate.`);
+  }
+  const byName = new Map(schema.fields.map((field) => [field.name.toLocaleLowerCase("en-US"), field]));
+  const keyFields = request.keys.map((name) => byName.get(name.toLocaleLowerCase("en-US"))!);
+  const currentValues = new Map(keyFields.map((field) => [field.name, checkCodeSearchValue(field, activeCheckCodeRuntime ? activeCheckCodeRuntimeFieldValue(field.name) : null)]));
+  const matches = records.filter((record) => keyFields.every((field) => checkCodeSearchValue(field, record[field.name] ?? null) === currentValues.get(field.name)));
+  if (matches.length === 0) {
+    requiredElement("#record-status").textContent = `AUTOSEARCH found no existing record matching ${request.keys.join(", ")}.`;
+    return Promise.resolve();
+  }
+  const requestedDisplay = request.display.length > 0
+    ? request.display.map((name) => byName.get(name.toLocaleLowerCase("en-US"))!)
+    : schema.fields.filter((field) => field.type !== "command-button");
+  const displayFields = requestedDisplay.slice(0, CHECK_CODE_AUTOSEARCH_MAX_DISPLAY_FIELDS);
+  const visibleMatches = matches.slice(0, CHECK_CODE_AUTOSEARCH_MAX_MATCHES);
+  requiredElement("#check-code-autosearch-summary").textContent = `${matches.length.toLocaleString("en-US")} existing record${matches.length === 1 ? "" : "s"} matched ${request.keys.join(", ")}.`;
+  requiredElement("#check-code-autosearch-head").replaceChildren(...displayFields.map((field) => {
+    const cell = document.createElement("th");
+    cell.scope = "col";
+    cell.textContent = field.prompt;
+    return cell;
+  }));
+  requiredElement("#check-code-autosearch-body").replaceChildren(...visibleMatches.map((record) => {
+    const row = document.createElement("tr");
+    for (const field of displayFields) {
+      const cell = document.createElement("td");
+      const value = record[field.name];
+      cell.textContent = value === null || value === undefined || value === "" ? "(missing)" : String(value);
+      row.append(cell);
+    }
+    return row;
+  }));
+  const omittedRows = matches.length - visibleMatches.length;
+  const omittedFields = requestedDisplay.length - displayFields.length;
+  requiredElement("#check-code-autosearch-limit").textContent = [
+    omittedRows > 0 ? `${omittedRows.toLocaleString("en-US")} additional match${omittedRows === 1 ? "" : "es"} not displayed.` : "",
+    omittedFields > 0 ? `${omittedFields.toLocaleString("en-US")} additional field${omittedFields === 1 ? "" : "s"} not displayed.` : "",
+    request.always ? "Legacy ALWAYS option retained." : "",
+    request.continueNew ? "CONTINUENEW prevents opening a matching record." : "This browser candidate always continues the new draft.",
+  ].filter(Boolean).join(" ");
+  const dialog = requiredElement<HTMLDialogElement>("#check-code-autosearch-dialog");
+  if (dialog.open) dialog.close("replaced");
+  dialog.returnValue = "";
   dialog.showModal();
   return new Promise<void>((resolve, reject) => {
     const finish = (): void => {
@@ -1316,6 +1563,12 @@ function showCheckCodeMessage(message: string, signal?: AbortSignal): Promise<vo
     dialog.addEventListener("close", finish, { once: true });
     signal?.addEventListener("abort", cancel, { once: true });
   });
+}
+
+function activeCheckCodeRuntimeFieldValue(name: string): RecordValue {
+  const control = entryControl(name);
+  if (control instanceof HTMLInputElement && control.type === "checkbox") return control.checked;
+  return control && "value" in control ? control.value : null;
 }
 
 function recordCheckCodeAudit(event: CheckCodeRuntimeAudit): void {
@@ -1337,12 +1590,13 @@ function initializeCheckCodeRuntime(): void {
   activeCheckCodeAst = null;
   activeCheckCodeRuntime = null;
   checkCodeEntrySessionStarted = false;
-  checkCodeSessionNavigations = 0;
+  activeCheckCodePageStarted = false;
+  if (!preserveCheckCodeNavigationBudget) checkCodeSessionNavigations = 0;
   const source = schema.checkCodeProgram?.source;
   if (!source) return;
   try {
     const ast = parseCheckCodeProgram(source);
-    const compiled = compileFieldCheckCodeSubset(ast, schema);
+    const compiled = compileFieldCheckCodeSubset(ast, schema, checkCodeCompileContext());
     if (!compiled.executable) throw new Error(compiled.reasons.join(" "));
     activeCheckCodeAst = ast;
     activeCheckCodeRuntime = createCheckCodeRuntime(ast, schema, {
@@ -1364,20 +1618,66 @@ function initializeCheckCodeRuntime(): void {
         const wrapper = control.closest<HTMLElement>(".record-field");
         if (action === "enable") control.disabled = false;
         else if (action === "disable") control.disabled = true;
-        else if (action === "hide" && wrapper) { wrapper.hidden = true; control.disabled = true; }
-        else if (action === "unhide" && wrapper) { wrapper.hidden = false; control.disabled = false; }
+        else if (action === "hide" && wrapper) { wrapper.dataset.checkCodeHidden = "true"; wrapper.hidden = true; control.disabled = true; }
+        else if (action === "unhide" && wrapper) {
+          delete wrapper.dataset.checkCodeHidden;
+          wrapper.hidden = wrapper.dataset.entryPage !== activeEntryPage();
+          control.disabled = false;
+        }
+        else if (action === "highlight" && wrapper) wrapper.dataset.checkCodeHighlighted = "true";
+        else if (action === "unhighlight" && wrapper) delete wrapper.dataset.checkCodeHighlighted;
         else if (action === "set-required" && !(control instanceof HTMLButtonElement)) control.required = true;
         else if (action === "set-not-required" && !(control instanceof HTMLButtonElement)) control.required = false;
       },
-      gotoField(name) {
+      async gotoField(name) {
         checkCodeSessionNavigations += 1;
         if (checkCodeSessionNavigations > 32) throw new RangeError("Check Code stopped a probable navigation cycle after 32 GOTO effects in this record session.");
+        const targetPage = effectiveFormPages(schema).find((page) => page.fields.includes(name))?.name;
+        if (targetPage && targetPage !== activeEntryPage()) await navigateEntryPage(targetPage);
         globalThis.setTimeout(() => {
           entryControl(name)?.focus();
           requiredElement("#record-status").textContent = `Check Code moved to ${name}.`;
         }, 0);
       },
+      async gotoPage(target) {
+        checkCodeSessionNavigations += 1;
+        if (checkCodeSessionNavigations > 32) throw new RangeError("Check Code stopped a probable navigation cycle after 32 GOTO effects in this record session.");
+        await navigateEntryPage(target);
+      },
+      gotoForm(target) {
+        if (checkCodeFormExitActive) throw new Error("GOTOFORM cannot run from a form, record, or page exit event during cross-form navigation.");
+        checkCodeSessionNavigations += 1;
+        if (checkCodeSessionNavigations > 32) throw new RangeError("Check Code stopped a probable navigation cycle after 32 GOTO effects in this record session.");
+        pendingCheckCodeFormTarget = target;
+      },
+      beep() {
+        globalThis.navigator.vibrate?.(80);
+        requiredElement("#record-status").textContent = "Check Code BEEP alert.";
+      },
+      requestRecordAction(action) {
+        if (pendingCheckCodeRecordAction) throw new Error("Only one record lifecycle action may be requested by a Check Code event.");
+        pendingCheckCodeRecordAction = action;
+      },
+      autoSearch: showCheckCodeAutoSearch,
       showDialog: showCheckCodeMessage,
+      async resolveDialogChoices(source) {
+        if (source.kind === "db-variables") return schema.fields.map((field) => field.name);
+        if (source.kind === "db-views") return projectState.forms.map((form) => form.schema.name);
+        if (source.kind === "databases") return [projectState.name];
+        const catalogKey = (value: string): string => value.toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "");
+        const requestedTable = catalogKey(source.table);
+        const projectForm = requestedTable === "current" || requestedTable === "currentform"
+          ? projectState.forms.find((candidate) => candidate.id === currentFormId)
+          : projectState.forms.find((candidate) => [candidate.id, candidate.schema.name, candidate.dataset?.id ?? "", candidate.dataset?.file ?? ""]
+            .some((value) => catalogKey(value) === requestedTable));
+        if (!projectForm) throw new Error(`DBVALUES table ${JSON.stringify(source.table)} is not registered in this project.`);
+        const sourceSchema = projectForm.id === currentFormId ? schema : projectForm.schema;
+        const sourceRecords = projectForm.id === currentFormId ? records : projectForm.records;
+        const field = sourceSchema.fields.find((candidate) => candidate.name.toLocaleLowerCase("en-US") === source.variable.toLocaleLowerCase("en-US"));
+        if (!field) throw new Error(`DBVALUES variable ${JSON.stringify(source.variable)} does not exist in registered table ${JSON.stringify(source.table)}.`);
+        return [...new Set(sourceRecords.map((record) => record[field.name]).filter((value) => value !== null && value !== "").map(String))]
+          .sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }));
+      },
       async runGeocode(addressField, latitudeField, longitudeField) {
         const block = ast.blocks.find((candidate) => candidate.scope === "field"
           && candidate.events.click?.some((statement) => statement.kind === "geocode"
@@ -1386,6 +1686,8 @@ function initializeCheckCodeRuntime(): void {
         if (!(button instanceof HTMLButtonElement)) throw new Error("The GEOCODE command button is unavailable.");
         await runGeocode({ kind: "geocode", addressField, latitudeField, longitudeField }, button);
       },
+      readScopedVariable: readCheckCodeScopedVariable,
+      writeScopedVariable: writeCheckCodeScopedVariable,
       audit: recordCheckCodeAudit,
     });
   } catch (error) {
@@ -1405,29 +1707,186 @@ async function runCheckCodeEvent(scope: CheckCodeScope, event: CheckCodeEvent, n
   requiredElement("#record-status").textContent = `Check Code ${scope}${name ? ` ${name}` : ""} ${event} completed (${result.effects} bounded effect${result.effects === 1 ? "" : "s"}).`;
 }
 
+async function navigateEntryPage(target: string): Promise<void> {
+  const previous = activeEntryPage();
+  if (previous && activeCheckCodeRuntime && checkCodeEntrySessionStarted && activeCheckCodePageStarted) {
+    const pages = effectiveFormPages(schema);
+    const currentIndex = pages.findIndex(({ name }) => name === previous);
+    const requestedIndex = /^[+-]\d+$/.test(target) ? currentIndex + Number(target)
+      : /^\d+$/.test(target) ? Number(target) - 1
+        : pages.findIndex(({ name }) => name.toLocaleLowerCase("en-US") === target.toLocaleLowerCase("en-US"));
+    if (requestedIndex < 0 || requestedIndex >= pages.length) throw new RangeError(`Page GOTO ${target} is outside this form's ${pages.length}-page model.`);
+    if (pages[requestedIndex]!.name === previous) return;
+    await runCheckCodeEvent("page", "after", previous);
+    activeCheckCodePageStarted = false;
+  }
+  const selected = showEntryPage(schema, target);
+  if (activeCheckCodeRuntime && checkCodeEntrySessionStarted) {
+    await runCheckCodeEvent("page", "before", selected);
+    activeCheckCodePageStarted = true;
+  }
+  requiredElement("#record-status").textContent = `Showing form page ${selected}.`;
+}
+
 function queueCheckCodeEvent(scope: CheckCodeScope, event: CheckCodeEvent, name?: string): Promise<void> {
-  checkCodeQueue = checkCodeQueue.then(() => runCheckCodeEvent(scope, event, name)).catch((error) => {
+  checkCodeQueue = checkCodeQueue.then(async () => {
+    await runCheckCodeEvent(scope, event, name);
+    await drainCheckCodeFormNavigation();
+  }).catch((error) => {
     requiredElement("#record-status").textContent = error instanceof Error ? error.message : "Check Code execution failed.";
   });
   return checkCodeQueue;
 }
 
-async function beginCheckCodeEntrySession(): Promise<void> {
+async function beginCheckCodeEntrySession(preserveNavigationBudget = false): Promise<void> {
   if (!activeCheckCodeRuntime || checkCodeEntrySessionStarted) return;
   checkCodeEntrySessionStarted = true;
-  checkCodeSessionNavigations = 0;
+  if (!preserveNavigationBudget) checkCodeSessionNavigations = 0;
+  activeCheckCodePageStarted = false;
   activeCheckCodeRuntime.resetStandardVariables();
   await runCheckCodeEvent("form", "before");
-  for (const block of activeCheckCodeAst?.blocks.filter(({ scope }) => scope === "page") ?? []) await runCheckCodeEvent("page", "before", block.name);
+  if (pendingCheckCodeFormTarget) return;
+  if (!activeCheckCodePageStarted) {
+    await runCheckCodeEvent("page", "before", activeEntryPage());
+    activeCheckCodePageStarted = true;
+  }
+  if (pendingCheckCodeFormTarget) return;
   await runCheckCodeEvent("record", "before");
 }
 
 async function endCheckCodeEntrySession(): Promise<void> {
   if (!activeCheckCodeRuntime || !checkCodeEntrySessionStarted) return;
   await runCheckCodeEvent("record", "after");
-  for (const block of [...(activeCheckCodeAst?.blocks.filter(({ scope }) => scope === "page") ?? [])].reverse()) await runCheckCodeEvent("page", "after", block.name);
+  if (activeCheckCodePageStarted) await runCheckCodeEvent("page", "after", activeEntryPage());
   await runCheckCodeEvent("form", "after");
   checkCodeEntrySessionStarted = false;
+  activeCheckCodePageStarted = false;
+}
+
+function restoreCheckCodeEntryDraft(draft: EpiRecord | undefined): void {
+  if (!draft) return;
+  for (const field of schema.fields) {
+    const control = entryControl(field.name);
+    if (!control || control instanceof HTMLButtonElement) continue;
+    const value = draft[field.name];
+    if (control instanceof HTMLInputElement && control.type === "checkbox") control.checked = value === true;
+    else control.value = value === null || value === undefined ? "" : String(value);
+  }
+}
+
+async function navigateEntryForm(target: string): Promise<void> {
+  const normalized = target.toLocaleLowerCase("en-US");
+  const matches = projectState.forms.filter((form) => form.id.toLocaleLowerCase("en-US") === normalized
+    || form.schema.name.toLocaleLowerCase("en-US") === normalized);
+  const unique = [...new Map(matches.map((form) => [form.id, form])).values()];
+  if (unique.length !== 1) throw new Error(unique.length === 0
+    ? `GOTOFORM target ${JSON.stringify(target)} is not registered in the current project.`
+    : `GOTOFORM target ${JSON.stringify(target)} is ambiguous; use its unique project form identifier.`);
+  const targetForm = unique[0]!;
+  if (targetForm.id === currentFormId) throw new Error(`GOTOFORM cannot target the current form ${JSON.stringify(target)}.`);
+
+  const form = requiredElement<HTMLFormElement>("#record-form");
+  const draft = materializeCalculatedFields(schema, collectEntryRecord(form, schema));
+  const validationIssues = validateRecord(currentFormId, schema, draft, records.length, records);
+  renderEntryValidation(validationIssues);
+  const errors = validationIssues.filter((issue) => issue.severity === "error");
+  if (errors.length > 0) {
+    entryControl(errors[0]!.fieldName)?.focus();
+    throw new Error(`GOTOFORM did not leave ${schema.name}; resolve ${errors.length} current-record validation error${errors.length === 1 ? "" : "s"} first.`);
+  }
+  checkCodeEntryDrafts.set(currentFormId, structuredClone(draft));
+
+  checkCodeFormExitActive = true;
+  try { await endCheckCodeEntrySession(); }
+  finally { checkCodeFormExitActive = false; }
+  syncCurrentForm();
+  currentFormId = targetForm.id;
+  schema = structuredClone(targetForm.schema);
+  records = structuredClone(targetForm.records || []);
+  datasetProvenance = targetForm.dataset ? structuredClone(targetForm.dataset) : undefined;
+  importHistory = structuredClone(targetForm.imports ?? (targetForm.dataset ? [targetForm.dataset] : []));
+  projectState.currentFormId = currentFormId;
+  preserveCheckCodeNavigationBudget = true;
+  try {
+    renderDesigner();
+    renderEntryForm();
+  } finally { preserveCheckCodeNavigationBudget = false; }
+  renderRecords();
+  restoreCheckCodeEntryDraft(checkCodeEntryDrafts.get(currentFormId));
+  renderEntryValidation([]);
+  requiredElement("#new-record-title").textContent = "New record";
+  syncCurrentForm();
+  await beginCheckCodeEntrySession(true);
+  requiredElement("#record-status").textContent = `Check Code moved to project form ${schema.name}; the prior valid draft remains in this browser session.`;
+}
+
+async function saveCurrentEntryRecord(): Promise<boolean> {
+  try { await endCheckCodeEntrySession(); }
+  catch (error) {
+    requiredElement("#record-status").textContent = error instanceof Error ? `Record not saved. ${error.message}` : "Record not saved because Check Code failed.";
+    return false;
+  }
+  const form = requiredElement<HTMLFormElement>("#record-form");
+  const record = materializeCalculatedFields(schema, collectEntryRecord(form, schema));
+  const validationIssues = validateRecord(currentFormId, schema, record, records.length, records);
+  renderEntryValidation(validationIssues);
+  const errors = validationIssues.filter((issue) => issue.severity === "error");
+  if (errors.length > 0) {
+    requiredElement("#record-status").textContent = `Record not saved. Review ${errors.length} validation error${errors.length === 1 ? "" : "s"}.`;
+    entryControl(errors[0]!.fieldName)?.focus();
+    return false;
+  }
+  records.push(record);
+  checkCodeEntryDrafts.delete(currentFormId);
+  syncCurrentForm();
+  renderRecords();
+  form.reset();
+  showEntryPage(schema, effectiveFormPages(schema)[0]!.name);
+  renderEntryValidation([]);
+  requiredElement("#new-record-title").textContent = "New record";
+  requiredElement("#record-status").textContent = "Record saved locally.";
+  await beginCheckCodeEntrySession();
+  return true;
+}
+
+async function applyCheckCodeRecordAction(action: "save" | "new" | "quit"): Promise<void> {
+  if (action === "save") {
+    await saveCurrentEntryRecord();
+    return;
+  }
+  const form = requiredElement<HTMLFormElement>("#record-form");
+  const draft = collectEntryRecord(form, schema);
+  const hasValue = Object.values(draft).some((value) => value !== null && value !== "" && value !== false);
+  if (action === "new") {
+    if (hasValue && !await saveCurrentEntryRecord()) return;
+    if (!hasValue) {
+      checkCodeEntrySessionStarted = false;
+      activeCheckCodePageStarted = false;
+      form.reset();
+      showEntryPage(schema, effectiveFormPages(schema)[0]!.name);
+      renderEntryValidation([]);
+      await beginCheckCodeEntrySession();
+    }
+    requiredElement("#record-status").textContent = hasValue ? "Record saved; Check Code opened a new record." : "Check Code opened a new blank record.";
+    return;
+  }
+  checkCodeEntryDrafts.set(currentFormId, structuredClone(materializeCalculatedFields(schema, draft)));
+  await endCheckCodeEntrySession();
+  requiredElement("#main-menu-status").textContent = `Check Code closed ${schema.name}; the unsaved draft remains in this browser session.`;
+  showMainMenu();
+}
+
+async function drainCheckCodeFormNavigation(): Promise<void> {
+  while (pendingCheckCodeFormTarget) {
+    const target = pendingCheckCodeFormTarget;
+    pendingCheckCodeFormTarget = null;
+    await navigateEntryForm(target);
+  }
+  if (pendingCheckCodeRecordAction) {
+    const action = pendingCheckCodeRecordAction;
+    pendingCheckCodeRecordAction = null;
+    await applyCheckCodeRecordAction(action);
+  }
 }
 
 function renderEntryForm() {
@@ -1649,7 +2108,10 @@ function showModule(name: string): void {
   }
   if (name === "data") {
     setEntryView("entry");
-    checkCodeQueue = checkCodeQueue.then(beginCheckCodeEntrySession).catch((error) => {
+    checkCodeQueue = checkCodeQueue.then(async () => {
+      await beginCheckCodeEntrySession();
+      await drainCheckCodeFormNavigation();
+    }).catch((error) => {
       requiredElement("#record-status").textContent = error instanceof Error ? error.message : "Check Code entry initialization failed.";
     });
   }
@@ -2229,6 +2691,41 @@ async function createFormFromDataFile(file: File, importRows: boolean): Promise<
 export function initializeFormDataDemo() {
   renderFormDesignerMenuContract(requiredElement(".designer-menu"));
   renderEnterDataMenuContract(requiredElement(".enter-data-menu"));
+  checkCodeSourceEditor = createCheckCodeSourceEditor(
+    requiredElement<HTMLElement>("#check-code-source"),
+    "",
+    () => schemaFromDesigner(),
+    checkCodeEditorPreferences,
+    ({ line, column }) => { requiredElement("#check-code-cursor-position").textContent = `Ln ${line}, Col ${column}`; },
+    ({ valid, message, line }) => {
+      const status = requiredElement<HTMLElement>("#check-code-live-status");
+      status.dataset.valid = String(valid);
+      status.textContent = valid ? `✓ ${message}` : `Syntax issue${line ? ` on line ${line}` : ""}: ${message}`;
+    },
+    () => {
+      verifiedCheckCode = null;
+      requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
+      requiredElement("#check-code-editor-status").textContent = "Source changed; verify it again before applying.";
+    },
+    checkCodeCompileContext,
+  );
+  renderCheckCodeEditorPreferences();
+  requiredElement("#check-code-undo").addEventListener("click", () => {
+    const changed = checkCodeSourceEditor.undo();
+    requiredElement("#check-code-editor-status").textContent = changed ? "Undid the last Check Code edit." : "Nothing to undo.";
+    checkCodeSourceEditor.focus();
+  });
+  requiredElement("#check-code-redo").addEventListener("click", () => {
+    const changed = checkCodeSourceEditor.redo();
+    requiredElement("#check-code-editor-status").textContent = changed ? "Redid the last Check Code edit." : "Nothing to redo.";
+    checkCodeSourceEditor.focus();
+  });
+  globalThis.addEventListener("epi-entry-page-requested", (event) => {
+    const target = (event as CustomEvent<{ target?: string }>).detail?.target;
+    if (target) void (checkCodeQueue = checkCodeQueue.then(() => navigateEntryPage(target)).catch((error) => {
+      requiredElement("#record-status").textContent = error instanceof Error ? error.message : "Unable to change form page.";
+    }));
+  });
   requiredElement("#snap-to-grid").checked = snapToGrid;
   renderDesigner();
   renderEntryForm();
@@ -2302,22 +2799,111 @@ export function initializeFormDataDemo() {
   });
   requiredElement("#designer-check-code").addEventListener("click", openCheckCodeEditor);
   requiredElement("#designer-toolbar-check-code").addEventListener("click", openCheckCodeEditor);
+  requiredElement("#check-code-line-numbers").addEventListener("click", () => {
+    checkCodeEditorPreferences = { ...checkCodeEditorPreferences, lineNumbers: !checkCodeEditorPreferences.lineNumbers };
+    persistAndApplyCheckCodeEditorPreferences();
+  });
+  requiredElement<HTMLSelectElement>("#check-code-tab-size").addEventListener("change", (event) => {
+    const tabSize = Number((event.currentTarget as HTMLSelectElement).value) as CheckCodeEditorTabSize;
+    checkCodeEditorPreferences = { ...checkCodeEditorPreferences, tabSize };
+    persistAndApplyCheckCodeEditorPreferences();
+  });
+  requiredElement<HTMLInputElement>("#check-code-indent-tabs").addEventListener("change", (event) => {
+    checkCodeEditorPreferences = { ...checkCodeEditorPreferences, indentWithTabs: (event.currentTarget as HTMLInputElement).checked };
+    persistAndApplyCheckCodeEditorPreferences();
+  });
+
+  const searchDialog = requiredElement<HTMLDialogElement>("#check-code-search-dialog");
+  const searchQuery = requiredElement<HTMLInputElement>("#check-code-search-query");
+  const searchReplacement = requiredElement<HTMLInputElement>("#check-code-search-replacement");
+  const openSearch = (mode: "find" | "replace") => {
+    checkCodeSearchMode = mode;
+    requiredElement("#check-code-search-title").textContent = mode === "find" ? "Find Check Code" : "Replace Check Code";
+    requiredElement("#check-code-search-replacement-label").hidden = mode === "find";
+    requiredElement<HTMLButtonElement>("#check-code-search-replace-one").hidden = mode === "find";
+    requiredElement<HTMLButtonElement>("#check-code-search-replace-all").hidden = mode === "find";
+    requiredElement("#check-code-search-status").textContent = "";
+    searchDialog.showModal();
+    searchQuery.focus();
+  };
+  requiredElement("#check-code-find").addEventListener("click", () => openSearch("find"));
+  requiredElement("#check-code-replace").addEventListener("click", () => openSearch("replace"));
+  requiredElement("#check-code-source").addEventListener("keydown", (event) => {
+    const keyboard = event as KeyboardEvent;
+    if (!(keyboard.ctrlKey || keyboard.metaKey) || !["f", "h"].includes(keyboard.key.toLocaleLowerCase())) return;
+    keyboard.preventDefault();
+    openSearch(keyboard.key.toLocaleLowerCase() === "f" ? "find" : "replace");
+  });
+  requiredElement("#check-code-search-find").addEventListener("click", () => {
+    const found = checkCodeSourceEditor.findText(searchQuery.value, false, requiredElement<HTMLInputElement>("#check-code-search-case").checked, requiredElement<HTMLInputElement>("#check-code-search-word").checked);
+    requiredElement("#check-code-search-status").textContent = found ? "Match selected in the editor." : "No matching source was found.";
+  });
+  const replaceCheckCode = (all: boolean) => {
+    if (checkCodeSearchMode !== "replace") return;
+    const count = checkCodeSourceEditor.replaceText(searchQuery.value, searchReplacement.value, all, requiredElement<HTMLInputElement>("#check-code-search-case").checked, requiredElement<HTMLInputElement>("#check-code-search-word").checked);
+    requiredElement("#check-code-search-status").textContent = count ? `Replaced ${count} match${count === 1 ? "" : "es"}. Verify the revised source before Apply.` : "No matching source was replaced.";
+  };
+  requiredElement("#check-code-search-replace-one").addEventListener("click", () => replaceCheckCode(false));
+  requiredElement("#check-code-search-replace-all").addEventListener("click", () => replaceCheckCode(true));
+  searchDialog.addEventListener("close", () => checkCodeSourceEditor.focus());
+
+  const fontDialog = requiredElement<HTMLDialogElement>("#check-code-font-dialog");
+  const fontFamily = requiredElement<HTMLSelectElement>("#check-code-font-family");
+  const fontSize = requiredElement<HTMLInputElement>("#check-code-font-size");
+  const fontPreview = requiredElement<HTMLElement>("#check-code-font-preview");
+  const renderFontPreview = () => {
+    fontPreview.style.fontFamily = fontFamily.value;
+    fontPreview.style.fontSize = `${fontSize.valueAsNumber || 15}px`;
+  };
+  requiredElement("#check-code-font").addEventListener("click", () => {
+    fontFamily.value = checkCodeEditorPreferences.fontFamily;
+    fontSize.value = String(checkCodeEditorPreferences.fontSize);
+    renderFontPreview();
+    fontDialog.showModal();
+    fontFamily.focus();
+  });
+  fontFamily.addEventListener("change", renderFontPreview);
+  fontSize.addEventListener("input", renderFontPreview);
+  requiredElement("#check-code-font-apply").addEventListener("click", () => {
+    const size = fontSize.valueAsNumber;
+    if (!CHECK_CODE_EDITOR_FONT_FAMILIES.includes(fontFamily.value as typeof CHECK_CODE_EDITOR_FONT_FAMILIES[number]) || !Number.isInteger(size) || size < 8 || size > 32) {
+      fontSize.reportValidity();
+      return;
+    }
+    checkCodeEditorPreferences = { ...checkCodeEditorPreferences, fontFamily: fontFamily.value, fontSize: size };
+    persistAndApplyCheckCodeEditorPreferences();
+    fontDialog.close("apply");
+    checkCodeSourceEditor.focus();
+  });
   requiredElement("#check-code-verify").addEventListener("click", verifyCheckCodeEditor);
   requiredElement("#check-code-new").addEventListener("click", () => {
-    requiredElement<HTMLTextAreaElement>("#check-code-source").value = "*** New Epi Info Check Code program\n";
+    checkCodeSourceEditor.setValue("*** New Epi Info Check Code program\n");
     verifiedCheckCode = null;
     requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
     requiredElement("#check-code-editor-diagnostics").replaceChildren();
     requiredElement("#check-code-editor-status").textContent = "New source created; verify it before applying.";
   });
   requiredElement("#check-code-open").addEventListener("click", () => requiredElement<HTMLInputElement>("#check-code-file").click());
+  requiredElement<HTMLSelectElement>("#check-code-project-program").addEventListener("change", (event) => {
+    requiredElement<HTMLButtonElement>("#check-code-project-program-open").disabled = !(event.currentTarget as HTMLSelectElement).value;
+  });
+  requiredElement("#check-code-project-program-open").addEventListener("click", () => {
+    const index = Number(requiredElement<HTMLSelectElement>("#check-code-project-program").value);
+    const program = projectPackageExtras.programs.filter(({ language }) => language === "check-code")[index];
+    if (!program) return;
+    checkCodeSourceEditor.setValue(program.source);
+    verifiedCheckCode = null;
+    requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
+    requiredElement("#check-code-editor-diagnostics").replaceChildren();
+    requiredElement("#check-code-editor-status").textContent = `Opened project Check Code ${program.name}; verify it before applying.`;
+  });
   requiredElement<HTMLInputElement>("#check-code-file").addEventListener("change", async (event) => {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
     try {
       if (file.size > 100_000) throw new RangeError("Check Code source exceeds 100,000 characters.");
-      requiredElement<HTMLTextAreaElement>("#check-code-source").value = await file.text();
+      checkCodeSourceEditor.setValue(await file.text());
       verifiedCheckCode = null;
       requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
       requiredElement("#check-code-editor-diagnostics").replaceChildren();
@@ -2327,18 +2913,13 @@ export function initializeFormDataDemo() {
     } finally { input.value = ""; }
   });
   requiredElement("#check-code-save").addEventListener("click", () => {
-    const blob = new Blob([requiredElement<HTMLTextAreaElement>("#check-code-source").value], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([checkCodeSourceEditor.getValue()], { type: "text/plain;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `${safeFileStem(schema.name)}.chk`;
     link.click();
     globalThis.setTimeout(() => URL.revokeObjectURL(link.href), 0);
     requiredElement("#check-code-editor-status").textContent = `Saved ${link.download}. Saving a file does not apply or execute it.`;
-  });
-  requiredElement("#check-code-source").addEventListener("input", () => {
-    verifiedCheckCode = null;
-    requiredElement<HTMLButtonElement>("#check-code-apply").disabled = true;
-    requiredElement("#check-code-editor-status").textContent = "Source changed; verify it again before applying.";
   });
   requiredElement("#check-code-editor-form").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -2938,28 +3519,7 @@ export function initializeFormDataDemo() {
   recordForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await checkCodeQueue;
-    try { await endCheckCodeEntrySession(); }
-    catch (error) {
-      requiredElement("#record-status").textContent = error instanceof Error ? `Record not saved. ${error.message}` : "Record not saved because Check Code failed.";
-      return;
-    }
-    const record = materializeCalculatedFields(schema, collectEntryRecord(recordForm, schema));
-    const validationIssues = validateRecord(currentFormId, schema, record, records.length, records);
-    renderEntryValidation(validationIssues);
-    const errors = validationIssues.filter((issue) => issue.severity === "error");
-    if (errors.length > 0) {
-      requiredElement("#record-status").textContent = `Record not saved. Review ${errors.length} validation error${errors.length === 1 ? "" : "s"}.`;
-      requiredElement<HTMLElement>(`[name="${errors[0]!.fieldName}"]`).focus();
-      return;
-    }
-    records.push(record);
-    syncCurrentForm();
-    renderRecords();
-    recordForm.reset();
-    renderEntryValidation([]);
-    requiredElement("#new-record-title").textContent = "New record";
-    requiredElement("#record-status").textContent = "Record saved locally.";
-    await beginCheckCodeEntrySession();
+    await saveCurrentEntryRecord();
   });
 
   requiredElement("#reset-record").addEventListener("click", () => {
@@ -2967,7 +3527,11 @@ export function initializeFormDataDemo() {
     requiredElement("#record-status").textContent = "";
     renderEntryValidation([]);
     checkCodeEntrySessionStarted = false;
-    globalThis.setTimeout(() => { void beginCheckCodeEntrySession(); }, 0);
+    activeCheckCodePageStarted = false;
+    globalThis.setTimeout(() => {
+      showEntryPage(schema, effectiveFormPages(schema)[0]!.name);
+      void beginCheckCodeEntrySession();
+    }, 0);
   });
 
   requiredElement("#csv-export").addEventListener("click", exportCsv);
