@@ -159,7 +159,7 @@ This sketch is a design input, not an implemented schema:
   "publisher": "org.cdc.epi-info-ai",
   "source": { "revision": "full-commit-sha" },
   "compatibility": {
-    "application": ">=0.1.0 <0.2.0",
+    "application": ">=0.2.0 <0.3.0",
     "capabilities": ["classic.freq.v1", "classic.tables.v1"]
   },
   "privacy": { "classification": "public-synthetic" },

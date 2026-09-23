@@ -218,7 +218,7 @@ assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
 assert.match(html, /src=["']app\.js\?v=126["']/);
 assert.match(html, /href=["']styles\.css\?v=72["']/);
-assert.match(html, /id=["']app-version["'][^>]*>v0\.1\.0</);
+assert.match(html, /id=["']app-version["'][^>]*>v0\.2\.0</);
 assert.match(html, /id=["']example-project-dialog["']/);
 assert.match(html, /id=["']teaching-repository-dialog["']/);
 assert.match(html, /id=["']capability-package-dialog["']/);

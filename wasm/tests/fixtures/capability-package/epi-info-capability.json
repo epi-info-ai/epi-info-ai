@@ -13,7 +13,7 @@
   },
   "license": "Apache-2.0",
   "compatibility": {
-    "application": ">=0.1.0 <0.2.0",
+    "application": ">=0.2.0 <0.3.0",
     "capabilities": ["check-code.iocode.syntax/0.1", "io.coder.review/0.1"]
   },
   "privacy": {

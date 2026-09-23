@@ -66,9 +66,9 @@ git submodule update --init --recursive
 
 The current GitLab Pages demo provides a recognizable Epi Info-style launcher and working vertical slices for form design, record entry, mapping, project synchronization, and StatCalc 2 x 2 analysis.
 
-**[Launch Epi Info AI v0.1.0](https://epi-info-ai-2859c9.gitpages.cdc.gov/)** — the latest GitLab Pages application build, published from the default branch after CI validation. CDC GitLab authentication may be required by the Pages access policy.
+**[Launch Epi Info AI v0.2.0](https://epi-info-ai-2859c9.gitpages.cdc.gov/)** — the latest GitLab Pages application build, published from the default branch after CI validation. CDC GitLab authentication may be required by the Pages access policy.
 
-**[Launch Epi Info AI v0.1.0 — GitHub Pages mirror](https://epi-info-ai.github.io/epi-info-ai/)** — the same validated `main` build published by GitHub Actions for external replication testing.
+**[Launch Epi Info AI v0.2.0 — GitHub Pages mirror](https://epi-info-ai.github.io/epi-info-ai/)** — the same validated `main` build published by GitHub Actions for external replication testing.
 
 ### GDAL/WASM browser GIS validation lab
 

@@ -109,7 +109,7 @@ export function validateCapabilityPackageManifest(value: unknown): CapabilityPac
 
   const compatibility = objectValue(manifest.compatibility, "manifest.compatibility");
   const applicationCompatibility = stringValue(compatibility.application, "manifest.compatibility.application");
-  if (applicationCompatibility !== ">=0.1.0 <0.2.0") throw new CapabilityPackageError("The IOCODE pilot is not compatible with this Epi Info AI release line.");
+  if (applicationCompatibility !== ">=0.2.0 <0.3.0") throw new CapabilityPackageError("The IOCODE pilot is not compatible with this Epi Info AI release line.");
   if (!Array.isArray(compatibility.capabilities) || !compatibility.capabilities.every((item) => typeof item === "string")) throw new CapabilityPackageError("manifest.compatibility.capabilities must be a string array.");
   const capabilities = compatibility.capabilities as string[];
   if (!capabilities.includes(IOCODE_CAPABILITY_ID)) throw new CapabilityPackageError(`manifest must require ${IOCODE_CAPABILITY_ID}.`);

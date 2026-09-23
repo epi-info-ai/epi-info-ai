@@ -4339,7 +4339,7 @@ test("Classic Analysis Help opens Teaching Repositories", async ({ page }) => {
 });
 
 test("File imports three complete checksummed teaching projects from the repository catalog", async ({ page }) => {
-  await expect(page.locator("#app-version")).toHaveText("v0.1.0");
+  await expect(page.locator("#app-version")).toHaveText("v0.2.0");
   const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
   await applicationMenu.getByText("File", { exact: true }).click();
   await applicationMenu.getByRole("menuitem", { name: /Import Example Project/ }).click();
