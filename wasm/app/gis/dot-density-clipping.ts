@@ -33,6 +33,11 @@ function inRing(x: number, y: number, ring: readonly DotDensityPositionV01[]): b
 function inPolygon(x: number, y: number, polygon: DotDensityPolygonCoordinatesV01): boolean { const outer = polygon[0]; return outer !== undefined && inRing(x, y, outer) && polygon.slice(1).every((hole) => !inRing(x, y, hole)); }
 function inGeometry(x: number, y: number, geometry: DotDensityClipGeometryV01): boolean { return geometry.type === "Polygon" ? inPolygon(x, y, geometry.coordinates) : geometry.coordinates.some((polygon) => inPolygon(x, y, polygon)); }
 
+export function isDotDensityPointInsideGeometryV01(x: number, y: number, geometry: DotDensityClipGeometryV01): boolean {
+  if (!validGeometry(geometry)) return false;
+  return inGeometry(x, y, geometry);
+}
+
 export function clipDotDensityCandidatesV01(candidates: readonly DotDensityCandidateV01[], geometries: ReadonlyMap<number, DotDensityClipGeometryV01>): DotDensityClipResultV01 {
   const diagnostics: DotDensityClipDiagnosticV01[] = [];
   const validGeometries = new Map<number, DotDensityClipGeometryV01>();

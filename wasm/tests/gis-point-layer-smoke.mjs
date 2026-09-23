@@ -26,4 +26,11 @@ assert.equal(clustered.length, 1);
 assert.equal(clustered[0].isCluster, true);
 assert.equal(clustered[0].points.length, 2);
 assert.equal(gis.clusterPointLayerV01(preview.points.concat([{ ...preview.points[0], recordIndex: 4, latitude: 41.6401, longitude: -83.5501 }]), 18).length, 2);
+const polarPoints = gis.buildPointLayerPreviewV01([
+  { id: "north", latitude: "90", longitude: "0" },
+  { id: "south", latitude: "-90", longitude: "0" },
+], { latitudeField: "latitude", longitudeField: "longitude" }).points;
+const polarClusters = gis.clusterPointLayerV01(polarPoints, 4);
+assert.equal(polarClusters.length, 2);
+assert.ok(polarClusters.every(({ latitude, longitude }) => Number.isFinite(latitude) && Number.isFinite(longitude)));
 console.log("GIS-K05 point-layer smoke passed.");

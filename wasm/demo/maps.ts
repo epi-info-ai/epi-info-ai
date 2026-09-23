@@ -306,6 +306,7 @@ function persistProjectMapLayers(): void {
       opacity: entry.recipe.opacity,
       noDataColor: entry.recipe.noDataColor,
       legendTitle: entry.recipe.legend.title,
+      ...(entry.recipe.filter ? { filter: entry.recipe.filter } : {}),
     })),
     ...[...dotDensityLayers].map(([id, entry]): ProjectMapLayer => ({
       id,
@@ -317,7 +318,7 @@ function persistProjectMapLayers(): void {
       boundaryKeyField: entry.recipe.boundaryKeyField,
       dataKeyField: entry.recipe.dataKeyField,
       valueField: entry.recipe.valueField,
-      joinNormalization: "trim-casefold",
+      joinNormalization: entry.recipe.joinNormalization,
       valuePerDot: entry.recipe.valuePerDot,
       rounding: entry.recipe.rounding,
       seed: entry.recipe.seed,
@@ -2154,6 +2155,7 @@ async function restoreProjectMapLayers(
           opacity: definition.opacity,
           noDataColor: definition.noDataColor,
           legend: { title: definition.legendTitle, showLabels: true, showNoData: true },
+          ...(definition.filter ? { filter: definition.filter as NonNullable<ChoroplethLayerRecipeV01["filter"]> } : {}),
         });
         addChoroplethLayer(geojson, asset, data, recipe, { id: definition.id, visible: definition.visible, persist: false });
       } else if (definition.kind === "dot-density" && asset.format === "geojson") {
@@ -2167,6 +2169,7 @@ async function restoreProjectMapLayers(
           dataSourceFormId: definition.sourceFormId,
           dataKeyField: definition.dataKeyField,
           valueField: definition.valueField,
+          joinNormalization: definition.joinNormalization,
           valuePerDot: definition.valuePerDot,
           rounding: definition.rounding,
           seed: definition.seed,
@@ -2375,6 +2378,7 @@ export function initializeMaps(
   const dotDensityDataSource = requiredElement<HTMLSelectElement>("#dot-density-data-source");
   const dotDensityBoundaryKey = requiredElement<HTMLSelectElement>("#dot-density-boundary-key");
   const dotDensityDataKey = requiredElement<HTMLSelectElement>("#dot-density-data-key");
+  const dotDensityNormalization = requiredElement<HTMLSelectElement>("#dot-density-normalization");
   const dotDensityValueField = requiredElement<HTMLSelectElement>("#dot-density-value-field");
   const dotDensityValuePerDot = requiredElement<HTMLInputElement>("#dot-density-value-per-dot");
   const dotDensityPlacement = requiredElement<HTMLSelectElement>("#dot-density-placement");
@@ -2978,6 +2982,7 @@ export function initializeMaps(
         dataSourceFormId: data.formId,
         dataKeyField: dotDensityDataKey.value,
         valueField: dotDensityValueField.value,
+        joinNormalization: dotDensityNormalization.value as "exact" | "trim-casefold",
         valuePerDot: Number(dotDensityValuePerDot.value),
         rounding: "nearest",
         seed: 12345,

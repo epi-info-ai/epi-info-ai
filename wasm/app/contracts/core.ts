@@ -752,7 +752,17 @@ function projectMapLayerAt(
     if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0 || source.opacity > 1) fail(`${path}.opacity`, "must be from 0 through 1");
     if (typeof source.noDataColor !== "string" || !/^#[0-9a-f]{6}$/i.test(source.noDataColor)) fail(`${path}.noDataColor`, "must be a six-digit hex color");
     const legendTitle = nonEmptyString(source.legendTitle, `${path}.legendTitle`);
-    return { ...shared, kind: "choropleth", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, classification: { method: classification.method, classCount: classification.classCount, ...(Array.isArray(breaks) ? { breaks } : {}) }, palette: source.palette, opacity: source.opacity, noDataColor: source.noDataColor, legendTitle };
+    let filter: { field: string; operator: string; value?: string } | undefined;
+    if (source.filter !== undefined) {
+      const filterSource = objectAt(source.filter, `${path}.filter`);
+      const filterField = nonEmptyString(filterSource.field, `${path}.filter.field`);
+      const allowedOperators = ["equals", "not-equals", "contains", "greater-than", "greater-or-equal", "less-than", "less-or-equal", "is-empty", "is-not-empty"];
+      if (typeof filterSource.operator !== "string" || !allowedOperators.includes(filterSource.operator)) fail(`${path}.filter.operator`, "is not a supported choropleth operator");
+      if (!["is-empty", "is-not-empty"].includes(String(filterSource.operator)) && typeof filterSource.value !== "string") fail(`${path}.filter.value`, "must be a string for this operator");
+      if (!fields.has(filterField)) fail(`${path}.filter.field`, "must identify a field in the source form");
+      filter = { field: filterField, operator: String(filterSource.operator), ...(typeof filterSource.value === "string" ? { value: filterSource.value } : {}) };
+    }
+    return { ...shared, kind: "choropleth", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, classification: { method: classification.method, classCount: classification.classCount, ...(Array.isArray(breaks) ? { breaks } : {}) }, palette: source.palette, opacity: source.opacity, noDataColor: source.noDataColor, legendTitle, ...(filter ? { filter } : {}) };
   }
   if (source.kind === "dot-density") {
     const assetId = nonEmptyString(source.assetId, `${path}.assetId`);

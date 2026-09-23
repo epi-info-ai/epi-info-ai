@@ -8,6 +8,7 @@
 export type DotDensityRoundingV01 = "floor" | "nearest" | "ceil";
 export type DotDensityPlacementMethodV01 = "seeded-jitter" | "deterministic-grid";
 export type DotDensityClippingPolicyV01 = "polygon-interior";
+export type DotDensityJoinNormalizationV01 = "exact" | "trim-casefold";
 
 export interface DotDensityLayerRecipeV01 {
   schema: "epi-gis-dot-density/0.1";
@@ -17,6 +18,7 @@ export interface DotDensityLayerRecipeV01 {
   dataSourceFormId: string;
   dataKeyField: string;
   valueField: string;
+  joinNormalization: DotDensityJoinNormalizationV01;
   valuePerDot: number;
   rounding: DotDensityRoundingV01;
   seed: number;
@@ -61,6 +63,7 @@ export function validateDotDensityLayerRecipeV01(recipe: DotDensityLayerRecipeV0
   text(recipe.dataSourceFormId, "Dot Density data source form");
   text(recipe.dataKeyField, "Dot Density data key field");
   text(recipe.valueField, "Dot Density value field");
+  if (recipe.joinNormalization !== "exact" && recipe.joinNormalization !== "trim-casefold") throw new DotDensityContractError("Dot Density join normalization is not supported.");
   if (!Number.isFinite(recipe.valuePerDot) || recipe.valuePerDot <= 0) throw new DotDensityContractError("Dot Density value-per-dot must be a positive finite number.");
   if (recipe.rounding !== "floor" && recipe.rounding !== "nearest" && recipe.rounding !== "ceil") throw new DotDensityContractError("Dot Density rounding policy is not supported.");
   boundedInteger(recipe.seed, "Dot Density seed", 0, 0xffffffff);
