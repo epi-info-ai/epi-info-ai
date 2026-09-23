@@ -17,7 +17,7 @@ import type {
   SupportedGeoJsonGeometry,
   TimeLapseStop,
 } from "../app/contracts/maps.js";
-import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectMapAsset, ProjectMapLayer, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
+import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectMapAsset, ProjectMapLayer, ProjectReferenceLayerSourceV1, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
 import type { SpaceTimeClusterInferenceResult } from "../app/programming/epi-ai-space-time-cluster-analysis.js";
 import {
   openBrowserPmtiles,
@@ -27,6 +27,15 @@ import {
 import { createMapLibrePmtilesOverlay, type MapLibrePmtilesOverlay } from "../app/maps/maplibre-pmtiles.ts";
 import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
 import { readProjectMapAsset, removeProjectMapAsset, storeProjectMapAsset } from "../app/maps/project-map-assets.ts";
+import { inspectReferenceLayerPackageV01, reviewReferenceLayerCrsV01, type ReferenceLayerCrsV01, type ReferenceLayerInspectionV01 } from "../app/gis/reference-layer.ts";
+import { inspectGeoJsonInputV01 } from "../app/gis/ingestion.ts";
+import { createVerifiedShapefileZipV01, extractVerifiedShapefileZipV01 } from "../app/gis/archive-ingestion.ts";
+import { createReferenceLayerLineageV01, persistReferenceLayerLineageV01 } from "../app/gis/reference-layer-lineage.ts";
+import { storeReferenceLayerSource, removeReferenceLayerSource, projectReferencesReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
+import { createReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
+import { buildReferenceLayerGdalRequestV01 } from "../app/gis/reference-layer-adapter.ts";
+import type { ReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
+import { GdalWorkerClient, type GdalDataset, type GdalDatasetInfo, type GdalOpenedDataset } from "./examples/gdal-wasm/gdal-wasm-worker.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
 // confined to this adapter module until the vendored distribution carries types.
@@ -141,7 +150,8 @@ let offlineRecoveryStudyAreaLimitMiB = 100;
 let replaceOfflineMapAsset: ((previousSha256: string, replacement: OfflineMapAsset) => void) | null = null;
 let detachOfflineMapAsset: ((sha256: string) => void) | null = null;
 let currentProjectSnapshot: (() => ProjectSnapshotV1 | null) | null = null;
-let saveProjectMapState: ((assets: ProjectMapAsset[], layers: ProjectMapLayer[]) => void) | null = null;
+let saveProjectMapState: ((assets: ProjectMapAsset[], layers: ProjectMapLayer[], referenceLayerSources?: ProjectReferenceLayerSourceV1[]) => void) | null = null;
+let currentReferenceLayerSource: ProjectReferenceLayerSourceV1 | null = null;
 let recordLayer: LeafletLayer | null = null;
 let locationLayer: LeafletLayer | null = null;
 let lastBounds: LeafletBounds | null = null;
@@ -219,7 +229,9 @@ function persistProjectMapLayers(): void {
       opacity: entry.opacity,
     })),
   ];
-  saveProjectMapState(assets, layers);
+  const existingSources = currentProjectSnapshot?.()?.referenceLayerSources ?? [];
+  const newSources = currentReferenceLayerSource ? [currentReferenceLayerSource] : [];
+  saveProjectMapState(assets, layers, [...existingSources, ...newSources].filter((source, index, values) => values.findIndex((candidate) => candidate.id === source.id) === index));
 }
 
 function option(value: string, label: string): HTMLOptionElement {
@@ -1513,6 +1525,7 @@ async function restoreProjectMapLayers(
   openRecord: OpenRecordHandler,
 ): Promise<void> {
   const sequence = ++projectLayerRestoreSequence;
+  currentReferenceLayerSource = null;
   const assets = new Map((snapshot?.mapAssets ?? []).map((asset) => [asset.id, asset]));
   const dataSources = new Map(getDataSources().map((data) => [data.formId, data]));
   const failures: string[] = [];
@@ -1661,6 +1674,21 @@ export function initializeMaps(
   const geoJsonName = requiredElement("#geojson-layer-name");
   const geoJsonLabelField = requiredElement("#geojson-label-field");
   const geoJsonStatus = requiredElement("#geojson-dialog-status");
+  const referenceLayerDialog = requiredElement<HTMLDialogElement>("#reference-layer-dialog");
+  const referenceLayerForm = requiredElement<HTMLFormElement>("#reference-layer-form");
+  const referenceLayerFile = requiredElement<HTMLInputElement>("#reference-layer-file");
+  const referenceLayerCandidate = requiredElement<HTMLSelectElement>("#reference-layer-candidate");
+  const referenceLayerSubLayer = requiredElement<HTMLSelectElement>("#reference-layer-sub-layer");
+  const referenceLayerCrs = requiredElement<HTMLSelectElement>("#reference-layer-crs");
+  const referenceLayerStatus = requiredElement("#reference-layer-dialog-status");
+  const referenceLayerDiagnostics = requiredElement<HTMLUListElement>("#reference-layer-diagnostics");
+  const referenceLayerReview = requiredElement<HTMLButtonElement>("#reference-layer-review");
+  const referenceLayerNormalize = requiredElement<HTMLButtonElement>("#reference-layer-normalize");
+  const referenceLayerDownload = requiredElement<HTMLAnchorElement>("#reference-layer-download");
+  let referenceLayerInspection: ReferenceLayerInspectionV01 | null = null;
+  let referenceLayerLineage: ReturnType<typeof createReferenceLayerLineageV01> | null = null;
+  let referenceLayerNormalizationPlan: ReferenceLayerNormalizationPlanV01 | null = null;
+  let referenceLayerDownloadUrl: string | null = null;
   const layerPanel = requiredElement("#map-layer-panel");
   const layerPanelToggle = requiredElement("#map-layer-panel-toggle");
   const offlineReimportFile = requiredElement<HTMLInputElement>("#map-offline-reimport-file");
@@ -1973,6 +2001,218 @@ export function initializeMaps(
     geoJsonLabelField.disabled = true;
     geoJsonStatus.textContent = "Files are read locally and are not uploaded to a server. Maximum size: 10 MB.";
     geoJsonDialog.showModal();
+  });
+  requiredElement("#map-add-reference-layer").addEventListener("click", () => {
+    requiredElement("#map-add-layer-menu").open = false;
+    referenceLayerForm.reset();
+    referenceLayerInspection = null;
+    referenceLayerLineage = null;
+    referenceLayerCandidate.replaceChildren(option("", "Choose a package first"));
+    referenceLayerCandidate.disabled = true;
+    referenceLayerSubLayer.replaceChildren(option("", "Choose a candidate first"));
+    referenceLayerSubLayer.disabled = true;
+    referenceLayerCrs.value = "";
+    referenceLayerCrs.disabled = true;
+    referenceLayerReview.disabled = true;
+    referenceLayerNormalize.disabled = true;
+    if (referenceLayerDownloadUrl) URL.revokeObjectURL(referenceLayerDownloadUrl);
+    referenceLayerDownloadUrl = null;
+    referenceLayerDownload.hidden = true;
+    referenceLayerNormalizationPlan = null;
+    referenceLayerDiagnostics.replaceChildren();
+    referenceLayerStatus.textContent = "Select a package for bounded preflight.";
+    referenceLayerDialog.showModal();
+  });
+  for (const button of requiredElements("[data-close-reference-layer]")) button.addEventListener("click", () => referenceLayerDialog.close("cancel"));
+  referenceLayerFile.addEventListener("change", async () => {
+    const file = referenceLayerFile.files?.[0];
+    referenceLayerInspection = null;
+    referenceLayerLineage = null;
+    referenceLayerCandidate.replaceChildren(option("", "Choose a package first"));
+    referenceLayerCandidate.disabled = true;
+    referenceLayerSubLayer.replaceChildren(option("", "Choose a candidate first"));
+    referenceLayerSubLayer.disabled = true;
+    referenceLayerReview.disabled = true;
+    referenceLayerNormalize.disabled = true;
+    referenceLayerNormalizationPlan = null;
+    referenceLayerDiagnostics.replaceChildren();
+    if (!file) return;
+    if (file.size > 100 * 1024 * 1024) {
+      referenceLayerStatus.textContent = "Preflight rejected: the reference layer exceeds the 100 MiB input limit.";
+      return;
+    }
+    referenceLayerStatus.textContent = `Preflighting ${file.name} locally...`;
+    try {
+      const inspection = inspectReferenceLayerPackageV01(await file.arrayBuffer(), {
+        maxArchiveBytes: 100 * 1024 * 1024,
+        maxEntries: 500,
+        maxExpandedBytes: 500 * 1024 * 1024,
+        maxEntryBytes: 250 * 1024 * 1024,
+        maxCompressionRatio: 100,
+      });
+      referenceLayerInspection = inspection;
+      referenceLayerCandidate.replaceChildren(
+        option("", "Choose a candidate layer"),
+        ...inspection.candidates.map((candidate) => option(candidate.id, `${candidate.displayName} · ${candidate.format} · ${candidate.completeness}`)),
+      );
+      referenceLayerCandidate.disabled = inspection.candidates.length === 0;
+      referenceLayerCrs.disabled = inspection.candidates.length === 0;
+      const diagnostics = [
+        ...inspection.diagnostics,
+        ...inspection.candidates.filter((candidate) => candidate.completeness === "incomplete").map((candidate) => `${candidate.displayName} is incomplete; missing ${candidate.missingEntries.join(", ")}.`),
+      ];
+      referenceLayerDiagnostics.replaceChildren(...diagnostics.map((message) => { const item = document.createElement("li"); item.textContent = message; return item; }));
+      referenceLayerStatus.textContent = `${inspection.candidates.length} candidate layer${inspection.candidates.length === 1 ? "" : "s"} found. Review a candidate before any project change.`;
+    } catch (error) {
+      referenceLayerStatus.textContent = error instanceof Error ? `Preflight rejected: ${error.message}` : "Preflight rejected.";
+    }
+  });
+  referenceLayerCandidate.addEventListener("change", () => {
+    const candidate = referenceLayerInspection?.candidates.find((entry) => entry.id === referenceLayerCandidate.value);
+    referenceLayerSubLayer.replaceChildren(option("", candidate?.format === "GeoPackage" ? "Inspect package to list layers" : "Not applicable for Shapefile"));
+    referenceLayerSubLayer.disabled = candidate?.format !== "GeoPackage";
+    referenceLayerCrs.value = "";
+    referenceLayerReview.disabled = true;
+    referenceLayerCrs.disabled = !referenceLayerInspection || !referenceLayerCandidate.value || candidate?.completeness !== "complete";
+  });
+  referenceLayerCrs.addEventListener("change", () => {
+    const candidate = referenceLayerInspection?.candidates.find((entry) => entry.id === referenceLayerCandidate.value);
+    referenceLayerReview.disabled = !referenceLayerInspection || !referenceLayerCandidate.value || !referenceLayerCrs.value;
+  });
+  referenceLayerSubLayer.addEventListener("change", () => {
+    const candidate = referenceLayerInspection?.candidates.find((entry) => entry.id === referenceLayerCandidate.value);
+    referenceLayerReview.disabled = !referenceLayerInspection || !referenceLayerCandidate.value || !referenceLayerCrs.value || (candidate?.format === "GeoPackage" && !referenceLayerSubLayer.value);
+  });
+  referenceLayerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const candidate = referenceLayerInspection?.candidates.find((entry) => entry.id === referenceLayerCandidate.value);
+    if (!candidate || !referenceLayerCrs.value) return;
+    if (candidate.completeness !== "complete") {
+      referenceLayerStatus.textContent = `Review rejected: ${candidate.displayName} is incomplete.`;
+      return;
+    }
+    const crsReview = reviewReferenceLayerCrsV01(candidate, referenceLayerCrs.value as ReferenceLayerCrsV01);
+    if (crsReview.status === "rejected-unknown") {
+      referenceLayerStatus.textContent = `Review rejected: ${candidate.displayName} has no declared CRS. Do not guess the coordinate reference system.`;
+      return;
+    }
+    const file = referenceLayerFile.files?.[0];
+    if (!file) return;
+    if (candidate.format === "GeoPackage" && (referenceLayerSubLayer.options.length <= 1 || !referenceLayerSubLayer.value)) {
+      referenceLayerStatus.textContent = "Inspecting the GeoPackage in the GDAL/WASM Worker to enumerate layers...";
+      const client = new GdalWorkerClient(new URL("./examples/gdal-wasm/runtime/", document.baseURI));
+      try {
+        await client.initialize();
+        const opened = await client.call<GdalOpenedDataset>("open", file);
+        if (opened.datasets.length !== 1) throw new Error(`GDAL opened ${opened.datasets.length} datasets; exactly one GeoPackage is required.`);
+        const info = await client.call<GdalDatasetInfo>("getInfo", opened.datasets[0]);
+        const layers = (info.layers ?? []).map(({ name }) => name).filter((name): name is string => Boolean(name?.trim()));
+        if (layers.length === 0) throw new Error("The GeoPackage contains no selectable vector layers.");
+        referenceLayerSubLayer.replaceChildren(option("", "Choose a GeoPackage layer"), ...layers.map((name) => option(name, name)));
+        referenceLayerSubLayer.disabled = false;
+        referenceLayerReview.disabled = true;
+        referenceLayerReview.textContent = "Review Selected Layer";
+        referenceLayerStatus.textContent = `Found ${layers.length} GeoPackage layer${layers.length === 1 ? "" : "s"}. Select one layer, then review it with the declared CRS.`;
+      } catch (error) {
+        referenceLayerStatus.textContent = error instanceof Error ? `GeoPackage inspection rejected: ${error.message}` : "GeoPackage inspection rejected.";
+      } finally {
+        client.terminate("GeoPackage layer enumeration completed.");
+      }
+      return;
+    }
+    const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", await file.arrayBuffer()))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    const lineage = createReferenceLayerLineageV01({ planId: crypto.randomUUID(), fileName: file.name, sha256: digest, byteLength: file.size, packageFormat: referenceLayerInspection!.packageFormat, candidate, crsReview, ...(candidate.format === "GeoPackage" ? { layerName: referenceLayerSubLayer.value } : {}) });
+    referenceLayerLineage = lineage;
+    const normalizationPlan = createReferenceLayerNormalizationPlanV01(lineage, { maxInputBytes: 100 * 1024 * 1024, maxOutputBytes: 256 * 1024 * 1024, maxFeatures: 1_000_000, maxCoordinates: 10_000_000 });
+    referenceLayerNormalizationPlan = normalizationPlan;
+    referenceLayerNormalize.disabled = false;
+    referenceLayerStatus.textContent = lineage.status === "requires-reprojection"
+      ? `Reviewed ${candidate.displayName} as ${crsReview.declaredCrs}; lineage ${lineage.source.sha256.slice(0, 12)}… and normalization plan ${normalizationPlan.planId.slice(0, 8)}… prepared. Reprojection can proceed in the bounded Worker.`
+      : `Reviewed ${candidate.displayName} as ${crsReview.declaredCrs}; lineage ${lineage.source.sha256.slice(0, 12)}… and normalization plan ${normalizationPlan.planId.slice(0, 8)}… prepared. Normalize to create a project asset.`;
+    referenceLayerReview.disabled = true;
+    requiredElement("#map-status").textContent = `Reference layer preflight reviewed: ${candidate.displayName}. No project asset was created.`;
+  });
+  referenceLayerNormalize.addEventListener("click", async () => {
+    const file = referenceLayerFile.files?.[0];
+    const plan = referenceLayerNormalizationPlan;
+    const lineage = referenceLayerLineage;
+    const selectedCandidate = referenceLayerInspection?.candidates.find((entry) => entry.id === plan?.source.candidateId);
+    if (!file || !plan || !lineage || !selectedCandidate) return;
+    referenceLayerNormalize.disabled = true;
+    referenceLayerStatus.textContent = "Starting the bounded GDAL/WASM normalization Worker...";
+    try {
+      const request = buildReferenceLayerGdalRequestV01(plan);
+      const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", await file.arrayBuffer()))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      if (digest !== plan.source.sha256 || file.size !== plan.source.byteLength) throw new Error("The selected source changed after review; lineage verification failed.");
+      const client = new GdalWorkerClient(new URL("./examples/gdal-wasm/runtime/", document.baseURI));
+      try {
+        await client.initialize();
+        const verifiedComponents = request.sourceKind === "zip-shapefile"
+          ? await extractVerifiedShapefileZipV01(await file.arrayBuffer(), {
+            maxArchiveBytes: plan.limits.maxInputBytes,
+            maxEntries: 20,
+            maxExpandedBytes: plan.limits.maxInputBytes,
+            maxEntryBytes: Math.min(plan.limits.maxInputBytes, 50 * 1024 * 1024),
+            maxCompressionRatio: 100,
+          })
+          : null;
+        const verifiedZip = verifiedComponents ? await createVerifiedShapefileZipV01(verifiedComponents) : null;
+        referenceLayerStatus.textContent = "Verified Shapefile components extracted; opening the isolated component set in GDAL...";
+        const opened = request.sourceKind === "geopackage"
+          ? await client.call<GdalOpenedDataset>("open", file)
+          : await client.call<GdalOpenedDataset>("open", verifiedZip, [], request.openVirtualFileSystems);
+        if (opened.datasets.length !== 1) throw new Error(`GDAL opened ${opened.datasets.length} datasets; exactly one reviewed source is required.`);
+        const dataset = opened.datasets[0]!;
+        const info = await client.call<GdalDatasetInfo>("getInfo", dataset);
+        if (info.type !== "vector") throw new Error(`The reviewed source is ${info.type}, not a vector layer.`);
+        if (request.sourceKind === "geopackage" && (!request.layerName || !(info.layers ?? []).some(({ name }) => name === request.layerName))) {
+          throw new Error(`The selected GeoPackage layer ${JSON.stringify(request.layerName ?? "") } was not found in the discovered layer inventory.`);
+        }
+        if (info.featureCount !== undefined && info.featureCount > request.limits.maxFeatures) throw new RangeError("The source feature count exceeds the normalization plan limit.");
+        const outputPath = await client.call<{ local: string }>("ogr2ogr", dataset, [...request.ogr2ogrArguments], request.outputName);
+        const outputBytes = await client.call<Uint8Array>("getFileBytes", outputPath);
+        if (outputBytes.byteLength > request.limits.maxOutputBytes) throw new RangeError("Normalized GeoJSON exceeds the plan's maxOutputBytes limit.");
+        const outputBuffer = outputBytes.buffer.slice(outputBytes.byteOffset, outputBytes.byteOffset + outputBytes.byteLength) as ArrayBuffer;
+        const outputInspection = inspectGeoJsonInputV01(outputBuffer, {
+          schema: "epi-gis-plan/0.1",
+          id: request.outputName,
+          operation: "gis.dataset.inspect",
+          projectRevision: lineage.planId,
+          inputs: [{ assetId: request.outputName, sha256: "0".repeat(64), role: "reference-geography", mediaType: "application/geo+json", byteLength: outputBytes.byteLength, declaredCrs: "CRS84" }],
+          parameters: { layerName: selectedCandidate.displayName },
+          limits: { maxInputBytes: request.limits.maxOutputBytes, maxOutputBytes: request.limits.maxOutputBytes, maxFeatures: request.limits.maxFeatures, maxCoordinates: request.limits.maxCoordinates, maxNestingDepth: 100, maxProperties: 1_000_000, timeoutMilliseconds: 1_000 },
+          requestedOutputs: [{ id: "normalized", mediaType: "application/geo+json", disclosure: "aggregate" }],
+        });
+        if (outputInspection.format !== "GeoJSON") throw new TypeError("GDAL produced an invalid GeoJSON result.");
+        const normalized = JSON.parse(new TextDecoder().decode(outputBytes)) as { type?: unknown; features?: unknown[] };
+        if (normalized.type !== "FeatureCollection" || !Array.isArray(normalized.features)) throw new TypeError("GDAL produced an invalid GeoJSON FeatureCollection.");
+        const retainedSources = currentProjectSnapshot?.()?.referenceLayerSources ?? [];
+        const storedSource = await storeReferenceLayerSource(file, referenceLayerInspection!.packageFormat);
+        currentReferenceLayerSource = storedSource;
+        try {
+          const storedAsset = await storeProjectMapAsset(new File([outputBuffer], `${selectedCandidate.displayName}.geojson`, { type: "application/geo+json" }), "geojson");
+          const persistedAsset = { ...storedAsset, sourceLineage: persistReferenceLayerLineageV01(lineage, storedAsset.id) };
+          addGeoJsonLayer(normalized as SupportedGeoJson, normalized.features.length, selectedCandidate.displayName, "", persistedAsset);
+          if (referenceLayerDownloadUrl) URL.revokeObjectURL(referenceLayerDownloadUrl);
+          referenceLayerDownloadUrl = URL.createObjectURL(new Blob([outputBuffer], { type: "application/geo+json" }));
+          referenceLayerDownload.href = referenceLayerDownloadUrl;
+          referenceLayerDownload.hidden = false;
+          referenceLayerStatus.textContent = `Normalized and saved ${normalized.features.length.toLocaleString()} features as a verified CRS84 GeoJSON project asset with lineage and source package recorded in the project snapshot. The original package remains unmodified.`;
+        } catch (error) {
+          currentReferenceLayerSource = null;
+          if (!projectReferencesReferenceLayerSource(storedSource, retainedSources)) {
+            await removeReferenceLayerSource(storedSource).catch(() => undefined);
+          }
+          throw error;
+        }
+      } finally {
+        client.terminate("Reference-layer normalization completed.");
+      }
+    } catch (error) {
+      referenceLayerStatus.textContent = error instanceof Error ? `Normalization rejected: ${error.message}` : "Normalization rejected.";
+    } finally {
+      referenceLayerNormalize.disabled = false;
+    }
   });
   geoJsonFile.addEventListener("change", async () => {
     const inspectionVersion = ++geoJsonInspectionVersion;

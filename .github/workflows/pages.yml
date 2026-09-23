@@ -50,6 +50,13 @@ jobs:
           node wasm/scripts/refresh-wasm-manifest.mjs
           pnpm run check
 
+      - name: Enforce GIS security smoke tests
+        run: |
+          pnpm run test:gis
+          pnpm run test:gis:fixtures
+          pnpm run test:gis:command
+          pnpm run test:gis:archive
+
       - name: Install Python
         uses: actions/setup-python@v7
         with:

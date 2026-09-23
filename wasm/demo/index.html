@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="styles.css?v=68" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=6" defer></script>
-    <script type="module" src="app.js?v=114"></script>
+    <script type="module" src="app.js?v=115"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -654,7 +654,7 @@
                   <button type="button" disabled>Dot Density</button>
                 </div>
               </details>
-              <button type="button" disabled title="Planned for a later mapping slice">Add Reference Layer</button>
+              <button id="map-add-reference-layer" type="button">Add Reference Layer</button>
               <button id="map-create-timelapse" type="button">Create Time Lapse</button>
               <span class="map-toolbar-divider" aria-hidden="true"></span>
               <button id="map-current-location" type="button">Current Location</button>
@@ -2340,7 +2340,7 @@
       </form>
     </dialog>
 
-    <dialog id="geojson-dialog" class="legacy-dialog" aria-labelledby="geojson-dialog-title">
+        <dialog id="geojson-dialog" class="legacy-dialog" aria-labelledby="geojson-dialog-title">
       <form id="geojson-form" method="dialog">
         <div class="legacy-dialog-titlebar">
           <strong id="geojson-dialog-title">Add GeoJSON Layer</strong>
@@ -2369,7 +2369,26 @@
           <button value="cancel" type="button" data-close-geojson>Cancel</button>
         </div>
       </form>
-    </dialog>
+        </dialog>
+
+        <dialog id="reference-layer-dialog" class="legacy-dialog" aria-labelledby="reference-layer-dialog-title">
+          <form id="reference-layer-form" method="dialog">
+            <div class="legacy-dialog-titlebar"><strong id="reference-layer-dialog-title">Add Reference Layer</strong><button type="button" data-close-reference-layer aria-label="Close">×</button></div>
+            <p>Choose a local Shapefile ZIP bundle or GeoPackage. This preflight does not upload, extract, normalize, or change the project.</p>
+            <label for="reference-layer-file">Reference layer package</label>
+            <input id="reference-layer-file" type="file" accept=".zip,.gpkg,application/zip,application/geopackage+sqlite3" required />
+            <label for="reference-layer-candidate">Candidate layer</label>
+            <select id="reference-layer-candidate" disabled><option value="">Choose a package first</option></select>
+            <label for="reference-layer-sub-layer">GeoPackage layer</label>
+            <select id="reference-layer-sub-layer" disabled><option value="">Choose a candidate first</option></select>
+            <label for="reference-layer-crs">Source CRS review</label>
+            <select id="reference-layer-crs" disabled><option value="">Choose a candidate first</option><option value="CRS84">CRS84 / WGS84 longitude-latitude</option><option value="EPSG:4326">EPSG:4326 / WGS84 latitude-longitude</option><option value="EPSG:3857">EPSG:3857 / Web Mercator (reprojection required)</option><option value="unknown">Unknown or not supplied (reject)</option></select>
+            <p id="reference-layer-dialog-status" class="inline-feedback" role="status">Select a package for bounded preflight.</p>
+            <ul id="reference-layer-diagnostics" class="dialog-note"></ul>
+            <div class="legacy-dialog-actions"><button type="button" data-close-reference-layer>Cancel</button><button id="reference-layer-review" class="dialog-primary" type="submit" value="review" disabled>Review Candidate</button><button id="reference-layer-normalize" type="button" disabled>Normalize to GeoJSON</button></div>
+            <a id="reference-layer-download" hidden download="reference-layer.geojson">Download normalized GeoJSON</a>
+          </form>
+        </dialog>
 
     <dialog id="raster-dialog" class="legacy-dialog" aria-labelledby="raster-dialog-title">
       <form id="raster-form" method="dialog">

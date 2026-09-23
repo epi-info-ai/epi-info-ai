@@ -146,6 +146,46 @@ export interface ProjectMapAsset {
   mediaType: "application/geo+json" | "image/tiff";
   importedAt: string;
   persistence: "persistent" | "best-effort";
+  sourceLineage?: ProjectMapAssetLineageV1;
+}
+
+export interface ProjectMapAssetLineageV1 {
+  schema: "epi-gis-reference-lineage/0.1";
+  planId: string;
+  derivedAssetId: string;
+  source: {
+    fileName: string;
+    sha256: string;
+    byteLength: number;
+    packageFormat: "ZIP" | "GeoPackage";
+  };
+  selection: {
+    candidateId: string;
+    format: "Shapefile" | "GeoPackage";
+    entries: string[];
+    layerName?: string;
+  };
+  crs: {
+    declaredCrs: "CRS84" | "EPSG:4326" | "EPSG:3857" | "unknown";
+    targetCrs: "CRS84";
+    normalizationRequired: boolean;
+  };
+  status: "reviewed" | "requires-reprojection";
+  persistence: "project-snapshot";
+}
+
+export interface ProjectReferenceLayerSourceV1 {
+  id: string;
+  fileName: string;
+  storage: "opfs";
+  storagePath: string;
+  byteLength: number;
+  sha256: string;
+  format: "reference-package";
+  mediaType: "application/zip" | "application/geopackage+sqlite3";
+  packageFormat: "ZIP" | "GeoPackage";
+  importedAt: string;
+  persistence: "persistent" | "best-effort";
 }
 
 export type ProjectMapLayer = {
@@ -195,6 +235,7 @@ export interface ProjectSnapshotV1 {
   studyAreas?: ProjectStudyArea[];
   mapAssets?: ProjectMapAsset[];
   mapLayers?: ProjectMapLayer[];
+  referenceLayerSources?: ProjectReferenceLayerSourceV1[];
 }
 
 export interface MapPoint {
@@ -494,7 +535,7 @@ function projectMapAssetAt(value: unknown, path: string): ProjectMapAsset {
   }
   const importedAt = nonEmptyString(source.importedAt, `${path}.importedAt`);
   if (!Number.isFinite(Date.parse(importedAt))) fail(`${path}.importedAt`, "must be a valid date/time");
-  return {
+  const result: ProjectMapAsset = {
     id,
     fileName: nonEmptyString(source.fileName, `${path}.fileName`),
     storage: "opfs",
@@ -503,6 +544,93 @@ function projectMapAssetAt(value: unknown, path: string): ProjectMapAsset {
     sha256,
     format: source.format,
     mediaType: expectedMediaType,
+    importedAt,
+    persistence: source.persistence,
+  };
+  if (source.sourceLineage !== undefined) {
+    const lineage = objectAt(source.sourceLineage, `${path}.sourceLineage`);
+    if (lineage.schema !== "epi-gis-reference-lineage/0.1") fail(`${path}.sourceLineage.schema`, "must be epi-gis-reference-lineage/0.1");
+    if (lineage.persistence !== "project-snapshot") fail(`${path}.sourceLineage.persistence`, "must be project-snapshot");
+    const lineagePlanId = nonEmptyString(lineage.planId, `${path}.sourceLineage.planId`);
+    const derivedAssetId = nonEmptyString(lineage.derivedAssetId, `${path}.sourceLineage.derivedAssetId`);
+    if (derivedAssetId !== id) fail(`${path}.sourceLineage.derivedAssetId`, "must identify the containing map asset");
+    const sourceLineage = objectAt(lineage.source, `${path}.sourceLineage.source`);
+    const lineageSha256 = nonEmptyString(sourceLineage.sha256, `${path}.sourceLineage.source.sha256`).toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(lineageSha256)) fail(`${path}.sourceLineage.source.sha256`, "must be a SHA-256 digest");
+    if (typeof sourceLineage.byteLength !== "number" || !Number.isSafeInteger(sourceLineage.byteLength) || sourceLineage.byteLength < 1) {
+      fail(`${path}.sourceLineage.source.byteLength`, "must be a positive safe integer");
+    }
+    if (sourceLineage.packageFormat !== "ZIP" && sourceLineage.packageFormat !== "GeoPackage") fail(`${path}.sourceLineage.source.packageFormat`, "must be ZIP or GeoPackage");
+    const selection = objectAt(lineage.selection, `${path}.sourceLineage.selection`);
+    if (selection.format !== "Shapefile" && selection.format !== "GeoPackage") fail(`${path}.sourceLineage.selection.format`, "must be Shapefile or GeoPackage");
+    if (!Array.isArray(selection.entries) || selection.entries.some((entry) => typeof entry !== "string" || entry.length === 0)) fail(`${path}.sourceLineage.selection.entries`, "must contain non-empty strings");
+    if (selection.format === "GeoPackage" && (typeof selection.layerName !== "string" || selection.layerName.trim().length === 0 || selection.layerName.length > 200)) fail(`${path}.sourceLineage.selection.layerName`, "must be a non-empty GeoPackage layer name of at most 200 characters");
+    const crs = objectAt(lineage.crs, `${path}.sourceLineage.crs`);
+    if (crs.declaredCrs !== "CRS84" && crs.declaredCrs !== "EPSG:4326" && crs.declaredCrs !== "EPSG:3857" && crs.declaredCrs !== "unknown") fail(`${path}.sourceLineage.crs.declaredCrs`, "must be a supported CRS declaration");
+    if (crs.targetCrs !== "CRS84") fail(`${path}.sourceLineage.crs.targetCrs`, "must be CRS84");
+    if (typeof crs.normalizationRequired !== "boolean") fail(`${path}.sourceLineage.crs.normalizationRequired`, "must be boolean");
+    if (lineage.status !== "reviewed" && lineage.status !== "requires-reprojection") fail(`${path}.sourceLineage.status`, "must be reviewed or requires-reprojection");
+    result.sourceLineage = {
+      schema: "epi-gis-reference-lineage/0.1",
+      planId: lineagePlanId,
+      derivedAssetId,
+      source: {
+        fileName: nonEmptyString(sourceLineage.fileName, `${path}.sourceLineage.source.fileName`),
+        sha256: lineageSha256,
+        byteLength: sourceLineage.byteLength,
+        packageFormat: sourceLineage.packageFormat,
+      },
+      selection: {
+        candidateId: nonEmptyString(selection.candidateId, `${path}.sourceLineage.selection.candidateId`),
+        format: selection.format,
+        entries: [...selection.entries],
+        ...(typeof selection.layerName === "string" ? { layerName: selection.layerName } : {}),
+      },
+      crs: {
+        declaredCrs: crs.declaredCrs,
+        targetCrs: "CRS84",
+        normalizationRequired: crs.normalizationRequired,
+      },
+      status: lineage.status,
+      persistence: "project-snapshot",
+    };
+  }
+  return result;
+}
+
+function referenceLayerSourceAt(value: unknown, path: string): ProjectReferenceLayerSourceV1 {
+  const source = objectAt(value, path);
+  if (source.storage !== "opfs") fail(`${path}.storage`, "must be opfs");
+  if (source.format !== "reference-package") fail(`${path}.format`, "must be reference-package");
+  if (source.mediaType !== "application/zip" && source.mediaType !== "application/geopackage+sqlite3") fail(`${path}.mediaType`, "must be application/zip or application/geopackage+sqlite3");
+  if (source.packageFormat !== "ZIP" && source.packageFormat !== "GeoPackage") fail(`${path}.packageFormat`, "must be ZIP or GeoPackage");
+  const expectedMediaType = source.packageFormat === "ZIP" ? "application/zip" : "application/geopackage+sqlite3";
+  if (source.mediaType !== expectedMediaType) fail(`${path}.mediaType`, `must be ${expectedMediaType} for ${source.packageFormat}`);
+  if (source.persistence !== "persistent" && source.persistence !== "best-effort") fail(`${path}.persistence`, "must be persistent or best-effort");
+  const sha256 = nonEmptyString(source.sha256, `${path}.sha256`).toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(sha256)) fail(`${path}.sha256`, "must be a SHA-256 digest");
+  const id = nonEmptyString(source.id, `${path}.id`);
+  if (id !== sha256) fail(`${path}.id`, "must equal the source SHA-256 digest");
+  if (typeof source.byteLength !== "number" || !Number.isSafeInteger(source.byteLength) || source.byteLength < 1 || source.byteLength > 100 * 1024 * 1024) {
+    fail(`${path}.byteLength`, "must be a positive safe integer no greater than 100 MiB");
+  }
+  const extension = source.packageFormat === "ZIP" ? ".zip" : ".gpkg";
+  const storagePath = nonEmptyString(source.storagePath, `${path}.storagePath`);
+  if (!storagePath.startsWith("epi-info-ai/reference-layer-sources/") || storagePath.includes("..") || !storagePath.endsWith(extension) || !storagePath.includes(sha256)) {
+    fail(`${path}.storagePath`, `must remain in the reference-layer-sources OPFS directory and end in ${extension}`);
+  }
+  const importedAt = nonEmptyString(source.importedAt, `${path}.importedAt`);
+  if (!Number.isFinite(Date.parse(importedAt))) fail(`${path}.importedAt`, "must be a valid date/time");
+  return {
+    id,
+    fileName: nonEmptyString(source.fileName, `${path}.fileName`),
+    storage: "opfs",
+    storagePath,
+    byteLength: source.byteLength,
+    sha256,
+    format: "reference-package",
+    mediaType: expectedMediaType,
+    packageFormat: source.packageFormat,
     importedAt,
     persistence: source.persistence,
   };
@@ -771,6 +899,26 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
     for (const layer of result.mapLayers) {
       if (ids.has(layer.id)) fail("project.mapLayers", `contains duplicate layer id ${JSON.stringify(layer.id)}`);
       ids.add(layer.id);
+    }
+  }
+  if (snapshot.referenceLayerSources !== undefined) {
+    if (!Array.isArray(snapshot.referenceLayerSources)) fail("project.referenceLayerSources", "must be an array");
+    result.referenceLayerSources = snapshot.referenceLayerSources.map((source, index) => referenceLayerSourceAt(source, `project.referenceLayerSources[${index}]`));
+    const ids = new Set<string>();
+    for (const source of result.referenceLayerSources) {
+      if (ids.has(source.id)) fail("project.referenceLayerSources", `contains duplicate source id ${JSON.stringify(source.id)}`);
+      ids.add(source.id);
+    }
+  }
+  for (const [index, asset] of (result.mapAssets ?? []).entries()) {
+    const lineageSource = asset.sourceLineage?.source;
+    if (!lineageSource) continue;
+    const matchingSource = (result.referenceLayerSources ?? []).find((source) => source.id === lineageSource.sha256);
+    if (!matchingSource
+      || matchingSource.sha256 !== lineageSource.sha256
+      || matchingSource.byteLength !== lineageSource.byteLength
+      || matchingSource.packageFormat !== lineageSource.packageFormat) {
+      fail(`project.mapAssets[${index}].sourceLineage.source`, "must exactly match a bundled project.referenceLayerSources entry by id, SHA-256, byte length, and package format");
     }
   }
   if (snapshot.auditLog !== undefined) {

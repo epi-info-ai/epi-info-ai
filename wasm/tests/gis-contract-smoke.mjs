@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
+import { zipSync } from "fflate";
 
 const bundled = await build({
   entryPoints: ["wasm/app/gis/index.ts"],
@@ -74,11 +75,11 @@ function zipStored(names, expandedSizes = []) {
     const nameBytes = new TextEncoder().encode(name);
     const size = expandedSizes[index] ?? 0;
     const local = new Uint8Array(30 + nameBytes.length);
-    put32(local, 0, 0x04034b50); put16(local, 4, 20); put16(local, 8, 0); put16(local, 10, 0); put16(local, 26, nameBytes.length); local.set(nameBytes, 30);
-    chunks.push(local);
+    put32(local, 0, 0x04034b50); put16(local, 4, 20); put16(local, 8, 0); put16(local, 10, 0); put32(local, 18, size ? 1 : 0); put32(local, 22, size); put16(local, 26, nameBytes.length); local.set(nameBytes, 30);
+    chunks.push(local, new Uint8Array(size ? 1 : 0));
     const entry = new Uint8Array(46 + nameBytes.length);
     put32(entry, 0, 0x02014b50); put16(entry, 4, 20); put16(entry, 6, 20); put16(entry, 8, 0); put16(entry, 10, 0); put32(entry, 20, size ? 1 : 0); put32(entry, 24, size); put16(entry, 28, nameBytes.length); put32(entry, 42, offset); entry.set(nameBytes, 46); central.push(entry);
-    offset += local.length;
+    offset += local.length + (size ? 1 : 0);
   });
   const centralBytes = central.reduce((total, value) => total + value.length, 0);
   const end = new Uint8Array(22); put32(end, 0, 0x06054b50); put16(end, 8, names.length); put16(end, 10, names.length); put32(end, 12, centralBytes); put32(end, 16, offset);
@@ -91,5 +92,46 @@ const shapefileZip = module.inspectZipArchiveV01(zipStored(["toledo.shp", "toled
 assert.deepEqual(shapefileZip.candidateFormats, ["Shapefile"]);
 assert.throws(() => module.inspectZipArchiveV01(zipStored(["../escape.shp"]), archiveLimits), /Unsafe ZIP entry path/);
 assert.throws(() => module.inspectZipArchiveV01(zipStored(["large.bin"], [500]), { ...archiveLimits, maxCompressionRatio: 20 }), /compression ratio/);
+assert.throws(() => module.inspectZipArchiveV01(zipStored(["cases.shp", "CASES.SHP"]), archiveLimits), /duplicate or colliding/);
+assert.throws(() => module.inspectReferenceLayerPackageV01(zipStored(["cases.shp", "cases.shx", "cases.dbf", "cases.exe"]), archiveLimits), /entry type is not allowed/);
+const trailingZip = new Uint8Array(zipStored(["cases.shp", "cases.shx", "cases.dbf"]));
+assert.throws(() => module.inspectZipArchiveV01(new Uint8Array([...trailingZip, 0x01]).buffer, archiveLimits), /trailing data/);
+const verifiedZip = zipSync({ "layers/toledo.shp": new Uint8Array([1, 2, 3]), "layers/toledo.shx": new Uint8Array([4]), "layers/toledo.dbf": new Uint8Array([5, 6]), "layers/toledo.prj": new Uint8Array([7]) });
+const verifiedComponents = await module.extractVerifiedShapefileZipV01(verifiedZip.buffer, { ...archiveLimits, maxExpandedBytes: 100 });
+assert.deepEqual(verifiedComponents.map(({ name, byteLength }) => [name, byteLength]), [["layers/toledo.shp", 3], ["layers/toledo.shx", 1], ["layers/toledo.dbf", 2], ["layers/toledo.prj", 1]]);
+assert.rejects(() => module.extractVerifiedShapefileZipV01(zipSync({ "layers/toledo.shp": new Uint8Array([1]), "layers/toledo.shx": new Uint8Array([2]), "layers/toledo.dbf": new Uint8Array([3]), "layers/other.shp": new Uint8Array([4]), "layers/other.shx": new Uint8Array([5]), "layers/other.dbf": new Uint8Array([6]) }).buffer, archiveLimits), /exactly one complete Shapefile/);
+const referenceInspection = module.inspectReferenceLayerPackageV01(zipStored(["layers/toledo.shp", "layers/toledo.shx", "layers/toledo.dbf", "layers/toledo.prj"]), archiveLimits);
+assert.equal(referenceInspection.candidates[0].format, "Shapefile");
+assert.equal(referenceInspection.candidates[0].completeness, "complete");
+assert.equal(referenceInspection.candidates[0].crsState, "sidecar-present");
+assert.equal(module.chooseReferenceLayerCandidateV01(referenceInspection, referenceInspection.candidates[0].id).normalizationStatus, "planned");
+const incompleteReference = module.inspectReferenceLayerPackageV01(zipStored(["layers/toledo.shp", "layers/toledo.shx"]), archiveLimits);
+assert.throws(() => module.chooseReferenceLayerCandidateV01(incompleteReference, incompleteReference.candidates[0].id), /incomplete/);
+assert.throws(() => module.inspectReferenceLayerPackageV01(new TextEncoder().encode("not-a-package").buffer, archiveLimits), /must be a ZIP Shapefile bundle or a GeoPackage/);
+const noPrjReference = module.inspectReferenceLayerPackageV01(zipStored(["layers/toledo.shp", "layers/toledo.shx", "layers/toledo.dbf"]), archiveLimits);
+assert.equal(noPrjReference.candidates[0].crsState, "unknown");
+assert.equal(module.reviewReferenceLayerCrsV01(noPrjReference.candidates[0], "unknown").status, "rejected-unknown");
+assert.throws(() => module.inspectReferenceLayerPackageV01(zipStored(["../escape.shp"]), archiveLimits), /Unsafe ZIP entry path/);
+const gpkgHeader = new Uint8Array(16); gpkgHeader.set(new TextEncoder().encode("SQLite format 3\0"));
+assert.equal(module.inspectReferenceLayerPackageV01(gpkgHeader.buffer, archiveLimits).packageFormat, "GeoPackage");
+assert.throws(() => module.inspectReferenceLayerPackageV01(gpkgHeader.buffer, { ...archiveLimits, maxArchiveBytes: 8 }), /exceeds the maxArchiveBytes/);
+const reviewedCandidate = module.chooseReferenceLayerCandidateV01(referenceInspection, referenceInspection.candidates[0].id);
+assert.deepEqual(module.reviewReferenceLayerCrsV01(reviewedCandidate, "CRS84"), { declaredCrs: "CRS84", status: "accepted-wgs84", normalizationRequired: false });
+assert.deepEqual(module.reviewReferenceLayerCrsV01(reviewedCandidate, "EPSG:3857"), { declaredCrs: "EPSG:3857", status: "requires-reprojection", normalizationRequired: true });
+assert.deepEqual(module.reviewReferenceLayerCrsV01(reviewedCandidate, "unknown"), { declaredCrs: "unknown", status: "rejected-unknown", normalizationRequired: true });
+const lineage = module.createReferenceLayerLineageV01({ planId: "plan-reference-1", fileName: "toledo.zip", sha256: "A".repeat(64), byteLength: 512, packageFormat: "ZIP", candidate: reviewedCandidate, crsReview: module.reviewReferenceLayerCrsV01(reviewedCandidate, "CRS84") });
+assert.deepEqual(lineage, { schema: "epi-gis-reference-lineage/0.1", planId: "plan-reference-1", source: { fileName: "toledo.zip", sha256: "a".repeat(64), byteLength: 512, packageFormat: "ZIP" }, selection: { candidateId: reviewedCandidate.id, format: "Shapefile", entries: ["layers/toledo.dbf", "layers/toledo.prj", "layers/toledo.shp", "layers/toledo.shx"] }, crs: { declaredCrs: "CRS84", targetCrs: "CRS84", normalizationRequired: false }, status: "reviewed", persistence: "not-persisted" });
+assert.deepEqual(module.persistReferenceLayerLineageV01(lineage, "b".repeat(64)), { ...lineage, derivedAssetId: "b".repeat(64), persistence: "project-snapshot" });
+assert.throws(() => module.createReferenceLayerLineageV01({ planId: "plan-reference-2", fileName: "toledo.zip", sha256: "b".repeat(64), byteLength: 512, packageFormat: "ZIP", candidate: reviewedCandidate, crsReview: module.reviewReferenceLayerCrsV01(reviewedCandidate, "unknown") }), /unknown CRS/);
+const normalizationPlan = module.createReferenceLayerNormalizationPlanV01(lineage, { maxInputBytes: 1000, maxOutputBytes: 2000, maxFeatures: 100, maxCoordinates: 1000 });
+assert.deepEqual(normalizationPlan, { schema: "epi-gis-reference-normalize/0.1", planId: "plan-reference-1", source: { candidateId: reviewedCandidate.id, format: "Shapefile", declaredCrs: "CRS84", sha256: "a".repeat(64), byteLength: 512 }, targetCrs: "CRS84", outputFormat: "GeoJSON", limits: { maxInputBytes: 1000, maxOutputBytes: 2000, maxFeatures: 100, maxCoordinates: 1000 }, executionStatus: "planned" });
+assert.deepEqual(module.buildReferenceLayerGdalRequestV01(normalizationPlan), { sourceKind: "zip-shapefile", openVirtualFileSystems: ["vsizip"], ogr2ogrArguments: ["-f", "GeoJSON", "-s_srs", "EPSG:4326", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES"], outputName: "reference-plan-reference-1", limits: normalizationPlan.limits });
+const projectedNormalizationPlan = module.createReferenceLayerNormalizationPlanV01({ ...lineage, crs: { declaredCrs: "EPSG:3857", targetCrs: "CRS84", normalizationRequired: true }, status: "requires-reprojection" }, { maxInputBytes: 1000, maxOutputBytes: 2000, maxFeatures: 100, maxCoordinates: 1000 });
+assert.deepEqual(module.buildReferenceLayerGdalRequestV01(projectedNormalizationPlan).ogr2ogrArguments.slice(0, 8), ["-f", "GeoJSON", "-s_srs", "EPSG:3857", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES"]);
+const geopackageCandidate = { ...reviewedCandidate, id: "geopackage:root", format: "GeoPackage", displayName: "GeoPackage database", entries: [] };
+const geopackageLineage = module.createReferenceLayerLineageV01({ planId: "plan-reference-gpkg", fileName: "boundaries.gpkg", sha256: "e".repeat(64), byteLength: 1024, packageFormat: "GeoPackage", candidate: geopackageCandidate, crsReview: module.reviewReferenceLayerCrsV01(geopackageCandidate, "CRS84"), layerName: "case_sites" });
+const geopackagePlan = module.createReferenceLayerNormalizationPlanV01(geopackageLineage, { maxInputBytes: 1000, maxOutputBytes: 2000, maxFeatures: 100, maxCoordinates: 1000 });
+assert.deepEqual(module.buildReferenceLayerGdalRequestV01(geopackagePlan).ogr2ogrArguments, ["-f", "GeoJSON", "-s_srs", "EPSG:4326", "-t_srs", "EPSG:4326", "-lco", "RFC7946=YES", "-dialect", "SQLite", "-sql", 'SELECT * FROM "case_sites"']);
+assert.throws(() => module.createReferenceLayerLineageV01({ planId: "plan-reference-gpkg-missing", fileName: "boundaries.gpkg", sha256: "f".repeat(64), byteLength: 1024, packageFormat: "GeoPackage", candidate: geopackageCandidate, crsReview: module.reviewReferenceLayerCrsV01(geopackageCandidate, "CRS84") }), /explicit layer name/);
 
 console.log("GIS contract smoke passed: four registered operations and defensive input validation.");

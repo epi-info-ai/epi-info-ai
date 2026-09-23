@@ -390,7 +390,11 @@ proxy.
 Reject archive traversal, nested archives, ambient paths, network virtual
 filesystems, arbitrary SQL, unreviewed drivers/options, missing or ambiguous CRS
 where reprojection is required, and outputs over budget. Preflight archive and
-driver controls must run before GDAL receives untrusted bytes.
+driver controls must run before GDAL receives untrusted bytes. The current
+Shapefile path applies a strict `.shp`/`.shx`/`.dbf` plus optional `.prj`/`.cpg`
+allowlist, rejects ambiguous ZIP structures, extracts and verifies actual byte
+counts and CRC32 values, then gives GDAL only a newly generated sanitized ZIP;
+arbitrary uploaded ZIP bytes never reach GDAL.
 
 WASM and Workers improve isolation and responsiveness but are not security
 boundaries. The host remains responsible for network policy, authorization,
@@ -476,9 +480,50 @@ compression and malformed metadata, and lowest-supported-device memory tests.
 
 ### GIS-K04 - reference-layer parity slice
 
-Implement Add Reference Layer for a reviewed Shapefile ZIP or GeoPackage. The
-slice must exercise explicit file grant, inspect, layer choice, CRS review,
-normalization, lineage, packaging, diagnostics, and renderer integration.
+The first K04 preflight slice now recognizes complete Shapefile ZIP bundles,
+reports missing `.shp`, `.shx`, or `.dbf` members, records whether a `.prj`
+sidecar is present, recognizes GeoPackage headers, and exposes an explicit
+candidate-selection contract. The Add Reference Layer dialog now requires an
+explicit source-CRS review: declared CRS84/EPSG:4326 is accepted for the
+bounded path, projected CRS is disclosed as requiring future reprojection, and
+unknown CRS is rejected.
+
+The lineage sub-slice now prepares a digest-bound receipt for the reviewed
+source package, selected candidate, CRS decision, target CRS, and plan id. The
+The receipt remains `not-persisted` while the candidate is only under review;
+after successful normalization, a validated project-snapshot lineage record is
+attached to the derived map asset.
+
+The next handoff is represented by a bounded normalization plan targeting CRS84
+GeoJSON with explicit input, output, feature, and coordinate limits. The
+installed-Chrome path now executes the reviewed Shapefile/GeoPackage request in
+the existing GDAL/WASM Worker, verifies the bounded GeoJSON output, stores the
+derived GeoJSON and its lineage in the project map-asset contract, and renders
+it. The original source package is not copied into the derived map asset or
+converted in place. It is stored separately in OPFS and included in portable
+`.epia`/`.epiax` archives with digest, size, package-header, and strict ZIP
+component verification.
+
+The adapter boundary is now also typed: a reviewed normalization plan can
+produce only the fixed Shapefile `/vsizip/` or GeoPackage opening mode and the
+fixed `ogr2ogr` GeoJSON/CRS84 argument set. Arbitrary GDAL arguments remain
+unrepresentable in this contract. GeoPackage layer enumeration and explicit
+selection are now required before normalization; the selected layer is bound
+into the lineage and a fixed quoted SQLite query. Installed-Chrome coverage
+now generates a three-layer GeoPackage, selects `case_sites`, normalizes it to
+CRS84 GeoJSON, persists the source/lineage, and renders the result. Broader
+GeoPackage differential fixtures and edge cases are covered by the contract
+fixture matrix and exact control-value assertions. Firefox/WebKit GIS preflight
+projects are wired into Playwright CI; local verification is pending browser
+binary availability. Experienced-user parity sign-off remains the final human
+evidence gate.
+
+Archive-security smoke tests are mandatory in both CI paths. GitLab's baseline
+job runs the contract, defensive-ingestion, command, and verified-archive
+smokes explicitly; GitHub's validation workflow runs the same four commands in
+addition to `pnpm run check`. The local installed-Chrome gate covers the actual
+Program Editor and Add Reference Layer routes; Firefox/WebKit execution remains
+a CI browser-matrix gate when those binaries are unavailable locally.
 
 ### GIS-K05 - Spot Map and Case Cluster
 

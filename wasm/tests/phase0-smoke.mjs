@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { zipSync } from "fflate";
 
 const testsDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testsDirectory, "../..");
@@ -3700,24 +3701,36 @@ async function checkPortableProjectArchive() {
     { id: "geojson-study", kind: "geojson", assetId: geojsonDigest, name: "Study area", visible: true, labelField: "", labelsEnabled: false },
     { id: "raster-population", kind: "raster", assetId: geotiffDigest, name: "Population", visible: true, opacity: 0.7 },
   ];
+  const sourceBytes = zipSync({ "toledo.shp": new Uint8Array([1]), "toledo.shx": new Uint8Array([2]), "toledo.dbf": new Uint8Array([3]) });
+  const sourceDigest = createHash("sha256").update(sourceBytes).digest("hex");
+  const sourceAsset = {
+    id: sourceDigest, fileName: "toledo-reference.zip", storage: "opfs",
+    storagePath: `epi-info-ai/reference-layer-sources/${sourceDigest}.zip`, byteLength: sourceBytes.byteLength,
+    sha256: sourceDigest, format: "reference-package", mediaType: "application/zip", packageFormat: "ZIP",
+    importedAt: "2026-09-10T12:02:00.000Z", persistence: "best-effort",
+  };
+  snapshot.referenceLayerSources = [sourceAsset];
   const packageValue = packages.createProjectPackage(snapshot);
   const payload = new File([bytes], asset.fileName, { type: "application/vnd.pmtiles" });
   const archiveBlob = await archives.createProjectArchive(packageValue, [
     { asset, file: payload },
     { asset: geojsonAsset, file: new File([geojsonBytes], geojsonAsset.fileName, { type: geojsonAsset.mediaType }) },
     { asset: geotiffAsset, file: new File([geotiffBytes], geotiffAsset.fileName, { type: geotiffAsset.mediaType }) },
+    { asset: sourceAsset, file: new File([sourceBytes], sourceAsset.fileName, { type: sourceAsset.mediaType }) },
   ]);
   const archiveFile = new File([archiveBlob], "toledo.epia", { type: archiveBlob.type });
   assert.equal(await archives.isBinaryProjectArchive(archiveFile), true);
   const restored = await archives.parseProjectArchive(archiveFile);
   assert.equal(restored.projectPackage.project.name, snapshot.name);
-  assert.equal(restored.assets.length, 3);
+  assert.equal(restored.assets.length, 4);
   assert.equal(restored.assets[0].asset.sha256, digest);
   assert.deepEqual(new Uint8Array(await restored.assets[0].file.arrayBuffer()), bytes);
   assert.equal(restored.assets[1].asset.format, "geojson");
   assert.deepEqual(new Uint8Array(await restored.assets[1].file.arrayBuffer()), geojsonBytes);
   assert.equal(restored.assets[2].asset.format, "geotiff");
   assert.deepEqual(new Uint8Array(await restored.assets[2].file.arrayBuffer()), geotiffBytes);
+  assert.equal(restored.assets[3].asset.format, "reference-package");
+  assert.deepEqual(new Uint8Array(await restored.assets[3].file.arrayBuffer()), sourceBytes);
   assert.equal(await archives.isBinaryProjectArchive(new Blob([JSON.stringify(packageValue)])), false);
   const tampered = new Uint8Array(await archiveBlob.arrayBuffer());
   tampered[tampered.length - 1] ^= 0xff;

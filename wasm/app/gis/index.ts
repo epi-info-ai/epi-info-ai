@@ -4,3 +4,8 @@ export * from "./worker-client.ts";
 export * from "./ingestion.ts";
 export * from "./utm-zone.ts";
 export * from "./archive-ingestion.ts";
+export * from "./reference-layer.ts";
+export * from "./reference-layer-lineage.ts";
+export * from "./reference-layer-sources.ts";
+export * from "./reference-layer-normalization.ts";
+export * from "./reference-layer-adapter.ts";
