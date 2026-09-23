@@ -17,7 +17,7 @@ import type {
   SupportedGeoJsonGeometry,
   TimeLapseStop,
 } from "../app/contracts/maps.js";
-import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectMapAsset, ProjectMapLayer, ProjectReferenceLayerSourceV1, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
+import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectMapAsset, ProjectMapLayer, ProjectMapPresentationV1, ProjectReferenceLayerSourceV1, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
 import type { SpaceTimeClusterInferenceResult } from "../app/programming/epi-ai-space-time-cluster-analysis.js";
 import {
   openBrowserPmtiles,
@@ -26,7 +26,7 @@ import {
 } from "../app/maps/pmtiles-reader.ts";
 import { createMapLibrePmtilesOverlay, type MapLibrePmtilesOverlay } from "../app/maps/maplibre-pmtiles.ts";
 import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
-import { readProjectMapAsset, removeProjectMapAsset, storeProjectMapAsset } from "../app/maps/project-map-assets.ts";
+import { readProjectMapAsset, removeProjectMapAsset, restoreProjectMapAsset, storeProjectMapAsset } from "../app/maps/project-map-assets.ts";
 import { inspectReferenceLayerPackageV01, reviewReferenceLayerCrsV01, type ReferenceLayerCrsV01, type ReferenceLayerInspectionV01 } from "../app/gis/reference-layer.ts";
 import { inspectGeoJsonInputV01 } from "../app/gis/ingestion.ts";
 import { createVerifiedShapefileZipV01, extractVerifiedShapefileZipV01 } from "../app/gis/archive-ingestion.ts";
@@ -44,6 +44,11 @@ import { filterChoroplethDataRowsV01 } from "../app/gis/choropleth-interaction.t
 import { createDotDensityLayerRecipeV01, type DotDensityLayerRecipeV01 } from "../app/gis/dot-density.ts";
 import { buildDotDensityPipelineV01 } from "../app/gis/dot-density-pipeline.ts";
 import { buildDotDensityPresentationV01 } from "../app/gis/dot-density-presentation.ts";
+import { clearMapLayersV01 } from "../app/gis/map-layer-lifecycle.ts";
+import { createMapBackgroundPlanV01 } from "../app/gis/map-background.ts";
+import { createMapTimeLapsePlanV01 } from "../app/gis/map-time-lapse.ts";
+import { createMapAnnotationsV01, type MapAnnotationsV01 } from "../app/gis/map-annotations.ts";
+import { createMapPngExportPlanV01, type MapPngExportPlanV01 } from "../app/gis/map-export.ts";
 import { GdalWorkerClient, type GdalDataset, type GdalDatasetInfo, type GdalOpenedDataset } from "./examples/gdal-wasm/gdal-wasm-worker.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
@@ -177,7 +182,7 @@ let offlineRecoveryStudyAreaLimitMiB = 100;
 let replaceOfflineMapAsset: ((previousSha256: string, replacement: OfflineMapAsset) => void) | null = null;
 let detachOfflineMapAsset: ((sha256: string) => void) | null = null;
 let currentProjectSnapshot: (() => ProjectSnapshotV1 | null) | null = null;
-let saveProjectMapState: ((assets: ProjectMapAsset[], layers: ProjectMapLayer[], referenceLayerSources?: ProjectReferenceLayerSourceV1[]) => void) | null = null;
+let saveProjectMapState: ((assets: ProjectMapAsset[], layers: ProjectMapLayer[], referenceLayerSources?: ProjectReferenceLayerSourceV1[], mapPresentation?: ProjectMapPresentationV1) => void) | null = null;
 let currentReferenceLayerSource: ProjectReferenceLayerSourceV1 | null = null;
 let recordLayer: LeafletLayer | null = null;
 let locationLayer: LeafletLayer | null = null;
@@ -198,6 +203,9 @@ let activeRecordMarkerColor = "#df291e";
 let activeRecordFilter: PointLayerFilterV01 | null = null;
 let activeRecordDiagnostics: PointLayerDiagnosticV01[] = [];
 let activeRecordOpenHandler: OpenRecordHandler | null = null;
+let mapAnnotations: MapAnnotationsV01 = createMapAnnotationsV01();
+let mapBackgroundSource: "street" | "blank" | "offline" = "street";
+let missingProjectMapAssets = new Map<string, { asset: ProjectMapAsset; reason: string }>();
 let timeLapseState: TimeLapseState | null = null;
 let clusterTourState: ClusterTourState | null = null;
 const geoJsonLayers = new Map<string, GeoJsonLayerEntry>();
@@ -332,7 +340,7 @@ function persistProjectMapLayers(): void {
   ];
   const existingSources = currentProjectSnapshot?.()?.referenceLayerSources ?? [];
   const newSources = currentReferenceLayerSource ? [currentReferenceLayerSource] : [];
-  saveProjectMapState(assets, layers, [...existingSources, ...newSources].filter((source, index, values) => values.findIndex((candidate) => candidate.id === source.id) === index));
+  saveProjectMapState(assets, layers, [...existingSources, ...newSources].filter((source, index, values) => values.findIndex((candidate) => candidate.id === source.id) === index), { schema: "epi-gis-map-presentation/0.1", background: mapBackgroundSource, annotations: mapAnnotations });
 }
 
 function option(value: string, label: string): HTMLOptionElement {
@@ -854,6 +862,9 @@ function resetMapWorkspace() {
     if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
   }
   choroplethLayers.clear();
+  for (const entry of dotDensityLayers.values()) {
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+  }
   dotDensityLayers.clear();
   renderChoroplethLayerList();
   renderDotDensityLayerList();
@@ -885,6 +896,9 @@ function resetMapWorkspace() {
   requiredElement("#map-record-layer-toggle").checked = true;
   requiredElement("#map-location-layer-toggle").checked = true;
   requiredElement("#map-layer-panel").open = false;
+  mapAnnotations = createMapAnnotationsV01();
+  mapBackgroundSource = "street";
+  renderMapAnnotations();
   requiredElement("#map-empty-state").hidden = false;
   updateLayerCount();
   map.setView([39.8283, -98.5795], 4);
@@ -907,6 +921,153 @@ function markerPopup(record: EpiRecord, labelField: string, latitude: number, lo
     content.append(hint, button);
   }
   return content;
+}
+
+function renderMissingProjectMapAssets(onRestore: (asset: ProjectMapAsset, file: File) => Promise<void>): void {
+  const panel = requiredElement<HTMLElement>("#map-asset-recovery");
+  const detail = requiredElement("#map-asset-recovery-detail");
+  const list = requiredElement<HTMLUListElement>("#map-asset-recovery-list");
+  list.replaceChildren();
+  if (missingProjectMapAssets.size === 0) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  detail.textContent = `${missingProjectMapAssets.size} stored map asset${missingProjectMapAssets.size === 1 ? " is" : "s are"} unavailable in this browser. Select the original file to restore it; the SHA-256 and byte length must match.`;
+  for (const { asset, reason } of missingProjectMapAssets.values()) {
+    const item = document.createElement("li");
+    const label = document.createElement("strong");
+    label.textContent = `${asset.fileName} (${asset.format})`;
+    const explanation = document.createElement("span");
+    explanation.textContent = ` ${reason}`;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = asset.format === "geojson" ? ".geojson,application/geo+json,application/json" : ".tif,.tiff,image/tiff";
+    input.setAttribute("aria-label", `Restore ${asset.fileName}`);
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      input.disabled = true;
+      explanation.textContent = " Checking the selected file...";
+      try {
+        await onRestore(asset, file);
+        missingProjectMapAssets.delete(asset.id);
+        renderMissingProjectMapAssets(onRestore);
+      } catch (error) {
+        input.disabled = false;
+        explanation.textContent = ` ${error instanceof Error ? error.message : "The selected file was rejected."}`;
+        input.value = "";
+      }
+    });
+    item.append(label, explanation, document.createTextNode(" "), input);
+    list.append(item);
+  }
+}
+
+async function inspectProjectMapAssetAvailability(snapshot: ProjectSnapshotV1 | null, onRestore: (asset: ProjectMapAsset, file: File) => Promise<void>): Promise<void> {
+  const assets = snapshot?.mapAssets ?? [];
+  const unavailable = new Map<string, { asset: ProjectMapAsset; reason: string }>();
+  for (const asset of assets) {
+    try {
+      await readProjectMapAsset(asset);
+    } catch (error) {
+      unavailable.set(asset.id, { asset, reason: error instanceof Error ? error.message : "Stored bytes could not be opened." });
+    }
+  }
+  missingProjectMapAssets = unavailable;
+  renderMissingProjectMapAssets(onRestore);
+}
+
+function renderMapAnnotations(): void {
+  const overlay = requiredElement<HTMLElement>("#map-annotation-overlay");
+  const title = requiredElement("#map-annotation-title");
+  const subtitle = requiredElement("#map-annotation-subtitle");
+  const note = requiredElement("#map-annotation-note");
+  title.textContent = mapAnnotations.title;
+  subtitle.textContent = mapAnnotations.subtitle;
+  note.textContent = mapAnnotations.note;
+  overlay.hidden = !mapAnnotations.title && !mapAnnotations.subtitle && !mapAnnotations.note;
+}
+
+async function captureMapPngV01(plan: MapPngExportPlanV01): Promise<Blob> {
+  const container = requiredElement<HTMLElement>("#epi-map");
+  const canvas = document.createElement("canvas");
+  canvas.width = plan.widthPixels * plan.scale;
+  canvas.height = plan.heightPixels * plan.scale;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("PNG export is not available in this browser.");
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = true;
+
+  // Raster basemap tiles are deliberately not copied across origins. Vector
+  // overlays are serialized locally, which keeps the export deterministic and
+  // avoids turning a tile provider into a canvas readback authority.
+  const containerRect = container.getBoundingClientRect();
+  for (const svg of Array.from(container.querySelectorAll<SVGSVGElement>("svg"))) {
+    const bounds = svg.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) continue;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", String(bounds.width));
+    clone.setAttribute("height", String(bounds.height));
+    const serialized = new XMLSerializer().serializeToString(clone);
+    const url = URL.createObjectURL(new Blob([serialized], { type: "image/svg+xml" }));
+    try {
+      const image = new Image();
+      image.decoding = "async";
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("A map vector overlay could not be captured."));
+        image.src = url;
+      });
+      const x = ((bounds.left - containerRect.left) / Math.max(containerRect.width, 1)) * canvas.width;
+      const y = ((bounds.top - containerRect.top) / Math.max(containerRect.height, 1)) * canvas.height;
+      const width = (bounds.width / Math.max(containerRect.width, 1)) * canvas.width;
+      const height = (bounds.height / Math.max(containerRect.height, 1)) * canvas.height;
+      context.drawImage(image, x, y, width, height);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  const drawTextBlock = (heading: string, lines: string[], x: number, y: number, width: number): number => {
+    context.fillStyle = "rgba(255,255,255,0.92)";
+    context.fillRect(x - 12, y - 24, width + 24, 34 + lines.length * 22);
+    context.fillStyle = "#111827";
+    context.font = "700 18px sans-serif";
+    context.fillText(heading, x, y);
+    context.font = "14px sans-serif";
+    lines.forEach((line, index) => context.fillText(line.slice(0, 120), x, y + 24 + index * 22));
+    return y + 48 + lines.length * 22;
+  };
+
+  if (plan.includeAnnotations && !requiredElement<HTMLElement>("#map-annotation-overlay").hidden) {
+    const lines = [mapAnnotations.subtitle, mapAnnotations.note].filter(Boolean);
+    drawTextBlock(mapAnnotations.title || "Map", lines, 24, 32, Math.min(canvas.width - 48, 560));
+  }
+  if (plan.includeLegend) {
+    const legends = Array.from(container.querySelectorAll<HTMLElement>(".map-choropleth-legend"))
+      .map((legend) => legend.innerText.trim())
+      .filter(Boolean);
+    if (legends.length > 0) drawTextBlock("Legend", legends, 24, canvas.height - Math.min(legends.length * 30 + 64, 300), Math.min(canvas.width - 48, 560));
+  }
+
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("The browser could not encode the PNG.")), "image/png");
+  });
+}
+
+async function downloadMapPngV01(plan: MapPngExportPlanV01): Promise<void> {
+  const blob = await captureMapPngV01(plan);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = plan.fileName;
+  link.rel = "noopener";
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function openAuthorizedRecord(record: EpiRecord): void {
@@ -2062,6 +2223,14 @@ function configureLaunch(
 ): void {
   mapContext = context;
   resetMapWorkspace();
+  const savedPresentation = currentProjectSnapshot?.()?.mapPresentation;
+  if (savedPresentation) {
+    mapBackgroundSource = savedPresentation.background;
+    mapAnnotations = savedPresentation.annotations;
+    renderMapAnnotations();
+    const savedRadio = requiredElement<HTMLInputElement>(`[name="map-basemap"][value="${mapBackgroundSource}"]`);
+    savedRadio.checked = true;
+  }
   if (context === "current-form") {
     activeData = getCurrentData();
     setMapHeading(activeData);
@@ -2126,7 +2295,7 @@ export function initializeMaps(
   getProjectSnapshot: () => ProjectSnapshotV1 | null,
   replaceOfflineAsset: (previousSha256: string, replacement: OfflineMapAsset) => void,
   detachOfflineAsset: (sha256: string) => void,
-  saveMapState: (assets: ProjectMapAsset[], layers: ProjectMapLayer[]) => void,
+  saveMapState: (assets: ProjectMapAsset[], layers: ProjectMapLayer[], referenceLayerSources?: ProjectReferenceLayerSourceV1[], mapPresentation?: ProjectMapPresentationV1) => void,
 ): void {
   currentProjectSnapshot = getProjectSnapshot;
   replaceOfflineMapAsset = replaceOfflineAsset;
@@ -2150,6 +2319,33 @@ export function initializeMaps(
   const timeLapseDialog = requiredElement("#time-lapse-dialog");
   const timeLapseField = requiredElement("#time-lapse-field");
   const timeLapseStatus = requiredElement("#time-lapse-dialog-status");
+  const mapSettingsDialog = requiredElement<HTMLDialogElement>("#map-settings-dialog");
+  const mapSettingsForm = requiredElement<HTMLFormElement>("#map-settings-form");
+  const mapAnnotationTitleInput = requiredElement<HTMLInputElement>("#map-annotation-title-input");
+  const mapAnnotationSubtitleInput = requiredElement<HTMLInputElement>("#map-annotation-subtitle-input");
+  const mapAnnotationNoteInput = requiredElement<HTMLTextAreaElement>("#map-annotation-note-input");
+  const mapShowLegend = requiredElement<HTMLInputElement>("#map-show-legend");
+  const mapShowNorthArrow = requiredElement<HTMLInputElement>("#map-show-north-arrow");
+  const mapShowScaleBar = requiredElement<HTMLInputElement>("#map-show-scale-bar");
+  const mapSettingsStatus = requiredElement("#map-settings-status");
+  const mapExportDialog = requiredElement<HTMLDialogElement>("#map-export-dialog");
+  const mapExportForm = requiredElement<HTMLFormElement>("#map-export-form");
+  const mapExportFilename = requiredElement<HTMLInputElement>("#map-export-filename");
+  const mapExportWidth = requiredElement<HTMLInputElement>("#map-export-width");
+  const mapExportHeight = requiredElement<HTMLInputElement>("#map-export-height");
+  const mapExportScale = requiredElement<HTMLSelectElement>("#map-export-scale");
+  const mapExportLegend = requiredElement<HTMLInputElement>("#map-export-legend");
+  const mapExportAnnotations = requiredElement<HTMLInputElement>("#map-export-annotations");
+  const mapExportStatus = requiredElement("#map-export-status");
+  const restoreMissingProjectAsset = async (asset: ProjectMapAsset, file: File): Promise<void> => {
+    const snapshot = currentProjectSnapshot?.();
+    if (!snapshot || !saveProjectMapState) throw new Error("Open a project before restoring map assets.");
+    const restored = await restoreProjectMapAsset(asset, file);
+    const assets = (snapshot.mapAssets ?? []).map((candidate) => candidate.id === asset.id ? restored : candidate);
+    saveProjectMapState(assets, snapshot.mapLayers ?? [], snapshot.referenceLayerSources ?? [], snapshot.mapPresentation);
+    requiredElement("#map-status").textContent = `${asset.fileName} was restored after its SHA-256 and byte length were verified.`;
+    await restoreProjectMapLayers({ ...snapshot, mapAssets: assets }, getDataSources, openRecord);
+  };
   const geoJsonDialog = requiredElement("#geojson-dialog");
   const geoJsonForm = requiredElement("#geojson-form");
   const geoJsonFile = requiredElement("#geojson-file");
@@ -2210,6 +2406,7 @@ export function initializeMaps(
   let dialogSources: MapDataSource[] = [];
   let dialogPointLayerKind: "case-cluster" | "spot-map" = "case-cluster";
   let geoJsonInspectionVersion = 0;
+  renderMissingProjectMapAssets(restoreMissingProjectAsset);
   const updateH3ResolutionDescription = () => {
     const resolution = Number(h3Resolution.value);
     const edgeKilometers = getHexagonEdgeLengthAvg(resolution, UNITS.km);
@@ -2301,6 +2498,9 @@ export function initializeMaps(
   requiredElement("#map-offline-restore-project").addEventListener("click", () => {
     requiredElement<HTMLInputElement>("#project-package-open").click();
   });
+  requiredElement("#map-asset-recovery-restore-project").addEventListener("click", () => {
+    requiredElement<HTMLInputElement>("#project-package-open").click();
+  });
   requiredElement("#map-offline-reimport").addEventListener("click", () => offlineReimportFile.click());
   requiredElement("#map-offline-use-blank").addEventListener("click", () => {
     requiredElement<HTMLInputElement>('[name="map-basemap"][value="blank"]').click();
@@ -2345,7 +2545,11 @@ export function initializeMaps(
   });
   globalThis.addEventListener("epi-info-project-changed", () => {
     const mapsView = requiredElement<HTMLElement>('[data-module-view="maps"]');
-    if (!mapsView.hidden) void prepareOfflineBasemap(getProjectSnapshot());
+    if (!mapsView.hidden) {
+      const snapshot = getProjectSnapshot();
+      void prepareOfflineBasemap(snapshot);
+      void inspectProjectMapAssetAvailability(snapshot, restoreMissingProjectAsset);
+    }
   });
   globalThis.addEventListener("epi-info-project-activated", () => {
     const snapshot = getProjectSnapshot();
@@ -2357,7 +2561,10 @@ export function initializeMaps(
       ? `Opened ${snapshot.name}; derived map output from the previous project was cleared.`
       : "The project was closed; derived map output was cleared.";
     const mapsView = requiredElement<HTMLElement>('[data-module-view="maps"]');
-    if (!mapsView.hidden && map && snapshot) void restoreProjectMapLayers(snapshot, getDataSources, openRecord);
+    if (!mapsView.hidden && map && snapshot) {
+      void restoreProjectMapLayers(snapshot, getDataSources, openRecord);
+      void inspectProjectMapAssetAvailability(snapshot, restoreMissingProjectAsset);
+    }
   });
   for (const button of requiredElements('[data-module="maps"], [data-open-module="maps"]')) {
     button.addEventListener("click", () => {
@@ -2375,6 +2582,7 @@ export function initializeMaps(
           configureLaunch(context, getCurrentData, getDataSources, openRecord);
           map.invalidateSize();
           void prepareOfflineBasemap(snapshot);
+          void inspectProjectMapAssetAvailability(snapshot, restoreMissingProjectAsset);
         } catch (error) {
           requiredElement("#map-status").textContent = error instanceof Error ? error.message : "Unable to open Maps.";
         }
@@ -2471,6 +2679,60 @@ export function initializeMaps(
     timeLapseStatus.textContent = "Records with blank or invalid time values will be skipped. A maximum of 1,000 time stops is supported.";
     timeLapseDialog.showModal();
   });
+  requiredElement("#map-settings").addEventListener("click", () => {
+    mapAnnotationTitleInput.value = mapAnnotations.title;
+    mapAnnotationSubtitleInput.value = mapAnnotations.subtitle;
+    mapAnnotationNoteInput.value = mapAnnotations.note;
+    mapShowLegend.checked = mapAnnotations.showLegend;
+    mapShowNorthArrow.checked = mapAnnotations.showNorthArrow;
+    mapShowScaleBar.checked = mapAnnotations.showScaleBar;
+    mapSettingsStatus.textContent = "Map settings remain local to this map session.";
+    mapSettingsDialog.showModal();
+  });
+  for (const button of requiredElements("[data-close-map-settings]")) button.addEventListener("click", () => mapSettingsDialog.close("cancel"));
+  mapSettingsForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    try {
+      mapAnnotations = createMapAnnotationsV01({ title: mapAnnotationTitleInput.value, subtitle: mapAnnotationSubtitleInput.value, note: mapAnnotationNoteInput.value, showLegend: mapShowLegend.checked, showNorthArrow: mapShowNorthArrow.checked, showScaleBar: mapShowScaleBar.checked });
+      renderMapAnnotations();
+      persistProjectMapLayers();
+      mapSettingsDialog.close("apply");
+      requiredElement("#map-status").textContent = "Map settings applied for this map session.";
+    } catch (error) { mapSettingsStatus.textContent = error instanceof Error ? error.message : "Map settings were rejected."; }
+  });
+  requiredElement("#map-export-png").addEventListener("click", () => {
+    const mapElement = requiredElement<HTMLElement>("#epi-map");
+    mapExportFilename.value = "map.png";
+    mapExportWidth.value = String(Math.max(64, Math.min(4096, Math.round(mapElement.clientWidth || 1200))));
+    mapExportHeight.value = String(Math.max(64, Math.min(4096, Math.round(mapElement.clientHeight || 800))));
+    mapExportScale.value = "2";
+    mapExportLegend.checked = true;
+    mapExportAnnotations.checked = true;
+    mapExportStatus.textContent = "Vector overlays and annotations are captured locally. Street tiles are not copied across origins.";
+    mapExportDialog.showModal();
+  });
+  for (const button of requiredElements("[data-close-map-export]")) button.addEventListener("click", () => mapExportDialog.close("cancel"));
+  mapExportForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!eventForm(event).reportValidity()) return;
+    try {
+      const plan = createMapPngExportPlanV01({
+        fileName: mapExportFilename.value.trim(),
+        widthPixels: Number(mapExportWidth.value),
+        heightPixels: Number(mapExportHeight.value),
+        scale: Number(mapExportScale.value),
+        includeBackground: mapBackgroundSource !== "blank",
+        includeLegend: mapExportLegend.checked,
+        includeAnnotations: mapExportAnnotations.checked,
+      });
+      mapExportStatus.textContent = "Rendering PNG...";
+      await downloadMapPngV01(plan);
+      mapExportDialog.close("export");
+      requiredElement("#map-status").textContent = `Downloaded ${plan.fileName}. Basemap tiles remain excluded from the local PNG.`;
+    } catch (error) {
+      mapExportStatus.textContent = error instanceof Error ? error.message : "PNG export failed.";
+    }
+  });
   for (const button of requiredElements("[data-close-time-lapse]")) {
     button.addEventListener("click", () => timeLapseDialog.close("cancel"));
   }
@@ -2478,6 +2740,9 @@ export function initializeMaps(
     event.preventDefault();
     if (!eventForm(event).reportValidity()) return;
     try {
+      const selectedField = activeData?.fields.find((field) => field.name === timeLapseField.value);
+      const valueKind = selectedField?.type === "time" ? "time" : /(date.*time|datetime)/i.test(`${selectedField?.name ?? ""} ${selectedField?.prompt ?? ""}`) ? "datetime" : "date";
+      createMapTimeLapsePlanV01({ sourceFormId: activeData?.formId ?? "", timeField: timeLapseField.value, valueKind, maxStops: 1000, intervalMilliseconds: 900, autoplay: false });
       const stops = buildTimeLapseStops(activeRecordPoints, timeLapseField.value);
       if (stops.length === 0) {
         timeLapseStatus.textContent = "No mapped records contain a valid value in the selected time field.";
@@ -3162,10 +3427,33 @@ export function initializeMaps(
     if (bounds.isValid()) ensureMap().fitBounds(bounds.pad(0.18), { maxZoom: 15 });
     else requiredElement("#map-status").textContent = "Add or show a case-cluster, H3, GeoJSON, or GeoTIFF layer before fitting the map.";
   });
+  requiredElement("#map-clear-layers").addEventListener("click", () => {
+    const layerIds = [
+      ...(caseClusterAdded && activeRecordLayerId ? [activeRecordLayerId] : []),
+      ...geoJsonLayers.keys(),
+      ...choroplethLayers.keys(),
+      ...dotDensityLayers.keys(),
+      ...h3Layers.keys(),
+      ...rasterLayers.keys(),
+    ];
+    clearMapLayersV01(layerIds.map((id) => ({ id, visible: true })));
+    resetMapWorkspace();
+    persistProjectMapLayers();
+    requiredElement("#map-status").textContent = "Cleared all map layers. Project data was preserved.";
+  });
   for (const radio of requiredElements('[name="map-basemap"]')) {
     radio.addEventListener("change", (event) => {
+      const value = eventControl(event).value as "street" | "blank" | "offline";
+      try {
+        createMapBackgroundPlanV01({ source: value, ...(value === "offline" && offlineRecoveryAsset ? { offlineAssetId: offlineRecoveryAsset.sha256 } : {}) });
+      } catch (error) {
+        requiredElement<HTMLInputElement>('[name="map-basemap"][value="blank"]').checked = true;
+        requiredElement("#map-status").textContent = error instanceof Error ? error.message : "The selected map background is not available.";
+        return;
+      }
+      mapBackgroundSource = value;
+      persistProjectMapLayers();
       const currentMap = ensureMap();
-      const value = eventControl(event).value;
       if (value === "street") {
         if (offlineTileLayer && currentMap.hasLayer(offlineTileLayer)) currentMap.removeLayer(offlineTileLayer);
         if (!currentMap.hasLayer(tileLayer)) tileLayer.addTo(currentMap);

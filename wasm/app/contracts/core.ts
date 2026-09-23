@@ -276,7 +276,14 @@ export interface ProjectSnapshotV1 {
   studyAreas?: ProjectStudyArea[];
   mapAssets?: ProjectMapAsset[];
   mapLayers?: ProjectMapLayer[];
+  mapPresentation?: ProjectMapPresentationV1;
   referenceLayerSources?: ProjectReferenceLayerSourceV1[];
+}
+
+export interface ProjectMapPresentationV1 {
+  schema: "epi-gis-map-presentation/0.1";
+  background: "street" | "blank" | "offline";
+  annotations: { title: string; subtitle: string; note: string; showLegend: boolean; showNorthArrow: boolean; showScaleBar: boolean };
 }
 
 export interface MapPoint {
@@ -791,6 +798,22 @@ function projectMapLayerAt(
   return { ...assetShared, kind: "raster", opacity: source.opacity };
 }
 
+function projectMapPresentationAt(value: unknown, path: string): ProjectMapPresentationV1 {
+  const source = objectAt(value, path);
+  if (source.schema !== "epi-gis-map-presentation/0.1") fail(`${path}.schema`, "must be epi-gis-map-presentation/0.1");
+  if (source.background !== "street" && source.background !== "blank" && source.background !== "offline") fail(`${path}.background`, "must be street, blank, or offline");
+  const annotations = objectAt(source.annotations, `${path}.annotations`);
+  const text = (key: string, maximum: number): string => {
+    if (typeof annotations[key] !== "string" || String(annotations[key]).length > maximum) fail(`${path}.annotations.${key}`, `must be text of at most ${maximum} characters`);
+    return String(annotations[key]).trim();
+  };
+  const title = text("title", 200);
+  const subtitle = text("subtitle", 300);
+  const note = text("note", 2000);
+  for (const key of ["showLegend", "showNorthArrow", "showScaleBar"]) if (typeof annotations[key] !== "boolean") fail(`${path}.annotations.${key}`, "must be boolean");
+  return { schema: "epi-gis-map-presentation/0.1", background: source.background, annotations: { title, subtitle, note, showLegend: annotations.showLegend as boolean, showNorthArrow: annotations.showNorthArrow as boolean, showScaleBar: annotations.showScaleBar as boolean } };
+}
+
 function finiteCoordinate(value: unknown, path: string, minimum: number, maximum: number): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum) {
     fail(path, `must be a finite number from ${minimum} through ${maximum}`);
@@ -1009,6 +1032,7 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
       ids.add(layer.id);
     }
   }
+  if (snapshot.mapPresentation !== undefined) result.mapPresentation = projectMapPresentationAt(snapshot.mapPresentation, "project.mapPresentation");
   if (snapshot.referenceLayerSources !== undefined) {
     if (!Array.isArray(snapshot.referenceLayerSources)) fail("project.referenceLayerSources", "must be an array");
     result.referenceLayerSources = snapshot.referenceLayerSources.map((source, index) => referenceLayerSourceAt(source, `project.referenceLayerSources[${index}]`));

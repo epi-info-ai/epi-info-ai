@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+const bundled = await build({ entryPoints: ["wasm/app/gis/map-document-plan.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const documentPlan = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const plan = documentPlan.createMapDocumentPlanV01({ id: "map-1", projectRevision: "rev-7", background: "blank", output: "interactive", layers: [{ id: "boundaries", visible: true, zIndex: 410 }, { id: "dots", visible: true, zIndex: 430 }] });
+assert.equal(plan.schema, "epi-gis-map-document/0.1");
+assert.equal(documentPlan.canonicalizeMapDocumentPlanV01(plan), '{"background":"blank","id":"map-1","layers":[{"id":"boundaries","visible":true,"zIndex":410},{"id":"dots","visible":true,"zIndex":430}],"output":"interactive","projectRevision":"rev-7","schema":"epi-gis-map-document/0.1"}');
+assert.throws(() => documentPlan.createMapDocumentPlanV01({ ...plan, layers: [{ id: "dots", visible: true, zIndex: 1 }, { id: "dots", visible: false, zIndex: 2 }] }), /duplicated/);
+assert.throws(() => documentPlan.createMapDocumentPlanV01({ ...plan, layers: [{ id: "dots", visible: true, zIndex: 1 }, { id: "labels", visible: true, zIndex: 1 }] }), /z-index/);
+assert.throws(() => documentPlan.createMapDocumentPlanV01({ ...plan, background: "satellite" }), /background/);
+console.log("GIS-K08 map document plan smoke passed.");

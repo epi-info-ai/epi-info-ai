@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+const bundled = await build({ entryPoints: ["wasm/app/gis/map-annotations.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const annotations = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const created = annotations.createMapAnnotationsV01({ title: "Outbreak map", note: "Synthetic teaching output", showScaleBar: false });
+assert.equal(created.title, "Outbreak map");
+assert.equal(created.showLegend, true);
+assert.equal(created.showNorthArrow, true);
+assert.equal(created.showScaleBar, false);
+assert.doesNotThrow(() => annotations.validateMapAnnotationsV01(created));
+assert.throws(() => annotations.createMapAnnotationsV01({ title: "x".repeat(201) }), /at most 200/);
+assert.throws(() => annotations.validateMapAnnotationsV01({ title: "", subtitle: "", note: "", showLegend: false, showNorthArrow: false, showScaleBar: false }), /at least one/);
+assert.throws(() => annotations.validateMapAnnotationsV01({ ...created, showLegend: "yes" }), /boolean/);
+console.log("GIS-K08 annotations smoke passed.");

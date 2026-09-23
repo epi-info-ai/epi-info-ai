@@ -3015,6 +3015,25 @@ select {
   gap: 0.2rem 0.4rem;
 }
 
+.map-annotation-overlay {
+  position: absolute;
+  z-index: 700;
+  top: 14px;
+  left: 14px;
+  max-width: min(360px, 70%);
+  padding: 8px 10px;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid #9aa6b2;
+  border-radius: 4px;
+  display: grid;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.map-annotation-overlay small {
+  color: #4b5563;
+}
+
 .map-choropleth-diagnostics,
 .map-choropleth-legend {
   grid-column: 1 / -1;
@@ -3072,6 +3091,22 @@ select {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin-top: 0.45rem;
+}
+
+.map-asset-recovery {
+  border-left-color: #b45309;
+}
+
+.map-asset-recovery > ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.map-asset-recovery li {
+  display: grid;
+  gap: 0.25rem;
 }
 
 .map-workspace {

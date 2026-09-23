@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+const bundled = await build({ entryPoints: ["wasm/app/gis/map-time-lapse.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const timeLapse = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const plan = timeLapse.createMapTimeLapsePlanV01({ sourceFormId: "cases", timeField: "onset_date", valueKind: "date", maxStops: 120, intervalMilliseconds: 1500, autoplay: false });
+assert.equal(plan.schema, "epi-gis-map-time-lapse/0.1");
+assert.equal(plan.maxStops, 120);
+assert.doesNotThrow(() => timeLapse.validateMapTimeLapsePlanV01(plan));
+assert.throws(() => timeLapse.createMapTimeLapsePlanV01({ ...plan, maxStops: 1001 }), /maximum stops/);
+assert.throws(() => timeLapse.createMapTimeLapsePlanV01({ ...plan, intervalMilliseconds: 99 }), /interval/);
+assert.throws(() => timeLapse.createMapTimeLapsePlanV01({ ...plan, valueKind: "year" }), /value kind/);
+assert.throws(() => timeLapse.createMapTimeLapsePlanV01({ ...plan, autoplay: "yes" }), /autoplay/);
+console.log("GIS-K08 time-lapse smoke passed.");

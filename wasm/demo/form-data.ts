@@ -595,8 +595,8 @@ export function detachCurrentOfflineMapAsset(sha256: string): void {
   globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
 }
 
-export function replaceCurrentProjectMapState(assets: ProjectMapAsset[], layers: ProjectMapLayer[], referenceLayerSources: ProjectReferenceLayerSourceV1[] = projectState.referenceLayerSources ?? []): void {
-  const candidate = validateProjectSnapshot({ ...projectState, mapAssets: structuredClone(assets), mapLayers: structuredClone(layers), referenceLayerSources: structuredClone(referenceLayerSources) });
+export function replaceCurrentProjectMapState(assets: ProjectMapAsset[], layers: ProjectMapLayer[], referenceLayerSources: ProjectReferenceLayerSourceV1[] = projectState.referenceLayerSources ?? [], mapPresentation = projectState.mapPresentation): void {
+  const candidate = validateProjectSnapshot({ ...projectState, mapAssets: structuredClone(assets), mapLayers: structuredClone(layers), referenceLayerSources: structuredClone(referenceLayerSources), ...(mapPresentation ? { mapPresentation: structuredClone(mapPresentation) } : {}) });
   projectState = candidate;
   if (!syncCurrentForm()) throw new Error("The project map layers could not be saved.");
   globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));

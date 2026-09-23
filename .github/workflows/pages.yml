@@ -60,6 +60,14 @@ jobs:
           pnpm run test:gis:choropleth
           pnpm run test:gis:choropleth:fixture
           pnpm run test:gis:dot-density
+          pnpm run test:gis:k08:layers
+          pnpm run test:gis:k08:document
+          pnpm run test:gis:k08:results
+          pnpm run test:gis:k08:annotations
+          pnpm run test:gis:k08:background
+          pnpm run test:gis:k08:time-lapse
+          pnpm run test:gis:k08:export
+          pnpm run test:gis:k08:package
 
       - name: Install Python
         uses: actions/setup-python@v7

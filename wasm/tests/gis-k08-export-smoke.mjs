@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+const bundled = await build({ entryPoints: ["wasm/app/gis/map-export.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const exportPlan = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const plan = exportPlan.createMapPngExportPlanV01({ fileName: "outbreak-map.png", widthPixels: 1200, heightPixels: 800, scale: 2, includeBackground: false, includeLegend: true, includeAnnotations: true });
+assert.equal(plan.schema, "epi-gis-map-png-export/0.1");
+assert.equal(plan.scale, 2);
+assert.doesNotThrow(() => exportPlan.validateMapPngExportPlanV01(plan));
+assert.throws(() => exportPlan.createMapPngExportPlanV01({ ...plan, fileName: "../../secret.png" }), /safe/);
+assert.throws(() => exportPlan.createMapPngExportPlanV01({ ...plan, widthPixels: 4096, heightPixels: 4096, scale: 4 }), /pixel budget/);
+assert.throws(() => exportPlan.createMapPngExportPlanV01({ ...plan, includeLegend: "yes" }), /boolean/);
+console.log("GIS-K08 export smoke passed.");
