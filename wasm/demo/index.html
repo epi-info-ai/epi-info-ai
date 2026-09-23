@@ -12,10 +12,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=68" />
+    <link rel="stylesheet" href="styles.css?v=72" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=6" defer></script>
-    <script type="module" src="app.js?v=115"></script>
+    <script type="module" src="app.js?v=126"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -83,6 +83,7 @@
         <div class="legacy-menu-popup" role="menu" aria-label="Help">
           <button id="help-runbooks" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Automated Runbooks...</button>
           <button id="help-teaching-repositories" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Teaching Repositories...</button>
+          <button id="help-capability-packages" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Capability Packages...</button>
           <div class="legacy-menu-separator" role="separator"></div>
           <button type="button" role="menuitem" disabled title="Not yet included in the browser demo">User Guide</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Help Videos</button>
@@ -186,11 +187,50 @@
       </form>
     </dialog>
 
+    <dialog id="capability-package-dialog" class="legacy-dialog capability-package-dialog" aria-labelledby="capability-package-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar"><h2 id="capability-package-title">Capability Packages</h2><button value="cancel" aria-label="Close">&times;</button></div>
+        <div class="legacy-dialog-body">
+          <p><span class="new-branch-tag">New branch</span> Phase 1 package-manager pilot: preview and integrity-check inert capability assets. Packages cannot install executable code or silently enable a command.</p>
+          <label for="capability-package-url">Package manifest URL</label>
+          <input id="capability-package-url" type="url" spellcheck="false" value="https://git.cdc.gov/epi-info-ai/package-occupational-epidemiology/-/raw/main/epi-info-capability.json">
+          <div class="inline-actions"><button id="capability-package-preview" type="button">Preview package</button></div>
+          <p id="capability-package-status" class="inline-feedback" role="status">No capability package previewed.</p>
+          <section id="capability-package-preview-panel" hidden>
+            <h3 id="capability-package-preview-title"></h3>
+            <p id="capability-package-preview-description"></p>
+            <dl class="package-context">
+              <div><dt>Package</dt><dd><code id="capability-package-preview-id"></code></dd></div>
+              <div><dt>Version</dt><dd id="capability-package-preview-version"></dd></div>
+              <div><dt>Publisher</dt><dd id="capability-package-preview-publisher"></dd></div>
+              <div><dt>Manifest retrieved from</dt><dd id="capability-package-preview-manifest-source"></dd></div>
+              <div><dt>Pinned revision</dt><dd><code id="capability-package-preview-revision"></code></dd></div>
+              <div><dt>Download</dt><dd id="capability-package-preview-size"></dd></div>
+              <div><dt>Install approval</dt><dd id="capability-package-preview-install-approval"></dd></div>
+              <div><dt>Scientific execution</dt><dd id="capability-package-preview-scientific"></dd></div>
+              <div><dt>Signature status</dt><dd id="capability-package-preview-signature"></dd></div>
+              <div><dt>Requested authority</dt><dd id="capability-package-preview-authority"></dd></div>
+            </dl>
+            <p id="capability-package-preview-warning" class="dialog-warning"></p>
+            <h4>Declared inert artifacts</h4>
+            <ul id="capability-package-artifacts"></ul>
+            <button id="capability-package-install" class="dialog-primary" type="button" disabled>Verify and install inert package</button>
+          </section>
+          <section id="capability-package-installed" hidden>
+            <h3>Installed capability packages</h3>
+            <p id="capability-package-installed-summary"></p>
+          </section>
+        </div>
+        <div class="legacy-dialog-actions"><button value="cancel">Close</button></div>
+      </form>
+    </dialog>
+
     <aside id="runbook-coach" class="runbook-coach" aria-labelledby="runbook-step-title" aria-live="polite" hidden>
       <div class="runbook-coach-heading"><span id="runbook-progress">Step 1</span><button id="runbook-stop" type="button" aria-label="Stop runbook">×</button></div>
       <h2 id="runbook-step-title">Runbook step</h2>
       <p id="runbook-step-instruction"></p>
-      <div class="runbook-coach-actions"><button id="runbook-back" type="button">Back</button><button id="runbook-next" class="primary-button" type="button">Next</button></div>
+      <p id="runbook-evidence-status" class="runbook-evidence-status" role="status" hidden></p>
+      <div class="runbook-coach-actions"><button id="runbook-back" type="button">Back</button><button id="runbook-check-step" type="button" hidden>Check step</button><button id="runbook-next" class="primary-button" type="button">Next</button></div>
     </aside>
 
     <dialog id="encrypted-project-save-dialog" class="legacy-dialog package-transport-dialog" aria-labelledby="encrypted-project-save-title">
@@ -471,6 +511,7 @@
                 </div>
               </div>
               <form id="record-form" novalidate>
+                <nav id="record-page-nav" class="record-page-nav" aria-label="Form pages" hidden></nav>
                 <div id="record-fields" class="record-fields"></div>
                 <div class="form-actions">
                   <button class="primary-button" type="submit">Save record</button>
@@ -2100,6 +2141,8 @@
               <option value="disable">DISABLE</option>
               <option value="hide">HIDE</option>
               <option value="unhide">UNHIDE</option>
+              <option value="highlight">HIGHLIGHT</option>
+              <option value="unhighlight">UNHIGHLIGHT</option>
               <option value="set-required">SET-REQUIRED</option>
               <option value="set-not-required">SET-NOT-REQUIRED</option>
             </select>
@@ -2129,8 +2172,29 @@
             <button id="check-code-save" type="button">Save .chk...</button>
             <input id="check-code-file" class="sr-only" type="file" accept=".chk,.txt,text/plain" />
           </div>
-          <label for="check-code-source">Check Code</label>
-          <textarea id="check-code-source" rows="20" spellcheck="false" wrap="off"></textarea>
+          <div class="check-code-project-programs">
+            <label for="check-code-project-program">Check Code in this project</label>
+            <div class="inline-actions">
+              <select id="check-code-project-program"><option value="">Choose packaged Check Code</option></select>
+              <button id="check-code-project-program-open" type="button" disabled>Open</button>
+            </div>
+          </div>
+          <div class="check-code-editor-toolbar" role="toolbar" aria-label="Check Code editor tools">
+            <button id="check-code-undo" type="button">Undo</button>
+            <button id="check-code-redo" type="button">Redo</button>
+            <button id="check-code-line-numbers" type="button" aria-pressed="true">Line numbers</button>
+            <button id="check-code-find" type="button">Find...</button>
+            <button id="check-code-replace" type="button">Replace...</button>
+            <label>Tab width
+              <select id="check-code-tab-size"><option value="2">2</option><option value="4" selected>4</option><option value="8">8</option></select>
+            </label>
+            <label class="checkbox-option"><input id="check-code-indent-tabs" type="checkbox" checked /> Insert tabs</label>
+            <button id="check-code-font" type="button">Font...</button>
+          </div>
+          <p id="check-code-source-label" class="classic-program-label"><strong>Check Code</strong></p>
+          <div id="check-code-source" class="check-code-source" aria-labelledby="check-code-source-label"></div>
+          <div class="check-code-editor-position" aria-label="Check Code editor status"><span id="check-code-cursor-position">Ln 1, Col 1</span><span id="check-code-font-status">Consolas · 15 px</span><span id="check-code-tab-status">Tab width 4 · Tabs</span></div>
+          <p id="check-code-live-status" class="classic-program-live-status" role="status">Live syntax check is starting.</p>
           <p id="check-code-editor-status" class="dialog-note" role="status" aria-live="polite">Source has not been verified.</p>
           <ul id="check-code-editor-diagnostics" class="check-code-diagnostics"></ul>
         </div>
@@ -2142,14 +2206,78 @@
       </form>
     </dialog>
 
+    <dialog id="check-code-search-dialog" class="legacy-dialog" aria-labelledby="check-code-search-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar"><strong id="check-code-search-title">Find Check Code</strong><button value="cancel" aria-label="Close">x</button></div>
+        <div class="legacy-dialog-body">
+          <label>Find what<input id="check-code-search-query" type="text" /></label>
+          <label id="check-code-search-replacement-label" hidden>Replace with<input id="check-code-search-replacement" type="text" /></label>
+          <label class="checkbox-option"><input id="check-code-search-case" type="checkbox" /> Match case</label>
+          <label class="checkbox-option"><input id="check-code-search-word" type="checkbox" /> Whole word</label>
+          <p id="check-code-search-status" class="dialog-note" role="status"></p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button id="check-code-search-find" type="button">Find Next</button>
+          <button id="check-code-search-replace-one" type="button" hidden>Replace</button>
+          <button id="check-code-search-replace-all" type="button" hidden>Replace All</button>
+          <button value="cancel">Close</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="check-code-font-dialog" class="legacy-dialog" aria-labelledby="check-code-font-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar"><strong id="check-code-font-title">Set Check Code Font</strong><button value="cancel" aria-label="Close">x</button></div>
+        <div class="legacy-dialog-body">
+          <label>Font<select id="check-code-font-family"><option value="Consolas">Consolas</option><option value="Cascadia Mono">Cascadia Mono</option><option value="Courier New">Courier New</option><option value="Lucida Console">Lucida Console</option><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option></select></label>
+          <label>Size (pixels)<input id="check-code-font-size" type="number" min="8" max="32" step="1" value="15" inputmode="numeric" /></label>
+          <div id="check-code-font-preview" class="classic-program-font-preview" aria-label="Font preview">Field case_status</div>
+        </div>
+        <div class="legacy-dialog-actions"><button id="check-code-font-apply" class="dialog-primary" type="button">Apply</button><button value="cancel">Cancel</button></div>
+      </form>
+    </dialog>
+
     <dialog id="check-code-message-dialog" class="legacy-dialog check-code-message-dialog" aria-labelledby="check-code-message-title">
       <form method="dialog">
         <div class="legacy-dialog-titlebar">
           <strong id="check-code-message-title">Check Code Message</strong>
           <button value="cancel" aria-label="Close">x</button>
         </div>
-        <div class="legacy-dialog-body"><p id="check-code-message"></p></div>
-        <div class="legacy-dialog-actions"><button class="dialog-primary" value="ok" autofocus>OK</button></div>
+        <div class="legacy-dialog-body">
+          <p id="check-code-message"></p>
+          <label id="check-code-dialog-input-label" for="check-code-dialog-input" hidden>Response
+            <input id="check-code-dialog-input" type="text" />
+          </label>
+          <select id="check-code-dialog-select" aria-label="Response" hidden></select>
+          <p id="check-code-dialog-mask" class="dialog-note" hidden></p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button class="dialog-primary" value="ok" autofocus>OK</button>
+          <button id="check-code-dialog-cancel" value="cancel" hidden>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="check-code-autosearch-dialog" class="legacy-dialog check-code-autosearch-dialog" aria-labelledby="check-code-autosearch-title">
+      <form method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <strong id="check-code-autosearch-title">AUTOSEARCH matches</strong>
+          <button value="continue" aria-label="Close">x</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p id="check-code-autosearch-summary"></p>
+          <p class="compatibility-note"><strong>Browser adaptation:</strong> matching records are previewed only. This candidate does not replace the current draft or open an existing record.</p>
+          <div class="results-table-scroll">
+            <table>
+              <thead><tr id="check-code-autosearch-head"></tr></thead>
+              <tbody id="check-code-autosearch-body"></tbody>
+            </table>
+          </div>
+          <p id="check-code-autosearch-limit" class="dialog-note"></p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button class="dialog-primary" value="continue" autofocus>Continue new record</button>
+        </div>
       </form>
     </dialog>
 

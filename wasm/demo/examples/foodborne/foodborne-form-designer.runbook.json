@@ -1,0 +1,135 @@
+{
+  "id": "foodborne-form-designer-lab",
+  "title": "Foodborne Form Designer lab",
+  "description": "Build, validate, save, and exercise a field in the foodborne form while the runbook verifies observable completion evidence.",
+  "prerequisite": "Import the Foodborne Outbreak Investigation example project. This lab changes only its current browser working copy; reimport the project to reset it.",
+  "module": "forms",
+  "steps": [
+    {
+      "id": "orient",
+      "title": "Orient to the project and form",
+      "instruction": "Confirm that the Project Explorer shows Foodborne Outbreak Investigation and that its form is open. The runbook points to controls but does not modify the form for you.",
+      "target": "#project-explorer-title"
+    },
+    {
+      "id": "add-field",
+      "title": "Add a field",
+      "instruction": "Select Add field. A new editable row appears at the end of Field properties.",
+      "target": "#add-field",
+      "advanceOn": "click"
+    },
+    {
+      "id": "define-field",
+      "title": "Define the investigation team field",
+      "instruction": "In the last row, set Field name to team_initials, Prompt to Investigation team initials, Type to Text, select Required, and leave Tab stop enabled. Then select Check step.",
+      "target": "#field-list tr:last-child",
+      "evidence": {
+        "checks": [
+          { "kind": "value", "target": "#field-list tr:last-child [data-part='name']", "equals": "team_initials" },
+          { "kind": "value", "target": "#field-list tr:last-child [data-part='prompt']", "equals": "Investigation team initials" },
+          { "kind": "value", "target": "#field-list tr:last-child [data-part='type']", "equals": "text" },
+          { "kind": "checked", "target": "#field-list tr:last-child [data-part='required']", "equals": true },
+          { "kind": "checked", "target": "#field-list tr:last-child [data-part='tab-stop']", "equals": true }
+        ],
+        "success": "the field name, prompt, type, required state, and tab-stop state match the lab specification.",
+        "failure": "complete all five properties in the last field row exactly as shown in the instruction."
+      }
+    },
+    {
+      "id": "open-rules",
+      "title": "Open type-aware validation",
+      "instruction": "Select Rules in the last row. The validation choices shown must match this Text field's data type.",
+      "target": "#field-list tr:last-child [data-part='rules']",
+      "advanceOn": "click"
+    },
+    {
+      "id": "set-pattern",
+      "title": "Require two to five uppercase initials",
+      "instruction": "In Pattern (regular expression), enter ^[A-Z]{2,5}$. Select Check step; the runbook verifies the visible rule without recording its value as learner data.",
+      "target": "#field-rule-pattern",
+      "evidence": {
+        "checks": [
+          { "kind": "value", "target": "#field-rule-pattern", "equals": "^[A-Z]{2,5}$" }
+        ],
+        "success": "the bounded uppercase-initials pattern is present.",
+        "failure": "enter the pattern exactly as ^[A-Z]{2,5}$."
+      }
+    },
+    {
+      "id": "save-rules",
+      "title": "Save the field rules",
+      "instruction": "Select OK. This attaches the reviewed validation rule to the field in the browser working copy.",
+      "target": "#field-rules-form .dialog-primary",
+      "advanceOn": "click"
+    },
+    {
+      "id": "save-form",
+      "title": "Save the form",
+      "instruction": "Select Save Form to validate and persist the revised schema in this browser.",
+      "target": "#save-form",
+      "advanceOn": "click"
+    },
+    {
+      "id": "inspect-check-code",
+      "title": "Inspect the event-program boundary",
+      "instruction": "Select Check Code. Review how data-entry event logic is stored separately from field validation. Do not change or apply it during this lab.",
+      "target": "#designer-toolbar-check-code",
+      "advanceOn": "click"
+    },
+    {
+      "id": "confirm-editor",
+      "title": "Confirm visible Check Code source",
+      "instruction": "Confirm that the editor is open and the event source remains visible and auditable. Select Check step, then close the editor with Cancel.",
+      "target": "#check-code-source",
+      "evidence": {
+        "checks": [
+          { "kind": "attribute", "target": "#check-code-editor-dialog", "attribute": "open", "equals": "" },
+          { "kind": "text-contains", "target": "#check-code-source", "includes": "Form" }
+        ],
+        "success": "the Check Code editor is open and contains visible form event source.",
+        "failure": "open Check Code and confirm that the packaged source is visible."
+      }
+    },
+    {
+      "id": "close-check-code",
+      "title": "Return to Form Designer",
+      "instruction": "Select Cancel to close the Check Code editor without replacing the current form program.",
+      "target": "[data-close-check-code-editor]",
+      "advanceOn": "click"
+    },
+    {
+      "id": "enter-data",
+      "title": "Open Enter Data",
+      "instruction": "Select Enter Data to exercise the saved form. The packaged Page Before Check Code will open its titled Yes/No dialog; the runbook does not answer it or create a record for you.",
+      "target": "#designer-enter-data",
+      "advanceOn": "click"
+    },
+    {
+      "id": "answer-page-dialog",
+      "title": "Complete the Page Before event",
+      "instruction": "Choose Yes in the visible Page Before dialog, then select OK. This is the Check Code action you inspected; you must provide the response yourself.",
+      "target": "#check-code-message-dialog",
+      "advanceOn": "click",
+      "advanceTargets": ["#check-code-message-dialog .dialog-primary"]
+    },
+    {
+      "id": "test-field",
+      "title": "Test the new field",
+      "instruction": "Find Investigation team initials, enter ABC, and leave the field. Select Check step to confirm that the saved form rendered the field and retained the entered test value. Do not save the record.",
+      "target": "#record-form [name='team_initials']",
+      "evidence": {
+        "checks": [
+          { "kind": "value", "target": "#record-form [name='team_initials']", "equals": "ABC" }
+        ],
+        "success": "the saved field is present in Enter Data and contains the requested test value.",
+        "failure": "enter ABC in Investigation team initials, then leave the field."
+      }
+    },
+    {
+      "id": "complete",
+      "title": "Form Designer lab complete",
+      "instruction": "You added a typed field, configured validation, saved the schema, inspected Check Code, and tested the rendered control. Reimport the foodborne teaching project whenever you want a clean working copy.",
+      "target": "#record-form"
+    }
+  ]
+}

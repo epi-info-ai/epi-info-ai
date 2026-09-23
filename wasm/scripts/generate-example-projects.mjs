@@ -56,6 +56,18 @@ async function pgmProgram(relativePgmPath, name, comment) {
   };
 }
 
+async function checkCodeProgram(relativePath, name, comment) {
+  return {
+    name,
+    source: await readFile(path.join(examplesRoot, relativePath), "utf8"),
+    language: "check-code",
+    author: "Epi Info AI",
+    comment,
+    createdAt: "2026-09-22T12:00:00.000Z",
+    modifiedAt: "2026-09-22T12:00:00.000Z",
+  };
+}
+
 async function runbook(relativePath) {
   return JSON.parse(await readFile(path.join(examplesRoot, relativePath), "utf8"));
 }
@@ -100,11 +112,32 @@ const foodborneForm = await datasetForm(
   "foodborne-outbreak-investigation",
   "foodborne-outbreak-investigation",
 );
+foodborneForm.schema.fields.push({ name: "save_record", prompt: "Save record through Check Code", type: "command-button", required: false });
+foodborneForm.schema.pages = [
+  { name: "EntryPage", fields: ["id", "age", "sex", "case_status", "save_record"] },
+  { name: "Clinical", fields: ["onset_date", "onset_time", "hospitalization_date", "specimen_date", "interview_date", "diarrhea", "vomiting", "nausea", "abdominal_cramps", "fever", "bloody_stool"] },
+  { name: "ExposureLocation", fields: ["potato_salad", "grilled_chicken", "coleslaw", "hamburger", "hot_dog", "fruit_salad", "cake", "lemonade", "iced_tea", "latitude", "longitude", "household_neighborhood"] },
+];
+foodborneForm.schema.checkCodeProgram = {
+  version: 1,
+  language: "epi-info-check-code",
+  source: await readFile(path.join(examplesRoot, "foodborne/foodborne-check-code-tour.chk"), "utf8"),
+};
 const foodbornePrograms = [
   await pgmProgram(
     "foodborne/foodborne-classic-command-tour.pgm7",
     "foodborne-classic-command-tour",
     "Foodborne Classic Analysis parity and new-branch command tour.",
+  ),
+  await checkCodeProgram(
+    "foodborne/foodborne-check-code-tour.chk",
+    "foodborne-check-code-tour",
+    "Foodborne Form Designer Check Code tour with page, record, field, dialog, and bounded navigation events.",
+  ),
+  await checkCodeProgram(
+    "foodborne/foodborne-check-code-expressions.chk",
+    "foodborne-check-code-expressions",
+    "Foodborne typed arithmetic, text, date, conversion, and conditional-expression tour.",
   ),
   ...(await catalogPrograms("foodborne/foodborne-outbreak-investigation.programs.json")),
 ];
@@ -138,6 +171,8 @@ const foodborneProjectResult = await writePackage(
   [
     await runbook("foodborne/foodborne-investigation.runbook.json"),
     await runbook("foodborne/foodborne-gis-investigation.runbook.json"),
+    await runbook("foodborne/foodborne-check-code.runbook.json"),
+    await runbook("foodborne/foodborne-form-designer.runbook.json"),
   ],
 );
 const foodborneArchive = await createProjectArchive(foodborneProjectResult.packageValue, [foodborneGeoJson, foodborneGeoTiff]);
@@ -151,7 +186,23 @@ const clusterForm = await datasetForm(
   "space-time-cluster-cases",
   "space-time-cluster-synthetic-v0.1",
 );
-const clusterPrograms = await catalogPrograms("cluster/space-time-cluster-synthetic-v0.1.programs.json");
+clusterForm.schema.pages = [
+  { name: "Event", fields: ["case_id", "event_date", "location_id", "syndrome"] },
+  { name: "Location", fields: ["latitude", "longitude"] },
+];
+clusterForm.schema.checkCodeProgram = {
+  version: 1,
+  language: "epi-info-check-code",
+  source: await readFile(path.join(examplesRoot, "cluster/space-time-cluster-check-code-tour.chk"), "utf8"),
+};
+const clusterPrograms = [
+  ...(await catalogPrograms("cluster/space-time-cluster-synthetic-v0.1.programs.json")),
+  await checkCodeProgram(
+    "cluster/space-time-cluster-check-code-tour.chk",
+    "space-time-cluster-check-code-tour",
+    "Entry-time location and coordinate review for the synthetic cluster lesson.",
+  ),
+];
 await writePackage(
   "space-time-cluster-detection.epia.json",
   {
@@ -189,13 +240,42 @@ const recordLinkPackage = JSON.parse(await readFile(recordLinkPackagePath, "utf8
 recordLinkPackage.programs[0].source = await readFile(path.join(examplesRoot, "recordlink", "recordlink-command-tour.pgm7"), "utf8");
 recordLinkPackage.programs[0].comment = "Synthetic teaching workflow; V0.11 pauses for governed review, prepares clusters and audit tables, and offers an acknowledged DuckDB analytical output without changing project tables.";
 recordLinkPackage.runbooks = [await runbook("recordlink/recordlink.runbook.json")];
+const registryACheckCode = await checkCodeProgram(
+  "recordlink/patient-registry-a-check-code.chk",
+  "patient-registry-a-check-code",
+  "Source-identifier and page-navigation checks for patient registry A.",
+);
+const surveillanceBCheckCode = await checkCodeProgram(
+  "recordlink/surveillance-b-check-code.chk",
+  "surveillance-b-check-code",
+  "Client-identifier and page-navigation checks for surveillance source B.",
+);
+recordLinkPackage.programs = [
+  ...recordLinkPackage.programs.filter(({ language }) => language !== "check-code"),
+  registryACheckCode,
+  surveillanceBCheckCode,
+];
+const registryAForm = recordLinkPackage.project.forms.find(({ id }) => id === "patient-registry-a");
+if (!registryAForm) throw new Error("The record-linkage package is missing patient-registry-a.");
+registryAForm.schema.pages = [
+  { name: "Identity", fields: ["record_id", "first_name", "middle_name", "last_name"] },
+  { name: "Demographics", fields: ["date_of_birth", "sex", "patient_address", "art_code", "facility_code"] },
+];
+registryAForm.schema.checkCodeProgram = { version: 1, language: "epi-info-check-code", source: registryACheckCode.source };
+const surveillanceBForm = recordLinkPackage.project.forms.find(({ id }) => id === "surveillance-b");
+if (!surveillanceBForm) throw new Error("The record-linkage package is missing surveillance-b.");
+surveillanceBForm.schema.pages = [
+  { name: "Identity", fields: ["client_id", "given_name", "middle", "family_name"] },
+  { name: "Demographics", fields: ["DOB", "SEX", "Address", "ART_CODE", "site_code"] },
+];
+surveillanceBForm.schema.checkCodeProgram = { version: 1, language: "epi-info-check-code", source: surveillanceBCheckCode.source };
 await writeFile(recordLinkPackagePath, `${JSON.stringify(recordLinkPackage, null, 2)}\n`);
 
 const projects = [
   {
     id: "foodborne-outbreak-investigation",
     title: "Foodborne Outbreak Investigation",
-    description: "96 synthetic investigation records with Classic Analysis and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
+    description: "96 synthetic investigation records with Classic Analysis, Check Code, and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
     file: "foodborne-outbreak-investigation.epia",
     repository: "https://git.cdc.gov/epi-info-ai/foodborne-outbreak-investigation",
   },

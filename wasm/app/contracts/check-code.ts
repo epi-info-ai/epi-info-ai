@@ -14,7 +14,7 @@ export interface SafeGotoStatement {
   when?: CheckCodeCondition;
 }
 
-export type SafeFieldAction = "enable" | "disable" | "hide" | "unhide" | "set-required" | "set-not-required";
+export type SafeFieldAction = "enable" | "disable" | "hide" | "unhide" | "highlight" | "unhighlight" | "set-required" | "set-not-required";
 
 export interface SafeFieldActionStatement {
   kind: "field-action";
@@ -74,7 +74,7 @@ export function validateFieldCheckCode(value: unknown, path = "checkCode"): Fiel
         : {
             kind: "field-action",
             action: (() => {
-              if (!["enable", "disable", "hide", "unhide", "set-required", "set-not-required"].includes(String(statement.action))) {
+              if (!["enable", "disable", "hide", "unhide", "highlight", "unhighlight", "set-required", "set-not-required"].includes(String(statement.action))) {
                 return fail(`${itemPath}.action`, "is not in the browser-safe field-action allowlist");
               }
               return statement.action as SafeFieldAction;

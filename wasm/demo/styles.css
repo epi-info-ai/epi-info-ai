@@ -2181,12 +2181,71 @@ select {
   width: min(58rem, calc(100% - 2rem));
 }
 
-.check-code-editor-dialog textarea {
+.check-code-editor-toolbar,
+.check-code-editor-position {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.check-code-editor-toolbar {
+  margin-block: 0.5rem;
+  padding: 0.45rem;
+  border: 1px solid #b7c7d0;
+  background: #eef4f7;
+}
+
+.check-code-editor-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.check-code-editor-position {
+  justify-content: space-between;
+  padding: 0.3rem 0.45rem;
+  color: #405966;
+  background: #edf1f3;
+  border: 1px solid #b7c7d0;
+  border-top: 0;
+  font-size: 0.78rem;
+}
+
+.check-code-source {
   width: 100%;
-  min-height: 24rem;
-  resize: vertical;
-  font-family: Consolas, "Courier New", monospace;
-  tab-size: 2;
+  min-height: 20rem;
+}
+
+.check-code-source .cm-editor {
+  height: min(48dvh, 28rem);
+  min-height: 20rem;
+  border: 1px solid #8198aa;
+  background: #fff;
+  color: #102f45;
+  font-family: var(--check-code-font-family, Consolas, "Courier New", monospace);
+  font-size: var(--check-code-font-size, 15px);
+}
+
+.check-code-source .cm-editor.cm-focused {
+  border-color: var(--epi-blue);
+  box-shadow: 0 0 0 2px rgba(0, 121, 168, 0.2);
+  outline: 0;
+}
+
+.check-code-source .cm-scroller { overflow: auto; line-height: 1.45; }
+.check-code-source .cm-content { min-height: 20rem; padding-block: 0.45rem; }
+.check-code-source .cm-content,
+.check-code-source .cm-gutters {
+  font-family: var(--check-code-font-family, Consolas, "Courier New", monospace) !important;
+  font-size: var(--check-code-font-size, 15px) !important;
+}
+.check-code-source .cm-gutters { background: #eef4f7; border-right: 1px solid #c3d1db; color: #597080; }
+.check-code-source .cm-editor.cm-focused .cm-cursor {
+  width: 0.22em;
+  min-width: 3px;
+  background: #d2182a !important;
+  border-left: 0 !important;
 }
 
 .check-code-file-actions {
@@ -3506,6 +3565,13 @@ body.map-fullscreen-fallback {
   box-shadow: 0 0 0 2px rgb(180 35 24 / 14%);
 }
 
+.record-field[data-check-code-highlighted="true"] {
+  padding: 0.35rem;
+  background: #fff3a3;
+  border-radius: 0.35rem;
+  box-shadow: inset 0 0 0 2px #9a6700;
+}
+
 .field-validation-message {
   display: block;
   min-height: 1.1em;
@@ -3616,6 +3682,34 @@ body.map-fullscreen-fallback {
   display: grid;
   gap: 0.85rem;
   grid-template-columns: minmax(0, 1fr);
+}
+
+.record-page-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.9rem;
+  padding: 0 0 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.record-page-nav[hidden] {
+  display: none;
+}
+
+.record-page-nav button {
+  min-height: var(--control-min-size);
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.3rem;
+  background: white;
+  color: var(--text);
+}
+
+.record-page-nav button.active {
+  color: white;
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .record-field {
@@ -4807,6 +4901,27 @@ body.map-fullscreen-fallback {
   margin-bottom: 0.35rem;
 }
 
+.capability-package-dialog {
+  width: min(800px, calc(100vw - 2rem));
+}
+
+.capability-package-dialog input[type="url"] {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0.35rem 0 0.7rem;
+}
+
+.capability-package-dialog code {
+  overflow-wrap: anywhere;
+}
+
+.capability-package-dialog .dialog-warning {
+  padding: 0.65rem 0.8rem;
+  border-left: 4px solid #c47f00;
+  background: #fff7dc;
+  color: #5b3900;
+}
+
 .example-project-dialog {
   width: min(780px, calc(100vw - 2rem));
 }
@@ -4888,6 +5003,23 @@ body.map-fullscreen-fallback {
 .runbook-coach h2 {
   margin: 0.65rem 0 0.35rem;
   font-size: 1.2rem;
+}
+
+.runbook-evidence-status {
+  margin: 0.75rem 0;
+  padding: 0.65rem 0.75rem;
+  border-left: 4px solid #7a8790;
+  background: #eef3f6;
+}
+
+.runbook-evidence-status[data-outcome="verified"] {
+  border-color: #2f8f53;
+  background: #e9f7ee;
+}
+
+.runbook-evidence-status[data-outcome="incomplete"] {
+  border-color: #b44736;
+  background: #fff1ee;
 }
 
 .runbook-highlight {

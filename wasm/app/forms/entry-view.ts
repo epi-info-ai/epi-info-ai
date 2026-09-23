@@ -1,4 +1,4 @@
-import type { EpiRecord, FieldDefinition, FormSchema } from "../contracts/core.js";
+import type { EpiRecord, FieldDefinition, FormPageDefinition, FormSchema } from "../contracts/core.js";
 import type { SafeCheckCodeStatement, SafeGeocodeStatement, SafeGotoStatement } from "../contracts/check-code.js";
 import type { FieldValidationIssue, FieldValidationRule, LegalValuesRule, PatternRule, RangeRule } from "../contracts/validation.js";
 import { geocodeAddress, type GeocodeCandidate } from "./geocoding.ts";
@@ -105,11 +105,13 @@ function applyFieldAction(statement: Exclude<SafeCheckCodeStatement, SafeGotoSta
   if (statement.action === "enable") target.disabled = false;
   else if (statement.action === "disable") target.disabled = true;
   else if (statement.action === "hide" && wrapper) {
+    wrapper.dataset.checkCodeHidden = "true";
     wrapper.hidden = true;
     if (!target.disabled) target.dataset.disabledByHide = "true";
     target.disabled = true;
   } else if (statement.action === "unhide" && wrapper) {
-    wrapper.hidden = false;
+    delete wrapper.dataset.checkCodeHidden;
+    wrapper.hidden = wrapper.dataset.entryPage !== activeEntryPage();
     if (target.dataset.disabledByHide === "true") {
       target.disabled = false;
       delete target.dataset.disabledByHide;
@@ -119,10 +121,11 @@ function applyFieldAction(statement: Exclude<SafeCheckCodeStatement, SafeGotoSta
   else if (statement.action === "set-not-required") target.required = false;
 }
 
-function entryControl(field: FieldDefinition, programManaged: boolean): HTMLElement {
+function entryControl(field: FieldDefinition, programManaged: boolean, pageName: string): HTMLElement {
   if (field.type === "command-button") {
     const wrapper = document.createElement("div");
     wrapper.className = "record-field record-command-field";
+    wrapper.dataset.entryPage = pageName;
     const button = document.createElement("button");
     button.type = "button";
     button.name = field.name;
@@ -141,12 +144,13 @@ function entryControl(field: FieldDefinition, programManaged: boolean): HTMLElem
       wrapper.append(actions);
       return wrapper;
     }
-    else button.disabled = true;
+    else button.disabled = !programManaged;
     wrapper.append(button);
     return wrapper;
   }
   const wrapper = document.createElement("label");
   wrapper.className = "record-field";
+  wrapper.dataset.entryPage = pageName;
   wrapper.append(document.createTextNode(field.prompt));
   const control = field.type === "yes-no" || field.type === "option"
     ? document.createElement("select")
@@ -220,9 +224,54 @@ function entryControl(field: FieldDefinition, programManaged: boolean): HTMLElem
   return wrapper;
 }
 
+export function effectiveFormPages(schema: FormSchema): FormPageDefinition[] {
+  return schema.pages?.length
+    ? schema.pages.map((page) => ({ name: page.name, fields: [...page.fields] }))
+    : [{ name: "EntryPage", fields: schema.fields.map(({ name }) => name) }];
+}
+
+export function activeEntryPage(): string | undefined {
+  return document.querySelector<HTMLElement>("#record-page-nav")?.dataset.activePage;
+}
+
+export function showEntryPage(schema: FormSchema, target: string): string {
+  const pages = effectiveFormPages(schema);
+  const nav = requiredElement<HTMLElement>("#record-page-nav");
+  const currentIndex = Math.max(0, pages.findIndex(({ name }) => name === nav.dataset.activePage));
+  let targetIndex: number;
+  if (/^[+-]\d+$/.test(target)) targetIndex = currentIndex + Number(target);
+  else if (/^\d+$/.test(target)) targetIndex = Number(target) - 1;
+  else targetIndex = pages.findIndex(({ name }) => name.toLocaleLowerCase("en-US") === target.toLocaleLowerCase("en-US"));
+  if (targetIndex < 0 || targetIndex >= pages.length) throw new RangeError(`Page GOTO ${target} is outside this form's ${pages.length}-page model.`);
+  const selected = pages[targetIndex]!;
+  nav.dataset.activePage = selected.name;
+  for (const button of nav.querySelectorAll<HTMLButtonElement>("button[data-entry-page]")) {
+    const active = button.dataset.entryPage === selected.name;
+    button.setAttribute("aria-current", active ? "page" : "false");
+    button.classList.toggle("active", active);
+  }
+  for (const wrapper of document.querySelectorAll<HTMLElement>("#record-fields [data-entry-page]")) {
+    wrapper.hidden = wrapper.dataset.entryPage !== selected.name || wrapper.dataset.checkCodeHidden === "true";
+  }
+  return selected.name;
+}
+
 export function renderEntryForm(schema: FormSchema): void {
   requiredElement("#data-title").textContent = schema.name;
-  requiredElement("#record-fields").replaceChildren(...schema.fields.map((field) => entryControl(field, Boolean(schema.checkCodeProgram))));
+  const pages = effectiveFormPages(schema);
+  const fieldPages = new Map(pages.flatMap((page) => page.fields.map((field) => [field, page.name] as const)));
+  requiredElement("#record-fields").replaceChildren(...schema.fields.map((field) => entryControl(field, Boolean(schema.checkCodeProgram), fieldPages.get(field.name) ?? pages[0]!.name)));
+  const pageNav = requiredElement<HTMLElement>("#record-page-nav");
+  pageNav.replaceChildren(...pages.map((page, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.entryPage = page.name;
+    button.textContent = `${index + 1}. ${page.name}`;
+    button.addEventListener("click", () => globalThis.dispatchEvent(new CustomEvent("epi-entry-page-requested", { detail: { target: page.name } })));
+    return button;
+  }));
+  pageNav.hidden = pages.length < 2;
+  showEntryPage(schema, pages[0]!.name);
   const form = requiredElement<HTMLFormElement>("#record-form");
   const refreshCalculations = (): void => {
     const calculated = materializeCalculatedFields(schema, collectEntryRecord(form, schema));

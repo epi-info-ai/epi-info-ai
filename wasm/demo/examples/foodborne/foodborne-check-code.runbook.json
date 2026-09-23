@@ -1,0 +1,73 @@
+{
+  "id": "foodborne-check-code-tour",
+  "title": "Foodborne Check Code tour",
+  "description": "Inspect, verify, apply, and exercise the foodborne form's visible event-driven Check Code.",
+  "prerequisite": "Import the Foodborne Outbreak Investigation example project. Its form includes the Check Code source; no code runs while you inspect it in Form Designer.",
+  "module": "forms",
+  "steps": [
+    {
+      "id": "orient",
+      "title": "Separate Check Code from analysis programs",
+      "instruction": "Check Code controls data-entry events and field behavior. It is intentionally separate from the Classic Analysis .pgm7 command tour.",
+      "target": "#form-designer-title"
+    },
+    {
+      "id": "open-editor",
+      "title": "Open the Check Code Editor",
+      "instruction": "Select Check Code to inspect the complete source stored with this form. Opening the editor does not execute it.",
+      "target": "#designer-toolbar-check-code",
+      "advanceOn": "click"
+    },
+    {
+      "id": "review-source",
+      "title": "Review the event program",
+      "instruction": "Read the DefineVariables, Form, Page, Record, and Field blocks. The case_status After event conditionally highlights and requires onset_date, then moves focus to it.",
+      "target": "#check-code-source"
+    },
+    {
+      "id": "verify",
+      "title": "Verify the complete source",
+      "instruction": "Select Verify Source. Every field and variable reference must resolve before Apply becomes available; rejected source never runs partially.",
+      "target": "#check-code-verify",
+      "advanceOn": "click"
+    },
+    {
+      "id": "apply",
+      "title": "Apply the verified Check Code",
+      "instruction": "Select Apply Check Code. This saves the reviewed source into the current in-browser form; it does not submit data or call an external service.",
+      "target": "#check-code-apply",
+      "advanceOn": "click"
+    },
+    {
+      "id": "open-entry",
+      "title": "Exercise the form events",
+      "instruction": "Open Enter Data. A titled Page Before Yes/No dialog demonstrates event timing and typed assignment. Choose Yes, then select OK to continue.",
+      "target": "[data-module='data']",
+      "advanceOn": "click"
+    },
+    {
+      "id": "trigger-field-event",
+      "title": "Trigger conditional field behavior",
+      "instruction": "Enter Confirmed in Case Status and leave the field. Check Code opens the Clinical page, highlights Onset Date in yellow, makes it required, enables it, and moves focus there.",
+      "target": "#record-form [name='case_status']"
+    },
+    {
+      "id": "review-result",
+      "title": "Review the visible effect",
+      "instruction": "Confirm that Onset Date is highlighted and required. Choosing a different status and leaving Case Status removes the highlight and required state. Execution remains recorded in the project audit log.",
+      "target": "#record-form [name='onset_date']"
+    },
+    {
+      "id": "named-page-navigation",
+      "title": "Exercise named page navigation",
+      "instruction": "Enter an Interview Date and leave the field. GOTOPAGE ExposureLocation closes the Clinical page event, opens the destination page event, and reveals the exposure and location fields.",
+      "target": "#record-form [name='interview_date']"
+    },
+    {
+      "id": "review-page",
+      "title": "Review the active page",
+      "instruction": "Confirm that ExposureLocation is the active form page. Page transitions and their bounded Check Code effects are retained in project audit history.",
+      "target": "#record-page-nav"
+    }
+  ]
+}

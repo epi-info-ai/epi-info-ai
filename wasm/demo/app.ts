@@ -83,6 +83,7 @@ import { assessClassicProgramCatalog, loadClassicProgramCatalogIndex, loadClassi
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import { installTeachingRepository, listInstalledTeachingRepositories, previewTeachingRepository, readInstalledTeachingArtifact, type InstalledTeachingRepository, type TeachingRepositoryPreview } from "../app/teaching/repository.js";
+import { installCapabilityPackage, listInstalledCapabilityPackages, previewCapabilityPackage, type CapabilityPackagePreview } from "../app/packages/capability-package.js";
 import { fetchExampleProject, loadExampleProjectCatalog, type LoadedExampleProjectCatalog } from "../app/projects/example-repository.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MatchedPairsDerivation, MatchedPairsResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, StratifiedTable2x2Result, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 import type { EpiCurveResult } from "../app/contracts/dashboard.js";
@@ -2410,6 +2411,90 @@ document.addEventListener("click", (event) => {
   openExampleProjectDialog();
 });
 requiredElement("#example-project-refresh").addEventListener("click", () => void refreshExampleProjectCatalog());
+
+const capabilityPackageDialog = requiredElement<HTMLDialogElement>("#capability-package-dialog");
+const capabilityPackageUrl = requiredElement<HTMLInputElement>("#capability-package-url");
+const capabilityPackageStatus = requiredElement<HTMLElement>("#capability-package-status");
+const capabilityPackagePreviewPanel = requiredElement<HTMLElement>("#capability-package-preview-panel");
+const capabilityPackageInstall = requiredElement<HTMLButtonElement>("#capability-package-install");
+const capabilityPackageInstalled = requiredElement<HTMLElement>("#capability-package-installed");
+let currentCapabilityPackagePreview: CapabilityPackagePreview | null = null;
+
+function formatCapabilityBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function renderInstalledCapabilityPackages(): void {
+  const installed = listInstalledCapabilityPackages();
+  capabilityPackageInstalled.hidden = installed.length === 0;
+  requiredElement("#capability-package-installed-summary").textContent = installed.length
+    ? `${installed.length} inert package installed. ${installed[0]!.manifest.title} ${installed[0]!.manifest.version} passed ${installed[0]!.receipt.verifiedArtifacts} artifact checks; IOCODE execution remains disabled pending scientific approval.`
+    : "";
+}
+
+function renderCapabilityPackagePreview(preview: CapabilityPackagePreview): void {
+  const { manifest } = preview;
+  requiredElement("#capability-package-preview-title").textContent = manifest.title;
+  requiredElement("#capability-package-preview-description").textContent = manifest.description;
+  requiredElement("#capability-package-preview-id").textContent = manifest.id;
+  requiredElement("#capability-package-preview-version").textContent = manifest.version;
+  requiredElement("#capability-package-preview-publisher").textContent = manifest.publisher;
+  requiredElement("#capability-package-preview-manifest-source").textContent = new URL(preview.manifestUrl).hostname;
+  requiredElement("#capability-package-preview-revision").textContent = manifest.source.revision;
+  requiredElement("#capability-package-preview-size").textContent = `${formatCapabilityBytes(preview.totalBytes)} across ${manifest.artifacts.length} artifacts`;
+  requiredElement("#capability-package-preview-install-approval").textContent = "Approved synthetic import demonstration";
+  requiredElement("#capability-package-preview-scientific").textContent = "Not approved — command execution remains disabled";
+  requiredElement("#capability-package-preview-signature").textContent = "Pending protected-CI signing; integrity checks only";
+  requiredElement("#capability-package-preview-authority").textContent = "No execution and no network authority";
+  requiredElement("#capability-package-preview-warning").textContent = manifest.approval.reason;
+  requiredElement("#capability-package-artifacts").replaceChildren(...manifest.artifacts.map((artifact) => {
+    const item = document.createElement("li");
+    item.textContent = `${artifact.role}: ${artifact.path} (${formatCapabilityBytes(artifact.bytes)}, ${artifact.digest.slice(0, 19)}…)`;
+    return item;
+  }));
+  capabilityPackagePreviewPanel.hidden = false;
+  capabilityPackageInstall.disabled = false;
+}
+
+async function previewCapabilityPackageFrom(url: string): Promise<void> {
+  currentCapabilityPackagePreview = null;
+  capabilityPackagePreviewPanel.hidden = true;
+  capabilityPackageInstall.disabled = true;
+  capabilityPackageStatus.textContent = "Retrieving and validating the capability-package manifest…";
+  try {
+    const preview = await previewCapabilityPackage(url);
+    currentCapabilityPackagePreview = preview;
+    renderCapabilityPackagePreview(preview);
+    capabilityPackageStatus.textContent = "Manifest structure is valid. Review approval, authority, signing, and artifacts before installation.";
+  } catch (error) {
+    capabilityPackageStatus.textContent = error instanceof Error ? error.message : "Unable to preview the capability package.";
+  }
+}
+
+requiredElement("#help-capability-packages").addEventListener("click", () => {
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.legacy-menu")) menu.open = false;
+  renderInstalledCapabilityPackages();
+  capabilityPackageDialog.showModal();
+});
+requiredElement("#capability-package-preview").addEventListener("click", () => void previewCapabilityPackageFrom(capabilityPackageUrl.value));
+capabilityPackageInstall.addEventListener("click", () => {
+  if (!currentCapabilityPackagePreview) return;
+  capabilityPackageInstall.disabled = true;
+  capabilityPackageStatus.textContent = "Staging artifacts and verifying lengths and SHA-256 digests from approved mirrors…";
+  void (async () => {
+    try {
+      const installed = await installCapabilityPackage(currentCapabilityPackagePreview!);
+      renderInstalledCapabilityPackages();
+      capabilityPackageStatus.textContent = `${installed.manifest.title} ${installed.manifest.version} installed as inert assets. Receipt recorded; IOCODE scientific execution remains disabled.`;
+    } catch (error) {
+      capabilityPackageStatus.textContent = error instanceof Error ? error.message : "Capability package installation failed.";
+      capabilityPackageInstall.disabled = false;
+    }
+  })();
+});
+renderInstalledCapabilityPackages();
 
 const teachingRepositoryDialog = requiredElement<HTMLDialogElement>("#teaching-repository-dialog");
 const teachingRepositoryUrl = requiredElement<HTMLInputElement>("#teaching-repository-url");

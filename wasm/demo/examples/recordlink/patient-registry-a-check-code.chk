@@ -1,0 +1,48 @@
+*** Patient registry A entry checks for the synthetic RECORDLINK lesson
+
+DefineVariables
+  DEFINE ContinueToSurveillance STANDARD YN
+End-DefineVariables
+
+Page Identity
+  Before
+    ENABLE record_id first_name middle_name last_name
+  End-Before
+End-Page
+
+Page Demographics
+  Before
+    ENABLE date_of_birth sex patient_address art_code facility_code
+  End-Before
+End-Page
+
+Field record_id
+  After
+    IF record_id = "" OR record_id = (.) THEN
+      HIGHLIGHT record_id
+      DIALOG "Registry A records need a source record identifier before linkage." TITLETEXT="Linkage data quality"
+    ELSE
+      UNHIGHLIGHT record_id
+      GOTO first_name
+    END-IF
+  End-After
+End-Field
+
+Field last_name
+  After
+    IF NOT (last_name = "" OR last_name = (.)) THEN
+      GOTOPAGE Demographics
+    END-IF
+  End-After
+End-Field
+
+Field facility_code
+  After
+    IF NOT (record_id = "" OR record_id = (.)) AND NOT (facility_code = "" OR facility_code = (.)) THEN
+      DIALOG "Continue to the surveillance source form? The valid registry draft will remain available in this browser session." ContinueToSurveillance YN TITLETEXT="Cross-form Check Code"
+      IF ContinueToSurveillance THEN
+        GOTOFORM surveillance-b
+      END-IF
+    END-IF
+  End-After
+End-Field

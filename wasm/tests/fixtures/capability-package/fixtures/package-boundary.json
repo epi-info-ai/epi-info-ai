@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "epi.capability-validation/0.1",
+  "capability": "io.coder.review/0.1",
+  "packageVersion": "0.1.0",
+  "syntheticOnly": true,
+  "expectations": [
+    {
+      "id": "typed-source-recognized",
+      "source": "IOCODE Industry, Occupation, ICode, OCode, ITitle, OTitle, Scheme",
+      "expectedAstKind": "iocode",
+      "expectedFieldCount": 7
+    },
+    {
+      "id": "execution-remains-gated",
+      "expectedInstalled": true,
+      "expectedExecutable": false,
+      "expectedReasonContains": "approved NIOSH-compatible browser coder"
+    },
+    {
+      "id": "no-model-or-code-assets",
+      "prohibitedExtensions": [".dll", ".bin", ".onnx", ".safetensors", ".wasm", ".js"],
+      "expectedViolations": 0
+    }
+  ]
+}

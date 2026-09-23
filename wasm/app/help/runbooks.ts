@@ -1,3 +1,17 @@
+export type UiRunbookEvidenceCheck =
+  | { kind: "exists"; target: string }
+  | { kind: "value"; target: string; equals: string }
+  | { kind: "value-contains"; target: string; includes: string }
+  | { kind: "checked"; target: string; equals: boolean }
+  | { kind: "attribute"; target: string; attribute: string; equals: string }
+  | { kind: "text-contains"; target: string; includes: string };
+
+export interface UiRunbookEvidence {
+  checks: readonly UiRunbookEvidenceCheck[];
+  success: string;
+  failure: string;
+}
+
 export interface UiRunbookStep {
   id: string;
   title: string;
@@ -5,6 +19,7 @@ export interface UiRunbookStep {
   target: string;
   advanceOn?: "click" | "change";
   advanceTargets?: readonly string[];
+  evidence?: UiRunbookEvidence;
 }
 
 export interface UiRunbook {
@@ -16,7 +31,7 @@ export interface UiRunbook {
   steps: readonly UiRunbookStep[];
 }
 
-export const UI_RUNBOOKS_VERSION = "ui-runbooks-v0.3.1" as const;
+export const UI_RUNBOOKS_VERSION = "ui-runbooks-v0.4.0" as const;
 
 export const UI_RUNBOOKS: readonly UiRunbook[] = [
   {
@@ -266,6 +281,8 @@ export function initializeUiRunbooks(projectRunbooks: () => readonly UiRunbook[]
   const progress = requiredElement<HTMLElement>("#runbook-progress");
   const title = requiredElement<HTMLElement>("#runbook-step-title");
   const instruction = requiredElement<HTMLElement>("#runbook-step-instruction");
+  const evidenceStatus = requiredElement<HTMLElement>("#runbook-evidence-status");
+  const checkStep = requiredElement<HTMLButtonElement>("#runbook-check-step");
   const back = requiredElement<HTMLButtonElement>("#runbook-back");
   const next = requiredElement<HTMLButtonElement>("#runbook-next");
   const stop = requiredElement<HTMLButtonElement>("#runbook-stop");
@@ -274,6 +291,43 @@ export function initializeUiRunbooks(projectRunbooks: () => readonly UiRunbook[]
   let active: UiRunbook | undefined;
   let stepIndex = 0;
   let highlighted: HTMLElement | undefined;
+
+  const isEvidenceValueControl = (element: HTMLElement): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement => {
+    if (element instanceof HTMLInputElement) return !["file", "hidden", "password"].includes(element.type);
+    return element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
+  };
+
+  const checkEvidence = (step: UiRunbookStep): boolean => (step.evidence?.checks ?? []).every((check) => {
+    const element = document.querySelector<HTMLElement>(check.target);
+    if (check.kind === "exists") return Boolean(element);
+    if (!element) return false;
+    if (check.kind === "value") {
+      return isEvidenceValueControl(element) && element.value === check.equals;
+    }
+    if (check.kind === "value-contains") {
+      return isEvidenceValueControl(element) && element.value.includes(check.includes);
+    }
+    if (check.kind === "checked") return element instanceof HTMLInputElement && element.checked === check.equals;
+    if (check.kind === "attribute") return element.getAttribute(check.attribute) === check.equals;
+    return (element.textContent ?? "").includes(check.includes);
+  });
+
+  const reportEvidence = (step: UiRunbookStep): boolean => {
+    if (!step.evidence) return true;
+    const passed = checkEvidence(step);
+    evidenceStatus.hidden = false;
+    evidenceStatus.dataset.outcome = passed ? "verified" : "incomplete";
+    evidenceStatus.textContent = passed ? `Verified: ${step.evidence.success}` : `Not yet verified: ${step.evidence.failure}`;
+    globalThis.dispatchEvent(new CustomEvent("epi-info-runbook-evidence", {
+      detail: {
+        runbookId: active?.id,
+        stepId: step.id,
+        outcome: passed ? "verified" : "incomplete",
+        checkKinds: step.evidence.checks.map(({ kind }) => kind),
+      },
+    }));
+    return passed;
+  };
 
   const availableRunbooks = (): readonly UiRunbook[] => [...UI_RUNBOOKS, ...projectRunbooks()];
   const renderRunbookOptions = (): void => {
@@ -319,10 +373,16 @@ export function initializeUiRunbooks(projectRunbooks: () => readonly UiRunbook[]
     instruction.textContent = step.instruction;
     back.disabled = stepIndex === 0;
     next.textContent = stepIndex === active.steps.length - 1 ? "Finish" : "Next";
-    // Automatic advancement is convenient, but Next must always remain an
-    // escape hatch when a browser event is unavailable or an equivalent legacy
-    // workflow has already completed the requested action.
+    // Automatic advancement is convenient, but Next remains available when a
+    // browser event is unavailable. Evidence-bearing steps validate on Next
+    // and retain the learner on the current step until its checks pass.
     next.disabled = false;
+    checkStep.hidden = !step.evidence;
+    evidenceStatus.hidden = !step.evidence;
+    evidenceStatus.removeAttribute("data-outcome");
+    evidenceStatus.textContent = step.evidence
+      ? "Completion evidence has not been checked yet."
+      : "";
     const target = document.querySelector<HTMLElement>(step.target);
     const targetDialog = target?.closest<HTMLDialogElement>("dialog[open]");
     if (targetDialog) targetDialog.append(coach);
@@ -335,6 +395,8 @@ export function initializeUiRunbooks(projectRunbooks: () => readonly UiRunbook[]
   };
   const move = (offset: number): void => {
     if (!active) return;
+    const currentStep = active.steps[stepIndex];
+    if (offset > 0 && currentStep?.evidence && !reportEvidence(currentStep)) return;
     const candidate = stepIndex + offset;
     if (candidate >= active.steps.length) return stopRunbook();
     stepIndex = Math.max(0, candidate);
@@ -359,6 +421,10 @@ export function initializeUiRunbooks(projectRunbooks: () => readonly UiRunbook[]
   });
   back.addEventListener("click", () => move(-1));
   next.addEventListener("click", () => move(1));
+  checkStep.addEventListener("click", () => {
+    const step = active?.steps[stepIndex];
+    if (step) reportEvidence(step);
+  });
   stop.addEventListener("click", stopRunbook);
   library.addEventListener("close", () => {
     if (library.returnValue !== "start") clearHighlight();

@@ -1,0 +1,8 @@
+*** Epi Info AI IOCODE package-boundary tour
+*** Synthetic source only. Execution is intentionally unavailable in v0.1.0.
+
+Field GetIOCodes
+  Click
+    IOCODE Industry, Occupation, ICode, OCode, ITitle, OTitle, Scheme
+  End-Click
+End-Field

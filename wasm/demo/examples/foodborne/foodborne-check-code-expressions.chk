@@ -1,0 +1,27 @@
+*** Epi Info AI foodborne Check Code expression and function tour
+*** Candidate subset recovered from the legacy Enter grammar; verify before Apply.
+
+DefineVariables
+  DEFINE AgeDistance STANDARD NUMERIC
+  DEFINE StatusLabel STANDARD TEXTINPUT
+  DEFINE InterviewYear STANDARD NUMERIC
+  DEFINE AdultReview STANDARD YN
+End-DefineVariables
+
+Record
+  After
+    // Arithmetic observes legacy precedence and ROUND uses midpoint-away-from-zero.
+    ASSIGN AgeDistance = ROUND(ABS(age - 40) / 3, 2)
+
+    // SUBSTRING is 1-based, STRLEN returns the character count, and & concatenates.
+    ASSIGN StatusLabel = UPPERCASE(SUBSTRING(case_status, 1, 4)) & "-" & STRLEN(case_status)
+
+    // Date extraction accepts an ISO YYYY-MM-DD value and remains missing when its input is missing.
+    ASSIGN InterviewYear = YEAR(interview_date)
+
+    ASSIGN AdultReview = NO
+    IF TXTTONUM("18") <= age AND InterviewYear >= 2026 THEN
+      ASSIGN AdultReview = YES
+    END-IF
+  End-After
+End-Record
