@@ -67,7 +67,7 @@ import { offlineMapProvider } from "../app/maps/offline-map-estimator.ts";
 import { removePmtilesAsset, restorePmtilesAsset } from "../app/maps/pmtiles-import.ts";
 import { readStoredPmtilesFile } from "../app/maps/pmtiles-reader.ts";
 import { readProjectMapAsset, removeProjectMapAsset, restoreProjectMapAsset } from "../app/maps/project-map-assets.ts";
-import { readReferenceLayerSource, removeReferenceLayerSource, restoreReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
+import { readReferenceLayerSource, removeReferenceLayerSource, restoreReferenceLayerSource, projectReferencesReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
 import { createSecureShareReceiver, createSecureShareSender } from "../app/share/webrtc-transfer.ts";
 import { renderFormDesignerMenuContract } from "../app/forms/form-designer-menu.ts";
 import { renderEnterDataMenuContract } from "../app/forms/enter-data-menu.ts";
@@ -1894,6 +1894,7 @@ export async function openProjectPackage(file: File): Promise<void> {
     }
     packageValue = parseProjectPackage(await file.text());
   }
+  const retainedReferenceSources = projectReferenceLayerSources(projectState);
   const restoredAssets: ProjectArchiveAsset[] = [];
   try {
     for (const embedded of embeddedAssets) {
@@ -1909,7 +1910,9 @@ export async function openProjectPackage(file: File): Promise<void> {
     await Promise.all(restoredAssets.map(({ asset }) => asset.format === "pmtiles-v3"
       ? removePmtilesAsset(asset).catch(() => undefined)
       : asset.format === "reference-package"
-        ? removeReferenceLayerSource(asset).catch(() => undefined)
+        ? projectReferencesReferenceLayerSource(asset, retainedReferenceSources)
+          ? Promise.resolve()
+          : removeReferenceLayerSource(asset).catch(() => undefined)
         : removeProjectMapAsset(asset).catch(() => undefined)));
     throw error;
   }
@@ -1931,7 +1934,9 @@ export async function openProjectPackage(file: File): Promise<void> {
     await Promise.all(restoredAssets.map(({ asset }) => asset.format === "pmtiles-v3"
       ? removePmtilesAsset(asset).catch(() => undefined)
       : asset.format === "reference-package"
-        ? removeReferenceLayerSource(asset).catch(() => undefined)
+        ? projectReferencesReferenceLayerSource(asset, retainedReferenceSources)
+          ? Promise.resolve()
+          : removeReferenceLayerSource(asset).catch(() => undefined)
         : removeProjectMapAsset(asset).catch(() => undefined)));
     throw new Error("The selected package was not opened because the current project could not be closed safely.");
   }

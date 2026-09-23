@@ -910,6 +910,17 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
       ids.add(source.id);
     }
   }
+  for (const [index, asset] of (result.mapAssets ?? []).entries()) {
+    const lineageSource = asset.sourceLineage?.source;
+    if (!lineageSource) continue;
+    const matchingSource = (result.referenceLayerSources ?? []).find((source) => source.id === lineageSource.sha256);
+    if (!matchingSource
+      || matchingSource.sha256 !== lineageSource.sha256
+      || matchingSource.byteLength !== lineageSource.byteLength
+      || matchingSource.packageFormat !== lineageSource.packageFormat) {
+      fail(`project.mapAssets[${index}].sourceLineage.source`, "must exactly match a bundled project.referenceLayerSources entry by id, SHA-256, byte length, and package format");
+    }
+  }
   if (snapshot.auditLog !== undefined) {
     if (!Array.isArray(snapshot.auditLog)) fail("project.auditLog", "must be an array");
     result.auditLog = snapshot.auditLog.map((item, index) => {

@@ -72,3 +72,14 @@ export async function restoreReferenceLayerSource(recorded: ProjectReferenceLaye
 export async function removeReferenceLayerSource(source: ProjectReferenceLayerSourceV1): Promise<void> {
   await (await sourceDirectory()).removeEntry(storedName(source));
 }
+
+export function projectReferencesReferenceLayerSource(
+  source: ProjectReferenceLayerSourceV1,
+  references: readonly ProjectReferenceLayerSourceV1[],
+): boolean {
+  return references.some((candidate) => candidate.id === source.id
+    && candidate.sha256 === source.sha256
+    && candidate.byteLength === source.byteLength
+    && candidate.packageFormat === source.packageFormat
+    && candidate.storagePath === source.storagePath);
+}

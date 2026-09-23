@@ -31,7 +31,7 @@ import { inspectReferenceLayerPackageV01, reviewReferenceLayerCrsV01, type Refer
 import { inspectGeoJsonInputV01 } from "../app/gis/ingestion.ts";
 import { createVerifiedShapefileZipV01, extractVerifiedShapefileZipV01 } from "../app/gis/archive-ingestion.ts";
 import { createReferenceLayerLineageV01, persistReferenceLayerLineageV01 } from "../app/gis/reference-layer-lineage.ts";
-import { storeReferenceLayerSource, removeReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
+import { storeReferenceLayerSource, removeReferenceLayerSource, projectReferencesReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
 import { createReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
 import { buildReferenceLayerGdalRequestV01 } from "../app/gis/reference-layer-adapter.ts";
 import type { ReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
@@ -2186,6 +2186,7 @@ export function initializeMaps(
         if (outputInspection.format !== "GeoJSON") throw new TypeError("GDAL produced an invalid GeoJSON result.");
         const normalized = JSON.parse(new TextDecoder().decode(outputBytes)) as { type?: unknown; features?: unknown[] };
         if (normalized.type !== "FeatureCollection" || !Array.isArray(normalized.features)) throw new TypeError("GDAL produced an invalid GeoJSON FeatureCollection.");
+        const retainedSources = currentProjectSnapshot?.()?.referenceLayerSources ?? [];
         const storedSource = await storeReferenceLayerSource(file, referenceLayerInspection!.packageFormat);
         currentReferenceLayerSource = storedSource;
         try {
@@ -2199,7 +2200,9 @@ export function initializeMaps(
           referenceLayerStatus.textContent = `Normalized and saved ${normalized.features.length.toLocaleString()} features as a verified CRS84 GeoJSON project asset with lineage and source package recorded in the project snapshot. The original package remains unmodified.`;
         } catch (error) {
           currentReferenceLayerSource = null;
-          await removeReferenceLayerSource(storedSource).catch(() => undefined);
+          if (!projectReferencesReferenceLayerSource(storedSource, retainedSources)) {
+            await removeReferenceLayerSource(storedSource).catch(() => undefined);
+          }
           throw error;
         }
       } finally {
