@@ -109,7 +109,7 @@ Implementation decisions must also remain consistent with:
   design;
 - [`../review/geospatial_mapping.md`](../review/geospatial_mapping.md), the
   legacy capability inventory and parity gates;
-- [`../../architecture.md`](../../architecture.md), the application language and
+- [`../architecture.md`](../architecture.md), the application language and
   trust-boundary architecture; and
 - [`../validation/algorithm-validation-standard.md`](../validation/algorithm-validation-standard.md),
   the scientific evidence standard.
