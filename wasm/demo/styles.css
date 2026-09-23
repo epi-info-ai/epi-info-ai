@@ -3009,6 +3009,38 @@ select {
   box-sizing: border-box;
 }
 
+.map-choropleth-layer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 0.4rem;
+}
+
+.map-choropleth-diagnostics,
+.map-choropleth-legend {
+  grid-column: 1 / -1;
+  font-size: 0.78rem;
+}
+
+.map-choropleth-legend {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.25rem 0.4rem;
+  border-left: 3px solid #64748b;
+}
+
+.map-choropleth-legend span {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.map-choropleth-legend i {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 1px solid #475569;
+}
+
 .map-toolbar #map-status {
   margin-left: auto;
 }

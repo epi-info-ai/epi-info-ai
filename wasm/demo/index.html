@@ -651,7 +651,7 @@
                   <button id="map-add-geojson" type="button">GeoJSON Layer...</button>
                   <button id="map-add-h3" type="button">H3 Hexagons...</button>
                   <button id="map-add-raster" type="button">GeoTIFF Raster...</button>
-                  <button type="button" disabled>Choropleth</button>
+                  <button id="map-add-choropleth" type="button">Choropleth</button>
                   <button type="button" disabled>Dot Density</button>
                 </div>
               </details>
@@ -716,6 +716,7 @@
                       <button id="map-record-layer-edit" type="button" hidden>Edit point layer</button>
                       <label><input id="map-location-layer-toggle" type="checkbox" checked /> Current location</label>
                     <div id="map-geojson-layers" class="map-geojson-layers"></div>
+                    <div id="map-choropleth-layers" class="map-geojson-layers"></div>
                     <div id="map-h3-layers" class="map-h3-layers"></div>
                     <div id="map-raster-layers" class="map-raster-layers"></div>
                     <details id="map-point-diagnostics-panel" class="map-point-diagnostics" hidden>
@@ -2391,6 +2392,40 @@
         </div>
       </form>
         </dialog>
+
+    <dialog id="choropleth-dialog" class="legacy-dialog" aria-labelledby="choropleth-dialog-title">
+      <form id="choropleth-form" method="dialog">
+        <div class="legacy-dialog-titlebar"><strong id="choropleth-dialog-title">Add Choropleth</strong><button type="button" data-close-choropleth aria-label="Close">x</button></div>
+        <div class="legacy-dialog-body">
+          <p>Join local form values to a polygon GeoJSON asset and shade areas using a reviewed classification.</p>
+          <label for="choropleth-boundary-asset">Boundary GeoJSON asset</label>
+          <select id="choropleth-boundary-asset" required><option value="">Choose a stored GeoJSON asset</option></select>
+          <label for="choropleth-data-source">Data form</label>
+          <select id="choropleth-data-source" required><option value="">Choose a data form</option></select>
+          <label for="choropleth-boundary-key">Boundary key field</label>
+          <select id="choropleth-boundary-key" required><option value="">Choose a boundary property</option></select>
+          <label for="choropleth-data-key">Data key field</label>
+          <select id="choropleth-data-key" required><option value="">Choose a data key</option></select>
+          <label for="choropleth-value-field">Value field</label>
+          <select id="choropleth-value-field" required><option value="">Choose a numeric value</option></select>
+          <label for="choropleth-classification">Classification</label>
+          <select id="choropleth-classification"><option value="manual">Manual breaks</option><option value="equal-interval">Equal interval</option><option value="quantile">Quantile</option></select>
+          <label for="choropleth-class-count">Class count</label>
+          <input id="choropleth-class-count" type="number" min="2" max="12" value="3" required />
+          <label for="choropleth-breaks">Manual breaks <span class="dialog-note">(comma-separated)</span></label>
+          <input id="choropleth-breaks" type="text" value="10,25" maxlength="200" />
+          <label for="choropleth-palette">Palette <span class="dialog-note">(comma-separated hex colors)</span></label>
+          <input id="choropleth-palette" type="text" value="#fee5d9,#fcae91,#cb181d" maxlength="300" required />
+          <label for="choropleth-opacity">Opacity <output id="choropleth-opacity-value" for="choropleth-opacity">80%</output></label>
+          <input id="choropleth-opacity" type="range" min="10" max="100" step="5" value="80" />
+          <label for="choropleth-legend-title">Legend title</label>
+          <input id="choropleth-legend-title" type="text" value="Value" maxlength="100" required />
+          <p id="choropleth-dialog-status" class="dialog-note" role="status" aria-live="polite">Choose a stored GeoJSON boundary asset.</p>
+          <details id="choropleth-diagnostics-panel" hidden><summary id="choropleth-diagnostics-summary">No join diagnostics.</summary><ul id="choropleth-diagnostics-list"></ul></details>
+        </div>
+        <div class="legacy-dialog-actions"><button class="dialog-primary" value="add" type="submit">Add Choropleth</button><button value="cancel" type="button" data-close-choropleth>Cancel</button></div>
+      </form>
+    </dialog>
 
         <dialog id="reference-layer-dialog" class="legacy-dialog" aria-labelledby="reference-layer-dialog-title">
           <form id="reference-layer-form" method="dialog">

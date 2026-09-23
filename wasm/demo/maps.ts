@@ -36,6 +36,11 @@ import { createReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-l
 import { buildReferenceLayerGdalRequestV01 } from "../app/gis/reference-layer-adapter.ts";
 import type { ReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
 import { buildPointLayerPreviewV01, clusterPointLayerV01, createPointLayerRecordRefV01, summarizePointLayerDiagnosticsV01, type DisplayPointClusterV01, type PointLayerDiagnosticV01, type PointLayerFilterV01 } from "../app/gis/point-layer.ts";
+import { createChoroplethLayerRecipeV01, type ChoroplethLayerRecipeV01 } from "../app/gis/choropleth.ts";
+import { buildChoroplethJoinDiagnosticsV01, joinChoroplethDataToBoundariesV01, type ChoroplethBoundaryFeatureV01, type ChoroplethDataRowV01 } from "../app/gis/choropleth-join.ts";
+import { classifyChoroplethValuesV01 } from "../app/gis/choropleth-classification.ts";
+import { buildChoroplethLegendModelV01 } from "../app/gis/choropleth-presentation.ts";
+import { filterChoroplethDataRowsV01 } from "../app/gis/choropleth-interaction.ts";
 import { GdalWorkerClient, type GdalDataset, type GdalDatasetInfo, type GdalOpenedDataset } from "./examples/gdal-wasm/gdal-wasm-worker.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
@@ -93,6 +98,15 @@ interface GeoJsonLayerEntry {
   labels: GeoJsonLabel[];
   labelsEnabled: boolean;
   asset: ProjectMapAsset;
+}
+
+interface ChoroplethLayerEntry {
+  layer: LeafletLayer;
+  name: string;
+  bounds: LeafletBounds;
+  asset: ProjectMapAsset;
+  recipe: ChoroplethLayerRecipeV01;
+  diagnostics: Array<{ code: string; message: string; rowIndex?: number; featureIndex?: number }>;
 }
 
 interface H3LayerEntry {
@@ -175,6 +189,7 @@ let activeRecordOpenHandler: OpenRecordHandler | null = null;
 let timeLapseState: TimeLapseState | null = null;
 let clusterTourState: ClusterTourState | null = null;
 const geoJsonLayers = new Map<string, GeoJsonLayerEntry>();
+const choroplethLayers = new Map<string, ChoroplethLayerEntry>();
 const h3Layers = new Map<string, H3LayerEntry>();
 const rasterLayers = new Map<string, RasterLayerEntry>();
 const MAX_GEOJSON_BYTES = 10 * 1024 * 1024;
@@ -197,7 +212,7 @@ export function mapPaneForGeometryType(type: string): string {
 }
 
 function updateLayerCount() {
-  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + h3Layers.size + rasterLayers.size;
+  const count = Number(caseClusterAdded) + Number(locationAdded) + geoJsonLayers.size + choroplethLayers.size + h3Layers.size + rasterLayers.size;
   requiredElement("#map-layer-count").textContent = String(count);
 }
 
@@ -228,7 +243,7 @@ function renderPointDiagnostics(diagnostics: readonly PointLayerDiagnosticV01[])
 
 function persistProjectMapLayers(): void {
   if (!saveProjectMapState || !map) return;
-  const assets = [...geoJsonLayers.values(), ...rasterLayers.values()]
+  const assets = [...geoJsonLayers.values(), ...choroplethLayers.values(), ...rasterLayers.values()]
     .map(({ asset }) => asset)
     .filter((asset, index, values) => values.findIndex((candidate) => candidate.id === asset.id) === index);
   const layers: ProjectMapLayer[] = [
@@ -253,6 +268,23 @@ function persistProjectMapLayers(): void {
       visible: map.hasLayer(entry.layer),
       labelField: entry.labelField,
       labelsEnabled: entry.labelsEnabled,
+    })),
+    ...[...choroplethLayers].map(([id, entry]): ProjectMapLayer => ({
+      id,
+      kind: "choropleth",
+      assetId: entry.asset.id,
+      sourceFormId: entry.recipe.dataSourceFormId,
+      name: entry.name,
+      visible: map.hasLayer(entry.layer),
+      boundaryKeyField: entry.recipe.boundaryKeyField,
+      dataKeyField: entry.recipe.dataKeyField,
+      valueField: entry.recipe.valueField,
+      joinNormalization: entry.recipe.joinNormalization,
+      classification: { method: entry.recipe.classification.method, classCount: entry.recipe.classification.classCount, ...(entry.recipe.classification.breaks ? { breaks: [...entry.recipe.classification.breaks] } : {}) },
+      palette: [...entry.recipe.palette],
+      opacity: entry.recipe.opacity,
+      noDataColor: entry.recipe.noDataColor,
+      legendTitle: entry.recipe.legend.title,
     })),
     ...[...rasterLayers].map(([id, entry]): ProjectMapLayer => ({
       id,
@@ -783,6 +815,11 @@ function resetMapWorkspace() {
   }
   geoJsonLayers.clear();
   renderGeoJsonLayerList();
+  for (const entry of choroplethLayers.values()) {
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+  }
+  choroplethLayers.clear();
+  renderChoroplethLayerList();
   for (const entry of h3Layers.values()) {
     if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
   }
@@ -890,7 +927,7 @@ function expandGeoJsonFeatures(geojson: SupportedGeoJson): GeoJsonFeature[] {
 }
 
 function refreshMapEmptyState() {
-  requiredElement("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || h3Layers.size > 0 || rasterLayers.size > 0;
+  requiredElement("#map-empty-state").hidden = caseClusterAdded || locationAdded || geoJsonLayers.size > 0 || choroplethLayers.size > 0 || h3Layers.size > 0 || rasterLayers.size > 0;
 }
 
 function renderGeoJsonLayerList() {
@@ -1081,6 +1118,9 @@ function combinedLayerBounds() {
   const bounds = L.latLngBounds([]);
   if (caseClusterAdded && map.hasLayer(recordLayer) && lastBounds?.isValid()) bounds.extend(lastBounds);
   for (const entry of geoJsonLayers.values()) {
+    if (map.hasLayer(entry.layer) && entry.bounds?.isValid()) bounds.extend(entry.bounds);
+  }
+  for (const entry of choroplethLayers.values()) {
     if (map.hasLayer(entry.layer) && entry.bounds?.isValid()) bounds.extend(entry.bounds);
   }
   for (const entry of h3Layers.values()) {
@@ -1361,6 +1401,130 @@ function clusterPopup(cluster: DisplayPointClusterV01): HTMLDivElement {
     content.append(more);
   }
   return content;
+}
+
+function renderChoroplethLayerList(): void {
+  const container = requiredElement("#map-choropleth-layers");
+  const rows: HTMLElement[] = [];
+  for (const [id, entry] of choroplethLayers) {
+    const row = document.createElement("span");
+    row.className = "map-geojson-layer map-choropleth-layer";
+    const label = document.createElement("label");
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = map.hasLayer(entry.layer);
+    toggle.dataset.choroplethToggle = id;
+    const name = document.createElement("span");
+    name.className = "map-geojson-layer-name";
+    name.textContent = `${entry.name} · Choropleth`;
+    label.append(toggle, name);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "map-layer-remove";
+    remove.dataset.choroplethRemove = id;
+    remove.setAttribute("aria-label", `Remove ${entry.name}`);
+    remove.textContent = "x";
+    row.append(label, remove);
+    const diagnostics = document.createElement("small");
+    diagnostics.className = "map-choropleth-diagnostics";
+    diagnostics.textContent = entry.diagnostics.length > 0 ? `${entry.diagnostics.length} join diagnostic${entry.diagnostics.length === 1 ? "" : "s"}` : "No join diagnostics";
+    row.append(diagnostics);
+    if (entry.diagnostics.length > 0) {
+      const detail = document.createElement("details");
+      detail.className = "map-choropleth-diagnostics-detail";
+      const summary = document.createElement("summary");
+      summary.textContent = "Review diagnostics";
+      const list = document.createElement("ul");
+      for (const diagnostic of entry.diagnostics.slice(0, 100)) {
+        const item = document.createElement("li");
+        item.textContent = diagnostic.message;
+        list.append(item);
+      }
+      detail.append(summary, list);
+      row.append(detail);
+    }
+    rows.push(row);
+    const legend = document.createElement("div");
+    legend.className = "map-choropleth-legend";
+    const title = document.createElement("strong");
+    title.textContent = entry.recipe.legend.title;
+    legend.append(title);
+    const classified = (entry.layer as LeafletHandle).__epiChoroplethLegend as ReturnType<typeof buildChoroplethLegendModelV01> | undefined;
+    for (const item of classified?.entries ?? []) {
+      const itemRow = document.createElement("span");
+      const swatch = document.createElement("i");
+      swatch.style.backgroundColor = item.color;
+      swatch.style.opacity = String(item.opacity);
+      const text = document.createElement("span");
+      text.textContent = `${item.label} (${item.count})`;
+      itemRow.append(swatch, text);
+      legend.append(itemRow);
+    }
+    if (classified?.noData) {
+      const itemRow = document.createElement("span");
+      const swatch = document.createElement("i");
+      swatch.style.backgroundColor = classified.noData.color;
+      swatch.style.opacity = String(classified.noData.opacity);
+      itemRow.append(swatch, document.createTextNode(classified.noData.label));
+      legend.append(itemRow);
+    }
+    rows.push(legend);
+  }
+  container.replaceChildren(...rows);
+}
+
+function addChoroplethLayer(
+  geojson: SupportedGeoJson,
+  asset: ProjectMapAsset,
+  data: MapDataSource,
+  recipe: ChoroplethLayerRecipeV01,
+  options: { id?: string; visible?: boolean; persist?: boolean } = {},
+): void {
+  const features = expandGeoJsonFeatures(geojson);
+  const boundaryFeatures: ChoroplethBoundaryFeatureV01[] = features.map((feature, featureIndex) => ({ featureIndex, properties: feature.properties || {} }));
+  const dataRows: ChoroplethDataRowV01[] = data.records.map((values, rowIndex) => ({ rowIndex, values }));
+  const filtered = filterChoroplethDataRowsV01(dataRows, recipe.filter);
+  const joined = joinChoroplethDataToBoundariesV01(boundaryFeatures, filtered.includedRows, recipe.boundaryKeyField, recipe.dataKeyField, recipe.joinNormalization);
+  const diagnostics = [...buildChoroplethJoinDiagnosticsV01(joined), ...filtered.filteredRows.map((row) => ({ code: "filtered-data-row" as const, rowIndex: row.rowIndex, message: "The data row was excluded by the Choropleth filter." }))];
+  const observations = joined.matches.map((match) => ({ featureIndex: match.boundary.featureIndex, value: match.dataRows.length === 1 ? match.dataRows[0]!.values[recipe.valueField] : null }));
+  const classified = classifyChoroplethValuesV01(observations, recipe.classification);
+  const legend = buildChoroplethLegendModelV01(recipe, classified);
+  const assignments = new Map(classified.assignments.map((assignment) => [assignment.featureIndex, assignment]));
+  const layer = L.geoJSON({ type: "FeatureCollection", features }, {
+    pane: "epi-polygon-pane",
+    style: (feature: GeoJsonFeature) => {
+      const featureIndex = features.indexOf(feature);
+      const assignment = assignments.get(featureIndex);
+      const color = assignment?.classIndex === null || !assignment ? recipe.noDataColor : recipe.palette[assignment.classIndex];
+      return { color: "#5b6470", weight: 1, fillColor: color, fillOpacity: recipe.opacity };
+    },
+    onEachFeature: (feature: GeoJsonFeature, featureLayer: LeafletLayer) => {
+      const featureIndex = features.indexOf(feature);
+      const assignment = assignments.get(featureIndex);
+      const properties = feature.properties || {};
+      const key = properties[recipe.boundaryKeyField];
+      const value = assignment?.value;
+      const popup = document.createElement("div");
+      const heading = document.createElement("strong");
+      heading.textContent = String(properties.NAME ?? key ?? `Feature ${featureIndex + 1}`);
+      const detail = document.createElement("p");
+      detail.textContent = value === null || value === undefined ? "No matched numeric data." : `${recipe.valueField}: ${value} · ${assignment?.classIndex === null || assignment?.classIndex === undefined ? "No data" : legend.entries[assignment.classIndex]?.label ?? ""}`;
+      popup.append(heading, detail);
+      featureLayer.bindPopup(popup);
+    },
+  });
+  layer.addTo(ensureMap());
+  const bounds = layer.getBounds();
+  const id = options.id ?? globalThis.crypto?.randomUUID?.() ?? `choropleth-${Date.now()}`;
+  (layer as LeafletHandle).__epiChoroplethLegend = legend;
+  choroplethLayers.set(id, { layer, name: `${data.formName} · ${recipe.legend.title}`, bounds, asset, recipe, diagnostics });
+  if (options.visible === false && map.hasLayer(layer)) map.removeLayer(layer);
+  renderChoroplethLayerList();
+  updateLayerCount();
+  refreshMapEmptyState();
+  requiredElement("#map-status").textContent = `Added Choropleth “${recipe.legend.title}” with ${joined.matches.length} matched boundary feature${joined.matches.length === 1 ? "" : "s"}; ${diagnostics.length} diagnostic${diagnostics.length === 1 ? "" : "s"}.`;
+  if (bounds.isValid()) ensureMap().fitBounds(bounds.pad(0.12), { maxZoom: 16 });
+  if (options.persist !== false) persistProjectMapLayers();
 }
 
 function renderRecordMarkers(mappedRecords: MapPoint[]): void {
@@ -1678,7 +1842,26 @@ async function restoreProjectMapLayers(
       const asset = assets.get("assetId" in definition ? definition.assetId : "");
       if (!asset) throw new Error("missing asset metadata");
       const file = await readProjectMapAsset(asset);
-      if (definition.kind === "geojson" && asset.format === "geojson") {
+      if (definition.kind === "choropleth" && asset.format === "geojson") {
+        const data = dataSources.get(definition.sourceFormId);
+        if (!data) throw new Error("Choropleth data form is unavailable");
+        const { geojson } = parseGeoJson(await file.text());
+        const recipe = createChoroplethLayerRecipeV01({
+          boundaryAssetId: asset.id,
+          boundaryLayerName: definition.name,
+          boundaryKeyField: definition.boundaryKeyField,
+          dataSourceFormId: definition.sourceFormId,
+          dataKeyField: definition.dataKeyField,
+          valueField: definition.valueField,
+          joinNormalization: definition.joinNormalization,
+          classification: definition.classification,
+          palette: definition.palette,
+          opacity: definition.opacity,
+          noDataColor: definition.noDataColor,
+          legend: { title: definition.legendTitle, showLabels: true, showNoData: true },
+        });
+        addChoroplethLayer(geojson, asset, data, recipe, { id: definition.id, visible: definition.visible, persist: false });
+      } else if (definition.kind === "geojson" && asset.format === "geojson") {
         const { geojson, featureCount } = parseGeoJson(await file.text());
         addGeoJsonLayer(geojson, featureCount, definition.name, definition.labelField, asset, {
           id: definition.id,
@@ -1701,6 +1884,7 @@ async function restoreProjectMapLayers(
   }
   if (sequence !== projectLayerRestoreSequence) return;
   renderGeoJsonLayerList();
+  renderChoroplethLayerList();
   renderRasterLayerList();
   updateLayerCount();
   refreshMapEmptyState();
@@ -1813,6 +1997,23 @@ export function initializeMaps(
   const geoJsonName = requiredElement("#geojson-layer-name");
   const geoJsonLabelField = requiredElement("#geojson-label-field");
   const geoJsonStatus = requiredElement("#geojson-dialog-status");
+  const choroplethDialog = requiredElement<HTMLDialogElement>("#choropleth-dialog");
+  const choroplethForm = requiredElement<HTMLFormElement>("#choropleth-form");
+  const choroplethAsset = requiredElement<HTMLSelectElement>("#choropleth-boundary-asset");
+  const choroplethDataSource = requiredElement<HTMLSelectElement>("#choropleth-data-source");
+  const choroplethBoundaryKey = requiredElement<HTMLSelectElement>("#choropleth-boundary-key");
+  const choroplethDataKey = requiredElement<HTMLSelectElement>("#choropleth-data-key");
+  const choroplethValueField = requiredElement<HTMLSelectElement>("#choropleth-value-field");
+  const choroplethClassification = requiredElement<HTMLSelectElement>("#choropleth-classification");
+  const choroplethClassCount = requiredElement<HTMLInputElement>("#choropleth-class-count");
+  const choroplethBreaks = requiredElement<HTMLInputElement>("#choropleth-breaks");
+  const choroplethPalette = requiredElement<HTMLInputElement>("#choropleth-palette");
+  const choroplethOpacity = requiredElement<HTMLInputElement>("#choropleth-opacity");
+  const choroplethOpacityValue = requiredElement("#choropleth-opacity-value");
+  const choroplethLegendTitle = requiredElement<HTMLInputElement>("#choropleth-legend-title");
+  const choroplethStatus = requiredElement("#choropleth-dialog-status");
+  let choroplethBoundaryGeojson: SupportedGeoJson | null = null;
+  let choroplethDialogSources: MapDataSource[] = [];
   const referenceLayerDialog = requiredElement<HTMLDialogElement>("#reference-layer-dialog");
   const referenceLayerForm = requiredElement<HTMLFormElement>("#reference-layer-form");
   const referenceLayerFile = requiredElement<HTMLInputElement>("#reference-layer-file");
@@ -1853,6 +2054,40 @@ export function initializeMaps(
     layerPanelToggle.setAttribute("aria-label", `${action} map layers`);
     layerPanelToggle.setAttribute("aria-expanded", String(layerPanel.open));
     layerPanelToggle.title = `${action} map layers`;
+  };
+  const populateChoroplethBoundaryFields = async (): Promise<void> => {
+    const asset = currentProjectSnapshot?.()?.mapAssets?.find((candidate) => candidate.id === choroplethAsset.value && candidate.format === "geojson");
+    choroplethBoundaryKey.replaceChildren(option("", "Choose a boundary property"));
+    choroplethBoundaryGeojson = null;
+    if (!asset) return;
+    try {
+      choroplethBoundaryGeojson = parseGeoJson(await (await readProjectMapAsset(asset)).text()).geojson;
+      const properties = new Set<string>();
+      for (const feature of expandGeoJsonFeatures(choroplethBoundaryGeojson)) for (const key of Object.keys(feature.properties || {})) properties.add(key);
+      choroplethBoundaryKey.replaceChildren(option("", "Choose a boundary property"), ...[...properties].sort().map((key) => option(key, key)));
+      choroplethStatus.textContent = `${properties.size} boundary properties available.`;
+    } catch (error) {
+      choroplethStatus.textContent = error instanceof Error ? `Boundary asset rejected: ${error.message}` : "Boundary asset rejected.";
+    }
+  };
+  const populateChoroplethDataFields = (): void => {
+    const data = choroplethDialogSources.find((candidate) => candidate.formId === choroplethDataSource.value);
+    const fields = data?.fields.filter((field) => field.type !== "command-button") ?? [];
+    const makeOptions = (empty: string) => [option("", empty), ...fields.map((field) => option(field.name, `${field.prompt} (${field.name})`))];
+    choroplethDataKey.replaceChildren(...makeOptions("Choose a data key"));
+    choroplethValueField.replaceChildren(...makeOptions("Choose a numeric value"));
+  };
+  const prepareChoroplethDialog = (): void => {
+    const assets = currentProjectSnapshot?.()?.mapAssets?.filter((asset) => asset.format === "geojson") ?? [];
+    choroplethAsset.replaceChildren(option("", "Choose a stored GeoJSON asset"), ...assets.map((asset) => option(asset.id, asset.fileName)));
+    choroplethDialogSources = mapContext === "current-form" ? [getCurrentData()] : getDataSources();
+    choroplethDataSource.replaceChildren(option("", "Choose a data form"), ...choroplethDialogSources.map((data) => option(data.formId, `${data.projectName} / ${data.formName} (${data.records.length} records)`)));
+    if (mapContext === "current-form") choroplethDataSource.value = choroplethDialogSources[0]?.formId ?? "";
+    populateChoroplethDataFields();
+    choroplethBoundaryKey.replaceChildren(option("", "Choose a boundary property"));
+    choroplethBoundaryGeojson = null;
+    choroplethStatus.textContent = assets.length > 0 ? "Choose a stored GeoJSON boundary asset." : "Add a GeoJSON boundary layer first; Choropleth uses stored local assets.";
+    choroplethOpacityValue.textContent = `${choroplethOpacity.value}%`;
   };
   layerPanel.addEventListener("toggle", updateLayerPanelToggle);
   updateLayerPanelToggle();
@@ -2193,6 +2428,55 @@ export function initializeMaps(
     geoJsonStatus.textContent = "Files are read locally and are not uploaded to a server. Maximum size: 10 MB.";
     geoJsonDialog.showModal();
   });
+  requiredElement("#map-add-choropleth").addEventListener("click", () => {
+    requiredElement("#map-add-layer-menu").open = false;
+    choroplethForm.reset();
+    choroplethClassification.value = "manual";
+    choroplethClassCount.value = "3";
+    choroplethBreaks.value = "10,25";
+    choroplethPalette.value = "#fee5d9,#fcae91,#cb181d";
+    choroplethOpacity.value = "80";
+    choroplethLegendTitle.value = "Value";
+    prepareChoroplethDialog();
+    choroplethDialog.showModal();
+  });
+  choroplethAsset.addEventListener("change", () => { void populateChoroplethBoundaryFields(); });
+  choroplethDataSource.addEventListener("change", populateChoroplethDataFields);
+  choroplethOpacity.addEventListener("input", () => { choroplethOpacityValue.textContent = `${choroplethOpacity.value}%`; });
+  for (const button of requiredElements("[data-close-choropleth]")) button.addEventListener("click", () => choroplethDialog.close("cancel"));
+  choroplethForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!eventForm(event).reportValidity()) return;
+    const asset = currentProjectSnapshot?.()?.mapAssets?.find((candidate) => candidate.id === choroplethAsset.value && candidate.format === "geojson");
+    const data = choroplethDialogSources.find((candidate) => candidate.formId === choroplethDataSource.value);
+    if (!asset || !data || !choroplethBoundaryGeojson) {
+      choroplethStatus.textContent = "Choose a stored GeoJSON asset and data form first.";
+      return;
+    }
+    const classCount = Number(choroplethClassCount.value);
+    const breaks = choroplethBreaks.value.split(",").map((value) => Number(value.trim())).filter((value) => Number.isFinite(value));
+    const palette = choroplethPalette.value.split(",").map((value) => value.trim()).filter(Boolean);
+    try {
+      const recipe = createChoroplethLayerRecipeV01({
+        boundaryAssetId: asset.id,
+          boundaryLayerName: asset.fileName,
+        boundaryKeyField: choroplethBoundaryKey.value,
+        dataSourceFormId: data.formId,
+        dataKeyField: choroplethDataKey.value,
+        valueField: choroplethValueField.value,
+        joinNormalization: "trim-casefold",
+        classification: { method: choroplethClassification.value as "manual" | "equal-interval" | "quantile", classCount, ...(choroplethClassification.value === "manual" ? { breaks } : {}) },
+        palette,
+        opacity: Number(choroplethOpacity.value) / 100,
+        noDataColor: "#d9d9d9",
+        legend: { title: choroplethLegendTitle.value.trim(), showLabels: true, showNoData: true },
+      });
+      addChoroplethLayer(choroplethBoundaryGeojson, asset, data, recipe);
+      choroplethDialog.close("add");
+    } catch (error) {
+      choroplethStatus.textContent = error instanceof Error ? `Choropleth rejected: ${error.message}` : "Choropleth rejected.";
+    }
+  });
   requiredElement("#map-add-reference-layer").addEventListener("click", () => {
     requiredElement("#map-add-layer-menu").open = false;
     referenceLayerForm.reset();
@@ -2499,6 +2783,30 @@ export function initializeMaps(
     updateLayerCount();
     refreshMapEmptyState();
     requiredElement("#map-status").textContent = `Removed GeoJSON layer “${entry.name}”.`;
+  });
+  requiredElement("#map-choropleth-layers").addEventListener("change", (event) => {
+    const target = eventControl(event);
+    const id = target.dataset.choroplethToggle;
+    if (!id) return;
+    const entry = choroplethLayers.get(id);
+    if (!entry) return;
+    if (target.checked) entry.layer.addTo(ensureMap());
+    else if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    persistProjectMapLayers();
+    requiredElement("#map-status").textContent = `${entry.name} ${target.checked ? "shown" : "hidden"}.`;
+  });
+  requiredElement("#map-choropleth-layers").addEventListener("click", (event) => {
+    const id = eventControl(event).dataset.choroplethRemove;
+    if (!id) return;
+    const entry = choroplethLayers.get(id);
+    if (!entry) return;
+    if (map.hasLayer(entry.layer)) map.removeLayer(entry.layer);
+    choroplethLayers.delete(id);
+    persistProjectMapLayers();
+    renderChoroplethLayerList();
+    updateLayerCount();
+    refreshMapEmptyState();
+    requiredElement("#map-status").textContent = `Removed Choropleth “${entry.name}”.`;
   });
   requiredElement("#map-h3-layers").addEventListener("change", (event) => {
     const target = eventControl(event);

@@ -202,6 +202,23 @@ export type ProjectMapLayer = {
   filter?: { field: string; operator: string; value?: string };
 } | {
   id: string;
+  kind: "choropleth";
+  assetId: string;
+  sourceFormId: string;
+  name: string;
+  visible: boolean;
+  boundaryKeyField: string;
+  dataKeyField: string;
+  valueField: string;
+  joinNormalization: "exact" | "trim-casefold";
+  classification: { method: "manual" | "equal-interval" | "quantile"; classCount: number; breaks?: number[] };
+  palette: string[];
+  opacity: number;
+  noDataColor: string;
+  legendTitle: string;
+  filter?: { field: string; operator: string; value?: string };
+} | {
+  id: string;
   kind: "geojson";
   assetId: string;
   name: string;
@@ -646,8 +663,8 @@ function projectMapLayerAt(
   forms: ReadonlyMap<string, ProjectForm>,
 ): ProjectMapLayer {
   const source = objectAt(value, path);
-  if (source.kind !== "case-cluster" && source.kind !== "spot-map" && source.kind !== "geojson" && source.kind !== "raster") {
-    fail(`${path}.kind`, "must be case-cluster, spot-map, geojson, or raster");
+  if (source.kind !== "case-cluster" && source.kind !== "spot-map" && source.kind !== "choropleth" && source.kind !== "geojson" && source.kind !== "raster") {
+    fail(`${path}.kind`, "must be case-cluster, spot-map, choropleth, geojson, or raster");
   }
   if (typeof source.visible !== "boolean") fail(`${path}.visible`, "must be boolean");
   const shared = {
@@ -681,6 +698,33 @@ function projectMapLayerAt(
       filter = { field: filterField, operator: String(filterSource.operator), ...(typeof filterSource.value === "string" ? { value: filterSource.value } : {}) };
     }
     return { ...shared, kind: source.kind, sourceFormId, latitudeField, longitudeField, labelField, markerStyle, markerColor, ...(filter ? { filter } : {}) };
+  }
+  if (source.kind === "choropleth") {
+    const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
+    const asset = assets.get(assetId);
+    if (!asset) fail(`${path}.assetId`, "must identify a project map asset");
+    if (asset.format !== "geojson") fail(`${path}.assetId`, "must identify a GeoJSON project asset");
+    const sourceFormId = nonEmptyString(source.sourceFormId, `${path}.sourceFormId`);
+    const form = forms.get(sourceFormId);
+    if (!form) fail(`${path}.sourceFormId`, "must identify a form in this project");
+    const fields = new Map(form.schema.fields.map((field) => [field.name, field]));
+    const boundaryKeyField = nonEmptyString(source.boundaryKeyField, `${path}.boundaryKeyField`);
+    const dataKeyField = nonEmptyString(source.dataKeyField, `${path}.dataKeyField`);
+    const valueField = nonEmptyString(source.valueField, `${path}.valueField`);
+    for (const [field, fieldPath] of [[dataKeyField, `${path}.dataKeyField`], [valueField, `${path}.valueField`]] as const) if (!fields.has(field)) fail(fieldPath, "must identify a field in the source form");
+    if (source.joinNormalization !== "exact" && source.joinNormalization !== "trim-casefold") fail(`${path}.joinNormalization`, "must be exact or trim-casefold");
+    const classification = objectAt(source.classification, `${path}.classification`);
+    if (classification.method !== "manual" && classification.method !== "equal-interval" && classification.method !== "quantile") fail(`${path}.classification.method`, "is not supported");
+    if (typeof classification.classCount !== "number" || !Number.isSafeInteger(classification.classCount) || classification.classCount < 2 || classification.classCount > 12) fail(`${path}.classification.classCount`, "must be an integer from 2 through 12");
+    const breaks = classification.breaks;
+    if (classification.method === "manual") {
+      if (!Array.isArray(breaks) || breaks.length !== classification.classCount - 1 || breaks.some((value) => typeof value !== "number" || !Number.isFinite(value))) fail(`${path}.classification.breaks`, "must contain one fewer finite numeric break than classes");
+    } else if (breaks !== undefined) fail(`${path}.classification.breaks`, "must be omitted for automatic classification");
+    if (!Array.isArray(source.palette) || source.palette.length !== classification.classCount || source.palette.some((color) => typeof color !== "string" || !/^#[0-9a-f]{6}$/i.test(color))) fail(`${path}.palette`, "must contain one six-digit hex color per class");
+    if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0 || source.opacity > 1) fail(`${path}.opacity`, "must be from 0 through 1");
+    if (typeof source.noDataColor !== "string" || !/^#[0-9a-f]{6}$/i.test(source.noDataColor)) fail(`${path}.noDataColor`, "must be a six-digit hex color");
+    const legendTitle = nonEmptyString(source.legendTitle, `${path}.legendTitle`);
+    return { ...shared, kind: "choropleth", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, classification: { method: classification.method, classCount: classification.classCount, ...(Array.isArray(breaks) ? { breaks } : {}) }, palette: source.palette, opacity: source.opacity, noDataColor: source.noDataColor, legendTitle };
   }
   const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
   const asset = assets.get(assetId);
