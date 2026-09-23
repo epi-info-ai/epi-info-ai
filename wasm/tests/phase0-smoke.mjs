@@ -4378,10 +4378,10 @@ async function checkExampleProjectRepository() {
     "gis-defensive-ingestion-teaching",
   ]);
   const expected = new Map([
-    ["foodborne-outbreak-investigation", { project: "Foodborne Outbreak Investigation", forms: 1, records: 96, runbooks: 4 }],
-    ["space-time-cluster-detection", { project: "Space-Time Cluster Detection", forms: 1, records: 30, runbooks: 1 }],
-    ["record-linkage", { project: "Synthetic Patient Record Linkage", forms: 3, records: 21, runbooks: 1 }],
-    ["gis-defensive-ingestion-teaching", { project: "GIS Defensive Ingestion Teaching Example", forms: 1, records: 10, runbooks: 1 }],
+    ["foodborne-outbreak-investigation", { project: "Foodborne Outbreak Investigation", forms: 1, records: 96, runbooks: 4, checkCodeRelevant: true }],
+    ["space-time-cluster-detection", { project: "Space-Time Cluster Detection", forms: 1, records: 30, runbooks: 1, checkCodeRelevant: true }],
+    ["record-linkage", { project: "Synthetic Patient Record Linkage", forms: 3, records: 21, runbooks: 1, checkCodeRelevant: true }],
+    ["gis-defensive-ingestion-teaching", { project: "GIS Defensive Ingestion Teaching Example", forms: 1, records: 10, runbooks: 1, checkCodeRelevant: false }],
   ]);
   for (const entry of catalog.projects) {
     const filePath = resolve(dirname(catalogPath), entry.file);
@@ -4397,7 +4397,8 @@ async function checkExampleProjectRepository() {
     assert.equal(packageValue.project.forms.length, expectation.forms);
     assert.equal(packageValue.project.forms.reduce((sum, form) => sum + form.records.length, 0), expectation.records);
     assert.ok(packageValue.programs.length > 0, `${entry.id} must include a runnable teaching program`);
-    assert.ok(packageValue.programs.some(({ language }) => language === "check-code"), `${entry.id} must include reviewable Check Code`);
+    const hasCheckCode = packageValue.programs.some(({ language }) => language === "check-code");
+    assert.equal(hasCheckCode, expectation.checkCodeRelevant, `${entry.id} Check Code must match its declared teaching relevance`);
     assert.equal(packageValue.runbooks?.length, expectation.runbooks, `${entry.id} project-scoped runbook count`);
     if (entry.id === "foodborne-outbreak-investigation") {
       assert.deepEqual(packageValue.runbooks?.map(({ id }) => id), [
