@@ -216,7 +216,7 @@ test("project Form Designer runbook verifies learner-completed steps without per
   await applicationMenu.getByText("File", { exact: true }).click();
   await applicationMenu.getByRole("menuitem", { name: /Import Example Project/ }).click();
   const projectDialog = page.getByRole("dialog", { name: "Import Example Project" });
-  await expect(projectDialog.locator("#example-project-status")).toContainText("3 verified project choices");
+  await expect(projectDialog.locator("#example-project-status")).toContainText("4 verified project choices");
   await projectDialog.getByRole("button", { name: "Import Foodborne Outbreak Investigation" }).click();
 
   await applicationMenu.getByText("Help", { exact: true }).click();
