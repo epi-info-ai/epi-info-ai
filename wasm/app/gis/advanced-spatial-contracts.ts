@@ -100,6 +100,17 @@ const operations: readonly AdvancedSpatialOperationV01[] = [
   "gis.spatial.h3Aggregate", "gis.spatial.density", "gis.spatial.cluster",
   "gis.geometry.repair", "gis.raster.zonalStatistics",
 ];
+const parameterOperationByPlanOperation: Readonly<Record<AdvancedSpatialOperationV01, AdvancedSpatialParametersV01["operation"]>> = {
+  "gis.spatial.weights": "weights",
+  "gis.spatial.moran": "moran",
+  "gis.spatial.lisa": "lisa",
+  "gis.spatial.getisOrd": "getisOrd",
+  "gis.spatial.h3Aggregate": "h3Aggregate",
+  "gis.spatial.density": "density",
+  "gis.spatial.cluster": "cluster",
+  "gis.geometry.repair": "repair",
+  "gis.raster.zonalStatistics": "zonalStatistics",
+};
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const has = (value: Record<string, unknown>, key: string): boolean => Object.hasOwn(value, key);
 const integer = (value: unknown, path: string, minimum: number, maximum: number, issues: { path: string; message: string }[]) => {
@@ -158,6 +169,12 @@ export function validateAdvancedSpatialPlanV01(value: unknown): AdvancedSpatialP
   if (!Array.isArray(value.inputs) || value.inputs.length < 1) issues.push({ path: "inputs", message: "must contain at least one input" });
   else value.inputs.forEach((input, index) => { const path = `inputs[${index}]`; if (!isObject(input)) { issues.push({ path, message: "must be an object" }); return; } exactKeys(input, ["assetId", "sha256", "role", "mediaType", "byteLength", "declaredCrs"], path, issues); nonEmpty(input.assetId, `${path}.assetId`, issues); if (typeof input.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(input.sha256)) issues.push({ path: `${path}.sha256`, message: "must be a SHA-256 hex digest" }); nonEmpty(input.mediaType, `${path}.mediaType`, issues); integer(input.byteLength, `${path}.byteLength`, 0, Number.MAX_SAFE_INTEGER, issues); if (!["observations", "geometry", "raster", "weights"].includes(String(input.role))) issues.push({ path: `${path}.role`, message: "is not supported" }); nonEmpty(input.declaredCrs, `${path}.declaredCrs`, issues); });
   validateParameters(value.parameters, issues);
+  if (operations.includes(value.operation as AdvancedSpatialOperationV01) && isObject(value.parameters)) {
+    const expectedParameterOperation = parameterOperationByPlanOperation[value.operation as AdvancedSpatialOperationV01];
+    if (value.parameters.operation !== expectedParameterOperation) {
+      issues.push({ path: "parameters.operation", message: `must be ${expectedParameterOperation} for ${String(value.operation)}` });
+    }
+  }
   if (!isObject(value.limits)) issues.push({ path: "limits", message: "must be an object" }); else {
     exactKeys(value.limits, ["maxInputBytes", "maxOutputBytes", "maxFeatures", "maxCoordinates", "maxCells", "maxPermutations", "timeoutMilliseconds"], "limits", issues);
     integer(value.limits.maxInputBytes, "limits.maxInputBytes", 1, 100_000_000, issues);
@@ -169,11 +186,17 @@ export function validateAdvancedSpatialPlanV01(value: unknown): AdvancedSpatialP
     integer(value.limits.timeoutMilliseconds, "limits.timeoutMilliseconds", 1, 120_000, issues);
     const parameters = value.parameters as Record<string, unknown>;
     const limits = value.limits;
+    const declaredInputBytes = Array.isArray(value.inputs)
+      ? value.inputs.reduce((sum, input) => sum + (isObject(input) && typeof input.byteLength === "number" && Number.isSafeInteger(input.byteLength) && input.byteLength >= 0 ? input.byteLength : 0), 0)
+      : 0;
+    if (typeof limits.maxInputBytes === "number" && Number.isSafeInteger(limits.maxInputBytes) && declaredInputBytes > limits.maxInputBytes) issues.push({ path: "inputs", message: "declared byte length exceeds limits.maxInputBytes" });
+    if (["moran", "lisa", "getisOrd"].includes(String(parameters.operation)) && typeof parameters.permutations === "number" && typeof limits.maxPermutations === "number" && parameters.permutations > limits.maxPermutations) issues.push({ path: "parameters.permutations", message: "must not exceed limits.maxPermutations" });
+    if (parameters.operation === "density" && typeof parameters.maxCells === "number" && typeof limits.maxCells === "number" && parameters.maxCells > limits.maxCells) issues.push({ path: "parameters.maxCells", message: "must not exceed limits.maxCells" });
     if (["moran", "lisa", "getisOrd"].includes(String(parameters.operation)) && typeof limits.maxPermutations === "number" && typeof limits.maxFeatures === "number" && limits.maxPermutations * limits.maxFeatures > 5_000_000) issues.push({ path: "limits", message: "permutation work exceeds the bounded 5,000,000 observation-permutation budget" });
     if (parameters.operation === "density" && typeof limits.maxCells === "number" && typeof limits.maxFeatures === "number" && limits.maxCells * limits.maxFeatures > 5_000_000) issues.push({ path: "limits", message: "density work exceeds the bounded 5,000,000 cell-observation budget" });
   }
   if (!isObject(value.privacy)) issues.push({ path: "privacy", message: "must be an object" }); else { exactKeys(value.privacy, ["recordValuesStayLocal", "outputDisclosure", "allowRecordLevelExport"], "privacy", issues); if (value.privacy.recordValuesStayLocal !== true) issues.push({ path: "privacy.recordValuesStayLocal", message: "must be true" }); if (!["aggregate", "record-level", "renderer-only"].includes(String(value.privacy.outputDisclosure))) issues.push({ path: "privacy.outputDisclosure", message: "is not supported" }); if (typeof value.privacy.allowRecordLevelExport !== "boolean") issues.push({ path: "privacy.allowRecordLevelExport", message: "must be boolean" }); if (value.privacy.outputDisclosure === "record-level" && value.privacy.allowRecordLevelExport !== true) issues.push({ path: "privacy.allowRecordLevelExport", message: "must be true for record-level output" }); }
-  if (!Array.isArray(value.requestedOutputs)) issues.push({ path: "requestedOutputs", message: "must be an array" }); else { const ids = new Set<string>(); value.requestedOutputs.forEach((output, index) => { const path = `requestedOutputs[${index}]`; if (!isObject(output)) { issues.push({ path, message: "must be an object" }); return; } exactKeys(output, ["id", "mediaType", "disclosure"], path, issues); nonEmpty(output.id, `${path}.id`, issues); if (ids.has(String(output.id))) issues.push({ path: `${path}.id`, message: "must be unique" }); ids.add(String(output.id)); nonEmpty(output.mediaType, `${path}.mediaType`, issues); if (!["aggregate", "record-level", "renderer-only"].includes(String(output.disclosure))) issues.push({ path: `${path}.disclosure`, message: "is not supported" }); }); }
+  if (!Array.isArray(value.requestedOutputs)) issues.push({ path: "requestedOutputs", message: "must be an array" }); else { const ids = new Set<string>(); value.requestedOutputs.forEach((output, index) => { const path = `requestedOutputs[${index}]`; if (!isObject(output)) { issues.push({ path, message: "must be an object" }); return; } exactKeys(output, ["id", "mediaType", "disclosure"], path, issues); nonEmpty(output.id, `${path}.id`, issues); if (ids.has(String(output.id))) issues.push({ path: `${path}.id`, message: "must be unique" }); ids.add(String(output.id)); nonEmpty(output.mediaType, `${path}.mediaType`, issues); if (!["aggregate", "record-level", "renderer-only"].includes(String(output.disclosure))) issues.push({ path: `${path}.disclosure`, message: "is not supported" }); if (isObject(value.privacy) && output.disclosure !== value.privacy.outputDisclosure) issues.push({ path: `${path}.disclosure`, message: "must match privacy.outputDisclosure in contract 0.1" }); }); }
   if (issues.length > 0) throw new AdvancedSpatialContractErrorV01(issues);
   return value as unknown as AdvancedSpatialPlanV01;
 }
