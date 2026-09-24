@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "epi.environment.provider-catalog/0.1",
+  "status": "demonstration-candidate",
+  "providers": [
+    {
+      "id": "cdc-tracking",
+      "label": "CDC Environmental Public Health Tracking",
+      "mode": "metadata-plan-only",
+      "enabled": false,
+      "reviewRequired": ["dataset identity", "geography", "time range", "measure and unit", "terms", "egress summary"]
+    },
+    {
+      "id": "noaa-ncei",
+      "label": "NOAA/NCEI",
+      "mode": "metadata-plan-only",
+      "enabled": false,
+      "reviewRequired": ["dataset identity", "station selection", "time range", "measure and unit", "credential disclosure", "egress summary"]
+    },
+    {
+      "id": "copernicus-c3s",
+      "label": "Copernicus Climate Change Service",
+      "mode": "metadata-plan-only",
+      "enabled": false,
+      "reviewRequired": ["collection and version", "spatial envelope", "time range", "variable and unit", "terms", "job and egress summary"]
+    }
+  ]
+}

@@ -12,10 +12,10 @@
     <meta name="theme-color" content="#075985" />
     <title>Epi Info AI</title>
     <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-    <link rel="stylesheet" href="styles.css?v=72" />
+    <link rel="stylesheet" href="styles.css?v=73" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=6" defer></script>
-    <script type="module" src="app.js?v=126"></script>
+    <script type="module" src="app.js?v=128"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -28,7 +28,7 @@
       </div>
       <div class="titlebar-actions" aria-label="Project status">
         <button class="epi-assist-launch" type="button" data-open-epi-assist><span aria-hidden="true">AI</span> Epi Assist</button>
-        <span class="offline-status"><span aria-hidden="true"></span>Local demo</span>
+        <button id="local-demo-sign-in" class="offline-status identity-status" type="button"><span aria-hidden="true"></span> Log in</button>
         <button class="icon-button" type="button" aria-label="Help">?</button>
       </div>
     </header>
@@ -84,6 +84,7 @@
           <button id="help-runbooks" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Automated Runbooks...</button>
           <button id="help-teaching-repositories" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Teaching Repositories...</button>
           <button id="help-capability-packages" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Capability Packages...</button>
+          <button id="help-gis-kernel-lab" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> GIS Kernel Lab...</button>
           <div class="legacy-menu-separator" role="separator"></div>
           <button type="button" role="menuitem" disabled title="Not yet included in the browser demo">User Guide</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Help Videos</button>
@@ -92,6 +93,27 @@
         </div>
       </details>
     </nav>
+
+    <dialog id="local-demo-sign-in-dialog" class="legacy-dialog" aria-labelledby="local-demo-sign-in-title">
+      <form id="local-demo-sign-in-form" method="dialog">
+        <div class="legacy-dialog-titlebar">
+          <h2 id="local-demo-sign-in-title">Local demo sign-in</h2>
+          <button value="cancel" aria-label="Close">&times;</button>
+        </div>
+        <div class="legacy-dialog-body">
+          <p>Set the Epi Info AI identity used by <code>CURRENTUSER()</code> for this browser profile.</p>
+          <label for="local-demo-display-name">Display name</label>
+          <input id="local-demo-display-name" type="text" maxlength="100" autocomplete="name" required />
+          <p class="dialog-note"><strong>Demo identity only.</strong> This does not read or authenticate your Windows, macOS, or Linux account. The name stays in this browser and is not added to exported projects automatically.</p>
+          <p id="local-demo-sign-in-status" class="inline-feedback" role="status"></p>
+        </div>
+        <div class="legacy-dialog-actions">
+          <button id="local-demo-sign-out" type="button" hidden>Sign out</button>
+          <button class="dialog-primary" type="submit">Log in locally</button>
+          <button value="cancel">Cancel</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="application-options-dialog" class="legacy-dialog localization-options-dialog" aria-labelledby="application-options-title">
       <form method="dialog">
@@ -108,6 +130,11 @@
           <p class="dialog-note" data-i18n="options.language.pseudoNote">Pseudo (accented test) expands text to reveal clipping and untranslated interface strings. It is not a user language.</p>
           <p class="dialog-note" data-i18n="options.language.restart">Language changes apply immediately where supported. Some legacy surfaces may require reopening.</p>
           <p id="application-language-status" class="inline-feedback" role="status"></p>
+          <h3>Operator identity</h3>
+          <p>Set the explicit Epi Info AI identity returned by Check Code <code>CURRENTUSER()</code> when no authenticated account is connected.</p>
+          <label for="application-operator-identity">Display name</label>
+          <input id="application-operator-identity" type="text" maxlength="100" autocomplete="name" />
+          <p class="dialog-note">Web browsers cannot read your Windows, macOS, or Linux account name. This local profile stays in this browser and is not added to project exports automatically.</p>
         </div>
         <div class="legacy-dialog-actions">
           <button id="application-language-apply" class="dialog-primary" type="button" data-i18n="common.apply">Apply</button>
@@ -192,8 +219,13 @@
         <div class="legacy-dialog-titlebar"><h2 id="capability-package-title">Capability Packages</h2><button value="cancel" aria-label="Close">&times;</button></div>
         <div class="legacy-dialog-body">
           <p><span class="new-branch-tag">New branch</span> Phase 1 package-manager pilot: preview and integrity-check inert capability assets. Packages cannot install executable code or silently enable a command.</p>
+          <label for="capability-package-preset">Demonstration package</label>
+          <select id="capability-package-preset">
+            <option value="./examples/environmental-epidemiology/package/epi-info-capability.json">Environmental Epidemiology</option>
+            <option value="https://git.cdc.gov/epi-info-ai/package-occupational-epidemiology/-/raw/main/epi-info-capability.json">Occupational Epidemiology: IOCODE</option>
+          </select>
           <label for="capability-package-url">Package manifest URL</label>
-          <input id="capability-package-url" type="url" spellcheck="false" value="https://git.cdc.gov/epi-info-ai/package-occupational-epidemiology/-/raw/main/epi-info-capability.json">
+          <input id="capability-package-url" type="url" spellcheck="false" value="./examples/environmental-epidemiology/package/epi-info-capability.json">
           <div class="inline-actions"><button id="capability-package-preview" type="button">Preview package</button></div>
           <p id="capability-package-status" class="inline-feedback" role="status">No capability package previewed.</p>
           <section id="capability-package-preview-panel" hidden>

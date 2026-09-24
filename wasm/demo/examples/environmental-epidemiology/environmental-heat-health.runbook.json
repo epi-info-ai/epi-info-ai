@@ -1,0 +1,34 @@
+{
+  "id": "environmental-heat-health-v0-1",
+  "title": "Environmental heat and health candidate workflow",
+  "description": "A learner-operated tour from a synthetic exposure dataset through transparent analysis, an emergent GIS-kernel inspection, and project mapping.",
+  "prerequisite": "Import the Environmental Heat and Health Candidate project from File > Import Example Project.",
+  "module": "classic",
+  "steps": [
+    {
+      "id": "open-program",
+      "title": "Open the saved environmental program",
+      "instruction": "Open the Program Editor and choose environmental-heat-health-tour. Read the synthetic-data and no-causal-inference notices before running it.",
+      "target": "#program-editor-open"
+    },
+    {
+      "id": "run-program",
+      "title": "Run the descriptive workflow",
+      "instruction": "Run Commands, then inspect the quality report, line list, heat-category frequency, mean heat index, 2 x 2 table, and chart. You must run the program; the runbook does not run it for you.",
+      "target": "#program-editor-run",
+      "advanceOn": "click"
+    },
+    {
+      "id": "open-kernel-lab",
+      "title": "Inspect the GIS kernel boundary",
+      "instruction": "Choose Help > GIS Kernel Lab in a new tab, select the Environmental heat-health fixture, review the effective plan, and run its bounded Worker inspection. Confirm that the receipt records the operation and limits and that no network or project mutation was granted.",
+      "target": "#help-gis-kernel-lab"
+    },
+    {
+      "id": "open-map",
+      "title": "Map the packaged observations",
+      "instruction": "Open Maps. The project point layer uses signed five-decimal coordinates packaged with this synthetic project. The map is presentation; the kernel receipt remains the processing evidence.",
+      "target": "[data-open-module='maps']"
+    }
+  ]
+}

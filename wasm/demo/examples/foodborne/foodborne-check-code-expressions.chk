@@ -5,6 +5,25 @@ DefineVariables
   DEFINE AgeDistance STANDARD NUMERIC
   DEFINE StatusLabel STANDARD TEXTINPUT
   DEFINE InterviewYear STANDARD NUMERIC
+  DEFINE InterviewEpiWeek STANDARD NUMERIC
+  DEFINE RootAge STANDARD NUMERIC
+  DEFINE LogAge STANDARD NUMERIC
+  DEFINE ReviewDate STANDARD DATEFORMAT
+  DEFINE ReviewTime STANDARD TIMEFORMAT
+  DEFINE ReviewHour STANDARD NUMERIC
+  DEFINE DaysToInterview STANDARD NUMERIC
+  DEFINE ReviewSummary STANDARD TEXTINPUT
+  DEFINE SavedRecordCount STANDARD NUMERIC
+  DEFINE IdentifierAvailable STANDARD YN
+  DEFINE ReviewSystemDate STANDARD DATEFORMAT
+  DEFINE ReviewSystemTime STANDARD TIMEFORMAT
+  DEFINE ReviewOperator STANDARD TEXTINPUT
+  DEFINE CapturedLatitude STANDARD NUMERIC
+  DEFINE CapturedLongitude STANDARD NUMERIC
+  DEFINE CapturedAltitude STANDARD NUMERIC
+  DEFINE ReviewSampleNumber STANDARD NUMERIC
+  DEFINE AgeTeachingZ STANDARD NUMERIC
+  DEFINE AgeTeachingPercentile STANDARD NUMERIC
   DEFINE AdultReview STANDARD YN
 End-DefineVariables
 
@@ -18,6 +37,50 @@ Record
 
     // Date extraction accepts an ISO YYYY-MM-DD value and remains missing when its input is missing.
     ASSIGN InterviewYear = YEAR(interview_date)
+    ASSIGN InterviewEpiWeek = EPIWEEK(interview_date)
+
+    // Browser dates and times use unambiguous ISO values; two-digit years retain legacy expansion.
+    ASSIGN ReviewDate = NUMTODATE(26, 9, 23)
+    ASSIGN ReviewTime = NUMTOTIME(14, 30, 0)
+    ASSIGN ReviewHour = HOUR(ReviewTime)
+
+    // Signed intervals reveal whether the interview followed symptom onset.
+    ASSIGN DaysToInterview = DAYS(onset_date, interview_date)
+
+    // Named FORMAT output uses the documented en-US compatibility profile; LINEBREAK is a portable LF.
+    ASSIGN ReviewSummary = "Age: " & FORMAT(age, "General Number") & LINEBREAK() & "Interview: " & FORMAT(interview_date, "Short Date")
+
+    // RECORDCOUNT excludes the Recycle Bin; ISUNIQUE checks active saved records in this form.
+    ASSIGN SavedRecordCount = RECORDCOUNT()
+    ASSIGN IdentifierAvailable = ISUNIQUE(id)
+
+    // Legacy system-clock functions use bare syntax. The audit receipt records the instant and project time zone.
+    ASSIGN ReviewSystemDate = SYSTEMDATE
+    ASSIGN ReviewSystemTime = SYSTEMTIME
+
+    // CURRENTUSER() is the explicit Epi Info AI account or local operator profile—not the OS login.
+    ASSIGN ReviewOperator = CURRENTUSER()
+
+    // Map > Capture Location explicitly requests permission; these bare functions only read that session context.
+    ASSIGN CapturedLatitude = SYSLATITUDE
+    ASSIGN CapturedLongitude = SYSLONGITUDE
+    ASSIGN CapturedAltitude = SYSALTITUDE
+
+
+    // RND uses an inclusive lower and exclusive upper bound; its generator, seed, and draw are audited.
+    ASSIGN ReviewSampleNumber = RND(1, 97)
+
+    // Teaching-only age standardization: PFROMZ returns a normal percentile, not a hypothesis-test p-value.
+    ASSIGN AgeTeachingZ = (age - 40) / 15
+    ASSIGN AgeTeachingPercentile = PFROMZ(AgeTeachingZ)
+
+    // Safe deterministic transformations reject invalid domains instead of producing NaN or infinity.
+    ASSIGN RootAge = ROUND(SQRT(age), 3)
+    IF age > 0 THEN
+      ASSIGN LogAge = ROUND(LN(age), 3)
+    ELSE
+      ASSIGN LogAge = (.)
+    END-IF
 
     ASSIGN AdultReview = NO
     IF TXTTONUM("18") <= age AND InterviewYear >= 2026 THEN

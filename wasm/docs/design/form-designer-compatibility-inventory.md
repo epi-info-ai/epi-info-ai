@@ -90,6 +90,10 @@ self, absent, ambiguous, and exit-event targets fail closed. Legacy `//` and `/*
 comments are removed before parsing while their newline positions are retained,
 so runtime source and diagnostic line numbers remain auditable.
 
+The retained function floor, current 40-of-51 executable count, and the
+security/scientific/device disposition of all remaining functions are maintained
+in the [Check Code function parity inventory](check-code-function-inventory.md).
+
 ## Safety and compatibility requirements
 
 - A target must exist in the same saved schema before the rule can run.

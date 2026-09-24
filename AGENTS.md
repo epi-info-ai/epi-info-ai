@@ -44,6 +44,13 @@ available, for example:
 & "<node-path>" wasm/tests/build-smoke.mjs
 ```
 
+The managed Playwright browser cache is under
+`C:\Users\cke1\AppData\Local\ms-playwright`; discover the current
+`chromium-*` directory instead of hard-coding its revision. Leave
+`EPI_INFO_USE_INSTALLED_CHROME` unset when using that Playwright-managed
+Chromium. Set it to `1` only after verifying that the Google Chrome channel
+exists, because Playwright treats Chrome and Chromium as distinct installations.
+
 ## Contributor briefing
 
 Epi Info AI is a browser-first, offline-first modernization of CDC Epi Info. It

@@ -2,7 +2,7 @@
 
 **Status:** concise implementation and evidence snapshot
 
-**Last reviewed:** 2026-09-22
+**Last reviewed:** 2026-09-24
 
 ## Purpose
 
@@ -31,7 +31,7 @@ The terms have strict meanings:
 | Check Code | Separate typed AST/editor/runtime for bounded Form, Page, Record, and Field events with safe browser adaptations | Broader legacy grammar/functions, exact timing/scope behavior, unsafe-desktop exclusions, differential and field-user review |
 | Classic Analysis | 49-entry legacy inventory; 37 typed parser branches, 37 typed dialogs, 36 selected/reviewed execution paths, 17 bounded full-program components, and 30 browser-verified entries | Desktop/experienced-user differential evidence, remaining command families and variants, and Rust `epi-lang` consolidation |
 | Statistical kernel | Rust/WASM 2 x 2, stratified, matched-pair, survey, and related candidate operations with independent notebooks | Method-specific G5 review, broader corpora, differential evidence, and production promotion |
-| Maps and GIS | Familiar mapping paths, coordinate/geocoding candidates, project map assets, offline PMTiles planning, cluster rendering, and an emerging `epi-gis` Worker/kernel boundary | Reconcile current GIS security work, full legacy map parity, CRS/format hardening, field-offline and cartographic review |
+| Maps and GIS | Familiar mapping paths, coordinate/geocoding candidates, project map assets, point, choropleth, dot-density, map-document, offline PMTiles, cluster rendering, and an emerging `epi-gis` Worker/kernel boundary | Correct and independently validate the pending K09 advanced-spatial candidates, full legacy map parity, CRS/format hardening, field-offline and cartographic review |
 | Teaching and runbooks | Dataset-bound examples, importable teaching-repository candidate, action-aware runbooks, and JupyterLite validation labs | Signed/curated distribution, update/uninstall lifecycle, broader lessons, and competency governance |
 | Epi Assist | Optional local Granite and managed-provider proposal boundaries using minimized context and typed reviewed actions | Reliable local-model distribution, device/browser support, gateway governance, and formal evaluations |
 | New-branch analysis | Governed `QUALITY`, Access table conversion, space-time cluster, and record-linkage candidates | Each branch’s recorded validation, privacy, usability, persistence, and promotion gates |
@@ -49,14 +49,14 @@ The terms have strict meanings:
 
 ## Ordered near-term priorities
 
-1. Reconcile the local documentation/application batch with current GitLab
-   `main`, including merged GIS work, without discarding either contributor’s
-   changes.
-2. Correct and revalidate the pending GIS reference-layer security slice before
-   merge, including ZIP parsing, CRS handling, package revalidation, bounded
-   outputs, and multi-engine browser evidence.
-3. Finish the active Check Code gap batch and keep unsafe desktop capabilities
-   explicitly excluded or capability-gated.
+1. Run the strengthened navigation assertions in Firefox, Desktop WebKit, and
+   Mobile WebKit CI, then retain real Edge, Safari/macOS, Mobile Safari/device,
+   and assistive-technology acceptance as explicit release gates.
+2. Correct and revalidate MR !6's K09 advanced-spatial candidates before merge;
+   do not expose unvalidated scientific methods through the public GIS index.
+3. Keep the completed bounded Check Code function batch at Candidate while
+   field-validation usability, exact desktop timing/scope, differential review,
+   and broader browser evidence remain open.
 4. Continue Classic command parity with dataset-independent programs, asserted
    outputs, and differential evidence.
 5. Keep package management, adaptive learning, IOCODE, command-line, JupyterGIS,

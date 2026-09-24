@@ -1,0 +1,13 @@
+observation_id,observation_date,study_area,latitude,longitude,heat_index_c,heat_category,extreme_heat,health_event,exposure_source
+HH001,2026-07-01,North,38.93610,-77.03250,31.2,Elevated,No,No,Synthetic heat fixture
+HH002,2026-07-01,Central,38.90720,-77.03690,32.1,Elevated,No,No,Synthetic heat fixture
+HH003,2026-07-01,South,38.87520,-77.01710,33.0,Elevated,No,Yes,Synthetic heat fixture
+HH004,2026-07-02,North,38.93480,-77.02840,38.4,Extreme,Yes,Yes,Synthetic heat fixture
+HH005,2026-07-02,Central,38.90490,-77.03120,39.1,Extreme,Yes,Yes,Synthetic heat fixture
+HH006,2026-07-02,South,38.87270,-77.02180,38.8,Extreme,Yes,Yes,Synthetic heat fixture
+HH007,2026-07-03,North,38.93150,-77.02510,40.2,Extreme,Yes,Yes,Synthetic heat fixture
+HH008,2026-07-03,Central,38.90240,-77.03960,39.7,Extreme,Yes,Yes,Synthetic heat fixture
+HH009,2026-07-03,South,38.87810,-77.01370,40.5,Extreme,Yes,No,Synthetic heat fixture
+HH010,2026-07-04,North,38.93820,-77.03580,32.8,Elevated,No,No,Synthetic heat fixture
+HH011,2026-07-04,Central,38.90960,-77.04310,31.9,Elevated,No,No,Synthetic heat fixture
+HH012,2026-07-04,South,38.86990,-77.02630,32.5,Elevated,No,No,Synthetic heat fixture

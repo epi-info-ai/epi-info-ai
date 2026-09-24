@@ -1,12 +1,18 @@
 import type { RecordValue, FormSchema } from "../contracts/core.js";
 import type { FieldCheckCode, SafeCheckCodeStatement, SafeFieldAction } from "../contracts/check-code.js";
+import { checkCodeFormatName } from "./check-code-format.ts";
 
 export const CHECK_CODE_AST_SCHEMA = "epi-check-code-ast/0.1" as const;
 
 export type CheckCodeScope = "form" | "record" | "page" | "field";
 export type CheckCodeEvent = "before" | "after" | "click";
 
-export type CheckCodeFunctionName = "ABS" | "ROUND" | "STRLEN" | "SUBSTRING" | "UPPERCASE" | "TXTTONUM" | "YEAR" | "MONTH" | "DAY";
+export type CheckCodeFunctionName =
+  | "ABS" | "COS" | "EXP" | "LN" | "LOG" | "ROUND" | "SIN" | "SQRT" | "TAN" | "TRUNC"
+  | "FINDTEXT" | "STEP" | "STRLEN" | "SUBSTRING" | "UPPERCASE" | "TXTTONUM"
+  | "TXTTODATE" | "NUMTODATE" | "NUMTOTIME" | "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND"
+  | "DAYS" | "HOURS" | "MINUTES" | "SECONDS" | "MONTHS" | "YEARS" | "EPIWEEK"
+  | "FORMAT" | "LINEBREAK" | "RECORDCOUNT" | "ISUNIQUE" | "CURRENTUSER" | "SYSALTITUDE" | "SYSLATITUDE" | "SYSLONGITUDE" | "SYSTEMDATE" | "SYSTEMTIME" | "RND" | "PFROMZ" | "ZSCORE";
 
 export type CheckCodeExpression =
   | { kind: "literal"; value: RecordValue }
@@ -160,8 +166,23 @@ function identifiers(source: string, line: number): string[] {
 interface ExpressionToken { kind: "number" | "string" | "word" | "operator" | "left-paren" | "right-paren" | "comma" | "missing" | "boolean"; value?: string | number | boolean }
 
 const functionArity: Record<CheckCodeFunctionName, readonly [number, number]> = {
-  ABS: [1, 1], ROUND: [1, 2], STRLEN: [1, 1], SUBSTRING: [2, 3], UPPERCASE: [1, 1], TXTTONUM: [1, 1], YEAR: [1, 1], MONTH: [1, 1], DAY: [1, 1],
+  ABS: [1, 1], COS: [1, 1], EXP: [1, 1], LN: [1, 1], LOG: [1, 1], ROUND: [1, 2], SIN: [1, 1], SQRT: [1, 1], TAN: [1, 1], TRUNC: [1, 1],
+  FINDTEXT: [2, 2], STEP: [2, 2], STRLEN: [1, 1], SUBSTRING: [2, 3], UPPERCASE: [1, 1], TXTTONUM: [1, 1], YEAR: [1, 1], MONTH: [1, 1], DAY: [1, 1],
+  TXTTODATE: [1, 1], NUMTODATE: [3, 3], NUMTOTIME: [3, 3], HOUR: [1, 1], MINUTE: [1, 1], SECOND: [1, 1],
+  DAYS: [2, 2], HOURS: [2, 2], MINUTES: [2, 2], SECONDS: [2, 2], MONTHS: [2, 2], YEARS: [2, 2],
+  EPIWEEK: [1, 2],
+  FORMAT: [1, 2], LINEBREAK: [0, 0],
+  RECORDCOUNT: [0, 0], ISUNIQUE: [1, 12],
+  CURRENTUSER: [0, 0],
+  SYSALTITUDE: [0, 0], SYSLATITUDE: [0, 0], SYSLONGITUDE: [0, 0],
+  SYSTEMDATE: [0, 0], SYSTEMTIME: [0, 0],
+  RND: [1, 2],
+  PFROMZ: [1, 1],
+  ZSCORE: [5, 5],
 };
+
+export const CHECK_CODE_FUNCTION_NAMES = Object.freeze(Object.keys(functionArity).sort()) as readonly CheckCodeFunctionName[];
+const bareCheckCodeFunctions = new Set<CheckCodeFunctionName>(["SYSALTITUDE", "SYSLATITUDE", "SYSLONGITUDE", "SYSTEMDATE", "SYSTEMTIME"]);
 
 function expressionTokens(source: string, line: number): ExpressionToken[] {
   const tokens: ExpressionToken[] = [];
@@ -233,8 +254,12 @@ function expression(source: string, line: number): CheckCodeExpression {
     if (token.kind !== "word") throw new CheckCodeParseError(line, "Expression requires a value, reference, or allowlisted function.");
     index += 1;
     const name = String(token.value);
-    if (tokens[index]?.kind !== "left-paren") return node({ kind: "reference", value: identifier(name, line) });
     const functionName = name.toUpperCase() as CheckCodeFunctionName;
+    if (tokens[index]?.kind !== "left-paren") {
+      if (bareCheckCodeFunctions.has(functionName)) return node({ kind: "function", name: functionName, arguments: [] });
+      return node({ kind: "reference", value: identifier(name, line) });
+    }
+    if (bareCheckCodeFunctions.has(functionName)) throw new CheckCodeParseError(line, `${functionName} uses legacy bare syntax without parentheses.`);
     if (!(functionName in functionArity)) throw new CheckCodeParseError(line, `Function ${JSON.stringify(name)} is not in the browser-safe Check Code allowlist.`);
     index += 1;
     const args: CheckCodeExpression[] = [];
@@ -248,7 +273,10 @@ function expression(source: string, line: number): CheckCodeExpression {
     if (tokens[index]?.kind !== "right-paren") throw new CheckCodeParseError(line, `Function ${functionName} is missing a closing parenthesis.`);
     index += 1;
     const [minimum, maximum] = functionArity[functionName];
-    if (args.length < minimum || args.length > maximum) throw new CheckCodeParseError(line, `${functionName} requires ${minimum === maximum ? minimum : `${minimum} or ${maximum}`} argument${maximum === 1 ? "" : "s"}.`);
+    if (args.length < minimum || args.length > maximum) {
+      const count = minimum === maximum ? String(minimum) : maximum === minimum + 1 ? `${minimum} or ${maximum}` : `${minimum} through ${maximum}`;
+      throw new CheckCodeParseError(line, `${functionName} requires ${count} argument${maximum === 1 ? "" : "s"}.`);
+    }
     return node({ kind: "function", name: functionName, arguments: args });
   };
   const unary = (): CheckCodeExpression => {
@@ -838,14 +866,62 @@ export function compileFieldCheckCodeSubset(ast: CheckCodeProgramAst, schema: Fo
         reasons.push(`Line ${line}: ${value.name} argument ${index + 1} requires ${allowed.join(" or ")}; received ${families[index]}.`);
       }
     };
-    if (["ABS", "ROUND"].includes(value.name)) requireFamily([0, 1].slice(0, value.arguments.length), ["number", "null", "unknown"]);
+    if (["ABS", "COS", "EXP", "LN", "LOG", "ROUND", "SIN", "SQRT", "TAN", "TRUNC"].includes(value.name)) requireFamily([0, 1].slice(0, value.arguments.length), ["number", "null", "unknown"]);
+    else if (value.name === "STEP") requireFamily([0, 1], ["number", "null", "unknown"]);
+    else if (value.name === "FINDTEXT") requireFamily([0, 1], ["text", "text-literal", "null", "unknown"]);
+    else if (value.name === "FORMAT" && value.arguments.length === 2) {
+      requireFamily([1], ["text-literal"]);
+      const format = value.arguments[1];
+      if (format?.kind === "literal" && typeof format.value === "string") {
+        const name = checkCodeFormatName(format.value);
+        if (!name) reasons.push(`Line ${line}: FORMAT named format ${JSON.stringify(format.value)} is not supported by the deterministic browser profile.`);
+        else if (["General Number", "Currency", "Fixed", "Standard", "Percent", "Scientific", "Yes/No", "True/False", "On/Off"].includes(name)) {
+          requireFamily([0], ["number", "boolean", "null", "unknown"]);
+        } else if (["Long Date", "Short Date"].includes(name)) {
+          requireFamily([0], ["date", "date-time", "text-literal", "null", "unknown"]);
+        } else if (["Long Time", "Short Time"].includes(name)) {
+          requireFamily([0], ["time", "date-time", "text-literal", "null", "unknown"]);
+        } else requireFamily([0], ["date", "time", "date-time", "text-literal", "null", "unknown"]);
+      }
+    }
+    else if (value.name === "ISUNIQUE") {
+      const seen = new Set<string>();
+      for (const argument of value.arguments) {
+        if (argument.kind !== "reference" || !names.has(compareName(argument.value))) {
+          reasons.push(`Line ${line}: ISUNIQUE arguments must be fields in the active form.`);
+          continue;
+        }
+        const normalized = compareName(argument.value);
+        if (fieldTypes.get(normalized) === "command-button") reasons.push(`Line ${line}: ISUNIQUE cannot use command-button field ${JSON.stringify(argument.value)}.`);
+        if (seen.has(normalized)) reasons.push(`Line ${line}: ISUNIQUE field ${JSON.stringify(argument.value)} is repeated.`);
+        seen.add(normalized);
+      }
+    }
+    else if (value.name === "RND") requireFamily([0, 1].slice(0, value.arguments.length), ["number", "null", "unknown"]);
+    else if (value.name === "PFROMZ") requireFamily([0], ["number", "null", "unknown"]);
+    else if (value.name === "ZSCORE") {
+      requireFamily([0, 1], ["text", "text-literal", "null", "unknown"]);
+      requireFamily([2, 3, 4], ["number", "null", "unknown"]);
+    }
     else if (value.name === "SUBSTRING") {
       requireFamily([0], ["text", "text-literal", "null", "unknown"]);
       requireFamily([1, 2].slice(0, value.arguments.length - 1), ["number", "null", "unknown"]);
     } else if (["STRLEN", "UPPERCASE"].includes(value.name)) requireFamily([0], ["text", "text-literal", "null", "unknown"]);
     else if (["YEAR", "MONTH", "DAY"].includes(value.name)) requireFamily([0], ["date", "date-time", "text", "text-literal", "null", "unknown"]);
-    return ["SUBSTRING", "UPPERCASE"].includes(value.name) ? "text"
-      : ["ABS", "ROUND", "STRLEN", "TXTTONUM", "YEAR", "MONTH", "DAY"].includes(value.name) ? "number" : "unknown";
+    else if (["HOUR", "MINUTE", "SECOND"].includes(value.name)) requireFamily([0], ["time", "date-time", "text", "text-literal", "null", "unknown"]);
+    else if (value.name === "TXTTODATE") requireFamily([0], ["text", "text-literal", "date", "date-time", "null", "unknown"]);
+    else if (["NUMTODATE", "NUMTOTIME"].includes(value.name)) requireFamily([0, 1, 2], ["number", "null", "unknown"]);
+    else if (["DAYS", "HOURS", "MINUTES", "SECONDS", "MONTHS", "YEARS"].includes(value.name)) {
+      requireFamily([0, 1], ["date", "date-time", "text", "text-literal", "null", "unknown"]);
+    } else if (value.name === "EPIWEEK") {
+      requireFamily([0], ["date", "date-time", "text", "text-literal", "null", "unknown"]);
+      if (value.arguments.length === 2) requireFamily([1], ["number", "null", "unknown"]);
+    }
+    if (["TXTTODATE", "NUMTODATE", "SYSTEMDATE"].includes(value.name)) return "date";
+    if (["NUMTOTIME", "SYSTEMTIME"].includes(value.name)) return "time";
+    if (value.name === "ISUNIQUE") return "boolean";
+    return ["SUBSTRING", "UPPERCASE", "FORMAT", "LINEBREAK", "CURRENTUSER"].includes(value.name) ? "text"
+      : ["ABS", "COS", "EXP", "FINDTEXT", "LN", "LOG", "PFROMZ", "ZSCORE", "RND", "ROUND", "SIN", "SQRT", "STEP", "TAN", "TRUNC", "STRLEN", "TXTTONUM", "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND", "DAYS", "HOURS", "MINUTES", "SECONDS", "MONTHS", "YEARS", "EPIWEEK", "RECORDCOUNT", "SYSALTITUDE", "SYSLATITUDE", "SYSLONGITUDE"].includes(value.name) ? "number" : "unknown";
   };
   const validateCondition = (value: CheckCodeCondition, line: number): void => {
     if (value.kind === "logical") { validateCondition(value.left, line); validateCondition(value.right, line); return; }

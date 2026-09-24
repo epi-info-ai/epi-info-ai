@@ -79,6 +79,10 @@ import { buildDataQualityReport, type DuplicateGroup } from "../app/forms/data-q
 import { compileFieldCheckCodeSubset, parseCheckCodeProgram, serializeFieldCheckCodeSubset, type CheckCodeAutoSearchRequest, type CheckCodeCompileResult, type CheckCodeDefinition, type CheckCodeDialogRequest, type CheckCodeEvent, type CheckCodeProgramAst, type CheckCodeScope } from "../app/check-code/check-code-program.ts";
 import { createCheckCodeSourceEditor, type CheckCodeEditorPreferences, type CheckCodeEditorTabSize, type CheckCodeSourceEditor } from "../app/check-code/check-code-editor.ts";
 import { createCheckCodeRuntime, type CheckCodeRuntime, type CheckCodeRuntimeAudit } from "../app/check-code/check-code-runtime.ts";
+import { isUniqueCheckCodeValue } from "../app/check-code/check-code-record-context.ts";
+import { createCheckCodeSeededRandom } from "../app/check-code/check-code-random.ts";
+import { readLocalOperatorIdentity } from "../app/check-code/check-code-identity.ts";
+import { readLastCheckCodePosition } from "../app/check-code/check-code-device-context.ts";
 import { installedCapabilityStatus, IOCODE_CAPABILITY_ID } from "../app/packages/capability-package.ts";
 import { materializeCalculatedFields, validateProjectRecords, validateRecord, validateRecords } from "../app/forms/validation.ts";
 import {
@@ -1578,7 +1582,7 @@ function recordCheckCodeAudit(event: CheckCodeRuntimeAudit): void {
   projectState.auditLog.push({
     id: lifecycleId("audit"), occurredAt, action: "check-code-executed", formId: currentFormId,
     archiveId: `check-code:${event.scope}:${event.event}:${event.name ?? ""}`,
-    detail: `Check Code ${event.scope}${event.name ? ` ${event.name}` : ""} ${event.event}: ${event.status}; ${event.statements} statement${event.statements === 1 ? "" : "s"}, ${event.effects} bounded effect${event.effects === 1 ? "" : "s"}.${event.diagnostic ? ` ${event.diagnostic}` : ""}`,
+    detail: `Check Code ${event.scope}${event.name ? ` ${event.name}` : ""} ${event.event}: ${event.status}; ${event.statements} statement${event.statements === 1 ? "" : "s"}, ${event.effects} bounded effect${event.effects === 1 ? "" : "s"}.${event.clockReadings?.length ? ` Clock: ${event.clockReadings.map((reading) => `${reading.function}=${reading.instant} @ ${reading.timeZone}`).join("; ")}.` : ""}${event.randomDraws?.length ? ` Random: ${event.randomDraws.map((draw) => `${draw.generator} seed=${draw.seed} draw=${draw.draw} [${draw.minimumInclusive},${draw.maximumExclusive}) => ${draw.value}`).join("; ")}.` : ""}${event.identityReadings?.length ? ` Identity: ${event.identityReadings.map((reading) => `${reading.function}=${reading.available ? reading.source : "unavailable"}`).join("; ")}.` : ""}${event.deviceReadings?.length ? ` Device context: ${event.deviceReadings.map((reading) => `${reading.function}=${reading.available ? reading.source : "unavailable"}`).join("; ")}.` : ""}${event.diagnostic ? ` ${event.diagnostic}` : ""}`,
   });
   if (projectState.auditLog.length > 500) projectState.auditLog.splice(0, projectState.auditLog.length - 500);
   syncCurrentForm();
@@ -1598,6 +1602,7 @@ function initializeCheckCodeRuntime(): void {
     const ast = parseCheckCodeProgram(source);
     const compiled = compileFieldCheckCodeSubset(ast, schema, checkCodeCompileContext());
     if (!compiled.executable) throw new Error(compiled.reasons.join(" "));
+    let checkCodeRandom: ReturnType<typeof createCheckCodeSeededRandom> | null = null;
     activeCheckCodeAst = ast;
     activeCheckCodeRuntime = createCheckCodeRuntime(ast, schema, {
       readField(name) {
@@ -1685,6 +1690,26 @@ function initializeCheckCodeRuntime(): void {
         const button = block?.name ? entryControl(block.name) : null;
         if (!(button instanceof HTMLButtonElement)) throw new Error("The GEOCODE command button is unavailable.");
         await runGeocode({ kind: "geocode", addressField, latitudeField, longitudeField }, button);
+      },
+      recordCount: () => records.length,
+      isUnique(fieldNames) {
+        return isUniqueCheckCodeValue(schema, records, Object.fromEntries(fieldNames.map((name) => [name, activeCheckCodeRuntimeFieldValue(name)])), fieldNames);
+      },
+      readSystemClock() {
+        return { instant: new Date().toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" };
+      },
+      readCurrentUser() {
+        return readLocalOperatorIdentity();
+      },
+      readLastPosition() {
+        return readLastCheckCodePosition();
+      },
+      randomInteger(minimumInclusive, maximumExclusive) {
+        if (!checkCodeRandom) {
+          const randomSeed = globalThis.crypto.getRandomValues(new Uint32Array(1))[0]!;
+          checkCodeRandom = createCheckCodeSeededRandom(randomSeed);
+        }
+        return checkCodeRandom.nextInteger(minimumInclusive, maximumExclusive);
       },
       readScopedVariable: readCheckCodeScopedVariable,
       writeScopedVariable: writeCheckCodeScopedVariable,

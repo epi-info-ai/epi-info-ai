@@ -14,6 +14,7 @@ Project materials are collected under [`wasm/docs/`](wasm/docs/):
 - [`docs/validation/algorithm-validation-standard.md`](wasm/docs/validation/algorithm-validation-standard.md) - mandatory evidence and release gates for every algorithm;
 - [`validation-lab.md`](wasm/docs/validation-lab.md) - validation-corpus governance, executable-notebook contract, and foodborne-outbreak validation roadmap;
 - [`docs/design/ui-compatibility-strategy.md`](wasm/docs/design/ui-compatibility-strategy.md) - familiar-but-modern UI strategy;
+- [`docs/design/accessibility-testing.md`](wasm/docs/design/accessibility-testing.md) - WCAG 2.2 AA and Section 508 testing plan, assistive-technology matrix, release gates, and phased implementation backlog;
 - [`docs/design/legacy-capability-register.md`](wasm/docs/design/legacy-capability-register.md) - compatibility floor, backlog gap IDs, new branches, and deprecation/retirement log;
 - [`docs/design/menu-compatibility-registry.md`](wasm/docs/design/menu-compatibility-registry.md) - item-level menu paths, command-state/function parity, and lifecycle gaps;
 - [`docs/design/classic-command-compatibility-registry.md`](wasm/docs/design/classic-command-compatibility-registry.md) - all 49 legacy Classic Analysis command entries and their independent syntax/dialog/execution/output parity dimensions;
@@ -22,6 +23,7 @@ Project materials are collected under [`wasm/docs/`](wasm/docs/):
 - [`docs/design/new-branch-command-registry.md`](wasm/docs/design/new-branch-command-registry.md) - explicit Epi Info AI command extensions kept separate from the legacy parity floor;
 - [`docs/demo-runbook.md`](wasm/docs/demo-runbook.md) - a short, failure-aware demo path for experienced Epi Info and global-health surveillance users;
 - [`docs/demo-runbook-feltp.md`](wasm/docs/demo-runbook-feltp.md) - a field-investigation demo path for FELTP/FETP epidemiology and laboratory trainees;
+- [`docs/demo-runbook-environmental-epidemiology.md`](wasm/docs/demo-runbook-environmental-epidemiology.md) - a twelve-minute NCEH coalition demo separating an inert environmental capability package, an importable teaching project, and the emerging GIS kernel;
 - [`docs/design/maps-compatibility-inventory.md`](wasm/docs/design/maps-compatibility-inventory.md) - C# Maps assets, manual behaviors, browser status, and adaptation decisions;
 - [`docs/reference/`](wasm/docs/reference/) - official historical reference material.
 
@@ -91,6 +93,8 @@ GitLab CI and GitHub Actions build and publish the same complete JupyterLite lab
 
 | Validation notebook | GitLab Pages | GitHub Pages |
 | --- | --- | --- |
+| Check Code PFROMZ normal percentile V0.1 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-check-code-pfromz.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-check-code-pfromz.ipynb) |
+| Check Code ZSCORE anthropometry V0.1 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-check-code-zscore.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-check-code-zscore.ipynb) |
 | RECORDLINK end-to-end governed output V0.9 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-recordlink.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-recordlink.ipynb) |
 | Space-Time Cluster Detection inference V0.3 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-space-time-cluster.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-space-time-cluster.ipynb) |
 | Conditional LOGISTIC V0.1 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-conditional-logistic.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-conditional-logistic.ipynb) |
@@ -678,8 +682,10 @@ The detailed cumulative changes and validation increments follow.
 - Expanded Check Code into a separate typed Form/Page/Record/Field event runtime
   with editor verification, bounded navigation and actions, browser-adapted
   dialogs, expressions/functions, session scopes, teaching fixtures, and
-  explicit fail-closed treatment of unsafe desktop capabilities. `IOCODE` is
-  preserved as typed source but deferred as a future governed package concern.
+  explicit fail-closed treatment of unsafe desktop capabilities. Deterministic
+  date support now includes ISO conversion/extraction, signed intervals, and
+  retained `EPIWEEK` surveillance-calendar behavior. `IOCODE` is preserved as
+  typed source but deferred as a future governed package concern.
 - Added declarative, action-aware teaching runbooks; governed teaching-project
   import; initial capability-package boundaries; command-line and package-manager
   design records; and more complete collaborator guidance in `AGENTS.md`.
@@ -704,8 +710,13 @@ historical progress record.
   The first candidate now replaces the clipped popup positioning with a shared
   viewport-overlay controller, adds predictable menu keyboard navigation and
   Escape focus return, and adds a focused Playwright suite for Chromium,
-  Firefox, Desktop WebKit, and Mobile WebKit. Chromium passes locally; the
-  multi-engine Pages run remains the compatibility evidence gate.
+  Firefox, Desktop WebKit, and Mobile WebKit. The focused multi-engine smoke
+  floor passed in GitLab pipeline 300787 on 2026-09-24. A strengthened follow-up
+  covers Space and Tab behavior, outside-click dismissal, and visible focus
+  restoration after a menu-opened dialog; it passes locally in Playwright
+  Chromium and awaits the next multi-engine CI run. Real Edge, Safari/macOS,
+  Mobile Safari/device, assistive-technology, and broader workflow acceptance
+  remain open.
 
 - **Complete Check Code parity as a separate event-driven language and runtime.**
   Preserve the distinction between Form Designer Check Code and the Classic
@@ -748,6 +759,14 @@ historical progress record.
   Typed arithmetic, concatenation, and an initial deterministic function set
   (`ABS`, `ROUND`, `STRLEN`, `SUBSTRING`, `UPPERCASE`, `TXTTONUM`, `YEAR`,
   `MONTH`, and `DAY`) now execute after whole-program type validation. Explicit
+  deterministic scalar functions (`COS`, `EXP`, `FINDTEXT`, `LN`, `LOG`,
+  `SIN`, `SQRT`, `STEP`, `TAN`, and `TRUNC`) use the same typed boundary and
+  reject invalid domains or non-finite results. `HOUR`, `MINUTE`, `SECOND`,
+  `TXTTODATE`, `NUMTODATE`, and `NUMTOTIME` use canonical ISO browser values,
+  retain the documented two-digit-year expansion, and reject ambiguous or
+  invalid dates and clock times. Signed `DAYS`, `HOURS`, `MINUTES`, `SECONDS`,
+  `MONTHS`, and `YEARS` preserve the inspected desktop component-versus-total
+  interval behavior while excluding locale and daylight-saving ambiguity. Explicit
   Undo/Redo controls share CodeMirror's keyboard history. Browser-adapted
   `GLOBAL` variables persist for the current tab session and `PERMANENT`
   variables persist only in the local browser profile; neither is silently
@@ -760,12 +779,25 @@ historical progress record.
   most 25 matches and 12 fields. It never silently replaces the current draft
   or opens an existing record; that edit-identity behavior remains a disclosed
   parity gap.
+  Field-validation parity and usability acceptance are intentionally deferred
+  to the combined field-feature evaluation with experienced field testers;
+  this deferral does not authorize weakening current type, reference, or
+  runtime validation.
   `IOCODE` is deferred as a future TODO requiring deeper investigation. Its typed seven-Text-field
   migration boundary remains readable but fails closed; its separate
   Occupational Epidemiology package architecture, model/service governance,
   provenance, privacy, and validation gates are recorded in the
   [IOCODE browser-adapter assessment](wasm/docs/design/iocode-browser-adapter.md).
   No code is guessed and no occupational description is transmitted.
+  The [Check Code function parity inventory](wasm/docs/design/check-code-function-inventory.md)
+  now reconciles all 51 retained Enter functions: 45 are typed executable
+  candidates and every remaining function has an explicit implementation,
+  governance, adaptation, source-placeholder, or security disposition.
+  The [`CURRENTUSER()` browser identity contract](wasm/docs/design/browser-identity.md)
+  documents the visible **Local demo sign-in** placeholder: it uses an explicit
+  browser-profile display name, never reads an operating-system account, returns
+  missing while signed out, and can later accept a governed authenticated account
+  through the same typed host boundary.
   The compatibility inventory now records a deliberate exclusion boundary:
   arbitrary `EXECUTE`, DLL/.NET loading, OS command-line inspection, ambient
   paths, and filesystem/process waits will not receive direct browser parity.

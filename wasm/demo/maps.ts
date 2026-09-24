@@ -50,6 +50,7 @@ import { createMapTimeLapsePlanV01 } from "../app/gis/map-time-lapse.ts";
 import { createMapAnnotationsV01, type MapAnnotationsV01 } from "../app/gis/map-annotations.ts";
 import { createMapPngExportPlanV01, type MapPngExportPlanV01 } from "../app/gis/map-export.ts";
 import { GdalWorkerClient, type GdalDataset, type GdalDatasetInfo, type GdalOpenedDataset } from "./examples/gdal-wasm/gdal-wasm-worker.ts";
+import { writeLastCheckCodePosition } from "../app/check-code/check-code-device-context.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
 // confined to this adapter module until the vendored distribution carries types.
@@ -2085,6 +2086,7 @@ function captureLocation() {
   }
   requiredElement("#map-status").textContent = "Waiting for location permission...";
   navigator.geolocation.getCurrentPosition((position) => {
+    writeLastCheckCodePosition(position);
     ensureMap();
     const { latitude, longitude, accuracy } = position.coords;
     locationLayer.clearLayers();

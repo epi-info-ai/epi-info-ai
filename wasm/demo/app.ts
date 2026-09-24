@@ -35,6 +35,7 @@ import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type 
 import { buildClassicAnalysisCommand, CLASSIC_TABLES_EXPANSION_PLAN_VERSION, resolveSelectedClassicAnalysisCommand, type ClassicAnalysisCommandInput, type ClassicAnalysisCommandKind, type ClassicDefineVariableScope, type ClassicDefineVariableType } from "../app/programming/classic-command-builder.js";
 import { initializeUiRunbooks } from "../app/help/runbooks.js";
 import { initializeBrowserLocalization } from "../app/localization/browser-localization.js";
+import { initializeBrowserIdentity } from "../app/check-code/browser-identity.js";
 import { applyClassicSelection, resolveClassicSelectionCommand, type ClassicSelectionOperator } from "../app/programming/classic-selection.js";
 import { resolveClassicSortCommand, type ClassicSortDirection } from "../app/programming/classic-sort.js";
 import { assignmentValueFromInput, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand } from "../app/programming/classic-assignment.js";
@@ -2414,6 +2415,7 @@ requiredElement("#example-project-refresh").addEventListener("click", () => void
 
 const capabilityPackageDialog = requiredElement<HTMLDialogElement>("#capability-package-dialog");
 const capabilityPackageUrl = requiredElement<HTMLInputElement>("#capability-package-url");
+const capabilityPackagePreset = requiredElement<HTMLSelectElement>("#capability-package-preset");
 const capabilityPackageStatus = requiredElement<HTMLElement>("#capability-package-status");
 const capabilityPackagePreviewPanel = requiredElement<HTMLElement>("#capability-package-preview-panel");
 const capabilityPackageInstall = requiredElement<HTMLButtonElement>("#capability-package-install");
@@ -2430,7 +2432,7 @@ function renderInstalledCapabilityPackages(): void {
   const installed = listInstalledCapabilityPackages();
   capabilityPackageInstalled.hidden = installed.length === 0;
   requiredElement("#capability-package-installed-summary").textContent = installed.length
-    ? `${installed.length} inert package installed. ${installed[0]!.manifest.title} ${installed[0]!.manifest.version} passed ${installed[0]!.receipt.verifiedArtifacts} artifact checks; IOCODE execution remains disabled pending scientific approval.`
+    ? `${installed.length} inert package${installed.length === 1 ? "" : "s"} installed. ${installed.map((item) => `${item.manifest.title} ${item.manifest.version} passed ${item.receipt.verifiedArtifacts} artifact checks`).join("; ")}. No package received execution or network authority.`
     : "";
 }
 
@@ -2479,6 +2481,13 @@ requiredElement("#help-capability-packages").addEventListener("click", () => {
   capabilityPackageDialog.showModal();
 });
 requiredElement("#capability-package-preview").addEventListener("click", () => void previewCapabilityPackageFrom(capabilityPackageUrl.value));
+capabilityPackagePreset.addEventListener("change", () => {
+  capabilityPackageUrl.value = capabilityPackagePreset.value;
+  currentCapabilityPackagePreview = null;
+  capabilityPackagePreviewPanel.hidden = true;
+  capabilityPackageInstall.disabled = true;
+  capabilityPackageStatus.textContent = "Package selected. Choose Preview package to retrieve and validate its manifest.";
+});
 capabilityPackageInstall.addEventListener("click", () => {
   if (!currentCapabilityPackagePreview) return;
   capabilityPackageInstall.disabled = true;
@@ -2487,7 +2496,7 @@ capabilityPackageInstall.addEventListener("click", () => {
     try {
       const installed = await installCapabilityPackage(currentCapabilityPackagePreview!);
       renderInstalledCapabilityPackages();
-      capabilityPackageStatus.textContent = `${installed.manifest.title} ${installed.manifest.version} installed as inert assets. Receipt recorded; IOCODE scientific execution remains disabled.`;
+      capabilityPackageStatus.textContent = `${installed.manifest.title} ${installed.manifest.version} installed as inert assets. Receipt recorded; scientific execution and network authority remain disabled.`;
     } catch (error) {
       capabilityPackageStatus.textContent = error instanceof Error ? error.message : "Capability package installation failed.";
       capabilityPackageInstall.disabled = false;
@@ -2495,6 +2504,11 @@ capabilityPackageInstall.addEventListener("click", () => {
   })();
 });
 renderInstalledCapabilityPackages();
+
+requiredElement("#help-gis-kernel-lab").addEventListener("click", () => {
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.legacy-menu")) menu.open = false;
+  window.open(new URL("./gis-kernel-spike.html", document.baseURI), "_blank", "noopener,noreferrer");
+});
 
 const teachingRepositoryDialog = requiredElement<HTMLDialogElement>("#teaching-repository-dialog");
 const teachingRepositoryUrl = requiredElement<HTMLInputElement>("#teaching-repository-url");
@@ -6589,6 +6603,7 @@ refreshRatesSelectors();
 
 try {
   initializeBrowserLocalization();
+  initializeBrowserIdentity();
   initializeFormDataDemo();
   clearClassicSessionResources();
   classicProgramSession.reset(getCurrentProjectData());

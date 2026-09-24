@@ -1,0 +1,15 @@
+*** Epi Info AI environmental epidemiology teaching candidate
+*** All records and exposure values are synthetic. This program does not estimate causality.
+
+HEADER 1 "Environmental heat and health teaching workflow"
+TYPEOUT "Review data quality, describe the synthetic exposure, compare health-event counts, and open the project point layer in Maps."
+
+READ [Synthetic Heat Health Observations Form]
+EPIAI QUALITY *
+LIST observation_id observation_date study_area heat_index_c extreme_heat health_event
+FREQ heat_category
+MEANS heat_index_c
+TABLES extreme_heat health_event
+GRAPH heat_category GRAPHTYPE="Bar" TITLETEXT="Synthetic observations by heat category" XTITLE="Heat category" YTITLE="Observations"
+
+TYPEOUT "These descriptive results demonstrate a governed workflow; they are not an exposure model or health-effect estimate."

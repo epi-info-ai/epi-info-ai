@@ -1,0 +1,358 @@
+{
+  "format": "epi-info-ai-project",
+  "version": 2,
+  "exportedAt": "2026-09-24T11:21:38.425Z",
+  "project": {
+    "name": "Environmental Heat and Health Candidate",
+    "currentFormId": "synthetic-heat-health-observations",
+    "forms": [
+      {
+        "id": "synthetic-heat-health-observations",
+        "schema": {
+          "name": "Synthetic Heat Health Observations Form",
+          "fields": [
+            {
+              "name": "observation_id",
+              "prompt": "Observation ID",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "observation_date",
+              "prompt": "Observation date",
+              "type": "date",
+              "required": false
+            },
+            {
+              "name": "study_area",
+              "prompt": "Study area",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "latitude",
+              "prompt": "Latitude",
+              "type": "number",
+              "required": false,
+              "rules": [
+                {
+                  "kind": "coordinate",
+                  "axis": "latitude",
+                  "minimumDecimalPlaces": 5
+                }
+              ]
+            },
+            {
+              "name": "longitude",
+              "prompt": "Longitude",
+              "type": "number",
+              "required": false,
+              "rules": [
+                {
+                  "kind": "coordinate",
+                  "axis": "longitude",
+                  "minimumDecimalPlaces": 5
+                }
+              ]
+            },
+            {
+              "name": "heat_index_c",
+              "prompt": "Heat index c",
+              "type": "number",
+              "required": false
+            },
+            {
+              "name": "heat_category",
+              "prompt": "Heat category",
+              "type": "text",
+              "required": false
+            },
+            {
+              "name": "extreme_heat",
+              "prompt": "Extreme heat",
+              "type": "yes-no",
+              "required": false
+            },
+            {
+              "name": "health_event",
+              "prompt": "Health event",
+              "type": "yes-no",
+              "required": false
+            },
+            {
+              "name": "exposure_source",
+              "prompt": "Exposure source",
+              "type": "text",
+              "required": false
+            }
+          ],
+          "pages": [
+            {
+              "name": "Observation",
+              "fields": [
+                "observation_id",
+                "observation_date",
+                "study_area",
+                "health_event"
+              ]
+            },
+            {
+              "name": "Exposure",
+              "fields": [
+                "heat_index_c",
+                "heat_category",
+                "extreme_heat",
+                "exposure_source"
+              ]
+            },
+            {
+              "name": "Location",
+              "fields": [
+                "latitude",
+                "longitude"
+              ]
+            }
+          ]
+        },
+        "records": [
+          {
+            "observation_id": "HH001",
+            "observation_date": "2026-07-01",
+            "study_area": "North",
+            "latitude": "38.93610",
+            "longitude": "-77.03250",
+            "heat_index_c": "31.2",
+            "heat_category": "Elevated",
+            "extreme_heat": "No",
+            "health_event": "No",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH002",
+            "observation_date": "2026-07-01",
+            "study_area": "Central",
+            "latitude": "38.90720",
+            "longitude": "-77.03690",
+            "heat_index_c": "32.1",
+            "heat_category": "Elevated",
+            "extreme_heat": "No",
+            "health_event": "No",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH003",
+            "observation_date": "2026-07-01",
+            "study_area": "South",
+            "latitude": "38.87520",
+            "longitude": "-77.01710",
+            "heat_index_c": "33.0",
+            "heat_category": "Elevated",
+            "extreme_heat": "No",
+            "health_event": "Yes",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH004",
+            "observation_date": "2026-07-02",
+            "study_area": "North",
+            "latitude": "38.93480",
+            "longitude": "-77.02840",
+            "heat_index_c": "38.4",
+            "heat_category": "Extreme",
+            "extreme_heat": "Yes",
+            "health_event": "Yes",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH005",
+            "observation_date": "2026-07-02",
+            "study_area": "Central",
+            "latitude": "38.90490",
+            "longitude": "-77.03120",
+            "heat_index_c": "39.1",
+            "heat_category": "Extreme",
+            "extreme_heat": "Yes",
+            "health_event": "Yes",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH006",
+            "observation_date": "2026-07-02",
+            "study_area": "South",
+            "latitude": "38.87270",
+            "longitude": "-77.02180",
+            "heat_index_c": "38.8",
+            "heat_category": "Extreme",
+            "extreme_heat": "Yes",
+            "health_event": "Yes",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH007",
+            "observation_date": "2026-07-03",
+            "study_area": "North",
+            "latitude": "38.93150",
+            "longitude": "-77.02510",
+            "heat_index_c": "40.2",
+            "heat_category": "Extreme",
+            "extreme_heat": "Yes",
+            "health_event": "Yes",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH008",
+            "observation_date": "2026-07-03",
+            "study_area": "Central",
+            "latitude": "38.90240",
+            "longitude": "-77.03960",
+            "heat_index_c": "39.7",
+            "heat_category": "Extreme",
+            "extreme_heat": "Yes",
+            "health_event": "Yes",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH009",
+            "observation_date": "2026-07-03",
+            "study_area": "South",
+            "latitude": "38.87810",
+            "longitude": "-77.01370",
+            "heat_index_c": "40.5",
+            "heat_category": "Extreme",
+            "extreme_heat": "Yes",
+            "health_event": "No",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH010",
+            "observation_date": "2026-07-04",
+            "study_area": "North",
+            "latitude": "38.93820",
+            "longitude": "-77.03580",
+            "heat_index_c": "32.8",
+            "heat_category": "Elevated",
+            "extreme_heat": "No",
+            "health_event": "No",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH011",
+            "observation_date": "2026-07-04",
+            "study_area": "Central",
+            "latitude": "38.90960",
+            "longitude": "-77.04310",
+            "heat_index_c": "31.9",
+            "heat_category": "Elevated",
+            "extreme_heat": "No",
+            "health_event": "No",
+            "exposure_source": "Synthetic heat fixture"
+          },
+          {
+            "observation_id": "HH012",
+            "observation_date": "2026-07-04",
+            "study_area": "South",
+            "latitude": "38.86990",
+            "longitude": "-77.02630",
+            "heat_index_c": "32.5",
+            "heat_category": "Elevated",
+            "extreme_heat": "No",
+            "health_event": "No",
+            "exposure_source": "Synthetic heat fixture"
+          }
+        ],
+        "dataset": {
+          "id": "synthetic-heat-health-observations",
+          "file": "synthetic-heat-health-observations.csv",
+          "sha256": "6bf34f5d9b0874d4d8ac04ac96756232b914f6da59bd96baaa434ed35fc1ea50"
+        }
+      }
+    ],
+    "version": 1,
+    "storage": {
+      "type": "browser"
+    },
+    "mapAssets": [
+      {
+        "id": "4683a19f384e1577a034d9ee047e97611481eefe463dddbf3da1e7e691cf1e72",
+        "fileName": "synthetic-heat-health-observations.geojson",
+        "storage": "opfs",
+        "storagePath": "epi-info-ai/map-assets/4683a19f384e1577a034d9ee047e97611481eefe463dddbf3da1e7e691cf1e72.geojson",
+        "byteLength": 2498,
+        "sha256": "4683a19f384e1577a034d9ee047e97611481eefe463dddbf3da1e7e691cf1e72",
+        "format": "geojson",
+        "mediaType": "application/geo+json",
+        "importedAt": "2026-09-17T12:00:00.000Z",
+        "persistence": "best-effort"
+      }
+    ],
+    "mapLayers": [
+      {
+        "id": "environmental-observation-points",
+        "name": "Synthetic heat-health observations",
+        "visible": true,
+        "kind": "case-cluster",
+        "sourceFormId": "synthetic-heat-health-observations",
+        "latitudeField": "latitude",
+        "longitudeField": "longitude",
+        "labelField": "observation_id"
+      },
+      {
+        "id": "environmental-observation-reference",
+        "name": "Packaged environmental observation fixture",
+        "visible": false,
+        "assetId": "4683a19f384e1577a034d9ee047e97611481eefe463dddbf3da1e7e691cf1e72",
+        "kind": "geojson",
+        "labelField": "observation_id",
+        "labelsEnabled": false
+      }
+    ]
+  },
+  "programs": [
+    {
+      "name": "environmental-heat-health-tour",
+      "source": "*** Epi Info AI environmental epidemiology teaching candidate\n*** All records and exposure values are synthetic. This program does not estimate causality.\n\nHEADER 1 \"Environmental heat and health teaching workflow\"\nTYPEOUT \"Review data quality, describe the synthetic exposure, compare health-event counts, and open the project point layer in Maps.\"\n\nREAD [Synthetic Heat Health Observations Form]\nEPIAI QUALITY *\nLIST observation_id observation_date study_area heat_index_c extreme_heat health_event\nFREQ heat_category\nMEANS heat_index_c\nTABLES extreme_heat health_event\nGRAPH heat_category GRAPHTYPE=\"Bar\" TITLETEXT=\"Synthetic observations by heat category\" XTITLE=\"Heat category\" YTITLE=\"Observations\"\n\nTYPEOUT \"These descriptive results demonstrate a governed workflow; they are not an exposure model or health-effect estimate.\"\n",
+      "language": "classic-analysis",
+      "author": "Epi Info AI",
+      "comment": "Synthetic quality, descriptive analysis, 2 x 2, chart, GIS-kernel, and map teaching workflow.",
+      "createdAt": "2026-09-16T12:00:00.000Z",
+      "modifiedAt": "2026-09-16T12:00:00.000Z"
+    }
+  ],
+  "codeTables": [],
+  "runbooks": [
+    {
+      "id": "environmental-heat-health-v0-1",
+      "title": "Environmental heat and health candidate workflow",
+      "description": "A learner-operated tour from a synthetic exposure dataset through transparent analysis, an emergent GIS-kernel inspection, and project mapping.",
+      "prerequisite": "Import the Environmental Heat and Health Candidate project from File > Import Example Project.",
+      "module": "classic",
+      "steps": [
+        {
+          "id": "open-program",
+          "title": "Open the saved environmental program",
+          "instruction": "Open the Program Editor and choose environmental-heat-health-tour. Read the synthetic-data and no-causal-inference notices before running it.",
+          "target": "#program-editor-open"
+        },
+        {
+          "id": "run-program",
+          "title": "Run the descriptive workflow",
+          "instruction": "Run Commands, then inspect the quality report, line list, heat-category frequency, mean heat index, 2 x 2 table, and chart. You must run the program; the runbook does not run it for you.",
+          "target": "#program-editor-run",
+          "advanceOn": "click"
+        },
+        {
+          "id": "open-kernel-lab",
+          "title": "Inspect the GIS kernel boundary",
+          "instruction": "Choose Help > GIS Kernel Lab in a new tab, select the Environmental heat-health fixture, review the effective plan, and run its bounded Worker inspection. Confirm that the receipt records the operation and limits and that no network or project mutation was granted.",
+          "target": "#help-gis-kernel-lab"
+        },
+        {
+          "id": "open-map",
+          "title": "Map the packaged observations",
+          "instruction": "Open Maps. The project point layer uses signed five-decimal coordinates packaged with this synthetic project. The map is presentation; the kernel receipt remains the processing evidence.",
+          "target": "[data-open-module='maps']"
+        }
+      ]
+    }
+  ]
+}

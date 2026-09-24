@@ -1166,6 +1166,22 @@ a:focus-visible {
   color: #e4f2f7;
 }
 
+.identity-status {
+  min-height: var(--control-min-size);
+  padding: 0.25rem 0.45rem;
+  font: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+}
+
+.identity-status:hover,
+.identity-status:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
 .offline-status > span,
 .engine-dot {
   width: 0.55rem;
