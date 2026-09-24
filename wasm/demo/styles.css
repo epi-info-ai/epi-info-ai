@@ -3060,6 +3060,65 @@ select {
   color: #405865;
 }
 
+.epi-square-marker {
+  width: 12px !important;
+  height: 12px !important;
+  border: 2px solid #7f1d1d;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.map-choropleth-layer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 0.4rem;
+}
+
+.map-annotation-overlay {
+  position: absolute;
+  z-index: 700;
+  top: 14px;
+  left: 14px;
+  max-width: min(360px, 70%);
+  padding: 8px 10px;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid #9aa6b2;
+  border-radius: 4px;
+  display: grid;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.map-annotation-overlay small {
+  color: #4b5563;
+}
+
+.map-choropleth-diagnostics,
+.map-choropleth-legend {
+  grid-column: 1 / -1;
+  font-size: 0.78rem;
+}
+
+.map-choropleth-legend {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.25rem 0.4rem;
+  border-left: 3px solid #64748b;
+}
+
+.map-choropleth-legend span {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.map-choropleth-legend i {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 1px solid #475569;
+}
+
 .map-toolbar #map-status {
   margin-left: auto;
 }
@@ -3091,6 +3150,22 @@ select {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin-top: 0.45rem;
+}
+
+.map-asset-recovery {
+  border-left-color: #b45309;
+}
+
+.map-asset-recovery > ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.map-asset-recovery li {
+  display: grid;
+  gap: 0.25rem;
 }
 
 .map-workspace {

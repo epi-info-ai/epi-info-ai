@@ -688,18 +688,22 @@
                 <summary>Add Data Layer</summary>
                 <div class="map-toolbar-dropdown">
                   <button id="map-add-case-cluster" type="button">Case Cluster</button>
+                  <button id="map-add-spot-map" type="button">Spot Map</button>
                   <button id="map-add-geojson" type="button">GeoJSON Layer...</button>
                   <button id="map-add-h3" type="button">H3 Hexagons...</button>
                   <button id="map-add-raster" type="button">GeoTIFF Raster...</button>
-                  <button type="button" disabled>Choropleth</button>
-                  <button type="button" disabled>Dot Density</button>
+                  <button id="map-add-choropleth" type="button">Choropleth</button>
+                  <button id="map-add-dot-density" type="button">Dot Density</button>
                 </div>
               </details>
               <button id="map-add-reference-layer" type="button">Add Reference Layer</button>
               <button id="map-create-timelapse" type="button">Create Time Lapse</button>
+              <button id="map-settings" type="button">Map Settings</button>
+              <button id="map-export-png" type="button">Export PNG</button>
               <span class="map-toolbar-divider" aria-hidden="true"></span>
               <button id="map-current-location" type="button">Current Location</button>
               <button id="map-fit-points" type="button">Fit Layers</button>
+              <button id="map-clear-layers" type="button">Clear Layers</button>
               <button id="map-cluster-tour-open" type="button" aria-controls="map-cluster-tour-controls" aria-pressed="false" hidden>Story Tour</button>
               <span id="map-status" role="status">Map ready</span>
               <span id="map-basemap-status" class="map-basemap-status" role="status" aria-live="polite"></span>
@@ -714,11 +718,20 @@
                   <button id="map-offline-detach" type="button">Detach offline package</button>
                 </div>
               </div>
+              <div id="map-asset-recovery" class="map-offline-recovery map-asset-recovery" data-state="missing" hidden>
+                <strong id="map-asset-recovery-title">Map assets need attention</strong>
+                <span id="map-asset-recovery-detail"></span>
+                <ul id="map-asset-recovery-list"></ul>
+                <div class="map-offline-recovery-actions">
+                  <button id="map-asset-recovery-restore-project" type="button">Restore project backup...</button>
+                </div>
+              </div>
             </div>
 
             <div class="map-workspace">
               <div class="map-canvas-wrap">
                 <div id="epi-map" class="epi-map" aria-label="Interactive map of current form records"></div>
+                <section id="map-annotation-overlay" class="map-annotation-overlay" hidden aria-live="polite"><strong id="map-annotation-title"></strong><span id="map-annotation-subtitle"></span><small id="map-annotation-note"></small></section>
                 <button id="map-fullscreen-toggle" class="map-fullscreen-toggle" type="button" aria-label="Enter map fullscreen" aria-pressed="false" title="Enter map fullscreen"><span aria-hidden="true">&#x26F6;</span></button>
                 <fieldset class="map-basemap-picker" aria-label="Map background">
                   <label title="Satellite imagery requires a configured imagery provider"><input type="radio" name="map-basemap" value="satellite" disabled /> Satellite</label>
@@ -753,11 +766,18 @@
                   <div class="map-layer-drawer-body">
                     <div class="map-layer-list">
                       <label><input id="map-record-layer-toggle" type="checkbox" checked /> <span id="map-record-layer-name">Case Cluster</span> (<strong id="map-point-count">0</strong>)</label>
+                      <button id="map-record-layer-edit" type="button" hidden>Edit point layer</button>
                       <label><input id="map-location-layer-toggle" type="checkbox" checked /> Current location</label>
-                      <div id="map-geojson-layers" class="map-geojson-layers"></div>
-                      <div id="map-h3-layers" class="map-h3-layers"></div>
-                      <div id="map-raster-layers" class="map-raster-layers"></div>
-                    </div>
+                    <div id="map-geojson-layers" class="map-geojson-layers"></div>
+                    <div id="map-choropleth-layers" class="map-geojson-layers"></div>
+                    <div id="map-dot-density-layers" class="map-geojson-layers"></div>
+                    <div id="map-h3-layers" class="map-h3-layers"></div>
+                    <div id="map-raster-layers" class="map-raster-layers"></div>
+                    <details id="map-point-diagnostics-panel" class="map-point-diagnostics" hidden>
+                      <summary id="map-point-diagnostics-summary">No skipped rows.</summary>
+                      <ul id="map-point-diagnostics-list"></ul>
+                    </details>
+                  </div>
                     <p class="map-privacy-note">Coordinates stay in this browser. Street tiles are requested from OpenStreetMap when online.</p>
                   </div>
                 </details>
@@ -2417,7 +2437,22 @@
           <select id="map-longitude-field" required></select>
           <label for="map-label-field">Display label</label>
           <select id="map-label-field"></select>
-          <p class="dialog-note">Rows without valid WGS 84 coordinates will be skipped.</p>
+          <label for="map-marker-style">Marker style</label>
+          <select id="map-marker-style"><option value="circle">Circle</option><option value="square">Square</option></select>
+          <label for="map-marker-color">Marker color</label>
+          <input id="map-marker-color" type="color" value="#df291e" />
+          <label for="map-filter-field">Filter field <span class="dialog-note">(optional)</span></label>
+          <select id="map-filter-field"></select>
+          <label for="map-filter-operator">Filter operator</label>
+          <select id="map-filter-operator">
+            <option value="equals">equals</option><option value="not-equals">does not equal</option><option value="contains">contains</option>
+            <option value="greater-than">greater than</option><option value="greater-or-equal">greater than or equal</option>
+            <option value="less-than">less than</option><option value="less-or-equal">less than or equal</option>
+            <option value="is-empty">is empty</option><option value="is-not-empty">is not empty</option>
+          </select>
+          <label for="map-filter-value">Filter value</label>
+          <input id="map-filter-value" type="text" maxlength="200" />
+          <p id="map-point-dialog-note" class="dialog-note">Rows without valid WGS 84 coordinates will be skipped.</p>
         </div>
         <div class="legacy-dialog-actions">
           <button class="dialog-primary" value="plot" type="submit">OK</button>
@@ -2498,6 +2533,96 @@
         </div>
       </form>
         </dialog>
+
+    <dialog id="choropleth-dialog" class="legacy-dialog" aria-labelledby="choropleth-dialog-title">
+      <form id="choropleth-form" method="dialog">
+        <div class="legacy-dialog-titlebar"><strong id="choropleth-dialog-title">Add Choropleth</strong><button type="button" data-close-choropleth aria-label="Close">x</button></div>
+        <div class="legacy-dialog-body">
+          <p>Join local form values to a polygon GeoJSON asset and shade areas using a reviewed classification.</p>
+          <label for="choropleth-boundary-asset">Boundary GeoJSON asset</label>
+          <select id="choropleth-boundary-asset" required><option value="">Choose a stored GeoJSON asset</option></select>
+          <label for="choropleth-data-source">Data form</label>
+          <select id="choropleth-data-source" required><option value="">Choose a data form</option></select>
+          <label for="choropleth-boundary-key">Boundary key field</label>
+          <select id="choropleth-boundary-key" required><option value="">Choose a boundary property</option></select>
+          <label for="choropleth-data-key">Data key field</label>
+          <select id="choropleth-data-key" required><option value="">Choose a data key</option></select>
+          <label for="choropleth-value-field">Value field</label>
+          <select id="choropleth-value-field" required><option value="">Choose a numeric value</option></select>
+          <label for="choropleth-classification">Classification</label>
+          <select id="choropleth-classification"><option value="manual">Manual breaks</option><option value="equal-interval">Equal interval</option><option value="quantile">Quantile</option></select>
+          <label for="choropleth-class-count">Class count</label>
+          <input id="choropleth-class-count" type="number" min="2" max="12" value="3" required />
+          <label for="choropleth-breaks">Manual breaks <span class="dialog-note">(comma-separated)</span></label>
+          <input id="choropleth-breaks" type="text" value="10,25" maxlength="200" />
+          <label for="choropleth-palette">Palette <span class="dialog-note">(comma-separated hex colors)</span></label>
+          <input id="choropleth-palette" type="text" value="#fee5d9,#fcae91,#cb181d" maxlength="300" required />
+          <label for="choropleth-opacity">Opacity <output id="choropleth-opacity-value" for="choropleth-opacity">80%</output></label>
+          <input id="choropleth-opacity" type="range" min="10" max="100" step="5" value="80" />
+          <label for="choropleth-legend-title">Legend title</label>
+          <input id="choropleth-legend-title" type="text" value="Value" maxlength="100" required />
+          <p id="choropleth-dialog-status" class="dialog-note" role="status" aria-live="polite">Choose a stored GeoJSON boundary asset.</p>
+          <details id="choropleth-diagnostics-panel" hidden><summary id="choropleth-diagnostics-summary">No join diagnostics.</summary><ul id="choropleth-diagnostics-list"></ul></details>
+        </div>
+        <div class="legacy-dialog-actions"><button class="dialog-primary" value="add" type="submit">Add Choropleth</button><button value="cancel" type="button" data-close-choropleth>Cancel</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="map-settings-dialog" class="legacy-dialog" aria-labelledby="map-settings-dialog-title">
+      <form id="map-settings-form" method="dialog">
+        <div class="legacy-dialog-titlebar"><strong id="map-settings-dialog-title">Map Settings</strong><button type="button" data-close-map-settings aria-label="Close">x</button></div>
+        <label for="map-annotation-title-input">Map title</label><input id="map-annotation-title-input" type="text" maxlength="200" />
+        <label for="map-annotation-subtitle-input">Subtitle</label><input id="map-annotation-subtitle-input" type="text" maxlength="300" />
+        <label for="map-annotation-note-input">Note</label><textarea id="map-annotation-note-input" maxlength="2000"></textarea>
+        <label><input id="map-show-legend" type="checkbox" checked /> Show legend</label>
+        <label><input id="map-show-north-arrow" type="checkbox" checked /> Show north arrow</label>
+        <label><input id="map-show-scale-bar" type="checkbox" checked /> Show scale bar</label>
+        <p id="map-settings-status" class="dialog-note" role="status" aria-live="polite">Map settings remain local to this map session.</p>
+        <div class="legacy-dialog-actions"><button class="dialog-primary" value="apply" type="submit">Apply Settings</button><button value="cancel" type="button" data-close-map-settings>Cancel</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="map-export-dialog" class="legacy-dialog" aria-labelledby="map-export-dialog-title">
+      <form id="map-export-form" method="dialog">
+        <div class="legacy-dialog-titlebar"><strong id="map-export-dialog-title">Export Map PNG</strong><button type="button" data-close-map-export aria-label="Close">x</button></div>
+        <label for="map-export-filename">File name</label><input id="map-export-filename" type="text" value="map.png" maxlength="124" required />
+        <label for="map-export-width">Width (pixels)</label><input id="map-export-width" type="number" min="64" max="4096" value="1200" required />
+        <label for="map-export-height">Height (pixels)</label><input id="map-export-height" type="number" min="64" max="4096" value="800" required />
+        <label for="map-export-scale">Scale</label><select id="map-export-scale"><option value="1">1x</option><option value="2" selected>2x</option><option value="3">3x</option><option value="4">4x</option></select>
+        <label><input id="map-export-legend" type="checkbox" checked /> Include legend text</label>
+        <label><input id="map-export-annotations" type="checkbox" checked /> Include annotations</label>
+        <p id="map-export-status" class="dialog-note" role="status" aria-live="polite">Vector overlays and annotations are captured locally. Street tiles are not copied across origins.</p>
+        <div class="legacy-dialog-actions"><button class="dialog-primary" value="export" type="submit">Download PNG</button><button value="cancel" type="button" data-close-map-export>Cancel</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="dot-density-dialog" class="legacy-dialog" aria-labelledby="dot-density-dialog-title">
+      <form id="dot-density-form" method="dialog">
+        <div class="legacy-dialog-titlebar"><strong id="dot-density-dialog-title">Add Dot Density</strong><button type="button" data-close-dot-density aria-label="Close">x</button></div>
+        <label for="dot-density-boundary-asset">Boundary GeoJSON asset</label>
+        <select id="dot-density-boundary-asset" required><option value="">Choose a stored GeoJSON asset</option></select>
+        <label for="dot-density-data-source">Data form</label>
+        <select id="dot-density-data-source" required><option value="">Choose a data form</option></select>
+        <label for="dot-density-boundary-key">Boundary key field</label>
+        <select id="dot-density-boundary-key" required><option value="">Choose a boundary property</option></select>
+        <label for="dot-density-data-key">Data key field</label>
+        <select id="dot-density-data-key" required><option value="">Choose a data key</option></select>
+        <label for="dot-density-normalization">Join matching</label>
+        <select id="dot-density-normalization"><option value="trim-casefold">Trim and ignore case</option><option value="exact">Exact</option></select>
+        <label for="dot-density-value-field">Value field</label>
+        <select id="dot-density-value-field" required><option value="">Choose a numeric value</option></select>
+        <label for="dot-density-value-per-dot">Value per dot</label>
+        <input id="dot-density-value-per-dot" type="number" min="0.000001" step="any" value="10" required />
+        <label for="dot-density-placement">Placement</label>
+        <select id="dot-density-placement"><option value="seeded-jitter">Seeded jitter</option><option value="deterministic-grid">Deterministic grid</option></select>
+        <label for="dot-density-color">Dot color</label><input id="dot-density-color" type="text" value="#2255aa" pattern="#[0-9a-fA-F]{6}" required />
+        <label for="dot-density-opacity">Opacity <output id="dot-density-opacity-value" for="dot-density-opacity">80%</output></label>
+        <input id="dot-density-opacity" type="range" min="10" max="100" step="5" value="80" />
+        <label for="dot-density-legend-title">Legend title</label><input id="dot-density-legend-title" type="text" value="Value per dot" maxlength="100" required />
+        <p id="dot-density-dialog-status" class="dialog-note" role="status" aria-live="polite">Choose a stored GeoJSON boundary asset.</p>
+        <div class="legacy-dialog-actions"><button class="dialog-primary" value="add" type="submit">Add Dot Density</button><button value="cancel" type="button" data-close-dot-density>Cancel</button></div>
+      </form>
+    </dialog>
 
         <dialog id="reference-layer-dialog" class="legacy-dialog" aria-labelledby="reference-layer-dialog-title">
           <form id="reference-layer-form" method="dialog">

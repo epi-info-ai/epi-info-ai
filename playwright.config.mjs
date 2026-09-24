@@ -60,5 +60,20 @@ export default defineConfig({
       testMatch: /gis-kernel-cross-browser\.spec\.mjs/,
       use: { ...devices["iPhone 13"] },
     },
+    {
+      name: "firefox-k08",
+      testMatch: /gis-k08-release-gates\.spec\.mjs/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit-k08",
+      testMatch: /gis-k08-release-gates\.spec\.mjs/,
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile-webkit-k08",
+      testMatch: /gis-k08-release-gates\.spec\.mjs/,
+      use: { ...devices["iPhone 13"] },
+    },
   ],
 });

@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+const bundled = await build({ entryPoints: ["wasm/app/gis/map-layer-lifecycle.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const lifecycle = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const layers = [{ id: "boundaries", visible: true }, { id: "dots", visible: true }, { id: "labels", visible: false }];
+assert.deepEqual(lifecycle.reorderMapLayersV01(layers, 2, 0).map(({ id }) => id), ["labels", "boundaries", "dots"]);
+assert.deepEqual(lifecycle.setMapLayerVisibilityV01(layers, "labels", true).map(({ visible }) => visible), [true, true, true]);
+assert.deepEqual(lifecycle.removeMapLayerV01(layers, "boundaries").map(({ id }) => id), ["dots", "labels"]);
+assert.deepEqual(lifecycle.clearMapLayersV01(layers), []);
+assert.throws(() => lifecycle.reorderMapLayersV01(layers, 0, 3), /existing layers/);
+assert.throws(() => lifecycle.removeMapLayerV01(layers, "missing"), /not found/);
+assert.throws(() => lifecycle.reorderMapLayersV01([{ id: "duplicate", visible: true }, { id: "duplicate", visible: false }], 0, 1), /duplicated/);
+console.log("GIS-K08 layer lifecycle smoke passed.");

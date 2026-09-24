@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+const bundled = await build({ entryPoints: ["wasm/app/gis/map-package-integrity.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const integrity = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const digest = "a".repeat(64);
+const audit = integrity.auditMapPackageRecoveryV01([{ id: "boundary", sha256: digest, byteLength: 120 }], [{ id: "choropleth", assetId: "boundary" }, { id: "record-layer" }]);
+assert.equal(audit.restorable, true);
+assert.deepEqual(audit.missingAssetIds, []);
+assert.deepEqual(audit.orphanAssetIds, []);
+const missing = integrity.auditMapPackageRecoveryV01([{ id: "unused", sha256: digest, byteLength: 1 }], [{ id: "dots", assetId: "evicted" }]);
+assert.equal(missing.restorable, false);
+assert.deepEqual(missing.missingAssetIds, ["evicted"]);
+assert.deepEqual(missing.orphanAssetIds, ["unused"]);
+assert.throws(() => integrity.auditMapPackageRecoveryV01([{ id: "bad", sha256: "bad", byteLength: 1 }], []), /SHA-256/);
+assert.throws(() => integrity.auditMapPackageRecoveryV01([{ id: "same", sha256: digest, byteLength: 1 }, { id: "same", sha256: digest, byteLength: 2 }], []), /duplicated/);
+console.log("GIS-K08 package integrity smoke passed.");

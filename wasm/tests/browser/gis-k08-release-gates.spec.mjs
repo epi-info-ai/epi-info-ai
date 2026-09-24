@@ -1,0 +1,36 @@
+import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+
+test("K08 map document shell exposes layer lifecycle and background controls", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.getByRole("button", { name: "Create Maps", exact: true }).click();
+  await expect(page.locator("#epi-map")).toBeVisible();
+  await expect(page.locator("#map-layer-panel-toggle")).toBeVisible();
+  await expect(page.locator("#map-layer-count")).toHaveText("0");
+  await expect(page.locator("#map-clear-layers")).toBeVisible();
+  await page.locator("#map-settings").click();
+  await page.locator("#map-annotation-title-input").fill("K08 map");
+  await page.getByRole("button", { name: "Apply Settings", exact: true }).click();
+  await expect(page.locator("#map-annotation-overlay")).toContainText("K08 map");
+  await page.locator('.module-rail [data-module="forms"]').click();
+  await page.locator('.module-rail [data-module="maps"]').click();
+  await expect(page.locator("#map-annotation-overlay")).toContainText("K08 map");
+  await expect(page.getByRole("radio", { name: "Street" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Blank" })).toBeVisible();
+  await expect(page.getByText("Add Data Layer", { exact: true })).toBeVisible();
+  await page.getByText("Add Data Layer", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "Dot Density", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Choropleth", exact: true })).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await page.locator("#map-export-png").click();
+  await expect(page.locator("#map-export-dialog")).toBeVisible();
+  await page.locator("#map-export-filename").fill("k08-map.png");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download PNG", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("k08-map.png");
+  const png = await readFile(await download.path());
+  expect([...png.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  await page.locator("#map-clear-layers").click();
+  await expect(page.locator("#map-status")).toContainText("Cleared all map layers");
+});

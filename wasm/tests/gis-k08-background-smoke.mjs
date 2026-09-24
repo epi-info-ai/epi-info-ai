@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+const bundled = await build({ entryPoints: ["wasm/app/gis/map-background.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const background = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const plan = background.createMapBackgroundPlanV01({ source: "offline", offlineAssetId: "pmtiles-1", studyArea: { west: -80, south: 35, east: -79, north: 36, bufferKm: 5 } });
+assert.equal(plan.schema, "epi-gis-map-background/0.1");
+assert.equal(plan.source, "offline");
+assert.equal(plan.studyArea.bufferKm, 5);
+assert.doesNotThrow(() => background.createMapBackgroundPlanV01({ source: "blank" }));
+assert.throws(() => background.createMapBackgroundPlanV01({ source: "offline" }), /asset id/);
+assert.throws(() => background.createMapBackgroundPlanV01({ source: "street", offlineAssetId: "pmtiles-1" }), /only permitted/);
+assert.throws(() => background.createMapBackgroundPlanV01({ source: "blank", studyArea: { west: 10, south: 0, east: 9, north: 1, bufferKm: 0 } }), /positive width/);
+assert.throws(() => background.createMapBackgroundPlanV01({ source: "blank", studyArea: { west: -181, south: 0, east: 9, north: 1, bufferKm: 0 } }), /between -180 and 180/);
+console.log("GIS-K08 background smoke passed.");

@@ -1,0 +1,7 @@
+ID,Status,Latitude,Longitude,Description
+K05-001,Case,41.64000,-83.55000,Cluster alpha one
+K05-002,Case,41.64010,-83.55010,Cluster alpha two
+K05-003,Case,41.66000,-83.52000,Separate case
+K05-004,Control,41.65000,-83.54000,Filtered control
+K05-005,Case,, -83.53000,Missing latitude
+K05-006,Case,91.00000,-83.53000,Invalid latitude

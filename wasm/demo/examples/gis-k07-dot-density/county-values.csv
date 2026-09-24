@@ -1,0 +1,4 @@
+county_fips,cases,status
+A,24,Included
+B,15,Included
+ORPHAN,5,Unmatched

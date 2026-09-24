@@ -1,0 +1,6 @@
+county_fips,status,case_rate
+OH-001,confirmed,8
+OH-002,confirmed,22
+OH-003,control,37
+OH-999,confirmed,14
+,confirmed,11

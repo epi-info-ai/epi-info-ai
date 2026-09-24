@@ -196,13 +196,54 @@ export interface ProjectReferenceLayerSourceV1 {
 
 export type ProjectMapLayer = {
   id: string;
-  kind: "case-cluster";
+  kind: "case-cluster" | "spot-map";
   sourceFormId: string;
   name: string;
   visible: boolean;
   latitudeField: string;
   longitudeField: string;
   labelField: string;
+  markerStyle: "circle" | "square";
+  markerColor: string;
+  filter?: { field: string; operator: string; value?: string };
+} | {
+  id: string;
+  kind: "dot-density";
+  assetId: string;
+  sourceFormId: string;
+  name: string;
+  visible: boolean;
+  boundaryKeyField: string;
+  dataKeyField: string;
+  valueField: string;
+  joinNormalization: "exact" | "trim-casefold";
+  valuePerDot: number;
+  rounding: "floor" | "nearest" | "ceil";
+  seed: number;
+  placementMethod: "seeded-jitter" | "deterministic-grid";
+  dotColor: string;
+  dotRadiusPixels: number;
+  opacity: number;
+  legendTitle: string;
+  maxDotsPerFeature: number;
+  maxTotalDots: number;
+} | {
+  id: string;
+  kind: "choropleth";
+  assetId: string;
+  sourceFormId: string;
+  name: string;
+  visible: boolean;
+  boundaryKeyField: string;
+  dataKeyField: string;
+  valueField: string;
+  joinNormalization: "exact" | "trim-casefold";
+  classification: { method: "manual" | "equal-interval" | "quantile"; classCount: number; breaks?: number[] };
+  palette: string[];
+  opacity: number;
+  noDataColor: string;
+  legendTitle: string;
+  filter?: { field: string; operator: string; value?: string };
 } | {
   id: string;
   kind: "geojson";
@@ -241,7 +282,14 @@ export interface ProjectSnapshotV1 {
   studyAreas?: ProjectStudyArea[];
   mapAssets?: ProjectMapAsset[];
   mapLayers?: ProjectMapLayer[];
+  mapPresentation?: ProjectMapPresentationV1;
   referenceLayerSources?: ProjectReferenceLayerSourceV1[];
+}
+
+export interface ProjectMapPresentationV1 {
+  schema: "epi-gis-map-presentation/0.1";
+  background: "street" | "blank" | "offline";
+  annotations: { title: string; subtitle: string; note: string; showLegend: boolean; showNorthArrow: boolean; showScaleBar: boolean };
 }
 
 export interface MapPoint {
@@ -674,8 +722,8 @@ function projectMapLayerAt(
   forms: ReadonlyMap<string, ProjectForm>,
 ): ProjectMapLayer {
   const source = objectAt(value, path);
-  if (source.kind !== "case-cluster" && source.kind !== "geojson" && source.kind !== "raster") {
-    fail(`${path}.kind`, "must be case-cluster, geojson, or raster");
+  if (source.kind !== "case-cluster" && source.kind !== "spot-map" && source.kind !== "choropleth" && source.kind !== "dot-density" && source.kind !== "geojson" && source.kind !== "raster") {
+    fail(`${path}.kind`, "must be case-cluster, spot-map, choropleth, dot-density, geojson, or raster");
   }
   if (typeof source.visible !== "boolean") fail(`${path}.visible`, "must be boolean");
   const shared = {
@@ -683,7 +731,7 @@ function projectMapLayerAt(
     name: nonEmptyString(source.name, `${path}.name`),
     visible: source.visible,
   };
-  if (source.kind === "case-cluster") {
+  if (source.kind === "case-cluster" || source.kind === "spot-map") {
     const sourceFormId = nonEmptyString(source.sourceFormId, `${path}.sourceFormId`);
     const form = forms.get(sourceFormId);
     if (!form) fail(`${path}.sourceFormId`, "must identify a form in this project");
@@ -694,7 +742,84 @@ function projectMapLayerAt(
     if (!fields.has(latitudeField)) fail(`${path}.latitudeField`, "must identify a field in the source form");
     if (!fields.has(longitudeField)) fail(`${path}.longitudeField`, "must identify a field in the source form");
     if (labelField && !fields.has(labelField)) fail(`${path}.labelField`, "must be blank or identify a field in the source form");
-    return { ...shared, kind: "case-cluster", sourceFormId, latitudeField, longitudeField, labelField };
+    const markerStyle = source.markerStyle === undefined ? "circle" : source.markerStyle;
+    if (markerStyle !== "circle" && markerStyle !== "square") fail(`${path}.markerStyle`, "must be circle or square");
+    const markerColor = source.markerColor === undefined ? "#df291e" : source.markerColor;
+    if (typeof markerColor !== "string" || !/^#[0-9a-f]{6}$/i.test(markerColor)) fail(`${path}.markerColor`, "must be a six-digit hex color");
+    let filter: { field: string; operator: string; value?: string } | undefined;
+    if (source.filter !== undefined) {
+      const filterSource = objectAt(source.filter, `${path}.filter`);
+      const filterField = nonEmptyString(filterSource.field, `${path}.filter.field`);
+      const allowedOperators = ["equals", "not-equals", "contains", "greater-than", "greater-or-equal", "less-than", "less-or-equal", "is-empty", "is-not-empty"];
+      if (typeof filterSource.operator !== "string" || !allowedOperators.includes(filterSource.operator)) fail(`${path}.filter.operator`, "is not a supported point-layer operator");
+      if (!["is-empty", "is-not-empty"].includes(String(filterSource.operator)) && typeof filterSource.value !== "string") fail(`${path}.filter.value`, "must be a string for this operator");
+      if (!fields.has(filterField)) fail(`${path}.filter.field`, "must identify a field in the source form");
+      filter = { field: filterField, operator: String(filterSource.operator), ...(typeof filterSource.value === "string" ? { value: filterSource.value } : {}) };
+    }
+    return { ...shared, kind: source.kind, sourceFormId, latitudeField, longitudeField, labelField, markerStyle, markerColor, ...(filter ? { filter } : {}) };
+  }
+  if (source.kind === "choropleth") {
+    const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
+    const asset = assets.get(assetId);
+    if (!asset) fail(`${path}.assetId`, "must identify a project map asset");
+    if (asset.format !== "geojson") fail(`${path}.assetId`, "must identify a GeoJSON project asset");
+    const sourceFormId = nonEmptyString(source.sourceFormId, `${path}.sourceFormId`);
+    const form = forms.get(sourceFormId);
+    if (!form) fail(`${path}.sourceFormId`, "must identify a form in this project");
+    const fields = new Map(form.schema.fields.map((field) => [field.name, field]));
+    const boundaryKeyField = nonEmptyString(source.boundaryKeyField, `${path}.boundaryKeyField`);
+    const dataKeyField = nonEmptyString(source.dataKeyField, `${path}.dataKeyField`);
+    const valueField = nonEmptyString(source.valueField, `${path}.valueField`);
+    for (const [field, fieldPath] of [[dataKeyField, `${path}.dataKeyField`], [valueField, `${path}.valueField`]] as const) if (!fields.has(field)) fail(fieldPath, "must identify a field in the source form");
+    if (source.joinNormalization !== "exact" && source.joinNormalization !== "trim-casefold") fail(`${path}.joinNormalization`, "must be exact or trim-casefold");
+    const classification = objectAt(source.classification, `${path}.classification`);
+    if (classification.method !== "manual" && classification.method !== "equal-interval" && classification.method !== "quantile") fail(`${path}.classification.method`, "is not supported");
+    if (typeof classification.classCount !== "number" || !Number.isSafeInteger(classification.classCount) || classification.classCount < 2 || classification.classCount > 12) fail(`${path}.classification.classCount`, "must be an integer from 2 through 12");
+    const breaks = classification.breaks;
+    if (classification.method === "manual") {
+      if (!Array.isArray(breaks) || breaks.length !== classification.classCount - 1 || breaks.some((value) => typeof value !== "number" || !Number.isFinite(value))) fail(`${path}.classification.breaks`, "must contain one fewer finite numeric break than classes");
+    } else if (breaks !== undefined) fail(`${path}.classification.breaks`, "must be omitted for automatic classification");
+    if (!Array.isArray(source.palette) || source.palette.length !== classification.classCount || source.palette.some((color) => typeof color !== "string" || !/^#[0-9a-f]{6}$/i.test(color))) fail(`${path}.palette`, "must contain one six-digit hex color per class");
+    if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0 || source.opacity > 1) fail(`${path}.opacity`, "must be from 0 through 1");
+    if (typeof source.noDataColor !== "string" || !/^#[0-9a-f]{6}$/i.test(source.noDataColor)) fail(`${path}.noDataColor`, "must be a six-digit hex color");
+    const legendTitle = nonEmptyString(source.legendTitle, `${path}.legendTitle`);
+    let filter: { field: string; operator: string; value?: string } | undefined;
+    if (source.filter !== undefined) {
+      const filterSource = objectAt(source.filter, `${path}.filter`);
+      const filterField = nonEmptyString(filterSource.field, `${path}.filter.field`);
+      const allowedOperators = ["equals", "not-equals", "contains", "greater-than", "greater-or-equal", "less-than", "less-or-equal", "is-empty", "is-not-empty"];
+      if (typeof filterSource.operator !== "string" || !allowedOperators.includes(filterSource.operator)) fail(`${path}.filter.operator`, "is not a supported choropleth operator");
+      if (!["is-empty", "is-not-empty"].includes(String(filterSource.operator)) && typeof filterSource.value !== "string") fail(`${path}.filter.value`, "must be a string for this operator");
+      if (!fields.has(filterField)) fail(`${path}.filter.field`, "must identify a field in the source form");
+      filter = { field: filterField, operator: String(filterSource.operator), ...(typeof filterSource.value === "string" ? { value: filterSource.value } : {}) };
+    }
+    return { ...shared, kind: "choropleth", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, classification: { method: classification.method, classCount: classification.classCount, ...(Array.isArray(breaks) ? { breaks } : {}) }, palette: source.palette, opacity: source.opacity, noDataColor: source.noDataColor, legendTitle, ...(filter ? { filter } : {}) };
+  }
+  if (source.kind === "dot-density") {
+    const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
+    const asset = assets.get(assetId);
+    if (!asset || asset.format !== "geojson") fail(`${path}.assetId`, "must identify a GeoJSON project asset");
+    const sourceFormId = nonEmptyString(source.sourceFormId, `${path}.sourceFormId`);
+    const form = forms.get(sourceFormId);
+    if (!form) fail(`${path}.sourceFormId`, "must identify a form in this project");
+    const fields = new Map(form.schema.fields.map((field) => [field.name, field]));
+    const boundaryKeyField = nonEmptyString(source.boundaryKeyField, `${path}.boundaryKeyField`);
+    const dataKeyField = nonEmptyString(source.dataKeyField, `${path}.dataKeyField`);
+    const valueField = nonEmptyString(source.valueField, `${path}.valueField`);
+    if (!fields.has(dataKeyField)) fail(`${path}.dataKeyField`, "must identify a field in the source form");
+    if (!fields.has(valueField)) fail(`${path}.valueField`, "must identify a field in the source form");
+    if (source.joinNormalization !== "exact" && source.joinNormalization !== "trim-casefold") fail(`${path}.joinNormalization`, "must be exact or trim-casefold");
+    if (typeof source.valuePerDot !== "number" || !Number.isFinite(source.valuePerDot) || source.valuePerDot <= 0) fail(`${path}.valuePerDot`, "must be a positive finite number");
+    if (source.rounding !== "floor" && source.rounding !== "nearest" && source.rounding !== "ceil") fail(`${path}.rounding`, "is not supported");
+    if (typeof source.seed !== "number" || !Number.isSafeInteger(source.seed) || source.seed < 0 || source.seed > 0xffffffff) fail(`${path}.seed`, "must be a uint32");
+    if (source.placementMethod !== "seeded-jitter" && source.placementMethod !== "deterministic-grid") fail(`${path}.placementMethod`, "is not supported");
+    if (typeof source.dotColor !== "string" || !/^#[0-9a-f]{6}$/i.test(source.dotColor)) fail(`${path}.dotColor`, "must be a six-digit hex color");
+    if (typeof source.dotRadiusPixels !== "number" || !Number.isFinite(source.dotRadiusPixels) || source.dotRadiusPixels <= 0 || source.dotRadiusPixels > 20) fail(`${path}.dotRadiusPixels`, "must be from greater than 0 through 20");
+    if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0 || source.opacity > 1) fail(`${path}.opacity`, "must be from 0 through 1");
+    const legendTitle = nonEmptyString(source.legendTitle, `${path}.legendTitle`);
+    if (typeof source.maxDotsPerFeature !== "number" || !Number.isSafeInteger(source.maxDotsPerFeature) || source.maxDotsPerFeature < 1) fail(`${path}.maxDotsPerFeature`, "must be a positive integer");
+    if (typeof source.maxTotalDots !== "number" || !Number.isSafeInteger(source.maxTotalDots) || source.maxTotalDots < 1 || source.maxDotsPerFeature > source.maxTotalDots) fail(`${path}.maxTotalDots`, "must be a positive integer at least as large as maxDotsPerFeature");
+    return { ...shared, kind: "dot-density", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, valuePerDot: source.valuePerDot, rounding: source.rounding, seed: source.seed, placementMethod: source.placementMethod, dotColor: source.dotColor, dotRadiusPixels: source.dotRadiusPixels, opacity: source.opacity, legendTitle, maxDotsPerFeature: source.maxDotsPerFeature, maxTotalDots: source.maxTotalDots };
   }
   const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
   const asset = assets.get(assetId);
@@ -712,6 +837,22 @@ function projectMapLayerAt(
     fail(`${path}.opacity`, "must be from 0.1 through 1");
   }
   return { ...assetShared, kind: "raster", opacity: source.opacity };
+}
+
+function projectMapPresentationAt(value: unknown, path: string): ProjectMapPresentationV1 {
+  const source = objectAt(value, path);
+  if (source.schema !== "epi-gis-map-presentation/0.1") fail(`${path}.schema`, "must be epi-gis-map-presentation/0.1");
+  if (source.background !== "street" && source.background !== "blank" && source.background !== "offline") fail(`${path}.background`, "must be street, blank, or offline");
+  const annotations = objectAt(source.annotations, `${path}.annotations`);
+  const text = (key: string, maximum: number): string => {
+    if (typeof annotations[key] !== "string" || String(annotations[key]).length > maximum) fail(`${path}.annotations.${key}`, `must be text of at most ${maximum} characters`);
+    return String(annotations[key]).trim();
+  };
+  const title = text("title", 200);
+  const subtitle = text("subtitle", 300);
+  const note = text("note", 2000);
+  for (const key of ["showLegend", "showNorthArrow", "showScaleBar"]) if (typeof annotations[key] !== "boolean") fail(`${path}.annotations.${key}`, "must be boolean");
+  return { schema: "epi-gis-map-presentation/0.1", background: source.background, annotations: { title, subtitle, note, showLegend: annotations.showLegend as boolean, showNorthArrow: annotations.showNorthArrow as boolean, showScaleBar: annotations.showScaleBar as boolean } };
 }
 
 function finiteCoordinate(value: unknown, path: string, minimum: number, maximum: number): number {
@@ -932,6 +1073,7 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
       ids.add(layer.id);
     }
   }
+  if (snapshot.mapPresentation !== undefined) result.mapPresentation = projectMapPresentationAt(snapshot.mapPresentation, "project.mapPresentation");
   if (snapshot.referenceLayerSources !== undefined) {
     if (!Array.isArray(snapshot.referenceLayerSources)) fail("project.referenceLayerSources", "must be an array");
     result.referenceLayerSources = snapshot.referenceLayerSources.map((source, index) => referenceLayerSourceAt(source, `project.referenceLayerSources[${index}]`));

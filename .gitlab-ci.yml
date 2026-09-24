@@ -24,6 +24,18 @@ browser-baseline:
     - pnpm run test:gis:fixtures
     - pnpm run test:gis:command
     - pnpm run test:gis:archive
+    - pnpm run test:gis:points
+    - pnpm run test:gis:choropleth
+    - pnpm run test:gis:choropleth:fixture
+    - pnpm run test:gis:dot-density
+    - pnpm run test:gis:k08:layers
+    - pnpm run test:gis:k08:document
+    - pnpm run test:gis:k08:results
+    - pnpm run test:gis:k08:annotations
+    - pnpm run test:gis:k08:background
+    - pnpm run test:gis:k08:time-lapse
+    - pnpm run test:gis:k08:export
+    - pnpm run test:gis:k08:package
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'

@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+const bundled = await build({ entryPoints: ["wasm/app/gis/map-named-result.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const named = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const document = { schema: "epi-gis-map-document/0.1", id: "map-1", projectRevision: "rev-7", layers: [{ id: "dots", visible: true, zIndex: 430 }], background: "blank", output: "interactive" };
+const result = named.createMapNamedResultV01({ resultName: "CasesMap", planId: "map-1", status: "ready", document });
+assert.equal(result.schema, "epi-gis-map-result/0.1");
+assert.equal(named.resolveMapNamedResultV01([result], "casesmap").planId, "map-1");
+const replacement = named.createMapNamedResultV01({ resultName: "casesmap", planId: "map-1", status: "ready", document });
+assert.equal(named.storeMapNamedResultV01([result], replacement).length, 1);
+assert.equal(named.removeMapNamedResultV01([result], "CASESMap").length, 0);
+assert.throws(() => named.createMapNamedResultV01({ resultName: "1bad", planId: "map-1", status: "ready", document }), /result names/);
+assert.throws(() => named.createMapNamedResultV01({ resultName: "Failed", planId: "map-1", status: "failed", document }), /diagnostic/);
+assert.throws(() => named.resolveMapNamedResultV01([], "missing"), /not found/);
+console.log("GIS-K08 named result smoke passed.");
