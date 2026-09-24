@@ -36,6 +36,16 @@ browser-baseline:
     - pnpm run test:gis:k08:time-lapse
     - pnpm run test:gis:k08:export
     - pnpm run test:gis:k08:package
+    - pnpm run test:gis:k09:s1
+    - pnpm run test:gis:k09:s2
+    - pnpm run test:gis:k09:s3
+    - pnpm run test:gis:k09:s4
+    - pnpm run test:gis:k09:s5
+    - pnpm run test:gis:k09:s6
+    - pnpm run test:gis:k09:s7
+    - pnpm run test:gis:k09:s8
+    - pnpm run test:gis:k09:s9
+    - pnpm run test:gis:k09:s10
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
@@ -116,6 +126,7 @@ validation-lab-build:
     - test -f wasm/dist/validation-lab/files/validate-conditional-logistic.ipynb
     - test -f wasm/dist/validation-lab/files/validate-space-time-cluster.ipynb
     - test -f wasm/dist/validation-lab/files/validate-recordlink.ipynb
+    - test -f wasm/dist/validation-lab/files/validate-spatial-k09.ipynb
   artifacts:
     paths:
       - wasm/dist
