@@ -87,6 +87,11 @@ The fixtures, reviewed expectations, and implementation notes are in
 
 GitLab CI and GitHub Actions build and publish the same complete JupyterLite lab from `wasm/validation-lab/content`. CDC GitLab authentication may be required for GitLab Pages; the public GitHub mirror runs the same notebooks and deployed Rust/WASM kernel.
 
+The validation lab does not persist JupyterLab workspaces, preventing stale or
+dirty notebook tabs from blocking a fresh launch. If an older deployment still
+shows a close/save/discard prompt, append `&mode=single-document` to the
+notebook URL and reload once.
+
 | Validation notebook | GitLab Pages | GitHub Pages |
 | --- | --- | --- |
 | RECORDLINK end-to-end governed output V0.9 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-recordlink.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-recordlink.ipynb) |
