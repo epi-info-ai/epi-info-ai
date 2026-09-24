@@ -3674,7 +3674,7 @@ async function checkSampleProjectPackage() {
   const contracts = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?package=${Date.now()}`);
   const source = await readFile(repositoryPath("wasm/demo/examples/projects/sample-project.epia.json"), "utf8");
   const canonicalSource = source.replace(/\r\n/g, "\n");
-  assert.equal(createHash("sha256").update(canonicalSource).digest("hex"), "00af75d2d22d669bc4ea204f07a9525557023bafad349564c813c942238f3bb4");
+  assert.equal(createHash("sha256").update(canonicalSource).digest("hex"), "1417dcd9ad1b5b50283e8d785240bb1c5471af29c03bfa4e69b91dc5867c10eb");
   const packageValue = contracts.parseProjectPackage(source);
   assert.equal(packageValue.project.name, "Sample");
   assert.equal(packageValue.project.forms.length, 18);

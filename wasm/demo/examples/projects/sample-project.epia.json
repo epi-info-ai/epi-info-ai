@@ -9,6 +9,17 @@
                     "storage":  {
                                     "type":  "browser"
                                 },
+                    "privacy":  {
+                                    "schema":  "epi-info-ai-privacy/0.1",
+                                    "data":  "public-synthetic",
+                                    "geography":  "public-synthetic",
+                                    "containsRecordValues":  true,
+                                    "purpose":  "Official Epi Info teaching Sample migrated for browser evaluation",
+                                    "approvedUses":  [
+                                                          "map-display",
+                                                          "download"
+                                                      ]
+                                },
                     "forms":  [
                                   {
                                       "id":  "legacy-view-1",

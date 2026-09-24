@@ -211,6 +211,17 @@ const DEFAULT_SCHEMA: FormSchema = {
   pages: [{ name: "EntryPage", fields: ["case_id", "onset_date", "ill", "exposure", "age"] }],
 };
 
+function restrictedProjectPrivacy(purpose: string, geography: "precise-sensitive" | "none" = "none", externalSync = false): PrivacyClassificationV01 {
+  return {
+    schema: "epi-info-ai-privacy/0.1",
+    data: "restricted-identifiable",
+    geography,
+    containsRecordValues: true,
+    purpose,
+    approvedUses: externalSync ? ["map-display", "download", "external-sync"] : ["map-display", "download"],
+  };
+}
+
 let schema: FormSchema = loadJson(SCHEMA_KEY, DEFAULT_SCHEMA);
 let checkCodeSourceEditor: CheckCodeSourceEditor;
 let checkCodeSearchMode: "find" | "replace" = "find";
@@ -305,6 +316,7 @@ let projectState: ProjectSnapshotV1 = loadedProject.snapshot ?? {
     name: projectName,
     currentFormId: "form-default",
     forms: [{ id: "form-default", schema: structuredClone(schema), records: structuredClone(records) }],
+    privacy: restrictedProjectPrivacy("Browser-local epidemiologic project"),
   };
 let hasActiveProject = loadText(PROJECT_ACTIVE_KEY, "true") !== "false";
 let activeRecentProjectId: string | null = null;
@@ -2635,6 +2647,7 @@ async function createTransportPackage(): Promise<void> {
     currentFormId,
     storage: { type: "browser" },
     forms: [packagedForm],
+    ...(projectState.privacy ? { privacy: { ...projectState.privacy, purpose: "Encrypted data transport derived from the active project" } } : {}),
   };
   status.textContent = `Validating and encrypting ${selectedRecords.length} record${selectedRecords.length === 1 ? "" : "s"}...`;
   const portable = createProjectPackage(transportProject);
@@ -3477,14 +3490,7 @@ export function initializeFormDataDemo() {
       currentFormId,
       storage: { type: storageType },
       forms: [{ id: currentFormId, schema: structuredClone(schema), records: [] }],
-      privacy: {
-        schema: "epi-info-ai-privacy/0.1",
-        data: "restricted-identifiable",
-        geography: pendingStudyArea ? "precise-sensitive" : "none",
-        containsRecordValues: true,
-        purpose: "User-created epidemiologic project",
-        approvedUses: storageType === "supabase" ? ["map-display", "download", "external-sync"] : ["map-display", "download"],
-      },
+      privacy: restrictedProjectPrivacy("User-created epidemiologic project", pendingStudyArea ? "precise-sensitive" : "none", storageType === "supabase"),
       ...(pendingStudyArea ? { studyAreas: [structuredClone(pendingStudyArea)] } : {}),
     };
     projectPackageExtras = { programs: [], codeTables: [], runbooks: [] };
