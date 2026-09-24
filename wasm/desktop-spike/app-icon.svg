@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Epi Info AI desktop spike icon">
+  <rect width="512" height="512" rx="88" fill="#075985"/>
+  <rect x="74" y="74" width="364" height="364" rx="54" fill="#ffffff"/>
+  <path fill="#075985" d="M151 139h220v61H217v47h132v58H217v68h158v61H151z"/>
+  <circle cx="391" cy="121" r="53" fill="#fbbf24"/>
+  <path fill="#0c4a6e" d="M370 143h-24l31-78h28l31 78h-25l-5-15h-31zm12-35h18l-9-27z"/>
+</svg>

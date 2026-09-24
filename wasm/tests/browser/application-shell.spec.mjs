@@ -4348,6 +4348,7 @@ test("File imports complete checksummed teaching projects from the repository ca
   await expect(dialog.locator("#example-project-catalog-url")).toHaveValue(/\/examples\/projects\/epi-info-projects\.json$/);
   await expect(dialog.locator("#example-project-status")).toContainText("5 verified project choices");
   await expect(dialog.locator(".example-project-card")).toHaveCount(5);
+  await expect(dialog.locator(".example-project-card").first().locator(".example-project-inventory")).toContainText("96 records, 10 programs, 4 runbooks, 2 map assets, and 3 map layers");
   await dialog.getByRole("button", { name: "Import Foodborne Outbreak Investigation" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator("#main-menu-status")).toContainText("Imported Foodborne Outbreak Investigation");
@@ -4389,4 +4390,33 @@ test("File imports complete checksummed teaching projects from the repository ca
   await expect(page.locator("#runbook-step-title")).toHaveText("Confirm the governed boundary");
   await expect(page.locator("#classic-recordlink-output-summary")).toHaveText("");
   await page.locator("#runbook-stop").click();
+});
+
+test("opening another teaching project clears Classic Analysis output documents", async ({ page }) => {
+  test.setTimeout(45_000);
+  const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
+  const importProject = async (title) => {
+    await applicationMenu.getByText("File", { exact: true }).click();
+    await applicationMenu.getByRole("menuitem", { name: /Import Example Project/ }).click();
+    const dialog = page.getByRole("dialog", { name: "Import Example Project" });
+    await expect(dialog.locator("#example-project-status")).toContainText("verified project choices");
+    await dialog.getByRole("button", { name: `Import ${title}` }).click();
+    await expect(dialog).toBeHidden();
+  };
+
+  await importProject("Foodborne Outbreak Investigation");
+  await page.locator("#main-menu").getByRole("button", { name: "Classic" }).click();
+  await openClassicDeveloperControls(page);
+  await page.locator("#frequency-run").click();
+  await expect(page.locator("#frequency-output")).toBeVisible();
+  await expect(page.locator("#frequency-total")).toHaveText("96");
+
+  await importProject("Space-Time Cluster Detection");
+  await expect(page.locator("#frequency-output")).toBeHidden();
+  await expect(page.locator("#classic-output-navigation-status")).toHaveText("Output cleared for the newly opened project. Command history is retained.");
+  for (const selector of ["#classic-sequential-output", "#classic-list-output", "#classic-graph-output", "#classic-quality-output", "#classic-recordlink-output", "#classic-cluster-output"]) {
+    await expect(page.locator(selector)).toBeHidden();
+  }
+  await page.locator('[data-module="forms"]').click();
+  await expect(page.locator("#project-tree-name")).toContainText("Space-Time Cluster Detection");
 });

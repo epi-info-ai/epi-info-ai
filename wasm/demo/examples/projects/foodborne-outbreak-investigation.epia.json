@@ -3077,7 +3077,9 @@
         "sourceFormId": "foodborne-outbreak-investigation",
         "latitudeField": "latitude",
         "longitudeField": "longitude",
-        "labelField": "id"
+        "labelField": "id",
+        "markerStyle": "circle",
+        "markerColor": "#df291e"
       },
       {
         "id": "toledo-neighborhoods",

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "gov.cdc.epi-info-ai.demo-projects",
   "title": "Epi Info AI demonstration projects",
   "description": "Checksummed, browser-ready projects maintained in the CDC Epi Info AI GitLab group.",
@@ -10,8 +10,166 @@
       "description": "96 synthetic investigation records with Classic Analysis, Check Code, and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
       "file": "foodborne-outbreak-investigation.epia",
       "repository": "https://git.cdc.gov/epi-info-ai/foodborne-outbreak-investigation",
-      "bytes": 1503263,
-      "sha256": "69713b0ccd699e7a163047c959cf3936d07a3c38824a661e2948643e5986aac9"
+      "bytes": 1503310,
+      "sha256": "301f23a343783c43f19744e19ecae0381aad379a7fbacf487bfa8aaf49f26781",
+      "contents": {
+        "version": 1,
+        "inventory": {
+          "forms": 1,
+          "records": 96,
+          "fields": 28,
+          "programs": 10,
+          "runbooks": 4,
+          "codeTables": 0,
+          "mapAssets": 2,
+          "mapLayers": 3
+        },
+        "artifacts": [
+          {
+            "id": "dataset:foodborne-outbreak-investigation",
+            "role": "dataset",
+            "mediaType": "application/vnd.epi-info-ai.form+json",
+            "bytes": 57380,
+            "sha256": "84cb8f0b32fa0d6fbe8205cc85ce2d9c8df5e6c070caeb46eb0ab9677239260e"
+          },
+          {
+            "id": "program:foodborne-classic-command-tour",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 2951,
+            "sha256": "6b94ced0f8eb5281e0602a5b428945018195ac8d43f56abffbfcee8db17ff0fc"
+          },
+          {
+            "id": "program:foodborne-check-code-tour",
+            "role": "program",
+            "mediaType": "text/x-epi-info-check-code",
+            "bytes": 3576,
+            "sha256": "aa422e20a17625f0aa44ac28bb50be81a13ec992618e3b4bf91c7ece4bab9227"
+          },
+          {
+            "id": "program:foodborne-check-code-expressions",
+            "role": "program",
+            "mediaType": "text/x-epi-info-check-code",
+            "bytes": 3818,
+            "sha256": "1977d6bdca93bb2f687e01b96c1e3eeac2eaa59582af835f3a979d41c67de294"
+          },
+          {
+            "id": "program:life-stage-by-sex",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 195,
+            "sha256": "69ad445749ecd1ab7d9a54f400a4bc1350e2f21c65b6c5ac919590dc245a018b"
+          },
+          {
+            "id": "program:age-band-by-case-status",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 188,
+            "sha256": "3bd609055d495f309f8f4cf5b4c9eb5b0c8280111ae075967962ca9008ddfb1e"
+          },
+          {
+            "id": "program:age-decades",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 246,
+            "sha256": "adf6788bc24bb03549d684bc663f33f839a12d5f60b52b416ee4a93c51dc3bd2"
+          },
+          {
+            "id": "program:potato-salad-by-case-status",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 49,
+            "sha256": "de768af8f2b572d39d905831ce6ba6a5a696e6c3355f339b54665fc498328552"
+          },
+          {
+            "id": "program:food-exposure-two-by-two",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 29,
+            "sha256": "89176f09772ed352ea2af487d77915b4e5fdaca01c0a9ffd38d85fe0c255ff00"
+          },
+          {
+            "id": "program:complete-dialog-tour",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 1328,
+            "sha256": "fbd910c4553bf0e7861262836bd3402003d0b2a03c531561940663f39dd78950"
+          },
+          {
+            "id": "program:quality-profile",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 15,
+            "sha256": "b4aa4fd05bc0d84f82faab906eaae467db69c0715a85aed37d2e6dd37366427c"
+          },
+          {
+            "id": "runbook:foodborne-investigation-project-tour",
+            "role": "runbook",
+            "mediaType": "application/vnd.epi-info-ai.runbook+json",
+            "bytes": 2040,
+            "sha256": "d5c55a693134437068173922b6a3db13cfe133692544fc29a4242214528c0931"
+          },
+          {
+            "id": "runbook:foodborne-gis-investigation-v0-1",
+            "role": "runbook",
+            "mediaType": "application/vnd.epi-info-ai.runbook+json",
+            "bytes": 4120,
+            "sha256": "12a955fc8871221ba4dcad9b483edaaa9aaa09283f1f1a0e36e120910478ba49"
+          },
+          {
+            "id": "runbook:foodborne-check-code-tour",
+            "role": "runbook",
+            "mediaType": "application/vnd.epi-info-ai.runbook+json",
+            "bytes": 3120,
+            "sha256": "f21061b8088533385853d61885e225e52f4a847e03d23c154581da60ed3832ca"
+          },
+          {
+            "id": "runbook:foodborne-form-designer-lab",
+            "role": "runbook",
+            "mediaType": "application/vnd.epi-info-ai.runbook+json",
+            "bytes": 5646,
+            "sha256": "a513df98b032a1f788a31c4fd733aa857516c154bd4fb3b6d5f43149f457159c"
+          },
+          {
+            "id": "project-settings",
+            "role": "settings",
+            "mediaType": "application/vnd.epi-info-ai.project-settings+json",
+            "bytes": 841,
+            "sha256": "b4740d78f0179362e0aa7fe779b64278c1780f089a063a3fe391b4b5b2732eca"
+          },
+          {
+            "id": "map:c557159ea94def64612731542ede3ec70362cc3c4af2e99e2dafc7d264aa97b1",
+            "role": "map",
+            "mediaType": "application/geo+json",
+            "bytes": 1107106,
+            "sha256": "c557159ea94def64612731542ede3ec70362cc3c4af2e99e2dafc7d264aa97b1"
+          },
+          {
+            "id": "map:cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1",
+            "role": "map",
+            "mediaType": "image/tiff",
+            "bytes": 304873,
+            "sha256": "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1"
+          }
+        ],
+        "mapLayers": [
+          {
+            "id": "foodborne-case-cluster",
+            "kind": "case-cluster",
+            "sourceFormId": "foodborne-outbreak-investigation"
+          },
+          {
+            "id": "toledo-neighborhoods",
+            "kind": "geojson",
+            "assetId": "c557159ea94def64612731542ede3ec70362cc3c4af2e99e2dafc7d264aa97b1"
+          },
+          {
+            "id": "toledo-population-density",
+            "kind": "raster",
+            "assetId": "cf7ec32de75d9b782a141e0e8e361216d9c74a71b467486aaa4f0c1782060df1"
+          }
+        ]
+      }
     },
     {
       "id": "space-time-cluster-detection",
@@ -20,7 +178,58 @@
       "file": "space-time-cluster-detection.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/space-time-cluster-detection",
       "bytes": 15598,
-      "sha256": "62623e2fdd9344cbb55e52c56e09886198a8808ff0e1275a7264ced254a5a23a"
+      "sha256": "62623e2fdd9344cbb55e52c56e09886198a8808ff0e1275a7264ced254a5a23a",
+      "contents": {
+        "version": 1,
+        "inventory": {
+          "forms": 1,
+          "records": 30,
+          "fields": 6,
+          "programs": 2,
+          "runbooks": 1,
+          "codeTables": 0,
+          "mapAssets": 0,
+          "mapLayers": 0
+        },
+        "artifacts": [
+          {
+            "id": "dataset:space-time-cluster-cases",
+            "role": "dataset",
+            "mediaType": "application/vnd.epi-info-ai.form+json",
+            "bytes": 6115,
+            "sha256": "5280ef11551b5d1b8852b1585c8b7868f7fe24c9eb81b35a1efce41cb789bcd8"
+          },
+          {
+            "id": "program:space-time-cluster-command-tour",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 313,
+            "sha256": "69be8b5ad173029b6e995c7d71e396df920bff4d5885db9c889aabc2109301fb"
+          },
+          {
+            "id": "program:space-time-cluster-check-code-tour",
+            "role": "program",
+            "mediaType": "text/x-epi-info-check-code",
+            "bytes": 971,
+            "sha256": "a2d0c3fdf6dd0bb6a70eff57213c51d87fad8a5f5fc07e10fb0471014420af28"
+          },
+          {
+            "id": "runbook:space-time-cluster-project-tour",
+            "role": "runbook",
+            "mediaType": "application/vnd.epi-info-ai.runbook+json",
+            "bytes": 1943,
+            "sha256": "6dd9f08ade4b1fb214dd31f0200e8cffa5717ac43ea214b613bdb3b548b04984"
+          },
+          {
+            "id": "project-settings",
+            "role": "settings",
+            "mediaType": "application/vnd.epi-info-ai.project-settings+json",
+            "bytes": 136,
+            "sha256": "5c2e4c2ecaca5282beccd25fb4ceeaea3af13fc26686490510f635c08bf14cf2"
+          }
+        ],
+        "mapLayers": []
+      }
     },
     {
       "id": "record-linkage",
@@ -29,7 +238,79 @@
       "file": "../recordlink/recordlink-synthetic-project.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/recordlink",
       "bytes": 25161,
-      "sha256": "06dd0a6a24daa21bda847b7e53a85cb1a55f1298315e99b56119e7c9073e6ed3"
+      "sha256": "06dd0a6a24daa21bda847b7e53a85cb1a55f1298315e99b56119e7c9073e6ed3",
+      "contents": {
+        "version": 1,
+        "inventory": {
+          "forms": 3,
+          "records": 21,
+          "fields": 21,
+          "programs": 3,
+          "runbooks": 1,
+          "codeTables": 0,
+          "mapAssets": 0,
+          "mapLayers": 0
+        },
+        "artifacts": [
+          {
+            "id": "dataset:patient-registry-a",
+            "role": "dataset",
+            "mediaType": "application/vnd.epi-info-ai.form+json",
+            "bytes": 4293,
+            "sha256": "268e34aacb3b577cc7ff907be7e4a1aa5ab7c6ff24f4fd7f163c6882cab9d472"
+          },
+          {
+            "id": "dataset:surveillance-b",
+            "role": "dataset",
+            "mediaType": "application/vnd.epi-info-ai.form+json",
+            "bytes": 3428,
+            "sha256": "aa966983fe5d42d6d6abe4c085b8ba7ba05567ba246399bacb22b18ce21788de"
+          },
+          {
+            "id": "dataset:true-links",
+            "role": "dataset",
+            "mediaType": "application/vnd.epi-info-ai.form+json",
+            "bytes": 896,
+            "sha256": "cc654d4cd0be9776e316f17fdb9a3976534d7014ead53744f916b465e6a8da95"
+          },
+          {
+            "id": "program:recordlink-command-tour",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 2252,
+            "sha256": "47186728eef0a4adb2baa785ab99708d21559ae3e656592794e99a3b684020ba"
+          },
+          {
+            "id": "program:patient-registry-a-check-code",
+            "role": "program",
+            "mediaType": "text/x-epi-info-check-code",
+            "bytes": 1250,
+            "sha256": "8b1da6f0d31a1ae5a74c82b12ed733c247781dd3474ba00f9691f6001baea195"
+          },
+          {
+            "id": "program:surveillance-b-check-code",
+            "role": "program",
+            "mediaType": "text/x-epi-info-check-code",
+            "bytes": 706,
+            "sha256": "014384a9f980117816f8260e2c3fd43901e19fe3eb3facdfd0f4a8d6e743cf1f"
+          },
+          {
+            "id": "runbook:recordlink-project-tour",
+            "role": "runbook",
+            "mediaType": "application/vnd.epi-info-ai.runbook+json",
+            "bytes": 3682,
+            "sha256": "2e765909feaafbe161d0dbabcea2317f09520bc27cc8881e9800fa619777afdd"
+          },
+          {
+            "id": "project-settings",
+            "role": "settings",
+            "mediaType": "application/vnd.epi-info-ai.project-settings+json",
+            "bytes": 134,
+            "sha256": "bb97aa2c8450fae783c6f0f2246891f7bb5d74a895c1d42d3cf8e5fea7c9956e"
+          }
+        ],
+        "mapLayers": []
+      }
     },
     {
       "id": "gis-defensive-ingestion-teaching",
@@ -38,7 +319,51 @@
       "file": "gis-defensive-ingestion-teaching.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/epi-gis-kernel",
       "bytes": 8371,
-      "sha256": "654ad12e5eade3644dade1e62765230f0f33bc9945c277d5d7627165b80b35bb"
+      "sha256": "654ad12e5eade3644dade1e62765230f0f33bc9945c277d5d7627165b80b35bb",
+      "contents": {
+        "version": 1,
+        "inventory": {
+          "forms": 1,
+          "records": 10,
+          "fields": 5,
+          "programs": 1,
+          "runbooks": 1,
+          "codeTables": 0,
+          "mapAssets": 0,
+          "mapLayers": 0
+        },
+        "artifacts": [
+          {
+            "id": "dataset:gis-defensive-ingestion-test-cases",
+            "role": "dataset",
+            "mediaType": "application/vnd.epi-info-ai.form+json",
+            "bytes": 2768,
+            "sha256": "d828ab3c74712f23bfd335c7b76da103e68cd0858477072afea3a63c2cd0f8e6"
+          },
+          {
+            "id": "program:defensive-ingestion-review",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 1374,
+            "sha256": "124d515aba431d76fbdc7235abec64f105faf176a9e75c55414a0e397617f3be"
+          },
+          {
+            "id": "runbook:gis-defensive-ingestion-review",
+            "role": "runbook",
+            "mediaType": "application/vnd.epi-info-ai.runbook+json",
+            "bytes": 1352,
+            "sha256": "31d21243e42180bbdf87882c3a333909ff44c64fb2aef7e2e455a5cad3521bdb"
+          },
+          {
+            "id": "project-settings",
+            "role": "settings",
+            "mediaType": "application/vnd.epi-info-ai.project-settings+json",
+            "bytes": 158,
+            "sha256": "fa8140a8452695f70f02be5917304e496aa682b48dc3fcaae54ac1437dd90e42"
+          }
+        ],
+        "mapLayers": []
+      }
     },
     {
       "id": "environmental-heat-health-candidate",
@@ -46,8 +371,70 @@
       "description": "Twelve synthetic heat-health observations with data quality, descriptive analysis, 2 x 2 and chart output, an epi-gis Worker lab, a packaged point layer, and a learner-operated runbook.",
       "file": "environmental-heat-health-candidate.epia",
       "repository": "https://git.cdc.gov/epi-info-ai/package-environmental-epidemiology",
-      "bytes": 11803,
-      "sha256": "2133ae1cf55edf2822af66ce134213da7d1eaddc7fb4146f3ea042d285e60aac"
+      "bytes": 11850,
+      "sha256": "3ebd8ad6a4fbd0767a580e5e0b8f7f73f3fea27812c1eebfce8d186e21061a99",
+      "contents": {
+        "version": 1,
+        "inventory": {
+          "forms": 1,
+          "records": 12,
+          "fields": 10,
+          "programs": 1,
+          "runbooks": 1,
+          "codeTables": 0,
+          "mapAssets": 1,
+          "mapLayers": 2
+        },
+        "artifacts": [
+          {
+            "id": "dataset:synthetic-heat-health-observations",
+            "role": "dataset",
+            "mediaType": "application/vnd.epi-info-ai.form+json",
+            "bytes": 4624,
+            "sha256": "956e6042d554566ab20dee534e58d4e165ada8f3c838dbcc0f55401003506452"
+          },
+          {
+            "id": "program:environmental-heat-health-tour",
+            "role": "program",
+            "mediaType": "text/x-epi-info-classic-analysis",
+            "bytes": 833,
+            "sha256": "254a147959b516a2d52a8d2a266bc58c494029a90783733320041b5352455ee2"
+          },
+          {
+            "id": "runbook:environmental-heat-health-v0-1",
+            "role": "runbook",
+            "mediaType": "application/vnd.epi-info-ai.runbook+json",
+            "bytes": 1651,
+            "sha256": "aed5fae4ac2842483f2b942880c5260525c40222d586ce7a06fe9293c33e6578"
+          },
+          {
+            "id": "project-settings",
+            "role": "settings",
+            "mediaType": "application/vnd.epi-info-ai.project-settings+json",
+            "bytes": 723,
+            "sha256": "70627a1ff0a80c08293c56b5e2a8a9dc8e125d5806d02ac6c17b9a143fb4fb4e"
+          },
+          {
+            "id": "map:4683a19f384e1577a034d9ee047e97611481eefe463dddbf3da1e7e691cf1e72",
+            "role": "map",
+            "mediaType": "application/geo+json",
+            "bytes": 2498,
+            "sha256": "4683a19f384e1577a034d9ee047e97611481eefe463dddbf3da1e7e691cf1e72"
+          }
+        ],
+        "mapLayers": [
+          {
+            "id": "environmental-observation-points",
+            "kind": "case-cluster",
+            "sourceFormId": "synthetic-heat-health-observations"
+          },
+          {
+            "id": "environmental-observation-reference",
+            "kind": "geojson",
+            "assetId": "4683a19f384e1577a034d9ee047e97611481eefe463dddbf3da1e7e691cf1e72"
+          }
+        ]
+      }
     }
   ]
 }

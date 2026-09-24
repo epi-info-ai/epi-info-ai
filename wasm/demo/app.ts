@@ -2334,6 +2334,7 @@ exampleProjectCatalogUrl.value = bundledExampleProjectCatalogUrl.href;
 const exampleProjectStatus = requiredElement<HTMLElement>("#example-project-status");
 const exampleProjectList = requiredElement<HTMLElement>("#example-project-list");
 let loadedExampleProjectCatalog: LoadedExampleProjectCatalog | null = null;
+let exampleProjectReturnFocus: HTMLElement | null = null;
 
 function formatExampleProjectBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} bytes`;
@@ -2352,6 +2353,10 @@ function renderExampleProjectCatalog(loaded: LoadedExampleProjectCatalog): void 
     title.textContent = entry.title;
     const description = document.createElement("p");
     description.textContent = entry.description;
+    const inventory = document.createElement("p");
+    inventory.className = "dialog-note example-project-inventory";
+    const declared = entry.contents.inventory;
+    inventory.textContent = `Declared contents: ${declared.forms} form${declared.forms === 1 ? "" : "s"}, ${declared.records} records, ${declared.programs} programs, ${declared.runbooks} runbooks, ${declared.mapAssets} map assets, and ${declared.mapLayers} map layers.`;
     const provenance = document.createElement("p");
     provenance.className = "dialog-note";
     const repository = document.createElement("a");
@@ -2360,7 +2365,7 @@ function renderExampleProjectCatalog(loaded: LoadedExampleProjectCatalog): void 
     repository.rel = "noopener noreferrer";
     repository.textContent = "CDC GitLab source";
     provenance.append(repository, ` · ${formatExampleProjectBytes(entry.bytes)} · SHA-256 ${entry.sha256.slice(0, 12)}…`);
-    copy.append(title, description, provenance);
+    copy.append(title, description, inventory, provenance);
     const open = document.createElement("button");
     open.type = "button";
     open.className = "dialog-primary";
@@ -2371,7 +2376,7 @@ function renderExampleProjectCatalog(loaded: LoadedExampleProjectCatalog): void 
       void (async () => {
         try {
           const file = await fetchExampleProject(loaded, entry);
-          exampleProjectStatus.textContent = `Checksum verified. Opening ${entry.title}…`;
+          exampleProjectStatus.textContent = `Package checksum and declared contents verified. Opening ${entry.title}…`;
           await openProjectPackage(file);
           const packageStatus = requiredElement("#main-menu-status").textContent ?? "";
           exampleProjectDialog.close("opened");
@@ -2401,15 +2406,24 @@ async function refreshExampleProjectCatalog(): Promise<void> {
   }
 }
 
-function openExampleProjectDialog(): void {
+function openExampleProjectDialog(returnFocus?: HTMLElement): void {
   for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.legacy-menu")) menu.open = false;
+  exampleProjectReturnFocus = returnFocus ?? null;
   exampleProjectDialog.showModal();
   void refreshExampleProjectCatalog();
 }
 
 document.addEventListener("click", (event) => {
-  if (!(event.target instanceof Element) || !event.target.closest("#file-open-example-project, #designer-open-project-web")) return;
-  openExampleProjectDialog();
+  if (!(event.target instanceof Element)) return;
+  const trigger = event.target.closest<HTMLElement>("#file-open-example-project, #designer-open-project-web");
+  if (!trigger) return;
+  const menu = trigger.closest("details.legacy-menu");
+  openExampleProjectDialog(menu?.querySelector<HTMLElement>(":scope > summary") ?? trigger);
+});
+exampleProjectDialog.addEventListener("close", () => {
+  const target = exampleProjectReturnFocus;
+  exampleProjectReturnFocus = null;
+  if (target?.isConnected) queueMicrotask(() => target.focus());
 });
 requiredElement("#example-project-refresh").addEventListener("click", () => void refreshExampleProjectCatalog());
 
@@ -2479,6 +2493,9 @@ requiredElement("#help-capability-packages").addEventListener("click", () => {
   for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.legacy-menu")) menu.open = false;
   renderInstalledCapabilityPackages();
   capabilityPackageDialog.showModal();
+});
+capabilityPackageDialog.addEventListener("close", () => {
+  queueMicrotask(() => requiredElement<HTMLElement>("#help-menu > summary").focus());
 });
 for (const selector of ["#capability-package-close-titlebar", "#capability-package-close-action"]) {
   requiredElement<HTMLButtonElement>(selector).addEventListener("click", () => capabilityPackageDialog.close("cancel"));
@@ -4627,6 +4644,19 @@ function renderClassicTablesOutput(plan: ClassicTablesPlan, result: ClassicTable
   output.hidden = false;
 }
 
+function classicTableHead(labels: readonly string[]): HTMLTableSectionElement {
+  const head = document.createElement("thead");
+  const row = document.createElement("tr");
+  row.replaceChildren(...labels.map((label) => {
+    const cell = document.createElement("th");
+    cell.scope = "col";
+    cell.textContent = label;
+    return cell;
+  }));
+  head.append(row);
+  return head;
+}
+
 function renderClassicComplexFrequencyOutput(plan: ClassicComplexFrequencyPlan, result: ClassicComplexFrequencyResult): void {
   const output = requiredElement<HTMLElement>("#classic-tables-categorical-output");
   requiredElement("#classic-tables-categorical-title").textContent = `${plan.prompt} — Complex Sample Frequencies`;
@@ -4636,7 +4666,7 @@ function renderClassicComplexFrequencyOutput(plan: ClassicComplexFrequencyPlan, 
   const heading = document.createElement("h3"); heading.textContent = "Complex Sample Design Analysis";
   const scroll = document.createElement("div"); scroll.className = "results-table-scroll";
   const table = document.createElement("table"); table.className = "results-table classic-complex-frequency";
-  const head = document.createElement("thead"); head.innerHTML = `<tr><th scope="col">${plan.prompt}</th><th scope="col">Count</th><th scope="col">Weighted count</th><th scope="col">Percent</th><th scope="col">SE %</th><th scope="col">Linear lower</th><th scope="col">Linear upper</th><th scope="col">Logit lower</th><th scope="col">Logit upper</th><th scope="col">Design effect</th></tr>`;
+  const head = classicTableHead([plan.prompt, "Count", "Weighted count", "Percent", "SE %", "Linear lower", "Linear upper", "Logit lower", "Logit upper", "Design effect"]);
   const body = document.createElement("tbody");
   body.replaceChildren(...result.rows.map((resultRow) => {
     const row = document.createElement("tr");
@@ -4656,7 +4686,7 @@ function renderClassicComplexMeansOutput(plan: ClassicComplexMeansPlan, result: 
   requiredElement("#classic-tables-categorical-note").textContent = `Taylor-series variance using PSU ${plan.psuPrompt}${plan.strataPrompt ? ` within design strata ${plan.strataPrompt}` : " without a STRATAVAR"}${plan.weightPrompt ? ` and weights ${plan.weightPrompt}` : " with unit weights"}. ${result.excludedRecords} incomplete or invalid design records excluded.`;
   const section = document.createElement("section"); section.className = "classic-tables-stratum classic-complex-means-result";
   const table = document.createElement("table"); table.className = "results-table classic-complex-means";
-  table.innerHTML = `<thead><tr><th scope="col">${plan.crossTabPrompt ?? "Domain"}</th><th scope="col">Count</th><th scope="col">Mean</th><th scope="col">Standard error</th><th scope="col">Lower 95%</th><th scope="col">Upper 95%</th><th scope="col">Minimum</th><th scope="col">Maximum</th></tr></thead>`;
+  table.append(classicTableHead([plan.crossTabPrompt ?? "Domain", "Count", "Mean", "Standard error", "Lower 95%", "Upper 95%", "Minimum", "Maximum"]));
   const body = document.createElement("tbody"); const show = (value: number | null): string => value === null ? "—" : number(value, 4);
   body.replaceChildren(...result.rows.map((item) => { const row = document.createElement("tr"); [item.label, item.count === null ? "" : String(item.count), show(item.mean), show(item.standardError), show(item.lowerConfidenceLimit), show(item.upperConfidenceLimit), show(item.minimum), show(item.maximum)].forEach((value, index) => { const cell = document.createElement(index === 0 ? "th" : "td"); cell.textContent = value; if (index === 0) cell.setAttribute("scope", "row"); row.append(cell); }); return row; }));
   table.append(body); const scroll = document.createElement("div"); scroll.className = "results-table-scroll"; scroll.append(table); section.append(scroll); requiredElement("#classic-tables-categorical-body").replaceChildren(section); output.hidden = false;
@@ -4677,8 +4707,7 @@ function renderClassicComplexTablesOutput(plan: ClassicComplexTablesPlan, result
   scroll.className = "results-table-scroll";
   const table = document.createElement("table");
   table.className = "results-table classic-complex-tables";
-  const head = document.createElement("thead");
-  head.innerHTML = `<tr><th scope="col">${plan.exposurePrompt}</th><th scope="col">${plan.outcomePrompt}</th><th scope="col">Count</th><th scope="col">Weighted count</th><th scope="col">Row %</th><th scope="col">Col %</th><th scope="col">SE %</th><th scope="col">Lower 95%</th><th scope="col">Upper 95%</th><th scope="col">Design effect</th></tr>`;
+  const head = classicTableHead([plan.exposurePrompt, plan.outcomePrompt, "Count", "Weighted count", "Row %", "Col %", "SE %", "Lower 95%", "Upper 95%", "Design effect"]);
   const tableBody = document.createElement("tbody");
   tableBody.replaceChildren(...result.rows.flatMap((row) => row.cells.map((cell, index) => {
     const tr = document.createElement("tr");
