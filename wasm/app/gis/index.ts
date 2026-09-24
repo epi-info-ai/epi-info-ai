@@ -32,3 +32,7 @@ export * from "./map-background.ts";
 export * from "./map-time-lapse.ts";
 export * from "./map-export.ts";
 export * from "./map-package-integrity.ts";
+export * from "./advanced-spatial-contracts.ts";
+export * from "./advanced-spatial-registry.ts";
+export * from "./advanced-spatial-gates.ts";
+export * from "./advanced-spatial-executor.ts";

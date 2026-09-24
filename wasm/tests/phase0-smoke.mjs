@@ -311,6 +311,7 @@ async function checkRequiredAssetsAndUi() {
     "wasm/validation-lab/content/validate-match.ipynb",
     "wasm/validation-lab/content/validate-conditional-logistic.ipynb",
     "wasm/validation-lab/content/validate-space-time-cluster.ipynb",
+    "wasm/validation-lab/content/validate-spatial-k09.ipynb",
     "wasm/validation-lab/content/validate-recordlink.ipynb",
     "wasm/validation-lab/content/validate-check-code-pfromz.ipynb",
     "wasm/validation-lab/jupyter-lite.json",

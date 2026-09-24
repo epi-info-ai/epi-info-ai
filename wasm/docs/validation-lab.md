@@ -255,6 +255,11 @@ load currently requires network access for the pinned Pyodide runtime and
 scientific packages. Offline/self-hosted operation remains a separate release
 decision.
 
+The validation lab disables persisted JupyterLab workspaces. This keeps the
+published notebooks from reopening stale or dirty tabs between sessions. A
+clean single-notebook launch can also use
+`?path=<notebook>&mode=single-document`.
+
 ## CI and release workflow
 
 The authoritative path is:

@@ -12,6 +12,7 @@ import nbformat
 
 
 REPOSITORY = Path(__file__).resolve().parents[2]
+SPATIAL_K09_NOTEBOOK = REPOSITORY / "wasm/validation-lab/content/validate-spatial-k09.ipynb"
 NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-table2x2.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-stratified2x2.ipynb",
@@ -29,6 +30,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-recordlink.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-check-code-pfromz.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-check-code-zscore.ipynb",
+    SPATIAL_K09_NOTEBOOK,
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -249,6 +251,24 @@ def verify_check_code_zscore() -> None:
         "acceptedLinkRows",
         "output_mappings",
         "sourceBFallbackValues",
+    ]:
+        assert required in source
+
+
+def verify_spatial_k09_notebook() -> None:
+    notebook = nbformat.read(SPATIAL_K09_NOTEBOOK, as_version=4)
+    source = "\n".join(cell.source for cell in notebook.cells)
+    for required in [
+        "independent Python oracle",
+        "Moran's I",
+        "conditional LISA",
+        "standard Getis-Ord Gi*",
+        "-0.14534883720930236",
+        "-1.4018260516446992",
+        "focal value fixed",
+        "WGS84",
+        "5_000_000",
+        "does not import or call the TypeScript implementation",
     ]:
         assert required in source
 
@@ -610,6 +630,7 @@ if __name__ == "__main__":
     verify_notebook()
     verify_check_code_pfromz()
     verify_check_code_zscore()
+    verify_spatial_k09_notebook()
     verify_foodborne_derivation()
     verify_foodborne_frequency()
     verify_foodborne_means()

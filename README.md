@@ -91,6 +91,11 @@ The fixtures, reviewed expectations, and implementation notes are in
 
 GitLab CI and GitHub Actions build and publish the same complete JupyterLite lab from `wasm/validation-lab/content`. CDC GitLab authentication may be required for GitLab Pages; the public GitHub mirror runs the same notebooks and deployed Rust/WASM kernel.
 
+The validation lab does not persist JupyterLab workspaces, preventing stale or
+dirty notebook tabs from blocking a fresh launch. If an older deployment still
+shows a close/save/discard prompt, append `&mode=single-document` to the
+notebook URL and reload once.
+
 | Validation notebook | GitLab Pages | GitHub Pages |
 | --- | --- | --- |
 | Check Code PFROMZ normal percentile V0.1 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-check-code-pfromz.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-check-code-pfromz.ipynb) |
@@ -109,6 +114,7 @@ GitLab CI and GitHub Actions build and publish the same complete JupyterLite lab
 | Frequencies | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-frequency.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-frequency.ipynb) |
 | Stratified 2 × 2 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-stratified2x2.ipynb) |
 | Standalone 2 × 2 | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-table2x2.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-table2x2.ipynb) |
+| K09 spatial statistics corrective oracle | [Open](https://epi-info-ai-2859c9.gitpages.cdc.gov/validation-lab/lab/index.html?path=validate-spatial-k09.ipynb) | [Open](https://epi-info-ai.github.io/epi-info-ai/validation-lab/lab/index.html?path=validate-spatial-k09.ipynb) |
 
 Current capabilities include:
 
