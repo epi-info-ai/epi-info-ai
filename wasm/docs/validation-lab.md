@@ -9,7 +9,7 @@ Python result, legacy Epi Info result when available, tolerance, and provenance 
 one browser-based notebook.
 
 The lab supports the repository's
-[algorithm validation standard](docs/validation/algorithm-validation-standard.md).
+[algorithm validation standard](validation/algorithm-validation-standard.md).
 It does not replace that standard, CI, or independent statistical review, and it
 is not a second production analysis engine. Python is used only for validation,
 exploration, fixture development, and discrepancy investigation. The browser
@@ -62,7 +62,7 @@ The lab keeps three kinds of parity separate:
 The 96-record foodborne-outbreak example is the initial coherent validation
 corpus. It is synthetic demonstration data and contains no real case records. The
 immutable source currently resides at
-[`demo/examples/foodborne/foodborne-outbreak-investigation.csv`](demo/examples/foodborne/foodborne-outbreak-investigation.csv).
+[`demo/examples/foodborne/foodborne-outbreak-investigation.csv`](../demo/examples/foodborne/foodborne-outbreak-investigation.csv).
 
 | Property | Frozen value |
 |---|---|
@@ -466,6 +466,29 @@ discrepancy to its detailed evidence record.
   reports a transparent PASS object.
 - Broader legacy output, zero/fractional-cell decisions, property/boundary,
   implementation, and statistical review remain open. G5 stays consolidated.
+
+### Check Code PFROMZ normal-percentile lab V0.1
+
+- `validate-check-code-pfromz.ipynb` loads the fixed Z-score corpus and derives
+  `100 * Phi(z)` independently with Python `math.erf`.
+- The oracle applies the separately documented retained two-decimal rounding and
+  `99.99` upper ceiling, then checks central symmetry and monotonicity.
+- The notebook consistently calls the result a normal percentile, not a
+  hypothesis-test p-value.
+- The production TypeScript candidate is tested against the same immutable
+  fixture. Desktop Enter differential evidence and consolidated statistical and
+  implementation approval remain open.
+
+### Check Code ZSCORE anthropometry lab V0.1
+
+- `validate-check-code-zscore.ipynb` loads four fixed cases spanning CDC 2000,
+  WHO 2006, WHO 2007, and NCHS 1977.
+- Python independently recomputes exact-row LMS and NCHS percentile-spread
+  results from parameters embedded in the immutable fixture; it does not import
+  the TypeScript implementation or generated reference module.
+- The generated production reference asset is pinned to the retained AnthStat
+  source hash. Desktop Enter differentials, external reference confirmation,
+  interpolation/boundary review, and specialist approval remain open.
 
 ### MATCH paired-analysis contract V0.1
 

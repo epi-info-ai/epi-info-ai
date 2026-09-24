@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "epi.environment.validation/0.1",
+  "packageStatus": "inert-demonstration-candidate",
+  "assertions": [
+    "Installing the package does not contact a provider.",
+    "Installing the package does not run a program or GIS operation.",
+    "No credential, person-level record, address, or real patient coordinate is included.",
+    "Provider entries remain disabled until separate network, terms, privacy, and scientific review gates pass.",
+    "The application-shipped epi-gis kernel, not package code, owns GIS execution authority.",
+    "The synthetic teaching project is imported separately from this capability package."
+  ]
+}

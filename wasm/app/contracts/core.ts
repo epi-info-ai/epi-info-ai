@@ -35,7 +35,13 @@ export interface FieldDefinition {
 export interface FormSchema {
   name: string;
   fields: FieldDefinition[];
+  pages?: FormPageDefinition[];
   checkCodeProgram?: FormCheckCodeProgram;
+}
+
+export interface FormPageDefinition {
+  name: string;
+  fields: string[];
 }
 
 export interface FormCheckCodeProgram {
@@ -499,6 +505,31 @@ function projectFormAt(value: unknown, path: string): ProjectForm {
     },
     records: form.records.map((record, index) => recordAt(record, `${path}.records[${index}]`)),
   };
+  if (schema.pages !== undefined) {
+    if (!Array.isArray(schema.pages) || schema.pages.length === 0) fail(`${path}.schema.pages`, "must be a non-empty array when present");
+    if (schema.pages.length > 100) fail(`${path}.schema.pages`, "must not exceed 100 pages");
+    const pageNames = new Set<string>();
+    const assignedFields = new Set<string>();
+    result.schema.pages = schema.pages.map((value, pageIndex) => {
+      const pagePath = `${path}.schema.pages[${pageIndex}]`;
+      const page = objectAt(value, pagePath);
+      const name = nonEmptyString(page.name, `${pagePath}.name`).trim();
+      const normalizedName = name.toLocaleLowerCase("en-US");
+      if (pageNames.has(normalizedName)) fail(`${path}.schema.pages`, `contains duplicate page name ${JSON.stringify(name)}`);
+      pageNames.add(normalizedName);
+      if (!Array.isArray(page.fields)) fail(`${pagePath}.fields`, "must be an array");
+      const pageFields = page.fields.map((field, fieldIndex) => nonEmptyString(field, `${pagePath}.fields[${fieldIndex}]`));
+      for (const field of pageFields) {
+        if (!fieldNames.has(field)) fail(`${pagePath}.fields`, `references missing field ${JSON.stringify(field)}`);
+        if (assignedFields.has(field)) fail(`${path}.schema.pages`, `assigns field ${JSON.stringify(field)} to more than one page`);
+        assignedFields.add(field);
+      }
+      return { name, fields: pageFields };
+    });
+    for (const field of fields) {
+      if (!assignedFields.has(field.name)) fail(`${path}.schema.pages`, `does not assign field ${JSON.stringify(field.name)} to a page`);
+    }
+  }
   if (schema.checkCodeProgram !== undefined) {
     const program = objectAt(schema.checkCodeProgram, `${path}.schema.checkCodeProgram`);
     if (program.version !== 1) fail(`${path}.schema.checkCodeProgram.version`, "must be 1");
@@ -752,7 +783,17 @@ function projectMapLayerAt(
     if (typeof source.opacity !== "number" || !Number.isFinite(source.opacity) || source.opacity < 0 || source.opacity > 1) fail(`${path}.opacity`, "must be from 0 through 1");
     if (typeof source.noDataColor !== "string" || !/^#[0-9a-f]{6}$/i.test(source.noDataColor)) fail(`${path}.noDataColor`, "must be a six-digit hex color");
     const legendTitle = nonEmptyString(source.legendTitle, `${path}.legendTitle`);
-    return { ...shared, kind: "choropleth", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, classification: { method: classification.method, classCount: classification.classCount, ...(Array.isArray(breaks) ? { breaks } : {}) }, palette: source.palette, opacity: source.opacity, noDataColor: source.noDataColor, legendTitle };
+    let filter: { field: string; operator: string; value?: string } | undefined;
+    if (source.filter !== undefined) {
+      const filterSource = objectAt(source.filter, `${path}.filter`);
+      const filterField = nonEmptyString(filterSource.field, `${path}.filter.field`);
+      const allowedOperators = ["equals", "not-equals", "contains", "greater-than", "greater-or-equal", "less-than", "less-or-equal", "is-empty", "is-not-empty"];
+      if (typeof filterSource.operator !== "string" || !allowedOperators.includes(filterSource.operator)) fail(`${path}.filter.operator`, "is not a supported choropleth operator");
+      if (!["is-empty", "is-not-empty"].includes(String(filterSource.operator)) && typeof filterSource.value !== "string") fail(`${path}.filter.value`, "must be a string for this operator");
+      if (!fields.has(filterField)) fail(`${path}.filter.field`, "must identify a field in the source form");
+      filter = { field: filterField, operator: String(filterSource.operator), ...(typeof filterSource.value === "string" ? { value: filterSource.value } : {}) };
+    }
+    return { ...shared, kind: "choropleth", assetId, sourceFormId, boundaryKeyField, dataKeyField, valueField, joinNormalization: source.joinNormalization, classification: { method: classification.method, classCount: classification.classCount, ...(Array.isArray(breaks) ? { breaks } : {}) }, palette: source.palette, opacity: source.opacity, noDataColor: source.noDataColor, legendTitle, ...(filter ? { filter } : {}) };
   }
   if (source.kind === "dot-density") {
     const assetId = nonEmptyString(source.assetId, `${path}.assetId`);
@@ -1040,6 +1081,17 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
     for (const source of result.referenceLayerSources) {
       if (ids.has(source.id)) fail("project.referenceLayerSources", `contains duplicate source id ${JSON.stringify(source.id)}`);
       ids.add(source.id);
+    }
+  }
+  for (const [index, asset] of (result.mapAssets ?? []).entries()) {
+    const lineageSource = asset.sourceLineage?.source;
+    if (!lineageSource) continue;
+    const matchingSource = (result.referenceLayerSources ?? []).find((source) => source.id === lineageSource.sha256);
+    if (!matchingSource
+      || matchingSource.sha256 !== lineageSource.sha256
+      || matchingSource.byteLength !== lineageSource.byteLength
+      || matchingSource.packageFormat !== lineageSource.packageFormat) {
+      fail(`project.mapAssets[${index}].sourceLineage.source`, "must exactly match a bundled project.referenceLayerSources entry by id, SHA-256, byte length, and package format");
     }
   }
   if (snapshot.auditLog !== undefined) {

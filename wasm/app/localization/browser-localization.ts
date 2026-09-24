@@ -1,5 +1,6 @@
 import { createPseudoLanguagePack, LocalizationRegistry } from "./localization.ts";
 import { englishLanguagePack } from "./catalogs/en-US.ts";
+import { CHECK_CODE_IDENTITY_CHANGED_EVENT, readLocalOperatorIdentity, writeLocalOperatorIdentity } from "../check-code/check-code-identity.ts";
 
 const PREFERENCE_KEY = "epi-info-ai.localization-preferences.v1";
 
@@ -36,7 +37,8 @@ export function initializeBrowserLocalization(
   const select = root.querySelector<HTMLSelectElement>("#application-language");
   const applyButton = root.querySelector<HTMLButtonElement>("#application-language-apply");
   const status = root.querySelector<HTMLElement>("#application-language-status");
-  if (!dialog || !opener || !select || !applyButton || !status) throw new Error("Localization Options interface is incomplete");
+  const operatorIdentity = root.querySelector<HTMLInputElement>("#application-operator-identity");
+  if (!dialog || !opener || !select || !applyButton || !status || !operatorIdentity) throw new Error("Application Options interface is incomplete");
 
   select.replaceChildren(...registry.list().map((pack) => new Option(`${pack.nativeName} — ${pack.englishName}`, pack.locale)));
 
@@ -52,6 +54,7 @@ export function initializeBrowserLocalization(
       if (messageId) element.setAttribute("aria-label", registry.translate(messageId));
     }
     select.value = registry.locale;
+    operatorIdentity.value = readLocalOperatorIdentity(storage).identity ?? "";
   };
 
   const preferredLocale = readPreference(storage);
@@ -66,9 +69,15 @@ export function initializeBrowserLocalization(
     select.focus();
   });
 
+  dialog.addEventListener("close", () => {
+    opener.closest("details")?.querySelector<HTMLElement>(":scope > summary")?.focus();
+  });
+
   applyButton.addEventListener("click", () => {
     const locale = registry.setLocale(select.value);
     writePreference(storage, locale);
+    writeLocalOperatorIdentity(operatorIdentity.value, storage);
+    root.dispatchEvent(new Event(CHECK_CODE_IDENTITY_CHANGED_EVENT));
     applyTranslations();
     status.textContent = registry.translate("options.language.saved");
     dialog.close("apply");

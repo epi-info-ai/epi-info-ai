@@ -44,6 +44,13 @@ available, for example:
 & "<node-path>" wasm/tests/build-smoke.mjs
 ```
 
+The managed Playwright browser cache is under
+`C:\Users\cke1\AppData\Local\ms-playwright`; discover the current
+`chromium-*` directory instead of hard-coding its revision. Leave
+`EPI_INFO_USE_INSTALLED_CHROME` unset when using that Playwright-managed
+Chromium. Set it to `1` only after verifying that the Google Chrome channel
+exists, because Playwright treats Chrome and Chromium as distinct installations.
+
 ## Contributor briefing
 
 Epi Info AI is a browser-first, offline-first modernization of CDC Epi Info. It
@@ -155,6 +162,11 @@ eventually run against many projects, not only the foodborne dataset.
 - `.epia` is the portable project archive; authenticated encrypted packages use
   `.epiax`. Preserve supported data, programs, runbooks, audit history,
   study-area metadata, and map assets with integrity checks.
+- Treat teaching-package completeness as a release invariant. Its manifest must
+  enumerate every required dataset, program, runbook, vector/raster map asset,
+  and other governed artifact with media type, byte length, and SHA-256 digest.
+  Import must verify the complete inventory before replacing the active project;
+  a successful import may not silently omit an asset or layer.
 - Mutating/destructive workflows require preview, explicit Apply, recoverability
   where possible, and audit history. Opening a project must clear stale output
   belonging to the previous project.
@@ -166,6 +178,15 @@ Every numerical method needs independently derived expected results, missing and
 edge cases, resource limits, method identity, and provenance. Never validate an
 algorithm solely against itself or claim equivalence to desktop Epi Info,
 SaTScan, or another product without documented differential evidence.
+
+Every published teaching package also needs CI regression coverage at four
+levels: (1) manifest existence, size, and digest integrity; (2) archive export
+and fresh-storage import with byte-for-byte artifact recovery; (3) application
+restoration of forms, records, programs, runbooks, vector layers, raster layers,
+and settings; and (4) fail-closed rejection of missing, corrupt, duplicate,
+oversized, or undeclared artifacts before the open project changes. Apply this
+floor to every catalogued teaching package, not only the example that exposed a
+defect.
 
 Hard-core Epi Info users and field epidemiology trainees are primary audiences.
 Expose assumptions, exclusions, parameters, method/version identity, Worker

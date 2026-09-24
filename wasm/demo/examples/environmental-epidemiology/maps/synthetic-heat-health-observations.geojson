@@ -1,0 +1,19 @@
+{
+  "type": "FeatureCollection",
+  "name": "Synthetic heat-health observations",
+  "crs": { "type": "name", "properties": { "name": "EPSG:4326" } },
+  "features": [
+    { "type": "Feature", "properties": { "observation_id": "HH001", "heat_category": "Elevated", "health_event": "No" }, "geometry": { "type": "Point", "coordinates": [-77.03250, 38.93610] } },
+    { "type": "Feature", "properties": { "observation_id": "HH002", "heat_category": "Elevated", "health_event": "No" }, "geometry": { "type": "Point", "coordinates": [-77.03690, 38.90720] } },
+    { "type": "Feature", "properties": { "observation_id": "HH003", "heat_category": "Elevated", "health_event": "Yes" }, "geometry": { "type": "Point", "coordinates": [-77.01710, 38.87520] } },
+    { "type": "Feature", "properties": { "observation_id": "HH004", "heat_category": "Extreme", "health_event": "Yes" }, "geometry": { "type": "Point", "coordinates": [-77.02840, 38.93480] } },
+    { "type": "Feature", "properties": { "observation_id": "HH005", "heat_category": "Extreme", "health_event": "Yes" }, "geometry": { "type": "Point", "coordinates": [-77.03120, 38.90490] } },
+    { "type": "Feature", "properties": { "observation_id": "HH006", "heat_category": "Extreme", "health_event": "Yes" }, "geometry": { "type": "Point", "coordinates": [-77.02180, 38.87270] } },
+    { "type": "Feature", "properties": { "observation_id": "HH007", "heat_category": "Extreme", "health_event": "Yes" }, "geometry": { "type": "Point", "coordinates": [-77.02510, 38.93150] } },
+    { "type": "Feature", "properties": { "observation_id": "HH008", "heat_category": "Extreme", "health_event": "Yes" }, "geometry": { "type": "Point", "coordinates": [-77.03960, 38.90240] } },
+    { "type": "Feature", "properties": { "observation_id": "HH009", "heat_category": "Extreme", "health_event": "No" }, "geometry": { "type": "Point", "coordinates": [-77.01370, 38.87810] } },
+    { "type": "Feature", "properties": { "observation_id": "HH010", "heat_category": "Elevated", "health_event": "No" }, "geometry": { "type": "Point", "coordinates": [-77.03580, 38.93820] } },
+    { "type": "Feature", "properties": { "observation_id": "HH011", "heat_category": "Elevated", "health_event": "No" }, "geometry": { "type": "Point", "coordinates": [-77.04310, 38.90960] } },
+    { "type": "Feature", "properties": { "observation_id": "HH012", "heat_category": "Elevated", "health_event": "No" }, "geometry": { "type": "Point", "coordinates": [-77.02630, 38.86990] } }
+  ]
+}

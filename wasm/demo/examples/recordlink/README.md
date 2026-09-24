@@ -6,6 +6,22 @@ the legacy `MATCH` command: `MATCH` analyzes already matched case-control sets,
 whereas RECORDLINK proposes which records from different sources may describe
 the same person.
 
+The package includes separate field-compatible Check Code programs for the two
+source forms:
+
+- [`patient-registry-a-check-code.chk`](patient-registry-a-check-code.chk)
+- [`surveillance-b-check-code.chk`](surveillance-b-check-code.chk)
+
+Each source uses Identity and Demographics pages, reviews a missing source
+identifier, and demonstrates deterministic cross-page navigation. Registry A
+also demonstrates adapted `GOTOFORM surveillance-b`: after a registry ID and
+facility are entered, the learner can move to the second project form while the
+validated draft remains available in the browser session until explicitly
+saved. The
+`true-links` form intentionally has no Check Code because it is evaluation
+truth, not a data-entry surface. Check Code improves entry quality; it never
+decides or applies record links.
+
 ## Contents
 
 - `patient-registry-a.csv` — eight synthetic registry records.

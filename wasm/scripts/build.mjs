@@ -139,6 +139,14 @@ await cp(
   join(validationFixtureDirectory, "chi-square-trend-v0.15.json"),
 );
 await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/check-code-pfromz-v0.1.json"),
+  join(validationFixtureDirectory, "check-code-pfromz-v0.1.json"),
+);
+await cp(
+  join(wasmDirectory, "tests/fixtures/algorithm-validation/check-code-zscore-v0.1.json"),
+  join(validationFixtureDirectory, "check-code-zscore-v0.1.json"),
+);
+await cp(
   join(wasmDirectory, "tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.expected.json"),
   join(validationFixtureDirectory, "foodborne-tables-stratified-v0.3.json"),
 );

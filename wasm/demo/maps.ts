@@ -31,7 +31,7 @@ import { inspectReferenceLayerPackageV01, reviewReferenceLayerCrsV01, type Refer
 import { inspectGeoJsonInputV01 } from "../app/gis/ingestion.ts";
 import { createVerifiedShapefileZipV01, extractVerifiedShapefileZipV01 } from "../app/gis/archive-ingestion.ts";
 import { createReferenceLayerLineageV01, persistReferenceLayerLineageV01 } from "../app/gis/reference-layer-lineage.ts";
-import { storeReferenceLayerSource, removeReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
+import { storeReferenceLayerSource, removeReferenceLayerSource, projectReferencesReferenceLayerSource } from "../app/gis/reference-layer-sources.ts";
 import { createReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
 import { buildReferenceLayerGdalRequestV01 } from "../app/gis/reference-layer-adapter.ts";
 import type { ReferenceLayerNormalizationPlanV01 } from "../app/gis/reference-layer-normalization.ts";
@@ -50,6 +50,7 @@ import { createMapTimeLapsePlanV01 } from "../app/gis/map-time-lapse.ts";
 import { createMapAnnotationsV01, type MapAnnotationsV01 } from "../app/gis/map-annotations.ts";
 import { createMapPngExportPlanV01, type MapPngExportPlanV01 } from "../app/gis/map-export.ts";
 import { GdalWorkerClient, type GdalDataset, type GdalDatasetInfo, type GdalOpenedDataset } from "./examples/gdal-wasm/gdal-wasm-worker.ts";
+import { writeLastCheckCodePosition } from "../app/check-code/check-code-device-context.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
 // confined to this adapter module until the vendored distribution carries types.
@@ -306,6 +307,7 @@ function persistProjectMapLayers(): void {
       opacity: entry.recipe.opacity,
       noDataColor: entry.recipe.noDataColor,
       legendTitle: entry.recipe.legend.title,
+      ...(entry.recipe.filter ? { filter: entry.recipe.filter } : {}),
     })),
     ...[...dotDensityLayers].map(([id, entry]): ProjectMapLayer => ({
       id,
@@ -317,7 +319,7 @@ function persistProjectMapLayers(): void {
       boundaryKeyField: entry.recipe.boundaryKeyField,
       dataKeyField: entry.recipe.dataKeyField,
       valueField: entry.recipe.valueField,
-      joinNormalization: "trim-casefold",
+      joinNormalization: entry.recipe.joinNormalization,
       valuePerDot: entry.recipe.valuePerDot,
       rounding: entry.recipe.rounding,
       seed: entry.recipe.seed,
@@ -1135,6 +1137,7 @@ function renderGeoJsonLayerList() {
     const row = document.createElement("span");
     row.className = "map-geojson-layer";
     row.dataset.geojsonLayerId = id;
+    const hasRenderedLabels = entry.labels.length > 0;
     const label = document.createElement("label");
     const toggle = document.createElement("input");
     toggle.type = "checkbox";
@@ -1142,10 +1145,10 @@ function renderGeoJsonLayerList() {
     toggle.dataset.geojsonToggle = id;
     const name = document.createElement("span");
     name.className = "map-geojson-layer-name";
-    name.textContent = `${entry.name} (${entry.featureCount})${entry.labelField ? ` - labels: ${entry.labelField}` : ""}`;
-    name.title = entry.labelField ? `${entry.name}; polygon labels: ${entry.labelField}` : entry.name;
+    name.textContent = `${entry.name} (${entry.featureCount})${hasRenderedLabels ? ` - labels: ${entry.labelField}` : ""}`;
+    name.title = hasRenderedLabels ? `${entry.name}; polygon labels: ${entry.labelField}` : entry.name;
     label.append(toggle, name);
-    if (entry.labelField) {
+    if (hasRenderedLabels) {
       const labelToggleLabel = document.createElement("label");
       labelToggleLabel.className = "map-label-toggle";
       const labelToggle = document.createElement("input");
@@ -2084,6 +2087,7 @@ function captureLocation() {
   }
   requiredElement("#map-status").textContent = "Waiting for location permission...";
   navigator.geolocation.getCurrentPosition((position) => {
+    writeLastCheckCodePosition(position);
     ensureMap();
     const { latitude, longitude, accuracy } = position.coords;
     locationLayer.clearLayers();
@@ -2154,6 +2158,7 @@ async function restoreProjectMapLayers(
           opacity: definition.opacity,
           noDataColor: definition.noDataColor,
           legend: { title: definition.legendTitle, showLabels: true, showNoData: true },
+          ...(definition.filter ? { filter: definition.filter as NonNullable<ChoroplethLayerRecipeV01["filter"]> } : {}),
         });
         addChoroplethLayer(geojson, asset, data, recipe, { id: definition.id, visible: definition.visible, persist: false });
       } else if (definition.kind === "dot-density" && asset.format === "geojson") {
@@ -2167,6 +2172,7 @@ async function restoreProjectMapLayers(
           dataSourceFormId: definition.sourceFormId,
           dataKeyField: definition.dataKeyField,
           valueField: definition.valueField,
+          joinNormalization: definition.joinNormalization,
           valuePerDot: definition.valuePerDot,
           rounding: definition.rounding,
           seed: definition.seed,
@@ -2375,6 +2381,7 @@ export function initializeMaps(
   const dotDensityDataSource = requiredElement<HTMLSelectElement>("#dot-density-data-source");
   const dotDensityBoundaryKey = requiredElement<HTMLSelectElement>("#dot-density-boundary-key");
   const dotDensityDataKey = requiredElement<HTMLSelectElement>("#dot-density-data-key");
+  const dotDensityNormalization = requiredElement<HTMLSelectElement>("#dot-density-normalization");
   const dotDensityValueField = requiredElement<HTMLSelectElement>("#dot-density-value-field");
   const dotDensityValuePerDot = requiredElement<HTMLInputElement>("#dot-density-value-per-dot");
   const dotDensityPlacement = requiredElement<HTMLSelectElement>("#dot-density-placement");
@@ -2978,6 +2985,7 @@ export function initializeMaps(
         dataSourceFormId: data.formId,
         dataKeyField: dotDensityDataKey.value,
         valueField: dotDensityValueField.value,
+        joinNormalization: dotDensityNormalization.value as "exact" | "trim-casefold",
         valuePerDot: Number(dotDensityValuePerDot.value),
         rounding: "nearest",
         seed: 12345,
@@ -3178,6 +3186,7 @@ export function initializeMaps(
         if (outputInspection.format !== "GeoJSON") throw new TypeError("GDAL produced an invalid GeoJSON result.");
         const normalized = JSON.parse(new TextDecoder().decode(outputBytes)) as { type?: unknown; features?: unknown[] };
         if (normalized.type !== "FeatureCollection" || !Array.isArray(normalized.features)) throw new TypeError("GDAL produced an invalid GeoJSON FeatureCollection.");
+        const retainedSources = currentProjectSnapshot?.()?.referenceLayerSources ?? [];
         const storedSource = await storeReferenceLayerSource(file, referenceLayerInspection!.packageFormat);
         currentReferenceLayerSource = storedSource;
         try {
@@ -3191,7 +3200,9 @@ export function initializeMaps(
           referenceLayerStatus.textContent = `Normalized and saved ${normalized.features.length.toLocaleString()} features as a verified CRS84 GeoJSON project asset with lineage and source package recorded in the project snapshot. The original package remains unmodified.`;
         } catch (error) {
           currentReferenceLayerSource = null;
-          await removeReferenceLayerSource(storedSource).catch(() => undefined);
+          if (!projectReferencesReferenceLayerSource(storedSource, retainedSources)) {
+            await removeReferenceLayerSource(storedSource).catch(() => undefined);
+          }
           throw error;
         }
       } finally {

@@ -61,7 +61,30 @@
               "type": "text",
               "required": false
             }
-          ]
+          ],
+          "pages": [
+            {
+              "name": "Event",
+              "fields": [
+                "case_id",
+                "event_date",
+                "location_id",
+                "syndrome"
+              ]
+            },
+            {
+              "name": "Location",
+              "fields": [
+                "latitude",
+                "longitude"
+              ]
+            }
+          ],
+          "checkCodeProgram": {
+            "version": 1,
+            "language": "epi-info-check-code",
+            "source": "*** Epi Info AI space-time cluster entry Check Code tour\n*** Entry checks complement, but do not replace, CLUSTER analysis validation.\n\nPage Event\n  Before\n    ENABLE case_id event_date location_id syndrome\n  End-Before\nEnd-Page\n\nPage Location\n  Before\n    ENABLE latitude longitude\n  End-Before\nEnd-Page\n\nField location_id\n  After\n    IF NOT (location_id = (.) OR location_id = \"\") THEN\n      GOTO latitude\n    END-IF\n  End-After\nEnd-Field\n\nField latitude\n  After\n    IF latitude < -90 OR latitude > 90 THEN\n      HIGHLIGHT latitude\n      DIALOG \"Latitude must be between -90 and 90 decimal degrees.\" TITLETEXT=\"Coordinate review\"\n    ELSE\n      UNHIGHLIGHT latitude\n    END-IF\n  End-After\nEnd-Field\n\nField longitude\n  After\n    IF longitude < -180 OR longitude > 180 THEN\n      HIGHLIGHT longitude\n      DIALOG \"Longitude must be between -180 and 180 decimal degrees.\" TITLETEXT=\"Coordinate review\"\n    ELSE\n      UNHIGHLIGHT longitude\n    END-IF\n  End-After\nEnd-Field\n"
+          }
         },
         "records": [
           {
@@ -326,6 +349,15 @@
       "comment": "Runs the bounded case-only space-time permutation candidate with a planted five-day cluster, deterministic seed, Worker progress, cancellation, aggregate-only Output, and an inline result map.",
       "createdAt": "2026-09-16T12:00:00.000Z",
       "modifiedAt": "2026-09-16T12:00:00.000Z"
+    },
+    {
+      "name": "space-time-cluster-check-code-tour",
+      "source": "*** Epi Info AI space-time cluster entry Check Code tour\n*** Entry checks complement, but do not replace, CLUSTER analysis validation.\n\nPage Event\n  Before\n    ENABLE case_id event_date location_id syndrome\n  End-Before\nEnd-Page\n\nPage Location\n  Before\n    ENABLE latitude longitude\n  End-Before\nEnd-Page\n\nField location_id\n  After\n    IF NOT (location_id = (.) OR location_id = \"\") THEN\n      GOTO latitude\n    END-IF\n  End-After\nEnd-Field\n\nField latitude\n  After\n    IF latitude < -90 OR latitude > 90 THEN\n      HIGHLIGHT latitude\n      DIALOG \"Latitude must be between -90 and 90 decimal degrees.\" TITLETEXT=\"Coordinate review\"\n    ELSE\n      UNHIGHLIGHT latitude\n    END-IF\n  End-After\nEnd-Field\n\nField longitude\n  After\n    IF longitude < -180 OR longitude > 180 THEN\n      HIGHLIGHT longitude\n      DIALOG \"Longitude must be between -180 and 180 decimal degrees.\" TITLETEXT=\"Coordinate review\"\n    ELSE\n      UNHIGHLIGHT longitude\n    END-IF\n  End-After\nEnd-Field\n",
+      "language": "check-code",
+      "author": "Epi Info AI",
+      "comment": "Entry-time location and coordinate review for the synthetic cluster lesson.",
+      "createdAt": "2026-09-22T12:00:00.000Z",
+      "modifiedAt": "2026-09-22T12:00:00.000Z"
     }
   ],
   "codeTables": [],

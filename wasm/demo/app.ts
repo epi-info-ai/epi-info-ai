@@ -35,6 +35,7 @@ import { createClassicProgramEditor, type ClassicProgramEditorPreferences, type 
 import { buildClassicAnalysisCommand, CLASSIC_TABLES_EXPANSION_PLAN_VERSION, resolveSelectedClassicAnalysisCommand, type ClassicAnalysisCommandInput, type ClassicAnalysisCommandKind, type ClassicDefineVariableScope, type ClassicDefineVariableType } from "../app/programming/classic-command-builder.js";
 import { initializeUiRunbooks } from "../app/help/runbooks.js";
 import { initializeBrowserLocalization } from "../app/localization/browser-localization.js";
+import { initializeBrowserIdentity } from "../app/check-code/browser-identity.js";
 import { applyClassicSelection, resolveClassicSelectionCommand, type ClassicSelectionOperator } from "../app/programming/classic-selection.js";
 import { resolveClassicSortCommand, type ClassicSortDirection } from "../app/programming/classic-sort.js";
 import { assignmentValueFromInput, resolveClassicAssignCommand, resolveClassicDefineCommand, resolveClassicUndefineCommand } from "../app/programming/classic-assignment.js";
@@ -83,6 +84,7 @@ import { assessClassicProgramCatalog, loadClassicProgramCatalogIndex, loadClassi
 import { applyBoundedClassicProgram, CLASSIC_PROGRAM_PLAN_VERSION, parseBoundedClassicProgram, type BoundedClassicProgramPlan } from "../app/programming/classic-program.js";
 import { appendProgramRunHistory, readProgramRunHistory, type ProgramRunHistoryEntry } from "../app/programming/run-history.js";
 import { installTeachingRepository, listInstalledTeachingRepositories, previewTeachingRepository, readInstalledTeachingArtifact, type InstalledTeachingRepository, type TeachingRepositoryPreview } from "../app/teaching/repository.js";
+import { installCapabilityPackage, listInstalledCapabilityPackages, previewCapabilityPackage, type CapabilityPackagePreview } from "../app/packages/capability-package.js";
 import { fetchExampleProject, loadExampleProjectCatalog, type LoadedExampleProjectCatalog } from "../app/projects/example-repository.js";
 import type { BoundaryInterval, BoundaryNumber, ChiSquareTrendRow, CohortSampleSizeInput, CohortSampleSizeResult, ConfidenceInterval, FrequencyResult, MatchedPairsDerivation, MatchedPairsResult, MeansResult, PopulationSurveyInput, PopulationSurveyResult, RateResult, StratifiedFrequencyResult, StratifiedTable2x2Input, StratifiedTable2x2Result, Table2x2Input, Table2x2Result, UnmatchedCaseControlInput, UnmatchedCaseControlResult } from "../app/contracts/engine.js";
 import type { EpiCurveResult } from "../app/contracts/dashboard.js";
@@ -2410,6 +2412,106 @@ document.addEventListener("click", (event) => {
   openExampleProjectDialog();
 });
 requiredElement("#example-project-refresh").addEventListener("click", () => void refreshExampleProjectCatalog());
+
+const capabilityPackageDialog = requiredElement<HTMLDialogElement>("#capability-package-dialog");
+const capabilityPackageUrl = requiredElement<HTMLInputElement>("#capability-package-url");
+const capabilityPackagePreset = requiredElement<HTMLSelectElement>("#capability-package-preset");
+const capabilityPackageStatus = requiredElement<HTMLElement>("#capability-package-status");
+const capabilityPackagePreviewPanel = requiredElement<HTMLElement>("#capability-package-preview-panel");
+const capabilityPackageInstall = requiredElement<HTMLButtonElement>("#capability-package-install");
+const capabilityPackageInstalled = requiredElement<HTMLElement>("#capability-package-installed");
+let currentCapabilityPackagePreview: CapabilityPackagePreview | null = null;
+
+function formatCapabilityBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function renderInstalledCapabilityPackages(): void {
+  const installed = listInstalledCapabilityPackages();
+  capabilityPackageInstalled.hidden = installed.length === 0;
+  requiredElement("#capability-package-installed-summary").textContent = installed.length
+    ? `${installed.length} inert package${installed.length === 1 ? "" : "s"} installed. ${installed.map((item) => `${item.manifest.title} ${item.manifest.version} passed ${item.receipt.verifiedArtifacts} artifact checks`).join("; ")}. No package received execution or network authority.`
+    : "";
+}
+
+function renderCapabilityPackagePreview(preview: CapabilityPackagePreview): void {
+  const { manifest } = preview;
+  requiredElement("#capability-package-preview-title").textContent = manifest.title;
+  requiredElement("#capability-package-preview-description").textContent = manifest.description;
+  requiredElement("#capability-package-preview-id").textContent = manifest.id;
+  requiredElement("#capability-package-preview-version").textContent = manifest.version;
+  requiredElement("#capability-package-preview-publisher").textContent = manifest.publisher;
+  requiredElement("#capability-package-preview-manifest-source").textContent = new URL(preview.manifestUrl).hostname;
+  requiredElement("#capability-package-preview-revision").textContent = manifest.source.revision;
+  requiredElement("#capability-package-preview-size").textContent = `${formatCapabilityBytes(preview.totalBytes)} across ${manifest.artifacts.length} artifacts`;
+  requiredElement("#capability-package-preview-install-approval").textContent = "Approved synthetic import demonstration";
+  requiredElement("#capability-package-preview-scientific").textContent = "Not approved — command execution remains disabled";
+  requiredElement("#capability-package-preview-signature").textContent = "Pending protected-CI signing; integrity checks only";
+  requiredElement("#capability-package-preview-authority").textContent = "No execution and no network authority";
+  requiredElement("#capability-package-preview-warning").textContent = manifest.approval.reason;
+  requiredElement("#capability-package-artifacts").replaceChildren(...manifest.artifacts.map((artifact) => {
+    const item = document.createElement("li");
+    item.textContent = `${artifact.role}: ${artifact.path} (${formatCapabilityBytes(artifact.bytes)}, ${artifact.digest.slice(0, 19)}…)`;
+    return item;
+  }));
+  capabilityPackagePreviewPanel.hidden = false;
+  capabilityPackageInstall.disabled = false;
+}
+
+async function previewCapabilityPackageFrom(url: string): Promise<void> {
+  currentCapabilityPackagePreview = null;
+  capabilityPackagePreviewPanel.hidden = true;
+  capabilityPackageInstall.disabled = true;
+  capabilityPackageStatus.textContent = "Retrieving and validating the capability-package manifest…";
+  try {
+    const preview = await previewCapabilityPackage(url);
+    currentCapabilityPackagePreview = preview;
+    renderCapabilityPackagePreview(preview);
+    capabilityPackageStatus.textContent = "Manifest structure is valid. Review approval, authority, signing, and artifacts before installation.";
+  } catch (error) {
+    capabilityPackageStatus.textContent = error instanceof Error ? error.message : "Unable to preview the capability package.";
+  }
+}
+
+requiredElement("#help-capability-packages").addEventListener("click", () => {
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.legacy-menu")) menu.open = false;
+  renderInstalledCapabilityPackages();
+  capabilityPackageDialog.showModal();
+});
+for (const selector of ["#capability-package-close-titlebar", "#capability-package-close-action"]) {
+  requiredElement<HTMLButtonElement>(selector).addEventListener("click", () => capabilityPackageDialog.close("cancel"));
+}
+requiredElement("#capability-package-preview").addEventListener("click", () => void previewCapabilityPackageFrom(capabilityPackageUrl.value));
+capabilityPackagePreset.addEventListener("change", () => {
+  capabilityPackageUrl.value = capabilityPackagePreset.value;
+  currentCapabilityPackagePreview = null;
+  capabilityPackagePreviewPanel.hidden = true;
+  capabilityPackageInstall.disabled = true;
+  capabilityPackageStatus.textContent = "Package selected. Choose Preview package to retrieve and validate its manifest.";
+});
+capabilityPackageInstall.addEventListener("click", () => {
+  if (!currentCapabilityPackagePreview) return;
+  capabilityPackageInstall.disabled = true;
+  capabilityPackageStatus.textContent = "Staging artifacts and verifying lengths and SHA-256 digests from approved mirrors…";
+  void (async () => {
+    try {
+      const installed = await installCapabilityPackage(currentCapabilityPackagePreview!);
+      renderInstalledCapabilityPackages();
+      capabilityPackageStatus.textContent = `${installed.manifest.title} ${installed.manifest.version} installed as inert assets. Receipt recorded; scientific execution and network authority remain disabled.`;
+    } catch (error) {
+      capabilityPackageStatus.textContent = error instanceof Error ? error.message : "Capability package installation failed.";
+      capabilityPackageInstall.disabled = false;
+    }
+  })();
+});
+renderInstalledCapabilityPackages();
+
+requiredElement("#help-gis-kernel-lab").addEventListener("click", () => {
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.legacy-menu")) menu.open = false;
+  window.open(new URL("./gis-kernel-spike.html", document.baseURI), "_blank", "noopener,noreferrer");
+});
 
 const teachingRepositoryDialog = requiredElement<HTMLDialogElement>("#teaching-repository-dialog");
 const teachingRepositoryUrl = requiredElement<HTMLInputElement>("#teaching-repository-url");
@@ -5885,10 +5987,10 @@ function appendSequentialCommandOutput(
   if (output && !output.hidden) {
     const result = document.createElement("div"); result.className = "classic-sequential-command-result";
     result.append(retainedSequentialOutput(output)); article.append(result);
-    // RENDER uses the live CLUSTER document as a staging surface. Once its
-    // retained program result exists, hide that staging copy so the Output
-    // browser presents one static map rather than the original plus its clone.
-    if (statement.type === "EpiAiClusterRenderStatement") output.hidden = true;
+    // RENDER and GRAPH use their live documents as staging surfaces. Once the
+    // retained program result exists, hide the staging copy so Output presents
+    // one visualization rather than the original plus its retained clone.
+    if (statement.type === "EpiAiClusterRenderStatement" || statement.type === "GraphStatement") output.hidden = true;
   }
   requiredElement("#classic-sequential-output-body").append(article);
   requiredElement("#classic-sequential-output-count").textContent = `${index} of ${total} commands retained`;
@@ -6504,6 +6606,7 @@ refreshRatesSelectors();
 
 try {
   initializeBrowserLocalization();
+  initializeBrowserIdentity();
   initializeFormDataDemo();
   clearClassicSessionResources();
   classicProgramSession.reset(getCurrentProjectData());

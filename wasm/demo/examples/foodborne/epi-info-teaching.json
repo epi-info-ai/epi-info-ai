@@ -36,9 +36,39 @@
     {
       "path": "wasm/demo/examples/foodborne/README.md",
       "mediaType": "text/markdown",
-      "sha256": "ae48a160b14dfdb2f4eaad21807dc0d964f62b8da5ab1ed08a0f9c0537161dc0",
+      "sha256": "268a0c4691f57a22f4a058444b99c958d2941d49cd3d4300c650471bbe1409b8",
+      "bytes": 6301,
+      "role": "lesson"
+    },
+    {
+      "path": "wasm/demo/examples/foodborne/foodborne-check-code-tour.chk",
+      "mediaType": "text/plain",
+      "sha256": "aa422e20a17625f0aa44ac28bb50be81a13ec992618e3b4bf91c7ece4bab9227",
+      "bytes": 3576,
+      "role": "program",
+      "dataset": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv"
+    },
+    {
+      "path": "wasm/demo/examples/foodborne/foodborne-check-code.runbook.json",
+      "mediaType": "application/json",
+      "sha256": "e96c67d5136b809df388f7c448c423e9730835c4c7b892038b450ba3870ab227",
       "bytes": 3601,
       "role": "lesson"
+    },
+    {
+      "path": "wasm/demo/examples/foodborne/foodborne-form-designer.runbook.json",
+      "mediaType": "application/json",
+      "sha256": "85507067756cd18250cc38e0e4943a26634e8345edf1296e175e1d267742c985",
+      "bytes": 6715,
+      "role": "lesson"
+    },
+    {
+      "path": "wasm/demo/examples/foodborne/foodborne-database-dialog-tour.chk",
+      "mediaType": "text/plain",
+      "sha256": "aa30623f4592c259a12d6ce0793048df4317d0c478cdd37d51786d8690f662d8",
+      "bytes": 1173,
+      "role": "program",
+      "dataset": "wasm/demo/examples/foodborne/foodborne-outbreak-investigation.csv"
     }
   ]
 }

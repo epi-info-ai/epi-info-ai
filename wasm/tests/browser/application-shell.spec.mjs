@@ -211,6 +211,66 @@ test("Help runbook guides a dataset-matched foodborne Program Editor workflow", 
   await expect(page.locator(".runbook-highlight")).toHaveCount(0);
 });
 
+test("project Form Designer runbook verifies learner-completed steps without performing them", async ({ page }) => {
+  const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
+  await applicationMenu.getByText("File", { exact: true }).click();
+  await applicationMenu.getByRole("menuitem", { name: /Import Example Project/ }).click();
+  const projectDialog = page.getByRole("dialog", { name: "Import Example Project" });
+  await expect(projectDialog.locator("#example-project-status")).toContainText("5 verified project choices");
+  await projectDialog.getByRole("button", { name: "Import Foodborne Outbreak Investigation" }).click();
+
+  await applicationMenu.getByText("Help", { exact: true }).click();
+  await applicationMenu.getByRole("menuitem", { name: /Automated Runbooks/ }).click();
+  const library = page.getByRole("dialog", { name: "Automated Runbooks" });
+  await library.locator("#runbook-select").selectOption("foodborne-form-designer-lab");
+  await expect(library.locator("#runbook-description")).toContainText("observable completion evidence");
+  await library.getByRole("button", { name: "Start Runbook" }).click();
+
+  const coach = page.locator("#runbook-coach");
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Orient to the project and form");
+  await coach.getByRole("button", { name: "Next" }).click();
+  await page.locator("#add-field").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Define the investigation team field");
+
+  await coach.getByRole("button", { name: "Next" }).click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Define the investigation team field");
+  await expect(coach.locator("#runbook-evidence-status")).toContainText("Not yet verified");
+
+  const field = page.locator("#field-list tr:last-child");
+  await field.locator('[data-part="name"]').fill("team_initials");
+  await field.locator('[data-part="prompt"]').fill("Investigation team initials");
+  await field.locator('[data-part="required"]').check();
+  await coach.getByRole("button", { name: "Check step" }).click();
+  await expect(coach.locator("#runbook-evidence-status")).toContainText("Verified:");
+  await coach.getByRole("button", { name: "Next" }).click();
+
+  await field.locator('[data-part="rules"]').click();
+  await page.locator("#field-rule-pattern").fill("^[A-Z]{2,5}$");
+  await coach.getByRole("button", { name: "Check step" }).click();
+  await expect(coach.locator("#runbook-evidence-status")).toContainText("Verified:");
+  await coach.getByRole("button", { name: "Next" }).click();
+  await page.locator("#field-rules-form .dialog-primary").click();
+  await page.locator("#save-form").click();
+  await page.locator("#designer-toolbar-check-code").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Confirm visible Check Code source");
+  await coach.getByRole("button", { name: "Check step" }).click();
+  await expect(coach.locator("#runbook-evidence-status")).toContainText("Verified:");
+  await coach.getByRole("button", { name: "Next" }).click();
+  await page.locator("[data-close-check-code-editor]").last().click();
+  await page.locator("#designer-enter-data").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Complete the Page Before event");
+  await page.locator("#check-code-dialog-select").selectOption({ label: "Yes" });
+  await page.locator("#check-code-message-dialog .dialog-primary").click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Test the new field");
+  await page.locator("#record-form [name='team_initials']").fill("ABC");
+  await coach.getByRole("button", { name: "Check step" }).click();
+  await expect(coach.locator("#runbook-evidence-status")).toContainText("Verified:");
+  await coach.getByRole("button", { name: "Next" }).click();
+  await expect(coach.locator("#runbook-step-title")).toHaveText("Form Designer lab complete");
+  await coach.getByRole("button", { name: "Finish" }).click();
+  await expect(coach).toBeHidden();
+});
+
 test("Help runbook accepts the saved-project Open Pgm path and never traps Next", async ({ page }) => {
   await page.locator("#main-menu").getByRole("button", { name: "Create Forms" }).click();
   await page.locator("#import-rows-with-form").check();
@@ -387,7 +447,7 @@ for (const viewport of [
     await page.reload();
 
     await expect(page.locator(".brand-copy strong")).toContainText("Epi Info");
-    await expect(page.getByText("Local demo", { exact: true })).toBeVisible();
+    await expect(page.locator("#local-demo-sign-in")).toHaveText("Log in");
     await expect(page.getByRole("navigation", { name: "Application menu" })).toBeVisible();
 
     const createForms = page.locator("#main-menu").getByRole("button", { name: "Create Forms" });
@@ -1344,7 +1404,7 @@ test("opening a foodborne repository project clears RECORDLINK output and govern
   await applicationMenu.getByText("File", { exact: true }).click();
   await applicationMenu.getByRole("menuitem", { name: /Import Example Project/ }).click();
   const exampleDialog = page.getByRole("dialog", { name: "Import Example Project" });
-  await expect(exampleDialog.locator("#example-project-status")).toContainText("4 verified project choices");
+  await expect(exampleDialog.locator("#example-project-status")).toContainText("5 verified project choices");
   await exampleDialog.getByRole("button", { name: "Import Foodborne Outbreak Investigation" }).click();
   await expect(exampleDialog).toBeHidden();
   await expect(page.locator("#main-menu-status")).toContainText("Imported Foodborne Outbreak Investigation");
@@ -4244,7 +4304,7 @@ test("GitHub teaching repository installs the pinned foodborne dataset and progr
   await page.locator("#teaching-repository-preview").click();
   await expect(page.locator("#teaching-repository-preview-title")).toHaveText("Foodborne outbreak investigation");
   await expect(page.locator("#teaching-repository-preview-revision")).toHaveText(revision);
-  await expect(page.locator("#teaching-repository-artifacts li")).toHaveCount(4);
+  await expect(page.locator("#teaching-repository-artifacts li")).toHaveCount(8);
   await page.locator("#teaching-repository-install").click();
   await expect(page.locator("#teaching-repository-status")).toContainText("installed offline; 1 verified program catalog registered");
   await expect(page.locator("#teaching-repository-installed-summary")).toContainText("pinned at 4dccfbaa79e6");
@@ -4278,16 +4338,16 @@ test("Classic Analysis Help opens Teaching Repositories", async ({ page }) => {
   await expect(page.getByRole("dialog", { name: "Teaching Repositories" })).toBeVisible();
 });
 
-test("File imports three complete checksummed teaching projects from the repository catalog", async ({ page }) => {
-  await expect(page.locator("#app-version")).toHaveText("v0.1.0");
+test("File imports complete checksummed teaching projects from the repository catalog", async ({ page }) => {
+  await expect(page.locator("#app-version")).toHaveText("v0.2.0");
   const applicationMenu = page.getByRole("navigation", { name: "Application menu" });
   await applicationMenu.getByText("File", { exact: true }).click();
   await applicationMenu.getByRole("menuitem", { name: /Import Example Project/ }).click();
   const dialog = page.getByRole("dialog", { name: "Import Example Project" });
   await expect(dialog).toBeVisible();
   await expect(dialog.locator("#example-project-catalog-url")).toHaveValue(/\/examples\/projects\/epi-info-projects\.json$/);
-  await expect(dialog.locator("#example-project-status")).toContainText("4 verified project choices");
-  await expect(dialog.locator(".example-project-card")).toHaveCount(4);
+  await expect(dialog.locator("#example-project-status")).toContainText("5 verified project choices");
+  await expect(dialog.locator(".example-project-card")).toHaveCount(5);
   await dialog.getByRole("button", { name: "Import Foodborne Outbreak Investigation" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator("#main-menu-status")).toContainText("Imported Foodborne Outbreak Investigation");
@@ -4307,14 +4367,14 @@ test("File imports three complete checksummed teaching projects from the reposit
   const designerMenu = page.getByRole("navigation", { name: "Form Designer menu" });
   await designerMenu.getByText("File", { exact: true }).click();
   await designerMenu.getByRole("menuitem", { name: "Import Example Project" }).click();
-  await expect(dialog.locator("#example-project-status")).toContainText("4 verified project choices");
+  await expect(dialog.locator("#example-project-status")).toContainText("5 verified project choices");
   await dialog.getByRole("button", { name: "Import Space-Time Cluster Detection" }).click();
   await expect(page.locator("#project-tree-name")).toContainText("Space-Time Cluster Detection");
   await expect(page.locator("#form-name")).toHaveValue("Space Time Cluster Synthetic V0.1 Form");
 
   await designerMenu.getByText("File", { exact: true }).click();
   await designerMenu.getByRole("menuitem", { name: "Import Example Project" }).click();
-  await expect(dialog.locator("#example-project-status")).toContainText("4 verified project choices");
+  await expect(dialog.locator("#example-project-status")).toContainText("5 verified project choices");
   await dialog.getByRole("button", { name: "Import Synthetic Patient Record Linkage" }).click();
   await expect(page.locator("#project-tree-name")).toContainText("Synthetic Patient Record Linkage");
   await expect(page.locator("#form-name")).toHaveValue("patient_registry_a");

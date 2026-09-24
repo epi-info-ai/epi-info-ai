@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "operation": "epi.checkCode.pfromz",
+  "method": {
+    "quantity": "100 * standard normal lower-tail CDF",
+    "reference": "AS66, Applied Statistics (1973), volume 22, number 3",
+    "legacyRounding": "two decimal places, midpoint-to-even",
+    "legacyUpperCeiling": 99.99
+  },
+  "cases": [
+    { "z": -8, "expected": 0.00 },
+    { "z": -4, "expected": 0.00 },
+    { "z": -3, "expected": 0.13 },
+    { "z": -1.96, "expected": 2.50 },
+    { "z": -1, "expected": 15.87 },
+    { "z": 0, "expected": 50.00 },
+    { "z": 1, "expected": 84.13 },
+    { "z": 1.96, "expected": 97.50 },
+    { "z": 3, "expected": 99.87 },
+    { "z": 4, "expected": 99.99 },
+    { "z": 8, "expected": 99.99 }
+  ],
+  "tolerance": 0.005,
+  "notes": [
+    "Expected values are independently reproducible with Python math.erf before legacy rounding and ceiling rules.",
+    "The result is a percentile from 0 through 100, not a one-sided or two-sided hypothesis-test p-value.",
+    "Classic Analysis reports PFROMZ unsupported; this candidate is scoped to retained Enter Check Code behavior."
+  ]
+}

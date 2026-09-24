@@ -6,6 +6,13 @@ the synthetic events and saved command tour. In Epi Info AI, use **File >
 Import Example Project...** to retrieve and verify it without manually
 exchanging classroom files.
 
+The project also carries
+[`space-time-cluster-check-code-tour.chk`](space-time-cluster-check-code-tour.chk)
+as both active form Check Code and a reviewable project program. Its two-page
+entry form demonstrates a bounded jump from event identification to coordinates
+and visible coordinate-range review. These checks complement CLUSTER analysis;
+they do not alter source observations automatically.
+
 This bundle exercises the new-branch `EPIAI CLUSTER SPACE_TIME` command with an
 entirely synthetic case-only line list. It is separate from legacy Epi Info
 parity and does not claim compatibility with any external scan-statistics

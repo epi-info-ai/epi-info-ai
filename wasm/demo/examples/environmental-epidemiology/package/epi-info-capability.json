@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "epi.package/0.1",
+  "id": "org.cdc.epi-info-ai.environmental-epidemiology",
+  "version": "0.1.0-demo.1",
+  "artifactType": "epi.capability-assets",
+  "publisher": "org.cdc.epi-info-ai",
+  "title": "Environmental Epidemiology",
+  "description": "Inert demonstration package for reviewed environmental-provider plans and the application-shipped epi-gis kernel boundary.",
+  "source": {
+    "authoritative": "https://git.cdc.gov/epi-info-ai/epi-info-ai",
+    "mirrors": ["https://github.com/epi-info-ai/epi-info-ai"],
+    "revision": "a82ade37a04e479d1af4e2f24726f8706e6ae220"
+  },
+  "license": "Apache-2.0",
+  "compatibility": {
+    "application": ">=0.2.0 <0.3.0",
+    "capabilities": ["environment.assets.review/0.1", "epi-gis.dataset.inspect/0.1"]
+  },
+  "privacy": {
+    "classification": "public-synthetic",
+    "containsRecordData": false
+  },
+  "approval": {
+    "installation": "approved-synthetic-demo",
+    "scientificExecution": "not-approved",
+    "reason": "Provider retrieval and exposure assignment are not enabled; NCEH, data-owner, privacy, GIS, and scientific validation are still required."
+  },
+  "activation": {
+    "adapter": "environment.assets.review/0.1",
+    "executable": false,
+    "network": false
+  },
+  "artifacts": [
+    {
+      "role": "provider-catalog",
+      "path": "wasm/demo/examples/environmental-epidemiology/package/provider-catalog.json",
+      "mediaType": "application/json",
+      "bytes": 966,
+      "digest": "sha256:e98ffe1b2ccf8f53be98a79c36a02d5eb0536bad604dfd9d0ea60a5df88f5e53"
+    },
+    {
+      "role": "validation",
+      "path": "wasm/demo/examples/environmental-epidemiology/package/validation/package-boundary.json",
+      "mediaType": "application/json",
+      "bytes": 652,
+      "digest": "sha256:175227912ef82933d146c02f96bcabce29d6c576bfbc350f63664735714fd25e"
+    },
+    {
+      "role": "documentation",
+      "path": "wasm/demo/examples/environmental-epidemiology/package/docs/capability-boundary.md",
+      "mediaType": "text/markdown",
+      "bytes": 941,
+      "digest": "sha256:ddbc1193ee0f0083a866f884b03fa67dd448df939a557ba83fef560acc5ed7cc"
+    }
+  ],
+  "dependencies": [],
+  "signatures": {
+    "profile": "catalog-target",
+    "status": "pending-protected-ci"
+  }
+}

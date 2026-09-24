@@ -365,6 +365,29 @@
         "Complete Save as Image, Print, and keyboard behavior compatibility.",
         "Complete the consolidated statistical and implementation review across all candidate outputs."
       ]
+    },
+    {
+      "operation": "epi.checkCode.pfromz",
+      "resultSchemaVersion": "0.1.0",
+      "state": "candidate",
+      "implementation": {
+        "engineId": "check-code-browser",
+        "engineVersion": "check-code-pfromz-v0.1.0",
+        "source": "wasm/app/check-code/check-code-normal.ts"
+      },
+      "gates": { "G0": "passed", "G1": "partial", "G2": "passed", "G3": "passed", "G4": "partial", "G5": "not-started", "G6": "partial" },
+      "approvals": { "statistical": null, "implementation": null },
+      "evidence": [
+        "wasm/tests/fixtures/algorithm-validation/check-code-pfromz-v0.1.json",
+        "wasm/docs/validation/check-code-pfromz-method-contract.md",
+        "wasm/validation-lab/content/validate-check-code-pfromz.ipynb",
+        "wasm/demo/examples/foodborne/foodborne-check-code-expressions.chk"
+      ],
+      "knownGaps": [
+        "Capture reviewed desktop Enter output across the fixed and rounding-boundary corpora.",
+        "Obtain experienced-user review of normal-percentile terminology and Check-Code-only scope.",
+        "Complete consolidated statistical and implementation approval before any validated or legacy-parity claim."
+      ]
     }
   ]
 }

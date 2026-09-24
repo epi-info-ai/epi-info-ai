@@ -78,7 +78,33 @@
               "required": false,
               "tabStop": true
             }
-          ]
+          ],
+          "pages": [
+            {
+              "name": "Identity",
+              "fields": [
+                "record_id",
+                "first_name",
+                "middle_name",
+                "last_name"
+              ]
+            },
+            {
+              "name": "Demographics",
+              "fields": [
+                "date_of_birth",
+                "sex",
+                "patient_address",
+                "art_code",
+                "facility_code"
+              ]
+            }
+          ],
+          "checkCodeProgram": {
+            "version": 1,
+            "language": "epi-info-check-code",
+            "source": "*** Patient registry A entry checks for the synthetic RECORDLINK lesson\n\nDefineVariables\n  DEFINE ContinueToSurveillance STANDARD YN\nEnd-DefineVariables\n\nPage Identity\n  Before\n    ENABLE record_id first_name middle_name last_name\n  End-Before\nEnd-Page\n\nPage Demographics\n  Before\n    ENABLE date_of_birth sex patient_address art_code facility_code\n  End-Before\nEnd-Page\n\nField record_id\n  After\n    IF record_id = \"\" OR record_id = (.) THEN\n      HIGHLIGHT record_id\n      DIALOG \"Registry A records need a source record identifier before linkage.\" TITLETEXT=\"Linkage data quality\"\n    ELSE\n      UNHIGHLIGHT record_id\n      GOTO first_name\n    END-IF\n  End-After\nEnd-Field\n\nField last_name\n  After\n    IF NOT (last_name = \"\" OR last_name = (.)) THEN\n      GOTOPAGE Demographics\n    END-IF\n  End-After\nEnd-Field\n\nField facility_code\n  After\n    IF NOT (record_id = \"\" OR record_id = (.)) AND NOT (facility_code = \"\" OR facility_code = (.)) THEN\n      DIALOG \"Continue to the surveillance source form? The valid registry draft will remain available in this browser session.\" ContinueToSurveillance YN TITLETEXT=\"Cross-form Check Code\"\n      IF ContinueToSurveillance THEN\n        GOTOFORM surveillance-b\n      END-IF\n    END-IF\n  End-After\nEnd-Field\n"
+          }
         },
         "records": [
           {
@@ -244,7 +270,33 @@
               "required": false,
               "tabStop": true
             }
-          ]
+          ],
+          "pages": [
+            {
+              "name": "Identity",
+              "fields": [
+                "client_id",
+                "given_name",
+                "middle",
+                "family_name"
+              ]
+            },
+            {
+              "name": "Demographics",
+              "fields": [
+                "DOB",
+                "SEX",
+                "Address",
+                "ART_CODE",
+                "site_code"
+              ]
+            }
+          ],
+          "checkCodeProgram": {
+            "version": 1,
+            "language": "epi-info-check-code",
+            "source": "*** Surveillance B entry checks for the synthetic RECORDLINK lesson\n\nPage Identity\n  Before\n    ENABLE client_id given_name middle family_name\n  End-Before\nEnd-Page\n\nPage Demographics\n  Before\n    ENABLE DOB SEX Address ART_CODE site_code\n  End-Before\nEnd-Page\n\nField client_id\n  After\n    IF client_id = \"\" OR client_id = (.) THEN\n      HIGHLIGHT client_id\n      DIALOG \"Surveillance B records need a client identifier before linkage.\" TITLETEXT=\"Linkage data quality\"\n    ELSE\n      UNHIGHLIGHT client_id\n      GOTO given_name\n    END-IF\n  End-After\nEnd-Field\n\nField family_name\n  After\n    IF NOT (family_name = \"\" OR family_name = (.)) THEN\n      GOTOPAGE Demographics\n    END-IF\n  End-After\nEnd-Field\n"
+          }
         },
         "records": [
           {
@@ -414,6 +466,24 @@
       "createdAt": "2026-09-16T12:00:00.000Z",
       "modifiedAt": "2026-09-16T12:00:00.000Z",
       "source": "*** Epi Info AI RECORDLINK end-to-end command tour\n*** Datasets: patient-registry-a.csv and surveillance-b.csv (entirely synthetic)\n*** Purpose: inspect both sources before proposing cross-source patient links.\n*** New branch; not the legacy matched case-control MATCH command.\n*** V0.11 adds an acknowledged DuckDB target to the typed governed stages.\n\nHEADER 1 \"Synthetic patient record-linkage teaching workflow\"\nTYPEOUT \"Two fictional eight-record sources use different schemas and contain five known truth links.\"\nTYPEOUT \"Review source quality and aggregate distributions before evaluating any proposed link.\"\n\nREAD patient_registry_a\nHEADER 1 \"Source A — synthetic patient registry\"\nEPIAI QUALITY *\nLIST record_id date_of_birth sex art_code facility_code first_name last_name patient_address\nFREQ facility_code\nFREQ sex\nTABLES facility_code sex\n\nREAD surveillance_b\nHEADER 1 \"Source B — synthetic surveillance line list\"\nEPIAI QUALITY *\nLIST client_id DOB SEX ART_CODE site_code given_name family_name Address\nFREQ site_code\nFREQ SEX\nTABLES site_code SEX\n\nHEADER 1 \"Reviewed cross-source linkage plan\"\nTYPEOUT \"Block on facility/site; compare date, sex, and ART code exactly; compare names and address fuzzily.\"\nEPIAI RECORDLINK SOURCEA=patient_registry_a SOURCEB=surveillance_b IDA=record_id IDB=client_id TRUTH=true_links TRUTHA=source_a_id TRUTHB=source_b_id BLOCK=facility_code:site_code EXACT=date_of_birth:DOB,sex:SEX,art_code:ART_CODE FUZZY=first_name:given_name,last_name:family_name,patient_address:Address FUZZYTHRESHOLD=0.85 REVIEWTHRESHOLD=4 MATCHTHRESHOLD=6 MAXCANDIDATES=10000 RESULT=PatientLinks\nEPIAI RECORDLINK REVIEW RESULT=PatientLinks\nEPIAI RECORDLINK CLUSTER RESULT=PatientLinks\nEPIAI RECORDLINK AUDIT RESULT=PatientLinks\nEPIAI RECORDLINK OUTPUT RESULT=PatientLinks TO=\"patientlinks.duckdb\"\n\n*** Candidate identifiers and values remain out of Output and history.\n*** Review-queue values appear only in the transient local review dialog.\n*** REVIEW pauses this program until every queued pair has a conclusive human decision.\n*** AUDIT stays in memory; OUTPUT requires acknowledgement before CSV, JSON, or DuckDB download.\n*** Future governed slices continue with project-table creation and an explicitly reviewed MERGE.\n"
+    },
+    {
+      "name": "patient-registry-a-check-code",
+      "source": "*** Patient registry A entry checks for the synthetic RECORDLINK lesson\n\nDefineVariables\n  DEFINE ContinueToSurveillance STANDARD YN\nEnd-DefineVariables\n\nPage Identity\n  Before\n    ENABLE record_id first_name middle_name last_name\n  End-Before\nEnd-Page\n\nPage Demographics\n  Before\n    ENABLE date_of_birth sex patient_address art_code facility_code\n  End-Before\nEnd-Page\n\nField record_id\n  After\n    IF record_id = \"\" OR record_id = (.) THEN\n      HIGHLIGHT record_id\n      DIALOG \"Registry A records need a source record identifier before linkage.\" TITLETEXT=\"Linkage data quality\"\n    ELSE\n      UNHIGHLIGHT record_id\n      GOTO first_name\n    END-IF\n  End-After\nEnd-Field\n\nField last_name\n  After\n    IF NOT (last_name = \"\" OR last_name = (.)) THEN\n      GOTOPAGE Demographics\n    END-IF\n  End-After\nEnd-Field\n\nField facility_code\n  After\n    IF NOT (record_id = \"\" OR record_id = (.)) AND NOT (facility_code = \"\" OR facility_code = (.)) THEN\n      DIALOG \"Continue to the surveillance source form? The valid registry draft will remain available in this browser session.\" ContinueToSurveillance YN TITLETEXT=\"Cross-form Check Code\"\n      IF ContinueToSurveillance THEN\n        GOTOFORM surveillance-b\n      END-IF\n    END-IF\n  End-After\nEnd-Field\n",
+      "language": "check-code",
+      "author": "Epi Info AI",
+      "comment": "Source-identifier and page-navigation checks for patient registry A.",
+      "createdAt": "2026-09-22T12:00:00.000Z",
+      "modifiedAt": "2026-09-22T12:00:00.000Z"
+    },
+    {
+      "name": "surveillance-b-check-code",
+      "source": "*** Surveillance B entry checks for the synthetic RECORDLINK lesson\n\nPage Identity\n  Before\n    ENABLE client_id given_name middle family_name\n  End-Before\nEnd-Page\n\nPage Demographics\n  Before\n    ENABLE DOB SEX Address ART_CODE site_code\n  End-Before\nEnd-Page\n\nField client_id\n  After\n    IF client_id = \"\" OR client_id = (.) THEN\n      HIGHLIGHT client_id\n      DIALOG \"Surveillance B records need a client identifier before linkage.\" TITLETEXT=\"Linkage data quality\"\n    ELSE\n      UNHIGHLIGHT client_id\n      GOTO given_name\n    END-IF\n  End-After\nEnd-Field\n\nField family_name\n  After\n    IF NOT (family_name = \"\" OR family_name = (.)) THEN\n      GOTOPAGE Demographics\n    END-IF\n  End-After\nEnd-Field\n",
+      "language": "check-code",
+      "author": "Epi Info AI",
+      "comment": "Client-identifier and page-navigation checks for surveillance source B.",
+      "createdAt": "2026-09-22T12:00:00.000Z",
+      "modifiedAt": "2026-09-22T12:00:00.000Z"
     }
   ],
   "codeTables": [],

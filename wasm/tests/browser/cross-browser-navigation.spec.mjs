@@ -1,8 +1,17 @@
 import { expect, test } from "@playwright/test";
 
+const pageErrors = new WeakMap();
+
 test.beforeEach(async ({ page }) => {
+  const errors = [];
+  pageErrors.set(page, errors);
+  page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(page.locator("#main-menu-title")).toBeAttached();
+});
+
+test.afterEach(async ({ page }) => {
+  expect(pageErrors.get(page) ?? []).toEqual([]);
 });
 
 test("application menus remain reachable and keyboard navigable", async ({ page }) => {
@@ -25,6 +34,20 @@ test("application menus remain reachable and keyboard navigable", async ({ page 
   await expect(navigation.getByRole("menuitemcheckbox", { name: "Status Bar" })).toBeFocused();
   await expect(navigation.locator("#view-menu")).toHaveAttribute("open", "");
   await expect(navigation.locator("details[open]")).toHaveCount(1);
+
+  await page.keyboard.press("Escape");
+  const help = navigation.locator("#help-menu > summary");
+  await help.focus();
+  await help.press("Space");
+  await expect(navigation.locator("#help-menu")).toHaveAttribute("open", "");
+  await expect(navigation.locator("#help-menu [role='menuitem']").first()).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(navigation.locator("details[open]")).toHaveCount(0);
+
+  await help.click();
+  await expect(navigation.locator("#help-menu")).toHaveAttribute("open", "");
+  await page.locator(".titlebar .brand-mark").click();
+  await expect(navigation.locator("details[open]")).toHaveCount(0);
 });
 
 test("fixed dropdown overlay stays inside narrow and zoomed viewports", async ({ page }) => {
@@ -57,6 +80,7 @@ test("menu-opened dialog closes with Escape and the menu reopens", async ({ page
   await expect(page.locator("#application-language")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+  await expect(page.locator("#tools-menu > summary")).toBeFocused();
 
   await page.locator("#tools-menu > summary").click();
   await expect(page.getByRole("menuitem", { name: "Options" })).toBeVisible();

@@ -1,10 +1,25 @@
 *** Epi Info AI foodborne Check Code tour
 *** This bounded source exercises definitions plus Form, Page, Record, and Field events.
+*** Import the packaged foodborne project, inspect and verify this source, then open Enter Data.
 
+/* Legacy Epi Info Check Code commonly uses multiline comments like this one.
+   Comments remain visible to the reviewer but do not become executable AST nodes. */
+
+// Standard variables reset with the data-entry session.
 DefineVariables
   DEFINE ReviewState STANDARD TEXTINPUT
+  DEFINE ReviewNote STANDARD TEXTINPUT
+  DEFINE ContinueReview STANDARD YN
 End-DefineVariables
 
+*** A bounded subroutine can be called from one or more event blocks.
+Sub FlagImplausibleAge
+  HIGHLIGHT age
+  BEEP
+  DIALOG "Age must be between 0 and 120 years." TITLETEXT="Age plausibility review"
+End-Sub
+
+*** Form events bracket the form session.
 Form
   Before
     ASSIGN ReviewState = "Ready"
@@ -14,48 +29,112 @@ Form
   End-After
 End-Form
 
+*** Page events run only while their page is active.
 Page EntryPage
   Before
-    DIALOG "Review the foodborne case before saving."
+    DIALOG "Continue reviewing this foodborne case?" ContinueReview YN TITLETEXT="Foodborne case review"
   End-Before
   After
     ENABLE onset_date
   End-After
 End-Page
 
+Page Clinical
+  Before
+    ENABLE onset_date onset_time hospitalization_date specimen_date interview_date
+  End-Before
+  After
+    UNHIGHLIGHT onset_date
+  End-After
+End-Page
+
+Page ExposureLocation
+  Before
+    ENABLE latitude longitude household_neighborhood
+  End-Before
+End-Page
+
+*** Record events run before entry and after a successful save.
 Record
   Before
-    CLEAR onset_time
+    ALWAYS
+      CLEAR onset_time
+      UNHIGHLIGHT * EXCEPT age
+    END
   End-Before
   After
     IF case_status = "Confirmed" THEN
-      ASSIGN ReviewState = "Reviewed"
+      LET ReviewState = "Reviewed"
+    ELSE-IF case_status = "Probable" THEN
+      LET ReviewState = "Follow-up"
     ELSE
-      ASSIGN ReviewState = "Pending"
+      LET ReviewState = "Pending"
     END-IF
+    LET ReviewNote = "Transient review complete"
+    UNDEFINE ReviewNote
   End-After
 End-Record
 
+*** Enter an existing ID, then leave the field to preview matching saved records.
+*** The browser candidate never replaces the current draft or opens the match.
+Field id
+  After
+    AUTOSEARCH id DISPLAYLIST id age sex case_status CONTINUENEW ALWAYS
+  End-After
+End-Field
+
+*** Enter Confirmed, then leave Case Status to see highlight, required state, and GOTO.
 Field case_status
   Before
     ENABLE case_status
   End-Before
   After
     IF case_status = "Confirmed" THEN
+      HIGHLIGHT onset_date
       SET-REQUIRED onset_date
       ENABLE onset_date
       GOTO onset_date
     ELSE
+      UNHIGHLIGHT onset_date
       SET-NOT-REQUIRED onset_date
     END-IF
   End-After
 End-Field
 
+*** Flag implausible ages while leaving plausible or blank values unhighlighted.
+Field age
+  After
+    IF age < 0 OR age > 120 THEN
+      CALL FlagImplausibleAge
+    ELSE
+      UNHIGHLIGHT age
+    END-IF
+  End-After
+End-Field
+
+*** Leaving a populated Onset Date reveals and enables Onset Time.
 Field onset_date
   After
-    IF onset_date <> "" THEN
+    IF NOT (onset_date = (.) OR onset_date = "") THEN
       UNHIDE onset_time
       ENABLE onset_time
     END-IF
   End-After
+End-Field
+
+*** Legacy GOTOPAGE makes the named page transition explicit and auditable.
+Field interview_date
+  After
+    IF NOT (interview_date = (.) OR interview_date = "") THEN
+      GOTOPAGE ExposureLocation
+    END-IF
+  End-After
+End-Field
+
+*** Record lifecycle effects are allowed only from a Command Button Click event.
+*** SAVE-RECORD uses the same validation and audit-visible form workflow as the UI button.
+Field save_record
+  Click
+    SAVE-RECORD
+  End-Click
 End-Field

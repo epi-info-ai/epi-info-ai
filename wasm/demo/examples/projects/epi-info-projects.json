@@ -7,11 +7,11 @@
     {
       "id": "foodborne-outbreak-investigation",
       "title": "Foodborne Outbreak Investigation",
-      "description": "96 synthetic investigation records with Classic Analysis and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
+      "description": "96 synthetic investigation records with Classic Analysis, Check Code, and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
       "file": "foodborne-outbreak-investigation.epia",
       "repository": "https://git.cdc.gov/epi-info-ai/foodborne-outbreak-investigation",
-      "bytes": 1481863,
-      "sha256": "72284425978ec358794a355b423f18b10d6ef93e3b4cd82e47c4af581512511e"
+      "bytes": 1503263,
+      "sha256": "69713b0ccd699e7a163047c959cf3936d07a3c38824a661e2948643e5986aac9"
     },
     {
       "id": "space-time-cluster-detection",
@@ -19,8 +19,8 @@
       "description": "30 synthetic fever/rash events with a planted cluster, reproducible analysis parameters, mapping, and story-tour output.",
       "file": "space-time-cluster-detection.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/space-time-cluster-detection",
-      "bytes": 12656,
-      "sha256": "f521a0e1520bfbd412fdfa13fe302166fa9957c5bc5ed2ef0dd9e7f3f1e6d1be"
+      "bytes": 15598,
+      "sha256": "62623e2fdd9344cbb55e52c56e09886198a8808ff0e1275a7264ced254a5a23a"
     },
     {
       "id": "record-linkage",
@@ -28,8 +28,8 @@
       "description": "Two synthetic patient sources, known truth links, source quality review, explainable RECORDLINK classification, and bounded local clerical review.",
       "file": "../recordlink/recordlink-synthetic-project.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/recordlink",
-      "bytes": 19095,
-      "sha256": "8bdff295f50bc4af928e9cec6f67de1d75c5198b8372d727d509adefbd06cae5"
+      "bytes": 25161,
+      "sha256": "06dd0a6a24daa21bda847b7e53a85cb1a55f1298315e99b56119e7c9073e6ed3"
     },
     {
       "id": "gis-defensive-ingestion-teaching",
@@ -37,8 +37,17 @@
       "description": "Ten synthetic uploadable GeoJSON and CSV cases with a saved program that filters expected outcomes and reviews GIS-K03 defensive-ingestion behavior.",
       "file": "gis-defensive-ingestion-teaching.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/epi-gis-kernel",
-      "bytes": 8077,
-      "sha256": "5f8ba0189d73f278717e3a8acce0b2d93c48e1b168c9ada86289a2f28e66f513"
+      "bytes": 8371,
+      "sha256": "654ad12e5eade3644dade1e62765230f0f33bc9945c277d5d7627165b80b35bb"
+    },
+    {
+      "id": "environmental-heat-health-candidate",
+      "title": "Environmental Heat and Health Candidate",
+      "description": "Twelve synthetic heat-health observations with data quality, descriptive analysis, 2 x 2 and chart output, an epi-gis Worker lab, a packaged point layer, and a learner-operated runbook.",
+      "file": "environmental-heat-health-candidate.epia",
+      "repository": "https://git.cdc.gov/epi-info-ai/package-environmental-epidemiology",
+      "bytes": 11803,
+      "sha256": "2133ae1cf55edf2822af66ce134213da7d1eaddc7fb4146f3ea042d285e60aac"
     }
   ]
 }

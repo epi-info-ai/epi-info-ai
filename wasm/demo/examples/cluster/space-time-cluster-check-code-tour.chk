@@ -1,0 +1,44 @@
+*** Epi Info AI space-time cluster entry Check Code tour
+*** Entry checks complement, but do not replace, CLUSTER analysis validation.
+
+Page Event
+  Before
+    ENABLE case_id event_date location_id syndrome
+  End-Before
+End-Page
+
+Page Location
+  Before
+    ENABLE latitude longitude
+  End-Before
+End-Page
+
+Field location_id
+  After
+    IF NOT (location_id = (.) OR location_id = "") THEN
+      GOTO latitude
+    END-IF
+  End-After
+End-Field
+
+Field latitude
+  After
+    IF latitude < -90 OR latitude > 90 THEN
+      HIGHLIGHT latitude
+      DIALOG "Latitude must be between -90 and 90 decimal degrees." TITLETEXT="Coordinate review"
+    ELSE
+      UNHIGHLIGHT latitude
+    END-IF
+  End-After
+End-Field
+
+Field longitude
+  After
+    IF longitude < -180 OR longitude > 180 THEN
+      HIGHLIGHT longitude
+      DIALOG "Longitude must be between -180 and 180 decimal degrees." TITLETEXT="Coordinate review"
+    ELSE
+      UNHIGHLIGHT longitude
+    END-IF
+  End-After
+End-Field

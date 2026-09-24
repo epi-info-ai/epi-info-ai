@@ -246,6 +246,23 @@ contain identifying literals.
 Learning completion is not automatically practice evidence. A forecast is not
 evidence. Unknown evidence remains unknown rather than becoming zero or fail.
 
+### Runbook completion-evidence seam
+
+The UI runbook V0.4 host now supports bounded declarative checks for element
+existence, exact or contained control value, checked state, exact attribute
+value, and contained text. The host gives immediate verified/incomplete feedback and emits
+an in-memory `epi-info-runbook-evidence` event containing only the runbook ID,
+step ID, outcome, and check kinds. It deliberately omits the observed values,
+project records, and screen telemetry; password, file, and hidden inputs cannot
+serve as value evidence.
+
+This is suitable as an input adapter for a later learning kernel, but it is not
+yet persisted evidence and does not establish competence. A governed teaching
+activity must still map the step to a capability, rubric, source revision, and
+evidence stage; informed consent and the learner-profile storage boundary must
+be in place before retaining it. The packaged Foodborne Form Designer lab is
+the first end-to-end fixture for this seam.
+
 ## 9. Mathematical floor
 
 V0.1 should implement only the deterministic portion of the reviewed

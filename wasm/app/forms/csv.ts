@@ -195,7 +195,7 @@ export function inferSchemaFromRows(fileName: string, rows: string[][]): CsvInfe
     .split(/\s+/)
     .map((word) => fieldPrompt(word))
     .join(" ") + " Form";
-  const schema = { name: formName, fields };
+  const schema: FormSchema = { name: formName, fields, pages: [{ name: "EntryPage", fields: fields.map(({ name }) => name) }] };
   const records: EpiRecord[] = rows.slice(1).map((row) => normalizeImportedCoordinates(schema, Object.fromEntries(
     fields.map((field, fieldIndex) => [field.name, row[columns[fieldIndex]!.index] ?? ""]),
   )));

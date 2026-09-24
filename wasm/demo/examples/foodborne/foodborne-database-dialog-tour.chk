@@ -1,0 +1,24 @@
+*** Epi Info AI foodborne database-backed Check Code DIALOG tour
+*** Load this source only with the Foodborne Outbreak Investigation project.
+
+DefineVariables
+  DEFINE ChosenField STANDARD TEXTINPUT
+  DEFINE ChosenStatus STANDARD TEXTINPUT
+  DEFINE ChosenView STANDARD TEXTINPUT
+  DEFINE ChosenDatabase STANDARD TEXTINPUT
+End-DefineVariables
+
+Form
+  Before
+    // DBVARIABLES is resolved from the active form schema without querying a database.
+    DIALOG "Choose a field from the active foodborne form." ChosenField DBVARIABLES TITLETEXT="Foodborne fields"
+
+    // The registered-table alias resolves to the packaged foodborne form.
+    // Distinct values are read locally from case_status; no arbitrary SQL is accepted.
+    DIALOG "Choose a recorded case status." ChosenStatus DBVALUES foodborne_outbreak_investigation case_status TITLETEXT="Recorded case statuses"
+
+    // These two legacy spellings are browser adaptations over registered project catalogs.
+    DIALOG "Choose a registered project form." ChosenView DBVIEWS TITLETEXT="Project forms"
+    DIALOG "Choose the active project store." ChosenDatabase DATABASES TITLETEXT="Project stores"
+  End-Before
+End-Form

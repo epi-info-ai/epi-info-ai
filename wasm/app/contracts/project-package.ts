@@ -2,7 +2,7 @@ import {
   validateProjectSnapshot,
   type ProjectSnapshotV1,
 } from "./core.ts";
-import type { UiRunbook, UiRunbookStep } from "../help/runbooks.ts";
+import type { UiRunbook, UiRunbookEvidenceCheck, UiRunbookStep } from "../help/runbooks.ts";
 
 export const PROJECT_PACKAGE_FORMAT = "epi-info-ai-project" as const;
 export const PROJECT_PACKAGE_VERSION = 2 as const;
@@ -170,6 +170,7 @@ function codeTableAt(value: unknown, path: string): ProjectCodeTable {
 
 const RUNBOOK_MODULES = new Set(["classic", "forms", "data", "dashboard", "maps", "statcalc"]);
 const RUNBOOK_ADVANCE_EVENTS = new Set(["click", "change"]);
+const RUNBOOK_EVIDENCE_KINDS = new Set(["exists", "value", "value-contains", "checked", "attribute", "text-contains"]);
 
 function runbookTarget(value: unknown, path: string): string {
   const target = stringAt(value, path);
@@ -194,6 +195,38 @@ function runbookStepAt(value: unknown, path: string): UiRunbookStep {
       fail(`${path}.advanceTargets`, "must contain 1 to 10 selectors");
     }
     result.advanceTargets = source.advanceTargets.map((target, index) => runbookTarget(target, `${path}.advanceTargets[${index}]`));
+  }
+  if (source.evidence !== undefined) {
+    const evidence = objectAt(source.evidence, `${path}.evidence`);
+    if (!Array.isArray(evidence.checks) || evidence.checks.length < 1 || evidence.checks.length > 10) {
+      fail(`${path}.evidence.checks`, "must contain 1 to 10 bounded checks");
+    }
+    const checks = evidence.checks.map((value, index): UiRunbookEvidenceCheck => {
+      const checkPath = `${path}.evidence.checks[${index}]`;
+      const check = objectAt(value, checkPath);
+      const kind = String(check.kind);
+      if (!RUNBOOK_EVIDENCE_KINDS.has(kind)) fail(`${checkPath}.kind`, "is not a supported evidence check");
+      const target = runbookTarget(check.target, `${checkPath}.target`);
+      if (kind === "exists") return { kind, target };
+      if (kind === "checked") {
+        if (typeof check.equals !== "boolean") fail(`${checkPath}.equals`, "must be a boolean");
+        return { kind, target, equals: check.equals };
+      }
+      if (kind === "attribute") {
+        const attribute = stringAt(check.attribute, `${checkPath}.attribute`);
+        if (!/^[a-zA-Z_:][a-zA-Z0-9_.:-]*$/.test(attribute)) fail(`${checkPath}.attribute`, "must be a safe attribute name");
+        return { kind, target, attribute, equals: stringAt(check.equals, `${checkPath}.equals`, true) };
+      }
+      if (kind === "text-contains" || kind === "value-contains") {
+        return { kind, target, includes: stringAt(check.includes, `${checkPath}.includes`) };
+      }
+      return { kind: "value", target, equals: stringAt(check.equals, `${checkPath}.equals`, true) };
+    });
+    result.evidence = {
+      checks,
+      success: stringAt(evidence.success, `${path}.evidence.success`),
+      failure: stringAt(evidence.failure, `${path}.evidence.failure`),
+    };
   }
   return result;
 }

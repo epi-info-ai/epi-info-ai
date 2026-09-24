@@ -25,6 +25,7 @@ const recipe = gis.createDotDensityLayerRecipeV01({
   dataSourceFormId: "county-values",
   dataKeyField: "county_fips",
   valueField: "case_count",
+  joinNormalization: "trim-casefold",
   valuePerDot: 10,
   rounding: "nearest",
   seed: 12345,
@@ -92,6 +93,13 @@ const joined = join.joinDotDensityDataToBoundariesV01(
 assert.equal(joined.matches.length, 1);
 assert.equal(joined.matches[0].dataRows.length, 2);
 assert.deepEqual(joined.diagnostics.map(({ code }) => code), ["missing-data-key", "duplicate-data-key", "unmatched-boundary", "unmatched-data"]);
+const duplicateBoundaryJoin = join.joinDotDensityDataToBoundariesV01(
+  [{ featureIndex: 0, properties: { GEOID: "A" } }, { featureIndex: 1, properties: { GEOID: " a " } }],
+  [{ rowIndex: 0, values: { FIPS: "A", cases: 20 } }],
+  "GEOID", "FIPS", "trim-casefold",
+);
+assert.equal(duplicateBoundaryJoin.matches.length, 0);
+assert.deepEqual(duplicateBoundaryJoin.diagnostics.map(({ code }) => code), ["duplicate-boundary-key", "duplicate-boundary-key", "unmatched-data"]);
 const pipelineResult = pipeline.buildDotDensityPipelineV01(recipe, {
   boundaries: [{ featureIndex: 0, properties: { GEOID: "A" } }],
   rows: [{ rowIndex: 0, values: { FIPS: "a", cases: 20 } }],
@@ -106,6 +114,17 @@ assert.equal(pipelineResult.preview.totalDots, 2);
 assert.equal(pipelineResult.placement.totalCandidates, 2);
 assert.equal(pipelineResult.clipping.keptCount, 2);
 assert.equal(pipelineResult.legend.renderedDots, 2);
+const holePipeline = pipeline.buildDotDensityPipelineV01({ ...recipe, valuePerDot: 1 }, {
+  boundaries: [{ featureIndex: 0, properties: { GEOID: "A" } }],
+  rows: [{ rowIndex: 0, values: { FIPS: "A", cases: 25 } }],
+  boundaryKeyField: "GEOID",
+  dataKeyField: "FIPS",
+  valueField: "cases",
+  bounds: [{ featureIndex: 0, minX: 0, minY: 0, maxX: 10, maxY: 10 }],
+  geometries: new Map([[0, square]]),
+});
+assert.equal(holePipeline.placement.totalCandidates, 25);
+assert.equal(holePipeline.clipping.keptCount, 25);
 const rendered = presentation.buildDotDensityPresentationV01(pipelineResult.clipping.candidates, recipe, pipelineResult.legend);
 assert.equal(rendered.type, "FeatureCollection");
 assert.equal(rendered.features.length, 2);

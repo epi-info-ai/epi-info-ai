@@ -1,0 +1,33 @@
+*** Surveillance B entry checks for the synthetic RECORDLINK lesson
+
+Page Identity
+  Before
+    ENABLE client_id given_name middle family_name
+  End-Before
+End-Page
+
+Page Demographics
+  Before
+    ENABLE DOB SEX Address ART_CODE site_code
+  End-Before
+End-Page
+
+Field client_id
+  After
+    IF client_id = "" OR client_id = (.) THEN
+      HIGHLIGHT client_id
+      DIALOG "Surveillance B records need a client identifier before linkage." TITLETEXT="Linkage data quality"
+    ELSE
+      UNHIGHLIGHT client_id
+      GOTO given_name
+    END-IF
+  End-After
+End-Field
+
+Field family_name
+  After
+    IF NOT (family_name = "" OR family_name = (.)) THEN
+      GOTOPAGE Demographics
+    END-IF
+  End-After
+End-Field

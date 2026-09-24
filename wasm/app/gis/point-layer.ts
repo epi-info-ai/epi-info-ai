@@ -142,7 +142,11 @@ export function summarizePointLayerDiagnosticsV01(diagnostics: readonly PointLay
 function screenPoint(point: MapPoint, zoom: number): [number, number] {
   const scale = 256 * 2 ** zoom;
   const longitude = (point.longitude + 180) / 360 * scale;
-  const latitude = (1 - Math.log(Math.tan(point.latitude * Math.PI / 180) + 1 / Math.cos(point.latitude * Math.PI / 180)) / Math.PI) / 2 * scale;
+  // Web Mercator has no finite representation at the geographic poles. Keep
+  // the accepted WGS 84 point, but project it to the finite Web Mercator
+  // cutoff used by web maps so clustering remains deterministic and finite.
+  const mercatorLatitude = Math.max(-85.0511287798066, Math.min(85.0511287798066, point.latitude));
+  const latitude = (1 - Math.log(Math.tan(mercatorLatitude * Math.PI / 180) + 1 / Math.cos(mercatorLatitude * Math.PI / 180)) / Math.PI) / 2 * scale;
   return [longitude, latitude];
 }
 
