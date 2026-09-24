@@ -294,7 +294,9 @@
         "sourceFormId": "synthetic-heat-health-observations",
         "latitudeField": "latitude",
         "longitudeField": "longitude",
-        "labelField": "observation_id"
+        "labelField": "observation_id",
+        "markerStyle": "circle",
+        "markerColor": "#df291e"
       },
       {
         "id": "environmental-observation-reference",

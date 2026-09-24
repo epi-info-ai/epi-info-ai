@@ -2352,6 +2352,10 @@ function renderExampleProjectCatalog(loaded: LoadedExampleProjectCatalog): void 
     title.textContent = entry.title;
     const description = document.createElement("p");
     description.textContent = entry.description;
+    const inventory = document.createElement("p");
+    inventory.className = "dialog-note example-project-inventory";
+    const declared = entry.contents.inventory;
+    inventory.textContent = `Declared contents: ${declared.forms} form${declared.forms === 1 ? "" : "s"}, ${declared.records} records, ${declared.programs} programs, ${declared.runbooks} runbooks, ${declared.mapAssets} map assets, and ${declared.mapLayers} map layers.`;
     const provenance = document.createElement("p");
     provenance.className = "dialog-note";
     const repository = document.createElement("a");
@@ -2360,7 +2364,7 @@ function renderExampleProjectCatalog(loaded: LoadedExampleProjectCatalog): void 
     repository.rel = "noopener noreferrer";
     repository.textContent = "CDC GitLab source";
     provenance.append(repository, ` · ${formatExampleProjectBytes(entry.bytes)} · SHA-256 ${entry.sha256.slice(0, 12)}…`);
-    copy.append(title, description, provenance);
+    copy.append(title, description, inventory, provenance);
     const open = document.createElement("button");
     open.type = "button";
     open.className = "dialog-primary";
@@ -2371,7 +2375,7 @@ function renderExampleProjectCatalog(loaded: LoadedExampleProjectCatalog): void 
       void (async () => {
         try {
           const file = await fetchExampleProject(loaded, entry);
-          exampleProjectStatus.textContent = `Checksum verified. Opening ${entry.title}…`;
+          exampleProjectStatus.textContent = `Package checksum and declared contents verified. Opening ${entry.title}…`;
           await openProjectPackage(file);
           const packageStatus = requiredElement("#main-menu-status").textContent ?? "";
           exampleProjectDialog.close("opened");

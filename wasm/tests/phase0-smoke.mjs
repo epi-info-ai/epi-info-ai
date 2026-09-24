@@ -4380,6 +4380,7 @@ async function checkExampleProjectRepository() {
   const repositories = await import(`${pathToFileURL(repositoryPath("wasm/app/projects/example-repository.ts")).href}?projects=${Date.now()}`);
   const packages = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-package.ts")).href}?project-packages=${Date.now()}`);
   const archives = await import(`${pathToFileURL(repositoryPath("wasm/app/contracts/project-archive.ts")).href}?project-archives=${Date.now()}`);
+  const manifests = await import(`${pathToFileURL(repositoryPath("wasm/app/projects/project-content-manifest.ts")).href}?project-contents=${Date.now()}`);
   const catalogPath = repositoryPath("wasm/demo/examples/projects/epi-info-projects.json");
   const catalog = repositories.validateExampleProjectCatalog(JSON.parse(await readFile(catalogPath, "utf8")));
   assert.deepEqual(catalog.projects.map(({ id }) => id), [
@@ -4405,6 +4406,8 @@ async function checkExampleProjectRepository() {
       ? await archives.parseProjectArchive(new File([bytes], entry.file, { type: "application/vnd.epi-info-ai.project" }))
       : null;
     const packageValue = parsedArchive?.projectPackage ?? packages.parseProjectPackage(bytes.toString("utf8"));
+    const actualContents = await manifests.createProjectContentManifest(packageValue, parsedArchive?.assets ?? []);
+    assert.deepEqual(actualContents, entry.contents, `${entry.id} declared content manifest`);
     const expectation = expected.get(entry.id);
     assert.equal(packageValue.project.name, expectation.project);
     assert.equal(packageValue.project.forms.length, expectation.forms);
@@ -4443,6 +4446,16 @@ async function checkExampleProjectRepository() {
       assert.match(packageValue.programs[0]?.source ?? "", /TABLES extreme_heat health_event/);
     }
   }
+  const foodborneEntry = catalog.projects[0];
+  const corruptedContents = structuredClone(foodborneEntry.contents);
+  corruptedContents.artifacts.find(({ role }) => role === "map").sha256 = "0".repeat(64);
+  const foodborneBytes = await readFile(resolve(dirname(catalogPath), foodborneEntry.file));
+  const foodborneArchive = await archives.parseProjectArchive(new File([foodborneBytes], foodborneEntry.file));
+  await assert.rejects(
+    () => manifests.verifyProjectContentManifest(foodborneArchive.projectPackage, foodborneArchive.assets, corruptedContents),
+    /do not match the catalog manifest/,
+    "a package whose declared map artifact digest changed must fail closed",
+  );
 }
 
 async function checkGdalWasmSpike() {

@@ -1,6 +1,11 @@
+import { isBinaryProjectArchive, parseProjectArchive } from "../contracts/project-archive.ts";
+import { parseProjectPackage } from "../contracts/project-package.ts";
+import { validateProjectContentManifest, verifyProjectContentManifest, type ProjectContentManifestV1 } from "./project-content-manifest.ts";
+
 const MAX_CATALOG_BYTES = 256 * 1024;
 const MAX_PROJECT_BYTES = 150 * 1024 * 1024;
 const MAX_PROJECTS = 50;
+export const exampleProjectCatalogSchemaVersion = 2 as const;
 
 export interface ExampleProjectEntry {
   id: string;
@@ -10,10 +15,11 @@ export interface ExampleProjectEntry {
   repository: string;
   bytes: number;
   sha256: string;
+  contents: ProjectContentManifestV1;
 }
 
 export interface ExampleProjectCatalog {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   title: string;
   description: string;
@@ -53,7 +59,6 @@ function safeRelativeFile(value: unknown, name: string): string {
   if (!/\.epia(?:\.json)?$/i.test(file)) throw new ExampleProjectRepositoryError(`${name} must identify an .epia or .epia.json project package.`);
   return file;
 }
-
 function allowedCatalogUrl(value: URL): boolean {
   return value.origin === location.origin
     || (value.protocol === "https:" && ["git.cdc.gov", "raw.githubusercontent.com"].includes(value.hostname));
@@ -61,7 +66,7 @@ function allowedCatalogUrl(value: URL): boolean {
 
 export function validateExampleProjectCatalog(value: unknown): ExampleProjectCatalog {
   const source = record(value, "catalog");
-  if (source.schemaVersion !== 1) throw new ExampleProjectRepositoryError("catalog.schemaVersion must be 1.");
+  if (source.schemaVersion !== exampleProjectCatalogSchemaVersion) throw new ExampleProjectRepositoryError("catalog.schemaVersion must be 2; content manifests are required.");
   if (!Array.isArray(source.projects) || source.projects.length < 1 || source.projects.length > MAX_PROJECTS) {
     throw new ExampleProjectRepositoryError(`catalog.projects must contain 1 to ${MAX_PROJECTS} projects.`);
   }
@@ -91,10 +96,11 @@ export function validateExampleProjectCatalog(value: unknown): ExampleProjectCat
       repository,
       bytes: item.bytes as number,
       sha256,
+      contents: validateProjectContentManifest(item.contents, `catalog.projects[${index}].contents`),
     };
   });
   return {
-    schemaVersion: 1,
+    schemaVersion: exampleProjectCatalogSchemaVersion,
     id: text(source.id, "catalog.id"),
     title: text(source.title, "catalog.title"),
     description: text(source.description, "catalog.description"),
@@ -143,5 +149,17 @@ export async function fetchExampleProject(loaded: LoadedExampleProjectCatalog, e
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength !== entry.bytes) throw new ExampleProjectRepositoryError(`${entry.title} has ${bytes.byteLength} bytes; expected ${entry.bytes}.`);
   if (await sha256Hex(bytes) !== entry.sha256) throw new ExampleProjectRepositoryError(`${entry.title} failed SHA-256 verification.`);
-  return new File([bytes], entry.file.split("/").at(-1) ?? `${entry.id}.epia.json`, { type: "application/vnd.epi-info-ai.project" });
+  const file = new File([bytes], entry.file.split("/").at(-1) ?? `${entry.id}.epia.json`, { type: "application/vnd.epi-info-ai.project" });
+  try {
+    if (await isBinaryProjectArchive(file)) {
+      const parsed = await parseProjectArchive(file);
+      await verifyProjectContentManifest(parsed.projectPackage, parsed.assets, entry.contents);
+    } else {
+      await verifyProjectContentManifest(parseProjectPackage(await file.text()), [], entry.contents);
+    }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "content verification failed";
+    throw new ExampleProjectRepositoryError(`${entry.title} failed its declared content inventory (${detail}).`);
+  }
+  return file;
 }

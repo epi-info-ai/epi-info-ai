@@ -8,17 +8,21 @@ on API credentials, cross-origin policy, or GitLab availability.
 ## User boundary
 
 **File > Import Example Project...** retrieves the visible catalog and lists
-the project title, purpose, package size, abbreviated SHA-256 digest, and source
-repository. Selecting **Import** performs these steps in order:
+the project title, purpose, package size, abbreviated SHA-256 digest, source
+repository, and declared counts of forms, records, programs, runbooks, map
+assets, and map layers. Selecting **Import** performs these steps in order:
 
 1. fetch the declared `.epia` archive or legacy `.epia.json` file;
 2. require the exact declared byte length and SHA-256 digest;
 3. pass the file through the normal Project Package V2 validator;
-4. save the active project to Recent Projects and close it safely;
-5. for a binary archive, validate and restore every declared map asset to OPFS;
-6. activate the imported project, including its data, saved programs, map
+4. recompute the catalog's versioned content manifest over every form/dataset,
+   program, runbook, code table, project-map setting, and map asset, requiring
+   exact role, media type, byte length, and SHA-256 agreement;
+5. save the active project to Recent Projects and close it safely;
+6. for a binary archive, validate and restore every declared map asset to OPFS;
+7. activate the imported project, including its data, saved programs, map
    assets, and map-layer definitions; and
-7. emit the normal project-activation event so stale analysis and map output is
+8. emit the normal project-activation event so stale analysis and map output is
    cleared.
 
 Import never executes a saved program. The analyst must inspect and run it.
@@ -41,8 +45,12 @@ An instructor can develop a project in its own repository under the GitLab
 group, run its dataset, program, browser, and statistical validation in CI, and
 publish an immutable `.epia` archive or `.epia.json` release. Binary `.epia`
 archives are required when project-owned map bytes must travel with the data,
-programs, and runbooks. A reviewed catalog change then adds
-the release metadata and digest. Static-site CI mirrors accepted packages for a
+programs, and runbooks. A reviewed catalog change then adds the release
+metadata, archive digest, and generated content manifest. Static-site CI rejects
+an omitted, added, or modified logical artifact even when the outer archive
+remains syntactically valid. Fresh-browser acceptance must also reopen the
+project and render its declared vector and raster layers; structural inspection
+alone is insufficient. Static-site CI mirrors accepted packages for a
 predictable classroom and conference experience while preserving a link to the
 governed source.
 

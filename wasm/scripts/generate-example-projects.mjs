@@ -4,7 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createProjectPackage } from "../app/contracts/project-package.ts";
-import { createProjectArchive } from "../app/contracts/project-archive.ts";
+import { createProjectArchive, isBinaryProjectArchive, parseProjectArchive } from "../app/contracts/project-archive.ts";
+import { parseProjectPackage } from "../app/contracts/project-package.ts";
+import { createProjectContentManifest } from "../app/projects/project-content-manifest.ts";
 import { inferSchemaFromRows, parseCsv } from "../app/forms/csv.ts";
 
 const wasmRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -367,14 +369,22 @@ const projects = [
 
 for (const project of projects) {
   const absolutePath = path.resolve(examplesRoot, "projects", project.file);
-  project.bytes = (await readFile(absolutePath)).byteLength;
+  const bytes = await readFile(absolutePath);
+  project.bytes = bytes.byteLength;
   project.sha256 = await sha256(absolutePath);
+  const file = new File([bytes], path.basename(project.file), { type: "application/vnd.epi-info-ai.project" });
+  if (await isBinaryProjectArchive(file)) {
+    const parsed = await parseProjectArchive(file);
+    project.contents = await createProjectContentManifest(parsed.projectPackage, parsed.assets);
+  } else {
+    project.contents = await createProjectContentManifest(parseProjectPackage(await file.text()), []);
+  }
 }
 
 await writeFile(
   path.join(examplesRoot, "projects", "epi-info-projects.json"),
   `${JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: "gov.cdc.epi-info-ai.demo-projects",
     title: "Epi Info AI demonstration projects",
     description: "Checksummed, browser-ready projects maintained in the CDC Epi Info AI GitLab group.",
