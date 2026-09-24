@@ -1,3 +1,5 @@
+import { authorizeNetworkEgressV01 } from "../security/network-egress.ts";
+
 export const TEACHING_REPOSITORY_SCHEMA_VERSION = 1 as const;
 const MAX_MANIFEST_BYTES = 256 * 1024;
 const MAX_ARTIFACTS = 64;
@@ -141,6 +143,7 @@ export function teachingArtifactUrl(manifest: TeachingRepositoryManifest, artifa
 export async function previewTeachingRepository(manifestUrl: URL | string): Promise<TeachingRepositoryPreview> {
   const url = new URL(String(manifestUrl), location.href);
   if (url.protocol !== "https:" && url.origin !== location.origin) throw new TeachingRepositoryError("Teaching manifests require HTTPS or this application origin.");
+  authorizeNetworkEgressV01("projects.teaching-repository", url, { dataClassification: "public-synthetic", consentGranted: true });
   const response = await fetch(url);
   if (!response.ok) throw new TeachingRepositoryError(`Unable to load teaching manifest (${response.status}).`);
   const text = await response.text();
@@ -207,7 +210,9 @@ export async function installTeachingRepository(
 ): Promise<InstalledTeachingRepository> {
   const downloaded: Array<{ artifact: TeachingRepositoryArtifact; bytes: ArrayBuffer }> = [];
   for (const artifact of preview.manifest.artifacts) {
-    const response = await fetch(teachingArtifactUrl(preview.manifest, artifact));
+    const url = teachingArtifactUrl(preview.manifest, artifact);
+    authorizeNetworkEgressV01("projects.teaching-repository", url, { dataClassification: "public-synthetic", consentGranted: true });
+    const response = await fetch(url);
     if (!response.ok) throw new TeachingRepositoryError(`Unable to retrieve ${artifact.path} (${response.status}).`);
     const bytes = await response.arrayBuffer();
     if (bytes.byteLength !== artifact.bytes) throw new TeachingRepositoryError(`${artifact.path} has ${bytes.byteLength} bytes; expected ${artifact.bytes}.`);

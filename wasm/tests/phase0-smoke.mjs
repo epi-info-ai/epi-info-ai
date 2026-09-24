@@ -3791,6 +3791,7 @@ async function checkPortableProjectArchive() {
     importedAt: "2026-09-10T12:02:00.000Z", persistence: "best-effort",
   };
   snapshot.referenceLayerSources = [sourceAsset];
+  snapshot.privacy = { schema: "epi-info-ai-privacy/0.1", data: "public-synthetic", geography: "public-synthetic", containsRecordValues: true, purpose: "Portable archive test fixture", approvedUses: ["download", "map-display"] };
   const packageValue = packages.createProjectPackage(snapshot);
   const payload = new File([bytes], asset.fileName, { type: "application/vnd.pmtiles" });
   const archiveBlob = await archives.createProjectArchive(packageValue, [

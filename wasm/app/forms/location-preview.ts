@@ -1,4 +1,5 @@
 import type { SafeGeocodeStatement } from "../contracts/check-code.js";
+import { authorizeNetworkEgressV01 } from "../security/network-egress.ts";
 
 // Leaflet is a reviewed, pinned global script. Keep its untyped runtime surface
 // confined to this browser adapter, as the main Maps module does.
@@ -89,6 +90,10 @@ function ensurePreviewMap(): LeafletHandle {
   if (previewMap) return previewMap;
   if (!L) throw new Error("The map library could not be loaded.");
   previewMap = L.map("location-preview-map", { zoomControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  authorizeNetworkEgressV01("maps.openstreetmap-tiles", "https://tile.openstreetmap.org/0/0/0.png", {
+    dataClassification: "restricted-identifiable",
+    consentGranted: true,
+  });
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',

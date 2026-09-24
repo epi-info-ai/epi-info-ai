@@ -6,6 +6,7 @@ import { initializeLocationPreview, openLocationPreview } from "./location-previ
 import { materializeCalculatedFields } from "./validation.ts";
 
 export type EntryView = "entry" | "records";
+let currentGeographyPrivacy: () => string | undefined = () => undefined;
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -67,6 +68,10 @@ function showGeocodeResults(statement: SafeGeocodeStatement, query: string, cand
 export async function runGeocode(statement: SafeGeocodeStatement, button: HTMLButtonElement): Promise<void> {
   const address = namedEntryControl(statement.addressField)?.value.trim() ?? "";
   const status = requiredElement<HTMLElement>("#record-status");
+  if (currentGeographyPrivacy() === "precise-sensitive" && !globalThis.confirm("Geocoding sends the entered address to the configured online provider. Continue for this precise-sensitive project?")) {
+    status.textContent = "Online geocoding cancelled. Manual coordinates and offline map preview remain available.";
+    return;
+  }
   button.disabled = true;
   status.textContent = "Searching for possible address matches…";
   try {
@@ -328,7 +333,8 @@ export function setEntryView(view: EntryView): void {
   }
 }
 
-export function initializeEntryView(): void {
+export function initializeEntryView(getGeographyPrivacy: () => string | undefined = () => undefined): void {
+  currentGeographyPrivacy = getGeographyPrivacy;
   initializeLocationPreview();
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-entry-view]")) {
     button.addEventListener("click", () => setEntryView(button.dataset.entryView === "records" ? "records" : "entry"));

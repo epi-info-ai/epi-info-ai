@@ -13,6 +13,15 @@ const wasmRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const demoRoot = path.join(wasmRoot, "demo");
 const examplesRoot = path.join(demoRoot, "examples");
 
+const publicSyntheticPrivacy = {
+  schema: "epi-info-ai-privacy/0.1",
+  data: "public-synthetic",
+  geography: "public-synthetic",
+  containsRecordValues: true,
+  purpose: "Public synthetic teaching and validation project",
+  approvedUses: ["map-display", "download"],
+};
+
 async function sha256(filePath) {
   return createHash("sha256").update(await readFile(filePath)).digest("hex");
 }
@@ -152,6 +161,7 @@ const foodborneProjectResult = await writePackage(
     name: "Foodborne Outbreak Investigation",
     currentFormId: foodborneForm.id,
     storage: { type: "browser" },
+    privacy: publicSyntheticPrivacy,
     forms: [foodborneForm],
     mapAssets: [foodborneGeoJson.asset, foodborneGeoTiff.asset],
     mapLayers: [
@@ -212,6 +222,7 @@ await writePackage(
     name: "Space-Time Cluster Detection",
     currentFormId: clusterForm.id,
     storage: { type: "browser" },
+    privacy: publicSyntheticPrivacy,
     forms: [clusterForm],
   },
   clusterPrograms,
@@ -231,6 +242,7 @@ await writePackage(
     name: "GIS Defensive Ingestion Teaching Example",
     currentFormId: gisIngestionForm.id,
     storage: { type: "browser" },
+    privacy: publicSyntheticPrivacy,
     forms: [gisIngestionForm],
   },
   gisIngestionPrograms,
@@ -260,6 +272,7 @@ const environmentalProjectResult = await writePackage(
     name: "Environmental Heat and Health Candidate",
     currentFormId: environmentalForm.id,
     storage: { type: "browser" },
+    privacy: publicSyntheticPrivacy,
     forms: [environmentalForm],
     mapAssets: [environmentalPoints.asset],
     mapLayers: [

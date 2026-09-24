@@ -15,6 +15,9 @@
   type RecordValue,
 } from "../app/contracts/core.ts";
 import type { MapDataSource } from "../app/contracts/maps.ts";
+import { authorizeNetworkEgressV01 } from "../app/security/network-egress.ts";
+import { validatePrivacyClassificationV01, type PrivacyClassificationV01 } from "../app/security/privacy.ts";
+import { validateGeoprivacyPolicyV01, type GeoprivacyPolicyV01 } from "../app/security/geoprivacy.ts";
 import type { ClassicDeleteRecordsResult } from "../app/programming/classic-delete-records.ts";
 import type { ClassicUndeleteRecordsResult } from "../app/programming/classic-undelete-records.ts";
 import type { FieldCheckCode, SafeCheckCodeStatement, SafeFieldAction } from "../app/contracts/check-code.ts";
@@ -352,6 +355,11 @@ export async function testSupabaseConnection(urlValue: string, publishableKeyVal
   const url = normalizeSupabaseUrl(urlValue);
   const publishableKey = String(publishableKeyValue || "").trim();
   if (!publishableKey) throw new Error("Enter the Supabase publishable key.");
+  authorizeNetworkEgressV01("sync.supabase", `${url}/auth/v1/settings`, {
+    dataClassification: "restricted-identifiable",
+    consentGranted: true,
+    configuredOrigin: url,
+  });
   const response = await fetch(`${url}/auth/v1/settings`, {
     headers: { apikey: publishableKey },
     cache: "no-store",
@@ -690,6 +698,26 @@ export function applyClassicUndeleteRecords(result: ClassicUndeleteRecordsResult
 export function getCurrentProjectSnapshot(): ProjectSnapshotV1 {
   syncCurrentForm();
   return structuredClone(projectState);
+}
+
+export function setCurrentProjectPrivacy(value: PrivacyClassificationV01): void {
+  if (!hasActiveProject) throw new Error("Open a project before setting its privacy classification.");
+  if (!syncCurrentForm()) throw new Error("The project could not be saved before its privacy classification changed.");
+  projectState.privacy = validatePrivacyClassificationV01(value);
+  if (!syncCurrentForm()) throw new Error("The privacy classification could not be saved to browser project storage.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
+}
+
+export function setCurrentProjectGeoprivacy(value: GeoprivacyPolicyV01): void {
+  if (!hasActiveProject) throw new Error("Open a project before setting its geoprivacy policy.");
+  if (!syncCurrentForm()) throw new Error("The project could not be saved before its geoprivacy policy changed.");
+  const policy = validateGeoprivacyPolicyV01(value);
+  if (projectState.privacy?.geography === "precise-sensitive" && policy.displayMode === "exact") {
+    throw new Error("Precise-sensitive geography cannot use exact-coordinate display. Choose rounding, administrative aggregation, or suppression.");
+  }
+  projectState.geoprivacy = policy;
+  if (!syncCurrentForm()) throw new Error("The geoprivacy policy could not be saved to browser project storage.");
+  globalThis.dispatchEvent(new CustomEvent("epi-info-project-changed"));
 }
 
 export function replaceCurrentOfflineMapAsset(previousSha256: string, replacement: ProjectStudyArea["offlineMap"]["asset"]): void {
@@ -2771,7 +2799,7 @@ export function initializeFormDataDemo() {
     button.addEventListener("click", () => showModule(button.dataset.openModule ?? ""));
   }
 
-  initializeEntryView();
+  initializeEntryView(() => projectState.privacy?.geography);
   initializeStudyAreaPicker();
 
   requiredElement("#file-open-project").addEventListener("click", () => requiredElement<HTMLInputElement>("#project-package-open").click());
@@ -3449,6 +3477,14 @@ export function initializeFormDataDemo() {
       currentFormId,
       storage: { type: storageType },
       forms: [{ id: currentFormId, schema: structuredClone(schema), records: [] }],
+      privacy: {
+        schema: "epi-info-ai-privacy/0.1",
+        data: "restricted-identifiable",
+        geography: pendingStudyArea ? "precise-sensitive" : "none",
+        containsRecordValues: true,
+        purpose: "User-created epidemiologic project",
+        approvedUses: storageType === "supabase" ? ["map-display", "download", "external-sync"] : ["map-display", "download"],
+      },
       ...(pendingStudyArea ? { studyAreas: [structuredClone(pendingStudyArea)] } : {}),
     };
     projectPackageExtras = { programs: [], codeTables: [], runbooks: [] };

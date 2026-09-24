@@ -4420,3 +4420,24 @@ test("opening another teaching project clears Classic Analysis output documents"
   await page.locator('[data-module="forms"]').click();
   await expect(page.locator("#project-tree-name")).toContainText("Space-Time Cluster Detection");
 });
+test("Privacy and Offline Readiness exposes classifications, governed routes, and working close controls", async ({ page }) => {
+  await page.goto("./");
+  await page.locator("#help-menu > summary").click();
+  await page.locator("#help-privacy-readiness").click();
+  const dialog = page.locator("#privacy-readiness-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("#privacy-readiness-classification")).not.toBeEmpty();
+  await expect(dialog.locator("#privacy-readiness-routes li")).toHaveCount(9);
+  await dialog.locator("#privacy-data-classification").selectOption("public-synthetic");
+  await dialog.locator("#privacy-geography-classification").selectOption("public-synthetic");
+  await dialog.locator("#privacy-purpose").fill("Synthetic browser privacy fixture");
+  await dialog.locator("#privacy-apply-classification").click();
+  await expect(dialog.locator("#privacy-readiness-classification")).toContainText("Privacy classification saved");
+  await dialog.locator("#geoprivacy-display-mode").selectOption("rounded");
+  await dialog.locator("#geoprivacy-rounding-decimals").fill("2");
+  await dialog.locator("#geoprivacy-minimum-cell-count").fill("3");
+  await dialog.locator("#geoprivacy-apply-policy").click();
+  await expect(dialog.locator("#geoprivacy-policy-status")).toContainText("Geoprivacy policy saved");
+  await dialog.locator("[data-close-privacy-readiness]").last().click();
+  await expect(dialog).not.toBeVisible();
+});

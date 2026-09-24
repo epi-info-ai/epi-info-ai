@@ -268,6 +268,17 @@
       }
     ],
     "version": 1,
+    "privacy": {
+      "schema": "epi-info-ai-privacy/0.1",
+      "data": "public-synthetic",
+      "geography": "public-synthetic",
+      "containsRecordValues": true,
+      "purpose": "Public synthetic teaching and validation project",
+      "approvedUses": [
+        "map-display",
+        "download"
+      ]
+    },
     "storage": {
       "type": "browser"
     },
@@ -321,6 +332,26 @@
     }
   ],
   "codeTables": [],
+  "privacy": {
+    "schema": "epi-info-ai-privacy/0.1",
+    "data": "public-synthetic",
+    "geography": "public-synthetic",
+    "containsRecordValues": true,
+    "purpose": "Public synthetic teaching and validation project",
+    "approvedUses": [
+      "map-display",
+      "download"
+    ]
+  },
+  "privacyReceipt": {
+    "schema": "epi-info-ai-privacy-receipt/0.1",
+    "artifactKind": "package",
+    "boundary": "download",
+    "data": "public-synthetic",
+    "geography": "public-synthetic",
+    "containsRecordValues": true,
+    "decision": "allowed"
+  },
   "runbooks": [
     {
       "id": "environmental-heat-health-v0-1",

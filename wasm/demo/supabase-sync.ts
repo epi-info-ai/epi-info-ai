@@ -3,6 +3,8 @@ import {
   type HostedProjectReference,
   type ProjectSnapshotV1,
 } from "../app/contracts/core.ts";
+import { authorizeNetworkEgressV01 } from "../app/security/network-egress.ts";
+import { requirePrivacyForDisclosureV01 } from "../app/security/privacy.ts";
 
 const CONFIG_KEY = "epi-info-ai.supabase-config.v1";
 
@@ -181,6 +183,11 @@ async function apiRequest(
   options: RequestInit = {},
   authenticated = false,
 ): Promise<unknown> {
+  authorizeNetworkEgressV01("sync.supabase", `${config.url}${path}`, {
+    dataClassification: "restricted-identifiable",
+    consentGranted: true,
+    configuredOrigin: config.url,
+  });
   const headers = new Headers(options.headers);
   headers.set("apikey", config.publishableKey);
   if (authenticated) {
@@ -381,6 +388,7 @@ async function uploadProject(
   markSynced: (remote: SyncedProjectReference) => void,
 ): Promise<{ saved: HostedProjectSummary; formCount: number; recordCount: number }> {
   const local = validateProjectSnapshot(getSnapshot());
+  requirePrivacyForDisclosureV01(local.privacy, "external-sync");
   const tracked = local.remote ?? null;
   const remoteId = tracked?.id || crypto.randomUUID();
   const hosted = await getHostedProject(config, remoteId);

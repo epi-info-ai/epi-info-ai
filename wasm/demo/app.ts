@@ -19,6 +19,8 @@ import {
   markCurrentProjectSynced,
   openProjectPackage,
   saveCurrentProjectProgram,
+  setCurrentProjectGeoprivacy,
+  setCurrentProjectPrivacy,
   showRecordInEnter,
   testSupabaseConnection,
 } from "./form-data.js";
@@ -27,6 +29,8 @@ import { calculateSpaceTimeClustersInWorker } from "./cluster-worker-client.js";
 import { calculateMatchedPairsInWorker } from "./matched-worker-client.js";
 import { calculateStratifiedTable2x2InWorker } from "./stratified-worker-client.js";
 import { initializeSupabaseSync } from "./supabase-sync.js";
+import { authorizeNetworkEgressV01, NETWORK_EGRESS_ROUTES_V01 } from "../app/security/network-egress.ts";
+import { defaultGeoprivacyPolicyV01 } from "../app/security/geoprivacy.ts";
 import { deriveEpiCurve } from "../app/dashboard/epi-curve.js";
 import { renderDashboardCommandContract } from "../app/dashboard/dashboard-menu.js";
 import { renderClassicAnalysisContract } from "../app/analysis/classic-analysis-menu.js";
@@ -2494,6 +2498,77 @@ requiredElement("#help-capability-packages").addEventListener("click", () => {
   renderInstalledCapabilityPackages();
   capabilityPackageDialog.showModal();
 });
+
+requiredElement("#help-privacy-readiness").addEventListener("click", () => {
+  const snapshot = getCurrentProjectSnapshot();
+  requiredElement<HTMLElement>("#privacy-readiness-project").textContent = snapshot.name;
+  const summary = requiredElement<HTMLElement>("#privacy-readiness-classification");
+  if (!snapshot.privacy) {
+    summary.textContent = "Unclassified legacy project. Local review remains available, but governed export and synchronization are blocked until the project is classified.";
+  } else {
+    summary.textContent = `Data: ${snapshot.privacy.data}; geography: ${snapshot.privacy.geography}; approved uses: ${snapshot.privacy.approvedUses.join(", ")}.`;
+  }
+  requiredElement<HTMLSelectElement>("#privacy-data-classification").value = snapshot.privacy?.data ?? "restricted-identifiable";
+  requiredElement<HTMLSelectElement>("#privacy-geography-classification").value = snapshot.privacy?.geography ?? "precise-sensitive";
+  requiredElement<HTMLInputElement>("#privacy-contains-record-values").checked = snapshot.privacy?.containsRecordValues ?? true;
+  requiredElement<HTMLInputElement>("#privacy-purpose").value = snapshot.privacy?.purpose ?? "Reviewed legacy epidemiologic project";
+  for (const boundary of ["map-display", "download", "external-sync"] as const) {
+    requiredElement<HTMLInputElement>(`#privacy-use-${boundary}`).checked = snapshot.privacy?.approvedUses.includes(boundary) ?? (boundary !== "external-sync");
+  }
+  const geoprivacy = snapshot.geoprivacy ?? (snapshot.privacy ? defaultGeoprivacyPolicyV01(snapshot.privacy) : {
+    schema: "epi-info-ai-geoprivacy/0.1" as const, displayMode: "rounded" as const, roundingDecimals: 2, minimumCellCount: 5, administrativeAreaField: "",
+  });
+  requiredElement<HTMLSelectElement>("#geoprivacy-display-mode").value = geoprivacy.displayMode;
+  requiredElement<HTMLInputElement>("#geoprivacy-rounding-decimals").value = String(geoprivacy.roundingDecimals);
+  requiredElement<HTMLInputElement>("#geoprivacy-minimum-cell-count").value = String(geoprivacy.minimumCellCount);
+  requiredElement<HTMLInputElement>("#geoprivacy-administrative-field").value = geoprivacy.administrativeAreaField;
+  requiredElement<HTMLElement>("#geoprivacy-policy-status").textContent = snapshot.geoprivacy
+    ? `Active method: ${snapshot.geoprivacy.displayMode}; minimum cell ${snapshot.geoprivacy.minimumCellCount}.`
+    : "No saved geoprivacy policy; the conservative classification-based default is shown.";
+  const routes = requiredElement<HTMLUListElement>("#privacy-readiness-routes");
+  routes.replaceChildren(...NETWORK_EGRESS_ROUTES_V01.map((route) => {
+    const item = document.createElement("li");
+    item.textContent = `${route.provider}: ${route.purpose} Consent: ${route.consent}; offline: ${route.offlineBehavior}.`;
+    return item;
+  }));
+  requiredElement<HTMLDialogElement>("#privacy-readiness-dialog").showModal();
+});
+
+requiredElement("#geoprivacy-apply-policy").addEventListener("click", () => {
+  try {
+    setCurrentProjectGeoprivacy({
+      schema: "epi-info-ai-geoprivacy/0.1",
+      displayMode: requiredElement<HTMLSelectElement>("#geoprivacy-display-mode").value as "exact" | "rounded" | "administrative-area" | "suppressed",
+      roundingDecimals: Number(requiredElement<HTMLInputElement>("#geoprivacy-rounding-decimals").value),
+      minimumCellCount: Number(requiredElement<HTMLInputElement>("#geoprivacy-minimum-cell-count").value),
+      administrativeAreaField: requiredElement<HTMLInputElement>("#geoprivacy-administrative-field").value.trim(),
+    });
+    requiredElement<HTMLElement>("#geoprivacy-policy-status").textContent = "Geoprivacy policy saved. Maps will derive display features without overwriting authoritative coordinates.";
+  } catch (error) {
+    requiredElement<HTMLElement>("#geoprivacy-policy-status").textContent = error instanceof Error ? error.message : "The geoprivacy policy could not be saved.";
+  }
+});
+
+requiredElement("#privacy-apply-classification").addEventListener("click", () => {
+  const approvedUses = (["map-display", "download", "external-sync"] as const).filter((boundary) => requiredElement<HTMLInputElement>(`#privacy-use-${boundary}`).checked);
+  try {
+    setCurrentProjectPrivacy({
+      schema: "epi-info-ai-privacy/0.1",
+      data: requiredElement<HTMLSelectElement>("#privacy-data-classification").value as "restricted-identifiable" | "restricted-deidentified" | "aggregate" | "public-synthetic" | "public",
+      geography: requiredElement<HTMLSelectElement>("#privacy-geography-classification").value as "precise-sensitive" | "generalized" | "administrative-area" | "public-synthetic" | "none",
+      containsRecordValues: requiredElement<HTMLInputElement>("#privacy-contains-record-values").checked,
+      purpose: requiredElement<HTMLInputElement>("#privacy-purpose").value.trim(),
+      approvedUses: [...approvedUses],
+    });
+    requiredElement<HTMLElement>("#privacy-readiness-classification").textContent = "Privacy classification saved. Reopen this review after project or disclosure requirements change.";
+  } catch (error) {
+    requiredElement<HTMLElement>("#privacy-readiness-classification").textContent = error instanceof Error ? error.message : "The privacy classification could not be saved.";
+  }
+});
+
+for (const button of document.querySelectorAll<HTMLElement>("[data-close-privacy-readiness]")) {
+  button.addEventListener("click", () => requiredElement<HTMLDialogElement>("#privacy-readiness-dialog").close());
+}
 capabilityPackageDialog.addEventListener("close", () => {
   queueMicrotask(() => requiredElement<HTMLElement>("#help-menu > summary").focus());
 });
@@ -4444,7 +4519,9 @@ async function renderInlineSpaceTimeClusterMap(entry: { projectName: string; for
     if (tileY < 0 || tileY >= tileCount) continue;
     for (let tileX = firstTileX; tileX <= lastTileX; tileX++) {
       const wrappedX = ((tileX % tileCount) + tileCount) % tileCount;
-      requests.push(loadStaticMapTile(`https://tile.openstreetmap.org/${zoom}/${wrappedX}/${tileY}.png`).then((image) => ({ image, x: tileX, y: tileY })));
+      const tileUrl = `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${tileY}.png`;
+      authorizeNetworkEgressV01("maps.openstreetmap-tiles", tileUrl, { dataClassification: "restricted-identifiable", consentGranted: true });
+      requests.push(loadStaticMapTile(tileUrl).then((image) => ({ image, x: tileX, y: tileY })));
     }
   }
   const tiles = await Promise.all(requests);

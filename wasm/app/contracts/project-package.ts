@@ -3,6 +3,7 @@ import {
   type ProjectSnapshotV1,
 } from "./core.ts";
 import type { UiRunbook, UiRunbookEvidenceCheck, UiRunbookStep } from "../help/runbooks.ts";
+import { createPrivacyDisclosureReceiptV01, requirePrivacyForDisclosureV01, validatePrivacyClassificationV01, type PrivacyClassificationV01, type PrivacyDisclosureReceiptV01 } from "../security/privacy.ts";
 
 export const PROJECT_PACKAGE_FORMAT = "epi-info-ai-project" as const;
 export const PROJECT_PACKAGE_VERSION = 2 as const;
@@ -87,6 +88,8 @@ export interface ProjectPackageV2 {
   codeTables: ProjectCodeTable[];
   runbooks?: UiRunbook[];
   migration?: LegacyMigrationPayload;
+  privacy?: PrivacyClassificationV01;
+  privacyReceipt?: PrivacyDisclosureReceiptV01;
 }
 
 export class ProjectPackageValidationError extends Error {
@@ -352,6 +355,16 @@ export function validateProjectPackage(value: unknown): ProjectPackageV2 {
     programs: source.programs.map((program, index) => programAt(program, `package.programs[${index}]`)),
     codeTables: source.codeTables.map((table, index) => codeTableAt(table, `package.codeTables[${index}]`)),
   };
+  if (source.privacy !== undefined) result.privacy = validatePrivacyClassificationV01(source.privacy);
+  if (source.privacyReceipt !== undefined) {
+    if (!result.privacy) fail("package.privacyReceipt", "requires package.privacy");
+    const expected = createPrivacyDisclosureReceiptV01(result.privacy, "package", "download");
+    if (JSON.stringify(source.privacyReceipt) !== JSON.stringify(expected)) fail("package.privacyReceipt", "does not match the governed package download decision");
+    result.privacyReceipt = expected;
+  }
+  if (result.privacy && result.project.privacy && JSON.stringify(result.privacy) !== JSON.stringify(result.project.privacy)) {
+    fail("package.privacy", "must match package.project.privacy");
+  }
   if (source.runbooks !== undefined) {
     if (!Array.isArray(source.runbooks) || source.runbooks.length > 16) fail("package.runbooks", "must contain no more than 16 runbooks");
     result.runbooks = source.runbooks.map((runbook, index) => validateProjectRunbook(runbook, `package.runbooks[${index}]`));
@@ -400,6 +413,7 @@ export function parseProjectPackage(text: string): ProjectPackageV2 {
 }
 
 export function createProjectPackage(project: ProjectSnapshotV1, extras: Partial<Pick<ProjectPackageV2, "programs" | "codeTables" | "runbooks" | "migration">> = {}): ProjectPackageV2 {
+  const privacy = requirePrivacyForDisclosureV01(project.privacy, "download");
   const candidate: ProjectPackageV2 = {
     format: PROJECT_PACKAGE_FORMAT,
     version: PROJECT_PACKAGE_VERSION,
@@ -407,6 +421,8 @@ export function createProjectPackage(project: ProjectSnapshotV1, extras: Partial
     project: validateProjectSnapshot(project),
     programs: extras.programs ?? [],
     codeTables: extras.codeTables ?? [],
+    privacy,
+    privacyReceipt: createPrivacyDisclosureReceiptV01(privacy, "package", "download"),
   };
   if (extras.runbooks !== undefined) candidate.runbooks = extras.runbooks;
   if (extras.migration !== undefined) candidate.migration = extras.migration;

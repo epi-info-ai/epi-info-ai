@@ -1,3 +1,5 @@
+import { authorizeNetworkEgressV01 } from "../security/network-egress.ts";
+
 export const CAPABILITY_PACKAGE_SCHEMA = "epi.package/0.1" as const;
 export const IOCODE_PACKAGE_ID = "org.cdc.epi-info-ai.occupational-epidemiology-iocode" as const;
 export const IOCODE_CAPABILITY_ID = "io.coder.review/0.1" as const;
@@ -40,7 +42,6 @@ export interface CapabilityPackageArtifact {
   bytes: number;
   digest: string;
 }
-
 export interface CapabilityPackageManifest {
   schemaVersion: typeof CAPABILITY_PACKAGE_SCHEMA;
   id: typeof IOCODE_PACKAGE_ID | typeof ENVIRONMENT_PACKAGE_ID;
@@ -215,6 +216,7 @@ export async function previewCapabilityPackage(manifestUrl: URL | string): Promi
   const failures: string[] = [];
   for (const candidate of candidates) {
     try {
+      authorizeNetworkEgressV01("packages.capability-repository", candidate, { dataClassification: "public-synthetic", consentGranted: true });
       const response = await fetch(candidate, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const bytes = await response.arrayBuffer();
@@ -254,6 +256,7 @@ async function verifiedArtifact(preview: CapabilityPackagePreview, artifact: Cap
     : [];
   for (const candidate of localCandidate) {
     try {
+      authorizeNetworkEgressV01("packages.capability-repository", candidate, { dataClassification: "public-synthetic", consentGranted: true });
       const response = await fetch(candidate, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const bytes = await response.arrayBuffer();
@@ -266,7 +269,9 @@ async function verifiedArtifact(preview: CapabilityPackagePreview, artifact: Cap
   }
   for (const repository of [manifest.source.authoritative, ...manifest.source.mirrors]) {
     try {
-      const response = await fetch(artifactUrl(repository, manifest.source.revision, artifact.path), { cache: "no-store" });
+      const candidate = artifactUrl(repository, manifest.source.revision, artifact.path);
+      authorizeNetworkEgressV01("packages.capability-repository", candidate, { dataClassification: "public-synthetic", consentGranted: true });
+      const response = await fetch(candidate, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const bytes = await response.arrayBuffer();
       if (bytes.byteLength !== artifact.bytes) throw new Error(`received ${bytes.byteLength} bytes; expected ${artifact.bytes}`);

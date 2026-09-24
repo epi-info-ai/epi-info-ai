@@ -1,6 +1,7 @@
 import { isBinaryProjectArchive, parseProjectArchive } from "../contracts/project-archive.ts";
 import { parseProjectPackage } from "../contracts/project-package.ts";
 import { validateProjectContentManifest, verifyProjectContentManifest, type ProjectContentManifestV1 } from "./project-content-manifest.ts";
+import { authorizeNetworkEgressV01 } from "../security/network-egress.ts";
 
 const MAX_CATALOG_BYTES = 256 * 1024;
 const MAX_PROJECT_BYTES = 150 * 1024 * 1024;
@@ -116,6 +117,7 @@ async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
 export async function loadExampleProjectCatalog(catalogUrl: URL | string): Promise<LoadedExampleProjectCatalog> {
   const url = new URL(String(catalogUrl), document.baseURI);
   if (!allowedCatalogUrl(url)) throw new ExampleProjectRepositoryError("Project catalogs require this application origin or an approved HTTPS GitLab/GitHub source.");
+  authorizeNetworkEgressV01("projects.example-repository", url, { dataClassification: "public-synthetic", consentGranted: true });
   let response: Response;
   try {
     response = await fetch(url, { cache: "no-cache" });
@@ -138,6 +140,7 @@ export async function fetchExampleProject(loaded: LoadedExampleProjectCatalog, e
   }
   const url = new URL(entry.file, loaded.url);
   if (!allowedCatalogUrl(url)) throw new ExampleProjectRepositoryError("The project package resolved outside an approved repository source.");
+  authorizeNetworkEgressV01("projects.example-repository", url, { dataClassification: "public-synthetic", consentGranted: true });
   let response: Response;
   try {
     response = await fetch(url, { cache: "no-cache" });

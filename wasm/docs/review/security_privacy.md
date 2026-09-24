@@ -128,6 +128,27 @@ project when the study requires them.
 
 ### Security/privacy slice 1 — inventory and fail-closed defaults
 
+**Implementation checkpoint (2026-09-24):** Slice 1A is a bounded candidate.
+`app/security/network-egress.ts` declares nine routes and fail-closed
+authorization for online maps, geocoding, teaching/example repositories,
+capability packages, Supabase, managed AI, encrypted WebRTC sharing, and
+same-origin resources. `app/security/privacy.ts` defines the initial data and
+geography classification vocabulary plus governed-disclosure validation.
+Maintained external workflows call the authorization boundary, and the focused
+smoke suite covers destination substitution, missing consent, disallowed data,
+configured-origin substitution, receipt minimization, and invalid disclosure.
+Slice 1B is now a bounded candidate: project and map-layer snapshots accept the
+typed contract; new projects receive a conservative restricted default;
+generated teaching projects/packages are explicitly public-synthetic; package
+receipts are minimized; export and Supabase upload fail closed for missing or
+unapproved classifications; and **Help > Privacy and Offline Readiness** exposes
+the active classification and route inventory and lets a user deliberately edit
+the project policy. Legacy packages remain readable for recovery/review but
+cannot silently cross those governed boundaries. Phase 0, production artifacts,
+negative contract fixtures, and the focused Chromium modal/edit/close workflow
+pass. Role-based approval governance, broader output integration, and
+multi-browser/field review remain in later slices.
+
 - Create a machine-readable network-egress registry and test that every `fetch`,
   tile, geocoder, AI, package, and sync route maps to an approved capability.
 - Add data/privacy classifications to project, package, map-layer, output, and
@@ -139,11 +160,24 @@ project when the study requires them.
 
 ### Security/privacy slice 2 — geoprivacy controls
 
-- Add project-level policy plus per-layer display/export decisions.
-- Implement deterministic derived generalization/aggregation with receipts and
-  independent spatial tests; add small-cell and exact-coordinate warnings.
-- Exercise foodborne, cluster, record-linkage, and environmental teaching
-  projects with public-synthetic classifications and negative fixtures.
+**Implementation checkpoint (2026-09-24):** the bounded Slice 2 candidate adds
+`app/security/geoprivacy.ts`, a typed project/per-layer policy, and deterministic
+exact, rounded/grouped, administrative-area, and suppression transformations.
+Point-map display now resolves the saved layer policy over the project policy,
+fails closed when classification is absent, rejects exact display of
+precise-sensitive geography, applies minimum-cell suppression, and renders a
+derived copy without changing source coordinates. Receipts report the method
+and release/suppression counts but omit coordinates, record values, and free-text
+purpose. The Privacy and Offline Readiness dialog authors project policy, and
+precise-sensitive projects require an explicit warning/confirmation before
+online tiles or geocoding. Blank/offline maps and manual coordinates remain
+available. Focused spatial fixtures cover immutability, rounding, aggregation,
+suppression, small cells, invalid policy, and receipt minimization.
+
+Remaining Slice 2 evidence: author per-layer overrides directly in Maps UI;
+exercise each catalogued teaching project and derived-download route; validate
+approved administrative boundary joins rather than representing aggregates as
+point centroids; and complete multi-browser, privacy-officer, and field review.
 
 ### Security/privacy slice 3 — storage and synchronization
 

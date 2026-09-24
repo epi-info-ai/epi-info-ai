@@ -910,6 +910,51 @@ new functionality follows the legacy capability register and later phases.
 
 ## TODO
 
+- [x] Implement Security/Privacy Slice 1A — network-egress inventory and
+  fail-closed route authorization. The typed nine-route registry covers online
+  maps, geocoding, teaching/example repositories, capability packages,
+  Supabase, the same-origin managed-AI gateway, encrypted WebRTC sharing, and
+  same-origin application resources. Maintained external workflows now validate
+  route identity, HTTPS/configured destination, permitted data class, consent
+  mode, and offline behavior before proceeding. Authorization receipts retain
+  only the destination origin and policy metadata. Negative fixtures reject
+  unknown destinations, missing consent, disallowed data, and Supabase-origin
+  substitution; strict TypeScript, Phase 0, and production-artifact checks pass.
+- [x] Implement Security/Privacy Slice 1B — classification propagation and
+  browser review. Project snapshots and map layers accept the typed privacy
+  contract; new projects receive a conservative restricted classification;
+  generated teaching projects and packages declare public-synthetic data and
+  geography; and package disclosure receipts omit free-text purpose and record
+  values. Export and Supabase upload reject missing or unapproved
+  classifications while legacy packages remain readable for recovery and
+  review. **Help > Privacy and Offline Readiness** shows and deliberately edits
+  the active project classification and lists the nine registered routes,
+  including their consent and offline behavior. Contract, negative, Phase 0,
+  build-artifact, and focused Chromium modal/edit/close tests pass.
+- [ ] **Complete Security/Privacy Slice 2 evidence; the implementation is a bounded candidate.**
+  Project and map-layer contracts carry deterministic exact, rounded/grouped,
+  administrative-area, or suppressed release policies. Point-map rendering
+  resolves layer-over-project policy, fails closed without classification,
+  rejects exact precise-sensitive display, enforces minimum cells, and emits a
+  coordinate-free transformation receipt while retaining source coordinates.
+  Online tiles and geocoding warn and require confirmation for precise-sensitive
+  projects. Remaining evidence is per-layer Maps UI authoring, approved boundary
+  joins, derived-download integration, all teaching fixtures, multi-browser
+  coverage, and privacy-officer/field review.
+- [x] Harden generated teaching-project manifests and lifecycle boundaries.
+  Generated `.epia`/JSON fixtures now declare and verify required datasets,
+  programs, runbooks, vector/raster assets, and map-layer metadata; regression
+  checks fail closed on missing or altered artifacts, and project replacement
+  clears prior Analysis and Maps state. Signed/revocable catalogs,
+  update/uninstall/quota workflows, and broader malicious-package corpora remain
+  separate open package-management gates.
+- [x] Correct and merge the bounded K09 advanced-spatial contract candidates.
+  The reviewed boundary now rejects operation/parameter mismatches,
+  record-level output under aggregate-only privacy, oversized input, and
+  requests beyond permutation/cell limits. Ten K09 gates and the validation-lab
+  oracle are merged. Independent method validation, scientific review, resource
+  profiling, cross-browser evidence, and product exposure remain open and no
+  legacy or production parity is claimed.
 - [ ] Evaluate `REPEAT ... UNTIL` as a bounded Classic-language revival.
   The retained Epi Info grammar defines `REPEAT` followed by statements and an
   `UNTIL` expression, but the inspected Epi Info 7 Analysis interpreter leaves

@@ -1,3 +1,5 @@
+import { authorizeNetworkEgressV01 } from "../security/network-egress.ts";
+
 export const DEFAULT_GEOCODER_ENDPOINT = "https://nominatim.openstreetmap.org/search";
 
 export interface GeocodeCandidate {
@@ -52,6 +54,10 @@ export async function geocodeAddress(address: string, options: GeocodeOptions = 
   endpoint.searchParams.set("addressdetails", "1");
   endpoint.searchParams.set("limit", "7");
   endpoint.searchParams.set("q", query);
+  authorizeNetworkEgressV01("geocoder.nominatim", endpoint, {
+    dataClassification: "restricted-identifiable",
+    consentGranted: true,
+  });
   const response = await (options.fetchImpl ?? fetch)(endpoint, {
     headers: { Accept: "application/json" },
     referrerPolicy: "strict-origin-when-cross-origin",

@@ -10,8 +10,8 @@
       "description": "96 synthetic investigation records with Classic Analysis, Check Code, and GIS runbooks, command tours, quality profiling, and embedded Toledo GeoJSON and GeoTIFF map layers.",
       "file": "foodborne-outbreak-investigation.epia",
       "repository": "https://git.cdc.gov/epi-info-ai/foodborne-outbreak-investigation",
-      "bytes": 1503310,
-      "sha256": "301f23a343783c43f19744e19ecae0381aad379a7fbacf487bfa8aaf49f26781",
+      "bytes": 1503995,
+      "sha256": "47a164c1f5fd269027396e7a9d141021334e87e7534110da6cd7d9af22ff5a9a",
       "contents": {
         "version": 1,
         "inventory": {
@@ -177,8 +177,8 @@
       "description": "30 synthetic fever/rash events with a planted cluster, reproducible analysis parameters, mapping, and story-tour output.",
       "file": "space-time-cluster-detection.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/space-time-cluster-detection",
-      "bytes": 15598,
-      "sha256": "62623e2fdd9344cbb55e52c56e09886198a8808ff0e1275a7264ced254a5a23a",
+      "bytes": 16478,
+      "sha256": "a08bbb4d1a25f62790042c48059daf8a791b1791a9636da5afe6194800f29b76",
       "contents": {
         "version": 1,
         "inventory": {
@@ -318,8 +318,8 @@
       "description": "Ten synthetic uploadable GeoJSON and CSV cases with a saved program that filters expected outcomes and reviews GIS-K03 defensive-ingestion behavior.",
       "file": "gis-defensive-ingestion-teaching.epia.json",
       "repository": "https://git.cdc.gov/epi-info-ai/epi-gis-kernel",
-      "bytes": 8371,
-      "sha256": "654ad12e5eade3644dade1e62765230f0f33bc9945c277d5d7627165b80b35bb",
+      "bytes": 9251,
+      "sha256": "db8295b60dcbf6776860d8da746a5015c21ac618612c82acd6699bb58f26699b",
       "contents": {
         "version": 1,
         "inventory": {
@@ -338,7 +338,7 @@
             "role": "dataset",
             "mediaType": "application/vnd.epi-info-ai.form+json",
             "bytes": 2768,
-            "sha256": "d828ab3c74712f23bfd335c7b76da103e68cd0858477072afea3a63c2cd0f8e6"
+            "sha256": "cabd7dc642ae97540cb01ff526b0802975bb9b7a6ed7e6b49d7092e1c5b8fdc3"
           },
           {
             "id": "program:defensive-ingestion-review",
@@ -371,8 +371,8 @@
       "description": "Twelve synthetic heat-health observations with data quality, descriptive analysis, 2 x 2 and chart output, an epi-gis Worker lab, a packaged point layer, and a learner-operated runbook.",
       "file": "environmental-heat-health-candidate.epia",
       "repository": "https://git.cdc.gov/epi-info-ai/package-environmental-epidemiology",
-      "bytes": 11850,
-      "sha256": "3ebd8ad6a4fbd0767a580e5e0b8f7f73f3fea27812c1eebfce8d186e21061a99",
+      "bytes": 12535,
+      "sha256": "5b36b97a822403b2a3a1d6675cf777bd5d41d1d8b5cba479c78f3889ce0fffbd",
       "contents": {
         "version": 1,
         "inventory": {

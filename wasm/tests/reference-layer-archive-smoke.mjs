@@ -11,6 +11,7 @@ const archives = await import(`data:text/javascript;base64,${Buffer.from(archive
 const sourceStore = await import(`data:text/javascript;base64,${Buffer.from(sourceStoreBundle.outputFiles[0].text).toString("base64")}`);
 
 const snapshot = JSON.parse(await readFile("wasm/tests/fixtures/phase0/project-snapshot-v1.json", "utf8"));
+snapshot.privacy = { schema: "epi-info-ai-privacy/0.1", data: "public-synthetic", geography: "public-synthetic", containsRecordValues: true, purpose: "Reference layer archive test fixture", approvedUses: ["download", "map-display"] };
 const sourceBytes = zipSync({ "toledo.shp": new Uint8Array([1]), "toledo.shx": new Uint8Array([2]), "toledo.dbf": new Uint8Array([3]) });
 const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", sourceBytes))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 const source = {

@@ -4,6 +4,7 @@ import type {
   EpiAssistGatewayResponse,
   EpiAssistRunMetadata,
 } from "../contracts/assistant.ts";
+import { authorizeNetworkEgressV01 } from "../security/network-egress.ts";
 
 export const EPI_ASSIST_GATEWAY_PATH = "api/epi-assist/v1/propose";
 
@@ -36,6 +37,11 @@ export async function requestCloudProposal(
   expectedOrigin = location.origin,
 ): Promise<{ response: EpiAssistGatewayResponse; metadata: EpiAssistRunMetadata }> {
   if (endpoint.origin !== expectedOrigin) throw new Error("Epi Assist cloud gateways must be same-origin.");
+  authorizeNetworkEgressV01("assistant.same-origin-gateway", endpoint, {
+    dataClassification: "aggregate",
+    consentGranted: true,
+    applicationOrigin: expectedOrigin,
+  });
   const request: EpiAssistGatewayRequest = {
     schemaVersion: "1.0.0",
     provider: choice.provider,

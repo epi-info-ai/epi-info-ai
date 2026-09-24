@@ -102,9 +102,11 @@ server. A typical deployment is:
 
 Clearing site data, changing browser profiles, or using another computer creates
 a different local workspace. Preserve an encrypted backup before doing so. The
-teaching-project manifest and import checks are being hardened so that Epi Info AI
-can fail closed when a required dataset, program, runbook, vector/raster asset, or
-map-layer declaration is missing or altered.
+teaching-project manifest and import checks now fail closed when a required
+dataset, program, runbook, vector/raster asset, or map-layer declaration is
+missing or altered. Project replacement also clears prior-project Analysis and
+Maps artifacts. Signed distribution, update/uninstall, quota management, and
+broader malicious-package evidence remain open gates.
 
 ### GDAL/WASM browser GIS validation lab
 
@@ -737,6 +739,22 @@ The concise current snapshot is maintained in
 [`wasm/docs/status.md`](wasm/docs/status.md); the sections above remain a dated
 historical progress record.
 
+## Progress on September 23 and September 24, 2026
+
+- Merged the reviewed K09 GIS corrective work with stricter operation/parameter,
+  privacy-granularity, input-size, permutation, and cell-limit validation. Ten
+  bounded K09 gates, the Phase 0 baseline, production build, validation lab, and
+  browser suite pass; the methods remain candidates pending independent
+  scientific validation and explicit product-exposure decisions.
+- Hardened generated teaching projects so their manifests cover required data,
+  programs, runbooks, and map assets; imports fail closed on missing or altered
+  artifacts, and replacing a project clears prior Analysis and Maps state.
+- Added dialog/privacy regressions and a bounded Linux Tauri/container packaging
+  spike without granting native filesystem, process, or network authority.
+- Merged GitLab `main` checkpoint `c89e164`; pipeline `300901` passed the
+  176-test browser suite and GitLab Pages deployment. GitHub replication remains
+  a separate CPPR release action.
+
 ## Ordered roadmap and open work
 
 - **Make security, privacy, and geoprivacy release gates.** The initial
@@ -749,6 +767,28 @@ historical progress record.
   malicious-input and disclosure tests, SBOM/secret scanning, and independent
   security/privacy/geoprivacy review. Keep authoritative coordinates precise
   inside an approved study; generalize only explicit derived outputs.
+  The first bounded increment now adds a machine-readable nine-route
+  network-egress registry. Online maps, geocoding, teaching/example repositories,
+  capability packages, Supabase, same-origin managed AI, and encrypted WebRTC
+  sharing must pass route, destination, classification, consent, and offline-mode
+  checks; privacy-minimized authorization receipts omit paths, queries, tokens,
+  addresses, and record values. Negative fixtures, strict TypeScript, Phase 0,
+  and production-artifact checks pass. Slice 1B now propagates the typed privacy
+  contract through project and map-layer snapshots, generated project packages,
+  output/disclosure receipt types, and new-project defaults. Export and Supabase
+  upload fail closed for unclassified or unapproved projects; legacy packages
+  remain readable for review and recovery. Generated teaching packages declare
+  public-synthetic data and geography, and **Help > Privacy and Offline
+  Readiness** exposes the active classification and all governed routes. The
+  focused Chromium modal regression passes. Slice 2 now adds a bounded typed
+  geoprivacy candidate: exact, rounded/grouped, administrative-area, and
+  suppressed derived releases; minimum-cell enforcement; coordinate-free
+  receipts; point-map enforcement; and explicit warnings before online tiles or
+  geocoding for precise-sensitive projects. Authoritative coordinates are never
+  overwritten. Per-layer Maps UI authoring, approved boundary joins,
+  derived-download integration, all-example and multi-browser evidence, and
+  privacy-officer/field review remain. These controls do not authorize
+  identifiable production use.
 
 - **Establish a Firefox, Safari/WebKit, and Chromium UI-navigation floor.** The
   initial [cross-browser navigation review](wasm/docs/review/cross_browser_ui_navigation.md)

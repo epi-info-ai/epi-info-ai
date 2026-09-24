@@ -1,4 +1,5 @@
 import { MAX_ENCRYPTED_PROJECT_BYTES } from "../contracts/encrypted-project.ts";
+import { authorizePeerEgressV01 } from "../security/network-egress.ts";
 
 export const SECURE_SHARE_PROTOCOL_VERSION = 1 as const;
 export const SECURE_SHARE_CHUNK_BYTES = 64 * 1024;
@@ -115,6 +116,7 @@ export async function createSecureShareSender(
   file: File,
   callbacks: SecureShareSenderCallbacks,
 ): Promise<{ offer: string; fingerprint: string; acceptAnswer(answer: string): Promise<void>; close(): void }> {
+  authorizePeerEgressV01("share.encrypted-webrtc", { dataClassification: "restricted-identifiable", consentGranted: true });
   const name = safeTransferName(file.name);
   if (file.size < 1 || file.size > MAX_ENCRYPTED_PROJECT_BYTES) throw new Error("The encrypted package is outside the Secure Share size limit.");
   const digest = await sha256(file);
@@ -160,6 +162,7 @@ export function createSecureShareReceiver(callbacks: SecureShareReceiverCallback
   acceptOffer(offer: string): Promise<{ answer: string; fingerprint: string; senderFingerprint: string }>;
   close(): void;
 } {
+  authorizePeerEgressV01("share.encrypted-webrtc", { dataClassification: "restricted-identifiable", consentGranted: true });
   const peer = new RTCPeerConnection({ iceServers: [] });
   let start: TransferStart | null = null;
   let received = 0;

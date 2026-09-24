@@ -1,5 +1,7 @@
 import { validateFieldRules, type FieldValidationRule } from "./validation.ts";
 import { validateFieldCheckCode, type FieldCheckCode } from "./check-code.ts";
+import { validatePrivacyClassificationV01, type PrivacyClassificationV01 } from "../security/privacy.ts";
+import { validateGeoprivacyPolicyV01, type GeoprivacyPolicyV01 } from "../security/geoprivacy.ts";
 
 export const PROJECT_SNAPSHOT_VERSION = 1 as const;
 
@@ -194,7 +196,7 @@ export interface ProjectReferenceLayerSourceV1 {
   persistence: "persistent" | "best-effort";
 }
 
-export type ProjectMapLayer = {
+export type ProjectMapLayer = ({
   id: string;
   kind: "case-cluster" | "spot-map";
   sourceFormId: string;
@@ -259,7 +261,7 @@ export type ProjectMapLayer = {
   name: string;
   visible: boolean;
   opacity: number;
-};
+}) & { privacy?: PrivacyClassificationV01; geoprivacy?: GeoprivacyPolicyV01 };
 
 export interface ProjectStudyArea {
   id: string;
@@ -284,6 +286,8 @@ export interface ProjectSnapshotV1 {
   mapLayers?: ProjectMapLayer[];
   mapPresentation?: ProjectMapPresentationV1;
   referenceLayerSources?: ProjectReferenceLayerSourceV1[];
+  privacy?: PrivacyClassificationV01;
+  geoprivacy?: GeoprivacyPolicyV01;
 }
 
 export interface ProjectMapPresentationV1 {
@@ -730,6 +734,8 @@ function projectMapLayerAt(
     id: nonEmptyString(source.id, `${path}.id`),
     name: nonEmptyString(source.name, `${path}.name`),
     visible: source.visible,
+    ...(source.privacy !== undefined ? { privacy: validatePrivacyClassificationV01(source.privacy) } : {}),
+    ...(source.geoprivacy !== undefined ? { geoprivacy: validateGeoprivacyPolicyV01(source.geoprivacy) } : {}),
   };
   if (source.kind === "case-cluster" || source.kind === "spot-map") {
     const sourceFormId = nonEmptyString(source.sourceFormId, `${path}.sourceFormId`);
@@ -1042,6 +1048,8 @@ export function validateProjectSnapshot(value: unknown): ProjectSnapshotV1 {
     forms,
   };
   if (snapshot.version !== undefined) result.version = PROJECT_SNAPSHOT_VERSION;
+  if (snapshot.privacy !== undefined) result.privacy = validatePrivacyClassificationV01(snapshot.privacy);
+  if (snapshot.geoprivacy !== undefined) result.geoprivacy = validateGeoprivacyPolicyV01(snapshot.geoprivacy);
   if (snapshot.storage !== undefined) result.storage = storageAt(snapshot.storage, "project.storage");
   if (snapshot.remote !== undefined) result.remote = remoteAt(snapshot.remote, "project.remote");
   if (snapshot.studyAreas !== undefined) {

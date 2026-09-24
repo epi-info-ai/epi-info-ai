@@ -1,6 +1,7 @@
 import type { OfflineMapAsset, ProjectStudyArea, StudyAreaBounds } from "../contracts/core.ts";
 import { estimateOfflineMapPackage, offlineMapProvider } from "../maps/offline-map-estimator.ts";
 import { persistPmtilesImport, validatePmtilesImport, type ValidatedPmtilesImport } from "../maps/pmtiles-import.ts";
+import { authorizeNetworkEgressV01 } from "../security/network-egress.ts";
 
 type LeafletHandle = any;
 const L: LeafletHandle = (globalThis as typeof globalThis & { L?: LeafletHandle }).L;
@@ -156,6 +157,10 @@ function ensureMap(): LeafletHandle {
   if (map) return map;
   if (!L) throw new Error("The map library could not be loaded.");
   map = L.map("project-study-area-map", { zoomControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  authorizeNetworkEgressV01("maps.openstreetmap-tiles", "https://tile.openstreetmap.org/0/0/0.png", {
+    dataClassification: "restricted-identifiable",
+    consentGranted: true,
+  });
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',

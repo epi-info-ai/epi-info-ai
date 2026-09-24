@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="styles.css?v=73" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=6" defer></script>
-    <script type="module" src="app.js?v=132"></script>
+    <script type="module" src="app.js?v=133"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -85,6 +85,7 @@
           <button id="help-teaching-repositories" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Teaching Repositories...</button>
           <button id="help-capability-packages" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> Capability Packages...</button>
           <button id="help-gis-kernel-lab" type="button" role="menuitem"><span class="new-branch-tag">New branch</span> GIS Kernel Lab...</button>
+          <button id="help-privacy-readiness" type="button" role="menuitem">Privacy and Offline Readiness...</button>
           <div class="legacy-menu-separator" role="separator"></div>
           <button type="button" role="menuitem" disabled title="Not yet included in the browser demo">User Guide</button>
           <button type="button" role="menuitem" disabled title="Not yet implemented">Help Videos</button>
@@ -93,6 +94,72 @@
         </div>
       </details>
     </nav>
+
+    <dialog id="privacy-readiness-dialog" class="legacy-dialog" aria-labelledby="privacy-readiness-title">
+      <div class="legacy-dialog-titlebar">
+        <h2 id="privacy-readiness-title">Privacy and Offline Readiness</h2>
+        <button type="button" data-close-privacy-readiness aria-label="Close">&times;</button>
+      </div>
+      <div class="legacy-dialog-body">
+        <p><strong>Current project:</strong> <span id="privacy-readiness-project"></span></p>
+        <div id="privacy-readiness-classification" class="dialog-note" role="status" aria-live="polite"></div>
+        <fieldset>
+          <legend>Project classification</legend>
+          <label for="privacy-data-classification">Data</label>
+          <select id="privacy-data-classification">
+            <option value="restricted-identifiable">Restricted identifiable</option>
+            <option value="restricted-deidentified">Restricted deidentified</option>
+            <option value="aggregate">Aggregate</option>
+            <option value="public-synthetic">Public synthetic</option>
+            <option value="public">Public</option>
+          </select>
+          <label for="privacy-geography-classification">Geography</label>
+          <select id="privacy-geography-classification">
+            <option value="precise-sensitive">Precise sensitive</option>
+            <option value="generalized">Generalized</option>
+            <option value="administrative-area">Administrative area</option>
+            <option value="public-synthetic">Public synthetic</option>
+            <option value="none">No geography</option>
+          </select>
+          <label><input id="privacy-contains-record-values" type="checkbox" /> Contains record values</label>
+          <label for="privacy-purpose">Purpose</label>
+          <input id="privacy-purpose" type="text" maxlength="240" />
+          <div class="checkbox-grid">
+            <label><input id="privacy-use-map-display" type="checkbox" /> Map display</label>
+            <label><input id="privacy-use-download" type="checkbox" /> Package download</label>
+            <label><input id="privacy-use-external-sync" type="checkbox" /> External synchronization</label>
+          </div>
+          <button id="privacy-apply-classification" type="button">Apply classification</button>
+          <p class="dialog-note">Classification changes policy metadata only. It never generalizes, moves, or overwrites authoritative records or coordinates.</p>
+        </fieldset>
+        <fieldset>
+          <legend>Derived map and export geoprivacy</legend>
+          <label for="geoprivacy-display-mode">Release method</label>
+          <select id="geoprivacy-display-mode">
+            <option value="exact">Exact coordinates</option>
+            <option value="rounded">Rounded and grouped coordinates</option>
+            <option value="administrative-area">Administrative-area aggregate</option>
+            <option value="suppressed">Suppress geography</option>
+          </select>
+          <label for="geoprivacy-rounding-decimals">Rounded coordinate decimals (0–4)</label>
+          <input id="geoprivacy-rounding-decimals" type="number" min="0" max="4" step="1" />
+          <label for="geoprivacy-minimum-cell-count">Minimum released cell count (1–100)</label>
+          <input id="geoprivacy-minimum-cell-count" type="number" min="1" max="100" step="1" />
+          <label for="geoprivacy-administrative-field">Administrative-area field</label>
+          <input id="geoprivacy-administrative-field" type="text" maxlength="128" placeholder="e.g. district" />
+          <button id="geoprivacy-apply-policy" type="button">Apply geoprivacy policy</button>
+          <div id="geoprivacy-policy-status" class="dialog-note" role="status" aria-live="polite"></div>
+          <p class="dialog-note">Map display uses a derived copy. Exact coordinates are rejected for precise-sensitive projects; small cells are suppressed. Authoritative records are never overwritten.</p>
+        </fieldset>
+        <h3>Governed network routes</h3>
+        <p>External routes run only after their destination, data class, consent mode, and offline behavior pass the registered policy.</p>
+        <ul id="privacy-readiness-routes"></ul>
+        <p class="dialog-note"><strong>Offline check:</strong> Routes marked unavailable offline require a visible fallback. A classification or successful download does not prove that every project asset is cached.</p>
+      </div>
+      <div class="legacy-dialog-actions">
+        <button type="button" data-close-privacy-readiness>Close</button>
+      </div>
+    </dialog>
 
     <dialog id="local-demo-sign-in-dialog" class="legacy-dialog" aria-labelledby="local-demo-sign-in-title">
       <form id="local-demo-sign-in-form" method="dialog">

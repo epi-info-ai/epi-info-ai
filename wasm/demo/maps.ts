@@ -19,6 +19,8 @@ import type {
 } from "../app/contracts/maps.js";
 import type { EpiRecord, FieldDefinition, MapPoint, OfflineMapAsset, ProjectMapAsset, ProjectMapLayer, ProjectMapPresentationV1, ProjectReferenceLayerSourceV1, ProjectSnapshotV1, RecordValue } from "../app/contracts/core.js";
 import type { SpaceTimeClusterInferenceResult } from "../app/programming/epi-ai-space-time-cluster-analysis.js";
+import { authorizeNetworkEgressV01 } from "../app/security/network-egress.ts";
+import { defaultGeoprivacyPolicyV01, transformGeographyV01 } from "../app/security/geoprivacy.ts";
 import {
   openBrowserPmtiles,
   pmtilesRasterMimeType,
@@ -265,6 +267,7 @@ function renderPointDiagnostics(diagnostics: readonly PointLayerDiagnosticV01[])
 
 function persistProjectMapLayers(): void {
   if (!saveProjectMapState || !map) return;
+  const projectSnapshot = currentProjectSnapshot?.() ?? null;
   const assets = [...geoJsonLayers.values(), ...choroplethLayers.values(), ...dotDensityLayers.values(), ...rasterLayers.values()]
     .map(({ asset }) => asset)
     .filter((asset, index, values) => values.findIndex((candidate) => candidate.id === asset.id) === index);
@@ -281,6 +284,8 @@ function persistProjectMapLayers(): void {
       markerStyle: activeRecordMarkerStyle,
       markerColor: activeRecordMarkerColor,
       ...(activeRecordFilter ? { filter: activeRecordFilter } : {}),
+      ...(projectSnapshot?.privacy ? { privacy: projectSnapshot.privacy } : {}),
+      ...(projectSnapshot?.geoprivacy ? { geoprivacy: projectSnapshot.geoprivacy } : {}),
     }] : []),
     ...[...geoJsonLayers].map(([id, entry]): ProjectMapLayer => ({
       id,
@@ -623,6 +628,10 @@ function ensureMap() {
     const pane = map.createPane(`epi-${name}-pane`);
     pane.style.zIndex = String(zIndex);
   }
+  authorizeNetworkEgressV01("maps.openstreetmap-tiles", "https://tile.openstreetmap.org/0/0/0.png", {
+    dataClassification: "restricted-identifiable",
+    consentGranted: true,
+  });
   tileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     pane: "epi-raster-pane",
@@ -631,7 +640,13 @@ function ensureMap() {
   tileLayer.on("tileerror", () => {
     requiredElement("#map-basemap-status").textContent = "Basemap unavailable; local layers still work.";
   });
-  if (requiredElement<HTMLInputElement>('[name="map-basemap"][value="street"]').checked) tileLayer.addTo(map);
+  if (requiredElement<HTMLInputElement>('[name="map-basemap"][value="street"]').checked) {
+    if (currentProjectSnapshot?.()?.privacy?.geography === "precise-sensitive") {
+      requiredElement<HTMLInputElement>('[name="map-basemap"][value="blank"]').checked = true;
+      mapBackgroundSource = "blank";
+      requiredElement("#map-basemap-status").textContent = "Online street tiles are off for precise-sensitive geography. Select Street explicitly to review disclosure of the viewed map extent.";
+    } else tileLayer.addTo(map);
+  }
   recordLayer = L.layerGroup().addTo(map);
   locationLayer = L.layerGroup().addTo(map);
   L.control.scale({ imperial: true, metric: true }).addTo(map);
@@ -1850,7 +1865,7 @@ function renderRecordMarkers(mappedRecords: MapPoint[]): void {
       ? L.marker([latitude, longitude], { pane: "epi-point-pane", icon: L.divIcon({ className: "epi-square-marker", html: "", iconSize: [12, 12], iconAnchor: [6, 6] }) })
       : L.circleMarker([latitude, longitude], { pane: "epi-point-pane", radius: 6, color: activeRecordMarkerColor, weight: 2, fillColor: activeRecordMarkerColor, fillOpacity: 0.84 });
     marker.bindPopup(markerPopup(record, activeRecordLabelField, latitude, longitude));
-    if (mapContext === "current-form" && activeRecordOpenHandler) {
+    if (mapContext === "current-form" && activeRecordOpenHandler && recordIndex >= 0) {
       marker.on("dblclick", () => {
       if (mapContext === "current-form") openAuthorizedRecord(record);
       });
@@ -1969,11 +1984,44 @@ function plotRecords(
     longitudeField,
     ...(options.filter ? { filter: options.filter } : {}),
   });
-  const mappedRecords = preview.points;
+  const projectSnapshot = currentProjectSnapshot?.() ?? null;
+  const layerId = options.id || `${options.kind ?? "case-cluster"}-${data.formId}`;
+  const savedLayer = projectSnapshot?.mapLayers?.find((candidate) => candidate.id === layerId);
+  const privacy = savedLayer?.privacy ?? projectSnapshot?.privacy;
+  let mappedRecords: MapPoint[];
+  let geoprivacySummary: string;
+  try {
+    if (!privacy) throw new Error("Classify this project in Help > Privacy and Offline Readiness before displaying record geography.");
+    const policy = savedLayer?.geoprivacy ?? projectSnapshot?.geoprivacy ?? defaultGeoprivacyPolicyV01(privacy);
+    const release = transformGeographyV01(preview.points.map((point) => ({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      ...(policy.administrativeAreaField ? { administrativeArea: String(point.record[policy.administrativeAreaField] ?? "") } : {}),
+    })), privacy, policy, "map-display", "map-layer");
+    mappedRecords = policy.displayMode === "exact" && policy.minimumCellCount === 1
+      ? preview.points
+      : release.features
+        .filter((feature) => feature.latitude !== null && feature.longitude !== null)
+        .map((feature) => ({
+          latitude: feature.latitude!,
+          longitude: feature.longitude!,
+          recordIndex: -1,
+          record: {
+            [labelField || "Geoprivacy"]: feature.administrativeArea || `Derived cell (n=${feature.count})`,
+            GeoprivacyCount: feature.count,
+          },
+        }));
+    geoprivacySummary = `${release.receipt.method}; ${release.receipt.releasedRecords} released, ${release.receipt.suppressedRecords} suppressed; authoritative coordinates unchanged.`;
+    if (release.warnings.length) geoprivacySummary += ` ${release.warnings.join(" ")}`;
+  } catch (error) {
+    recordLayer.clearLayers();
+    requiredElement("#map-status").textContent = error instanceof Error ? error.message : "Geoprivacy policy rejected this map display.";
+    return;
+  }
   activeData = data;
   activeRecordPoints = mappedRecords;
   activeRecordLayerKind = options.kind ?? "case-cluster";
-  activeRecordLayerId = options.id || `${activeRecordLayerKind}-${data.formId}`;
+  activeRecordLayerId = layerId;
   activeRecordLatitudeField = latitudeField;
   activeRecordLongitudeField = longitudeField;
   activeRecordLabelField = labelField;
@@ -1995,8 +2043,8 @@ function plotRecords(
   refreshMapEmptyState();
   updateLayerCount();
   requiredElement("#map-status").textContent = points.length > 0
-    ? `Mapped ${points.length} valid record${points.length === 1 ? "" : "s"}; skipped ${preview.skippedCount.toLocaleString()}.`
-    : "No valid coordinates were found in the selected fields.";
+    ? `Mapped ${points.length} derived geoprivacy feature${points.length === 1 ? "" : "s"}; skipped ${preview.skippedCount.toLocaleString()} invalid source row(s). ${geoprivacySummary}`
+    : `No point coordinates were released. ${geoprivacySummary}`;
   lastBounds = points.length > 0 ? L.latLngBounds(points) : null;
   if (lastBounds?.isValid()) map.fitBounds(lastBounds.pad(0.18), { maxZoom: 15 });
   renderPointDiagnostics(activeRecordDiagnostics);
@@ -2562,6 +2610,12 @@ export function initializeMaps(
     const snapshot = getProjectSnapshot();
     mapContext = "standalone";
     if (map) resetMapWorkspace();
+    if (snapshot?.privacy?.geography === "precise-sensitive") {
+      requiredElement<HTMLInputElement>('[name="map-basemap"][value="blank"]').checked = true;
+      mapBackgroundSource = "blank";
+      if (map && tileLayer && map.hasLayer(tileLayer)) map.removeLayer(tileLayer);
+      requiredElement("#map-basemap-status").textContent = "Online street tiles are off for precise-sensitive geography. Blank and verified offline basemaps remain available.";
+    }
     setMapHeading();
     requiredElement("#map-empty-state").textContent = "Select Add Data Layer > Case Cluster, then choose a project form.";
     requiredElement("#map-status").textContent = snapshot
@@ -2580,6 +2634,8 @@ export function initializeMaps(
       const hasOfflinePackage = Boolean(snapshot?.studyAreas?.some((studyArea) => studyArea.offlineMap.asset));
       if (hasOfflinePackage) {
         requiredElement<HTMLInputElement>("#map-basemap-offline").checked = true;
+      } else if (snapshot?.privacy?.geography === "precise-sensitive") {
+        requiredElement<HTMLInputElement>('[name="map-basemap"][value="blank"]').checked = true;
       } else {
         requiredElement<HTMLInputElement>('[name="map-basemap"][value="street"]').checked = true;
       }
@@ -3455,6 +3511,13 @@ export function initializeMaps(
   for (const radio of requiredElements('[name="map-basemap"]')) {
     radio.addEventListener("change", (event) => {
       const value = eventControl(event).value as "street" | "blank" | "offline";
+      if (value === "street" && currentProjectSnapshot?.()?.privacy?.geography === "precise-sensitive"
+        && !globalThis.confirm("Online street tiles disclose the viewed map extent to the tile provider. Continue for this precise-sensitive project?")) {
+        requiredElement<HTMLInputElement>('[name="map-basemap"][value="blank"]').checked = true;
+        mapBackgroundSource = "blank";
+        requiredElement("#map-basemap-status").textContent = "Online street tiles remain off; blank and verified offline basemaps are available.";
+        return;
+      }
       try {
         createMapBackgroundPlanV01({ source: value, ...(value === "offline" && offlineRecoveryAsset ? { offlineAssetId: offlineRecoveryAsset.sha256 } : {}) });
       } catch (error) {
