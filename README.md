@@ -72,6 +72,38 @@ The current GitLab Pages demo provides a recognizable Epi Info-style launcher an
 
 **[Launch Epi Info AI v0.2.0 — GitHub Pages mirror](https://epi-info-ai.github.io/epi-info-ai/)** — the same validated `main` build published by GitHub Actions for external replication testing.
 
+### Typical connected-to-offline field workflow
+
+Epi Info AI runs in the browser, but the working project is local to that browser
+profile. Think of the browser as the application host and its protected local
+storage as the field workstation—not as a web page that must stay connected to a
+server. A typical deployment is:
+
+1. **Prepare while connected.** Open Epi Info AI in the browser that will be used
+   in the field. Import the required capability packages and teaching or working
+   projects, including their declared programs, runbooks, reference layers,
+   rasters, and offline map packages. Connect to approved central resources such
+   as Supabase only when the project requires them.
+2. **Prove offline readiness before departure.** Disconnect the network or use the
+   browser's offline mode, reload Epi Info AI, reopen each required project, and
+   exercise its critical forms, programs, runbooks, and map layers. A successful
+   download or installation alone is not proof that every required asset is
+   available offline.
+3. **Work and back up offline.** Collect and analyze data locally. At appropriate
+   checkpoints, save an authenticated encrypted `.epiax` project backup to an
+   approved location or transfer it through an approved secure workflow. The
+   passphrase is not stored in the package and should be communicated separately.
+4. **Reconnect deliberately.** When an approved connection is available again,
+   review and synchronize the work that needs to reach a central service, retrieve
+   governed updates, and create another encrypted backup. Synchronization is an
+   explicit reviewed action; browser-local work is not assumed to upload itself.
+
+Clearing site data, changing browser profiles, or using another computer creates
+a different local workspace. Preserve an encrypted backup before doing so. The
+teaching-project manifest and import checks are being hardened so that Epi Info AI
+can fail closed when a required dataset, program, runbook, vector/raster asset, or
+map-layer declaration is missing or altered.
+
 ### GDAL/WASM browser GIS validation lab
 
 The standalone validation lab exercises eight browser GIS workloads: reprojection,
@@ -699,6 +731,17 @@ historical progress record.
 
 ## Ordered roadmap and open work
 
+- **Make security, privacy, and geoprivacy release gates.** The initial
+  [code-backed review](wasm/docs/review/security_privacy.md) records current
+  typed execution, archive integrity, local-AI, encrypted-export, and explicit
+  synchronization controls without treating the browser as automatically safe.
+  Before identifiable production use, establish a network-egress registry,
+  strict deployment headers/CSP, data and map-layer privacy classifications,
+  precise-location display/export controls, storage/retention decisions,
+  malicious-input and disclosure tests, SBOM/secret scanning, and independent
+  security/privacy/geoprivacy review. Keep authoritative coordinates precise
+  inside an approved study; generalize only explicit derived outputs.
+
 - **Establish a Firefox, Safari/WebKit, and Chromium UI-navigation floor.** The
   initial [cross-browser navigation review](wasm/docs/review/cross_browser_ui_navigation.md)
   identifies the scrolling menubar/overlay boundary as the leading dropdown
@@ -1050,6 +1093,14 @@ historical progress record.
   workflow, validation status, and Help walkthrough. Version the manual with
   releases and check it against the capability, menu, command, chart, and
   validation registries so published guidance never claims unverified parity.
+
+- **Add a short README comic explaining the browser-first mental model.** Use a
+  light, field-epidemiology-appropriate sequence to contrast the familiar
+  desktop workflow with connected preparation, verified browser-local/offline
+  work, encrypted backup, and deliberate synchronization after reconnecting.
+  Keep the security and privacy boundaries accurate, use accessible alt text
+  and a text equivalent, and do not imply that browser cache alone guarantees
+  offline availability.
 
 - **Secure Epi Info Share hardening:** V0.1 now provides authenticated `.epiax`
   packaging and manual direct WebRTC exchange. Add reviewed legacy `.edp7`

@@ -32,17 +32,17 @@ export default defineConfig({
     },
     {
       name: "firefox-navigation",
-      testMatch: /cross-browser-navigation\.spec\.mjs/,
+      testMatch: /cross-browser-(?:navigation|dialogs)\.spec\.mjs/,
       use: { ...devices["Desktop Firefox"] },
     },
     {
       name: "webkit-navigation",
-      testMatch: /cross-browser-navigation\.spec\.mjs/,
+      testMatch: /cross-browser-(?:navigation|dialogs)\.spec\.mjs/,
       use: { ...devices["Desktop Safari"] },
     },
     {
       name: "mobile-webkit-navigation",
-      testMatch: /cross-browser-navigation\.spec\.mjs/,
+      testMatch: /cross-browser-(?:navigation|dialogs)\.spec\.mjs/,
       use: { ...devices["iPhone 13"] },
     },
     {
