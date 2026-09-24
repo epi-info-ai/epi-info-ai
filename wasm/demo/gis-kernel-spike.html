@@ -3,24 +3,73 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Epi Info AI — GIS kernel Worker spike</title>
+  <title>Epi Info AI — GIS Kernel Lab</title>
   <style>
-    body { max-width: 60rem; margin: 2rem auto; padding: 0 1rem; font: 1rem/1.5 system-ui, sans-serif; color: #17212b; }
-    button { margin-right: .5rem; padding: .55rem .8rem; }
-    pre { overflow: auto; padding: 1rem; background: #f2f5f7; border: 1px solid #ccd5db; }
-    [data-state="passed"] { color: #126b38; } [data-state="failed"] { color: #a32020; }
+    :root { color-scheme: light; --blue:#075985; --pale:#eef6fa; --line:#b8cad5; --green:#126b38; --red:#a32020; }
+    body { max-width:72rem; margin:0 auto; padding:1.25rem; font:1rem/1.5 system-ui,sans-serif; color:#17212b; background:#f6f9fb; }
+    header,section { background:white; border:1px solid var(--line); border-radius:.35rem; padding:1rem 1.2rem; margin-bottom:1rem; }
+    h1,h2 { color:#0b344f; margin:.2rem 0 .6rem; } h2 { font-size:1.15rem; }
+    .eyebrow { color:var(--blue); font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .new { background:#ffd21a; color:#16232d; border-radius:1rem; padding:.12rem .45rem; }
+    label { display:block; font-weight:700; margin:.5rem 0 .25rem; } select,button { font:inherit; padding:.55rem .75rem; }
+    select { width:min(100%,38rem); } button { margin:.25rem .4rem .25rem 0; } button.primary { background:#08658f; color:white; border:1px solid #08658f; font-weight:700; }
+    dl { display:grid; grid-template-columns:minmax(11rem,15rem) 1fr; margin:0; } dt,dd { border-top:1px solid #dce6eb; margin:0; padding:.45rem; } dt { font-weight:700; }
+    pre { overflow:auto; max-height:24rem; padding:1rem; background:#f2f5f7; border:1px solid #ccd5db; white-space:pre-wrap; }
+    [data-state="passed"] { color:var(--green); font-weight:700; } [data-state="failed"] { color:var(--red); font-weight:700; }
+    .notice { border-left:.3rem solid #0784b5; padding:.7rem; background:var(--pale); }
+    .result-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); gap:.7rem; }
+    .metric { background:var(--pale); padding:.75rem; border-radius:.25rem; } .metric strong { display:block; font-size:1.35rem; }
+    @media (max-width:40rem) { dl { grid-template-columns:1fr; } dd { border-top:0; } }
   </style>
 </head>
 <body>
-  <main>
-    <p>NEW BRANCH · GIS-K02 ARCHITECTURE SPIKE</p>
-    <h1>Bounded dataset inspection</h1>
-    <p>This page exercises the typed GIS Worker boundary with a small local GeoJSON fixture. It does not load GDAL or mutate project state.</p>
-    <button id="run-inspect">Run inspection</button>
-    <button id="cancel-inspect" disabled>Cancel</button>
-    <p id="inspect-status" data-state="idle">Ready.</p>
-    <pre id="inspect-result" aria-live="polite"></pre>
-  </main>
+  <header>
+    <p class="eyebrow"><span class="new">New branch</span> · epi-gis 0.1 candidate</p>
+    <h1>GIS Kernel Lab</h1>
+    <p>This page demonstrates the emerging Epi Info AI GIS computation boundary. It reviews a typed plan, sends bounded bytes to a dedicated Worker, and returns diagnostics plus an auditable receipt.</p>
+    <p class="notice"><strong>Current boundary:</strong> local GeoJSON inspection only. No network, ambient file-system access, project mutation, geocoding, exposure assignment, or K09 advanced spatial statistics is granted.</p>
+  </header>
+  <section aria-labelledby="scenario-heading">
+    <h2 id="scenario-heading">1. Choose a local fixture</h2>
+    <label for="fixture-select">Demonstration scenario</label>
+    <select id="fixture-select">
+      <option value="environmental">Environmental heat-health observations (synthetic)</option>
+      <option value="architecture">Two-point architecture fixture</option>
+    </select>
+    <p id="fixture-description"></p>
+  </section>
+  <section aria-labelledby="plan-heading">
+    <h2 id="plan-heading">2. Review the effective plan</h2>
+    <dl>
+      <dt>Operation</dt><dd id="plan-operation"></dd>
+      <dt>Execution boundary</dt><dd>Dedicated local GIS Worker</dd>
+      <dt>Input</dt><dd id="plan-input"></dd>
+      <dt>Declared CRS</dt><dd>EPSG:4326 / signed decimal degrees</dd>
+      <dt>Limits</dt><dd id="plan-limits"></dd>
+      <dt>Requested output</dt><dd>Aggregate dataset inventory and receipt</dd>
+      <dt>Network authority</dt><dd>None</dd>
+      <dt>Mutation authority</dt><dd>None; source bytes and active project remain unchanged</dd>
+    </dl>
+    <p><button id="run-inspect" class="primary">Run bounded inspection</button><button id="cancel-inspect" disabled>Cancel</button></p>
+    <p id="inspect-status" data-state="idle" role="status">Ready.</p>
+  </section>
+  <section id="human-result" aria-labelledby="result-heading" hidden>
+    <h2 id="result-heading">3. Review output and receipt</h2>
+    <div class="result-grid">
+      <div class="metric"><strong id="result-features">—</strong>features</div>
+      <div class="metric"><strong id="result-coordinates">—</strong>coordinates inspected</div>
+      <div class="metric"><strong id="result-geometry">—</strong>geometry</div>
+      <div class="metric"><strong id="result-validation">—</strong>registry status</div>
+    </div>
+    <dl>
+      <dt>Extent</dt><dd id="result-extent"></dd>
+      <dt>Fields</dt><dd id="result-fields"></dd>
+      <dt>Receipt operation</dt><dd id="result-operation"></dd>
+      <dt>Terminal status</dt><dd id="result-status"></dd>
+    </dl>
+    <details><summary>Complete machine-readable result and receipt</summary><pre id="inspect-result" aria-live="polite"></pre></details>
+  </section>
+  <p><a href="./index.html">Return to Epi Info AI</a></p>
   <script type="module" src="./gis-kernel-spike.js"></script>
 </body>
 </html>

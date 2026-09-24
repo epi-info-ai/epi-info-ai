@@ -23,13 +23,47 @@ test("GIS-K02 inspects a bounded GeoJSON fixture in its Worker", async ({ page }
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/gis-kernel-spike.html");
-  await page.getByRole("button", { name: "Run inspection" }).click();
+  await page.getByRole("button", { name: "Run bounded inspection" }).click();
   await expect(page.locator("#inspect-status")).toHaveAttribute("data-state", "passed", { timeout: 30_000 });
   const result = JSON.parse(await page.locator("#inspect-result").textContent());
   expect(result.status).toBe("succeeded");
-  expect(result.data).toMatchObject({ format: "GeoJSON", layerCount: 1, featureCount: 2, geometryTypes: ["Point"], fields: ["case_id", "status"], extent: [-83.55, 41.64, -83.52, 41.66] });
+  expect(result.data).toMatchObject({ format: "GeoJSON", layerCount: 1, featureCount: 12, geometryTypes: ["Point"], fields: ["health_event", "heat_category", "observation_id"], extent: [-77.0431, 38.8699, -77.0137, 38.9382] });
   expect(result.receipt).toMatchObject({ operation: "gis.dataset.inspect", validationStatus: "candidate", terminalStatus: "succeeded" });
+  await expect(page.locator("#result-features")).toHaveText("12");
+  await expect(page.locator("#result-operation")).toHaveText("gis.dataset.inspect");
   expect(errors).toEqual([]);
+});
+
+test("environmental capability package and teaching project remain separate imports", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/index.html");
+  await page.locator("#help-menu summary").click();
+  await page.locator("#help-capability-packages").click();
+  const packages = page.getByRole("dialog", { name: "Capability Packages" });
+  await packages.getByRole("button", { name: "Preview package" }).click();
+  await expect(packages.locator("#capability-package-preview-title")).toHaveText("Environmental Epidemiology");
+  await expect(packages.locator("#capability-package-preview-authority")).toContainText("No execution");
+  await packages.locator("#capability-package-install").click();
+  await expect(packages.locator("#capability-package-status")).toContainText("installed as inert assets");
+  await expect(packages.locator("#capability-package-installed-summary")).toContainText("Environmental Epidemiology");
+  await page.keyboard.press("Escape");
+  await expect(packages).not.toBeVisible();
+
+  await page.getByRole("navigation", { name: "Application menu" }).getByText("File", { exact: true }).click();
+  await page.getByRole("menuitem", { name: /Import Example Project/ }).click();
+  const projects = page.getByRole("dialog", { name: "Import Example Project" });
+  await expect(projects.getByRole("button", { name: "Import Environmental Heat and Health Candidate" })).toBeVisible();
+  await projects.getByRole("button", { name: "Import Environmental Heat and Health Candidate" }).click();
+  await expect(page.locator("#main-menu-status")).toContainText("Imported Environmental Heat and Health Candidate");
+  await page.getByRole("button", { name: "Create Maps", exact: true }).click();
+  await expect(page.locator("#map-status")).toContainText(/project map|point/i);
+  await page.getByRole("button", { name: "Classic Analysis", exact: true }).click();
+  await page.locator("#classic-program-toolbar-open").click();
+  await page.locator("#classic-program-dialog-project").selectOption("environmental-heat-health-tour");
+  await page.locator("#classic-program-dialog-primary").click();
+  await expect(page.locator("#classic-program-source .cm-content")).toContainText("TABLES extreme_heat health_event");
+  await page.locator("#classic-program-run").click();
+  await expect(page.locator("#classic-program-command-status")).toContainText("Program completed");
 });
 
 test("GIS inspection runs through the imported teaching project and Program Editor", async ({ page }) => {

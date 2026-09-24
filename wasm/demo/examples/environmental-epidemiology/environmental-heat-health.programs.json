@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "dataset": {
+    "id": "synthetic-heat-health-observations",
+    "file": "data/synthetic-heat-health-observations.csv"
+  },
+  "programs": [
+    {
+      "id": "environmental-heat-health-tour",
+      "title": "Environmental heat and health tour",
+      "description": "Profiles twelve synthetic observations, describes heat categories, compares the binary heat and health-event indicators, and produces a chart without claiming causal inference.",
+      "requiredFields": ["observation_id", "heat_index_c", "heat_category", "extreme_heat", "health_event", "latitude", "longitude"],
+      "source": "*** Epi Info AI environmental epidemiology teaching candidate\n*** All records and exposure values are synthetic. This program does not estimate causality.\n\nHEADER 1 \"Environmental heat and health teaching workflow\"\nTYPEOUT \"Review data quality, describe the synthetic exposure, compare health-event counts, and open the project point layer in Maps.\"\n\nREAD [Synthetic Heat Health Observations Form]\nEPIAI QUALITY *\nLIST observation_id observation_date study_area heat_index_c extreme_heat health_event\nFREQ heat_category\nMEANS heat_index_c\nTABLES extreme_heat health_event\nGRAPH heat_category GRAPHTYPE=\"Bar\" TITLETEXT=\"Synthetic observations by heat category\" XTITLE=\"Heat category\" YTITLE=\"Observations\"\n\nTYPEOUT \"These descriptive results demonstrate a governed workflow; they are not an exposure model or health-effect estimate.\"\n"
+    }
+  ]
+}

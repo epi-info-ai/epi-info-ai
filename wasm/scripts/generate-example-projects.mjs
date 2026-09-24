@@ -235,6 +235,62 @@ await writePackage(
   [await runbook("gis-defensive-ingestion/gis-defensive-ingestion.runbook.json")],
 );
 
+const environmentalForm = await datasetForm(
+  "environmental-epidemiology/data/synthetic-heat-health-observations.csv",
+  "synthetic-heat-health-observations",
+  "synthetic-heat-health-observations",
+);
+environmentalForm.schema.pages = [
+  { name: "Observation", fields: ["observation_id", "observation_date", "study_area", "health_event"] },
+  { name: "Exposure", fields: ["heat_index_c", "heat_category", "extreme_heat", "exposure_source"] },
+  { name: "Location", fields: ["latitude", "longitude"] },
+];
+const environmentalPrograms = [await pgmProgram(
+  "environmental-epidemiology/environmental-heat-health-tour.pgm7",
+  "environmental-heat-health-tour",
+  "Synthetic quality, descriptive analysis, 2 x 2, chart, GIS-kernel, and map teaching workflow.",
+)];
+const environmentalPoints = await mapAsset("environmental-epidemiology/maps/synthetic-heat-health-observations.geojson", "geojson");
+const environmentalProjectResult = await writePackage(
+  "environmental-heat-health-candidate.epia.json",
+  {
+    version: 1,
+    name: "Environmental Heat and Health Candidate",
+    currentFormId: environmentalForm.id,
+    storage: { type: "browser" },
+    forms: [environmentalForm],
+    mapAssets: [environmentalPoints.asset],
+    mapLayers: [
+      {
+        id: "environmental-observation-points",
+        kind: "case-cluster",
+        sourceFormId: environmentalForm.id,
+        name: "Synthetic heat-health observations",
+        visible: true,
+        latitudeField: "latitude",
+        longitudeField: "longitude",
+        labelField: "observation_id",
+      },
+      {
+        id: "environmental-observation-reference",
+        kind: "geojson",
+        assetId: environmentalPoints.asset.id,
+        name: "Packaged environmental observation fixture",
+        visible: false,
+        labelField: "observation_id",
+        labelsEnabled: false,
+      },
+    ],
+  },
+  environmentalPrograms,
+  [await runbook("environmental-epidemiology/environmental-heat-health.runbook.json")],
+);
+const environmentalArchive = await createProjectArchive(environmentalProjectResult.packageValue, [environmentalPoints]);
+await writeFile(
+  path.join(examplesRoot, "projects", "environmental-heat-health-candidate.epia"),
+  new Uint8Array(await environmentalArchive.arrayBuffer()),
+);
+
 const recordLinkPackagePath = path.join(examplesRoot, "recordlink", "recordlink-synthetic-project.epia.json");
 const recordLinkPackage = JSON.parse(await readFile(recordLinkPackagePath, "utf8"));
 recordLinkPackage.programs[0].source = await readFile(path.join(examplesRoot, "recordlink", "recordlink-command-tour.pgm7"), "utf8");
@@ -299,6 +355,13 @@ const projects = [
     description: "Ten synthetic uploadable GeoJSON and CSV cases with a saved program that filters expected outcomes and reviews GIS-K03 defensive-ingestion behavior.",
     file: "gis-defensive-ingestion-teaching.epia.json",
     repository: "https://git.cdc.gov/epi-info-ai/epi-gis-kernel",
+  },
+  {
+    id: "environmental-heat-health-candidate",
+    title: "Environmental Heat and Health Candidate",
+    description: "Twelve synthetic heat-health observations with data quality, descriptive analysis, 2 x 2 and chart output, an epi-gis Worker lab, a packaged point layer, and a learner-operated runbook.",
+    file: "environmental-heat-health-candidate.epia",
+    repository: "https://git.cdc.gov/epi-info-ai/package-environmental-epidemiology",
   },
 ];
 

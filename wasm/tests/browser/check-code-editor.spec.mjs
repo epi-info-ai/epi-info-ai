@@ -206,6 +206,7 @@ test("capability package import verifies inert assets and preserves the IOCODE e
   await page.locator("#help-menu summary").click();
   await page.locator("#help-capability-packages").click();
   const packages = page.getByRole("dialog", { name: "Capability Packages" });
+  await packages.locator("#capability-package-preset").selectOption({ label: "Occupational Epidemiology: IOCODE" });
   await packages.getByRole("button", { name: "Preview package" }).click();
   await expect(packages.locator("#capability-package-preview-title")).toHaveText("Occupational Epidemiology: IOCODE");
   await expect(packages.locator("#capability-package-preview-manifest-source")).toHaveText("raw.githubusercontent.com");

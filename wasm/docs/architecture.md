@@ -245,6 +245,31 @@ reached by translating one of those legacy statements. The disposition matrix is
 maintained in
 [`form-designer-compatibility-inventory.md`](design/form-designer-compatibility-inventory.md#deliberately-excluded-desktop-authority).
 
+Browser identity follows the same host-capability boundary. The retained
+`CURRENTUSER()` implementation reads a Windows account, but a web application
+cannot read the active Windows, macOS, or Linux login. The current **Local demo
+sign-in** explicitly stores a user-entered browser-profile display name; it is
+not authentication. `CURRENTUSER()` receives only the typed application identity
+or missing, and its audit receipt records provenance and availability without
+copying the identity value into the general audit log. The complete placeholder,
+privacy, storage, teaching, and future authenticated-account contract is in
+[`browser-identity.md`](design/browser-identity.md).
+
+Barcode acquisition follows a stricter device-capability boundary. Camera access,
+barcode decoding, supported symbologies, permission prompts, and keyboard-scanner
+or manual-entry fallbacks belong to a future governed barcode capability (and may
+be distributed as an approved capability package); they are not responsibilities
+of the core Check Code parser or runtime. A Form Designer barcode field or an
+explicit user-invoked **Scan barcode** action may request that capability and
+write its reviewed result into an ordinary typed form field. Check Code may then
+validate or react to that field through its existing deterministic event model.
+It must never open a camera or begin scanning as a side effect of evaluating an
+expression. The retained `SYSBARCODE` name remains recognizable only as a
+legacy-compatibility boundary with a clear unsupported/new-branch diagnostic; it
+does not imply an executable Check Code function. Any future compatibility shim
+may read a value already supplied by the governed host capability, but it cannot
+own device permission, scanning UI, decoding, storage, or network authority.
+
 ### Transitional TypeScript implementation
 
 The first maintained language boundary is `app/programming/classic-ast.ts`. It

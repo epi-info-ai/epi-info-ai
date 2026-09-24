@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0.0",
+  "operation": "epi.checkCode.zscore",
+  "referenceVersion": "epi-info-7-anthstat-2e3bdcdcb99d",
+  "cases": [
+    {
+      "reference": "CDC 2000",
+      "metric": "BMI",
+      "measurement": 16.57502768,
+      "axis": 24,
+      "sex": 1,
+      "method": "lms",
+      "parameters": { "L": -2.01118107, "M": 16.57502768, "S": 0.080592465 },
+      "expected": 0
+    },
+    {
+      "reference": "WHO 2006",
+      "metric": "weightage",
+      "measurement": 9.6,
+      "axis": 24,
+      "sex": 2,
+      "method": "lms",
+      "parameters": { "L": -0.2941, "M": 11.4775, "S": 0.1239 },
+      "expected": -1.4802315196527713
+    },
+    {
+      "reference": "WHO 2007",
+      "metric": "heightage",
+      "measurement": 120,
+      "axis": 84,
+      "sex": 1,
+      "method": "lms",
+      "parameters": { "L": 1, "M": 121.7338, "S": 0.04342 },
+      "expected": -0.32801824485834924
+    },
+    {
+      "reference": "NCHS 1977",
+      "metric": "weightage",
+      "measurement": 15,
+      "axis": 48,
+      "sex": 2,
+      "method": "nchs-percentile-spread",
+      "parameters": {
+        "p5": 13.19999981,
+        "p10": 13.80000019,
+        "p25": 14.80000019,
+        "p50": 16,
+        "p75": 17.60000038,
+        "p90": 19,
+        "p95": 19.89999962
+      },
+      "expected": -0.5761735907349692
+    }
+  ],
+  "tolerance": 1e-12,
+  "notes": [
+    "The notebook oracle uses only the explicit parameters in this fixture and does not import the TypeScript implementation.",
+    "Reference values were transcribed from the retained Epi Info 7 AnthStat tables and are pinned by source hash.",
+    "Passing establishes a browser candidate, not independent approval of the underlying growth references or complete desktop parity."
+  ]
+}

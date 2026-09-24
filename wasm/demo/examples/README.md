@@ -12,6 +12,7 @@ this directory tree unchanged to GitLab Pages and GitHub Pages.
 | [`recordlink/`](recordlink/) | New-branch patient record-linkage contract and future evaluation harness | Two differently shaped synthetic sources, complete truth links, typed command tour, generation manifest, and explicit acceptance boundary |
 | [`gdal-wasm/`](gdal-wasm/) | Browser GIS-kernel architecture spikes | Four folder-scoped tabs for vector reprojection, raster warp/clip/resample, zipped Shapefile round-trip, and calibrated multi-Worker spatial join, each with validation receipts and cancellation boundaries |
 | [`gis-defensive-ingestion/`](gis-defensive-ingestion/) | Uploadable GIS-K03 defensive-ingestion cases | Synthetic malformed, corrupt, out-of-range, limit, axis-order-review, and coordinate-sign-review assets with an expected-behavior manifest |
+| [`environmental-epidemiology/`](environmental-epidemiology/) | Environmental Epidemiology capability and teaching candidate | Separate inert capability-package import plus a synthetic heat-health project with analysis, runbook, epi-gis Worker inspection, and packaged map layer |
 | [`projects/`](projects/) | Whole-project migration examples | Browser-native conversion of the legacy Epi Info Sample project |
 
 ## Organization rules

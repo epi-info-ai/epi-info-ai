@@ -12,11 +12,57 @@ import type {
   CheckCodeScope,
   CheckCodeStatement,
 } from "./check-code-program.js";
+import { formatCheckCodeValue } from "./check-code-format.ts";
+import type { CheckCodeRandomDraw } from "./check-code-random.js";
+import { normalPercentileFromZ } from "./check-code-normal.ts";
+import type { CheckCodeIdentityReading, CheckCodeIdentitySource } from "./check-code-identity.ts";
+import type { CheckCodePositionReading } from "./check-code-device-context.ts";
+import { anthropometricZScore } from "./check-code-zscore.ts";
+import type { CheckCodeZScoreResult } from "./check-code-zscore.ts";
 
 export const CHECK_CODE_RUNTIME_VERSION = "epi-check-code-runtime/0.1" as const;
 export const CHECK_CODE_MAX_EFFECTS_PER_EVENT = 256;
 export const CHECK_CODE_MAX_NAVIGATIONS_PER_EVENT = 16;
 export const CHECK_CODE_MAX_DIALOG_CHOICES = 250;
+
+export interface CheckCodeClockReading {
+  /** UTC RFC 3339 instant, normally produced by Date.prototype.toISOString(). */
+  instant: string;
+  /** IANA time-zone identifier used to derive the project-local calendar values. */
+  timeZone: string;
+}
+
+export interface CheckCodeClockAudit extends CheckCodeClockReading {
+  function: "SYSTEMDATE" | "SYSTEMTIME";
+}
+
+export interface CheckCodeRandomAudit extends CheckCodeRandomDraw {
+  minimumInclusive: number;
+  maximumExclusive: number;
+}
+
+export interface CheckCodeIdentityAudit {
+  function: "CURRENTUSER";
+  source: CheckCodeIdentitySource | "unavailable";
+  available: boolean;
+}
+
+export interface CheckCodeDeviceAudit {
+  function: "SYSALTITUDE" | "SYSLATITUDE" | "SYSLONGITUDE";
+  available: boolean;
+  source: "browser-geolocation" | "unavailable";
+  acquiredAt?: string;
+  accuracy?: number;
+  altitudeAccuracy?: number | null;
+}
+
+export interface CheckCodeScientificAudit {
+  function: "ZSCORE";
+  available: boolean;
+  reference: CheckCodeZScoreResult["reference"];
+  metric: string | null;
+  referenceVersion: CheckCodeZScoreResult["referenceVersion"];
+}
 
 export interface CheckCodeRuntimeAudit {
   runtime: typeof CHECK_CODE_RUNTIME_VERSION;
@@ -28,6 +74,11 @@ export interface CheckCodeRuntimeAudit {
   navigationEffects: number;
   status: "succeeded" | "cancelled" | "failed";
   diagnostic?: string;
+  clockReadings?: readonly CheckCodeClockAudit[];
+  randomDraws?: readonly CheckCodeRandomAudit[];
+  identityReadings?: readonly CheckCodeIdentityAudit[];
+  deviceReadings?: readonly CheckCodeDeviceAudit[];
+  scientificReadings?: readonly CheckCodeScientificAudit[];
 }
 
 export interface CheckCodeRuntimeHost {
@@ -43,6 +94,14 @@ export interface CheckCodeRuntimeHost {
   showDialog(request: CheckCodeDialogRequest, signal?: AbortSignal): Promise<{ accepted: boolean; value?: RecordValue }>;
   resolveDialogChoices(source: CheckCodeDialogDataSource, signal?: AbortSignal): Promise<readonly string[]>;
   runGeocode(addressField: string, latitudeField: string, longitudeField: string): Promise<void>;
+  recordCount?(): number;
+  isUnique?(fieldNames: readonly string[]): boolean;
+  readSystemClock?(): CheckCodeClockReading;
+  randomInteger?(minimumInclusive: number, maximumExclusive: number): CheckCodeRandomDraw;
+  /** Explicit application identity only. Implementations must not infer an OS account from browser metadata. */
+  readCurrentUser?(): CheckCodeIdentityReading;
+  /** Returns only a previously and explicitly acquired position; scalar functions never prompt for permission. */
+  readLastPosition?(): CheckCodePositionReading | null;
   /** GLOBAL is host-session state; PERMANENT is host-profile state. Values never enter project exports implicitly. */
   readScopedVariable?(definition: CheckCodeDefinition): RecordValue | undefined;
   writeScopedVariable?(definition: CheckCodeDefinition, value: RecordValue | undefined): void;
@@ -90,6 +149,11 @@ export function createCheckCodeRuntime(ast: CheckCodeProgramAst, schema: FormSch
   const undefinedVariables = new Set<string>();
   const subroutines = new Map(ast.subroutines.map((subroutine) => [key(subroutine.name), subroutine.statements]));
   const blocks = new Map<string, CheckCodeBlock>();
+  let activeClockReadings: CheckCodeClockAudit[] | null = null;
+  let activeRandomDraws: CheckCodeRandomAudit[] | null = null;
+  let activeIdentityReadings: CheckCodeIdentityAudit[] | null = null;
+  let activeDeviceReadings: CheckCodeDeviceAudit[] | null = null;
+  let activeScientificReadings: CheckCodeScientificAudit[] | null = null;
   for (const block of ast.blocks) blocks.set(`${block.scope}:${key(block.name ?? "")}`, block);
 
   const readReference = (name: string): RecordValue => {
@@ -145,12 +209,19 @@ export function createCheckCodeRuntime(ast: CheckCodeProgramAst, schema: FormSch
     }
     if (value.kind === "unary") return expressionFamily(value.operand) === "null" ? "null" : "number";
     if (value.kind === "binary") return value.operator === "concatenate" ? "text" : expressionFamily(value.left) === "null" || expressionFamily(value.right) === "null" ? "null" : "number";
-    return ["SUBSTRING", "UPPERCASE"].includes(value.name) ? "text" : "number";
+    if (["TXTTODATE", "NUMTODATE", "SYSTEMDATE"].includes(value.name)) return "date";
+    if (["NUMTOTIME", "SYSTEMTIME"].includes(value.name)) return "time";
+    if (value.name === "ISUNIQUE") return "boolean";
+    return ["SUBSTRING", "UPPERCASE", "FORMAT", "LINEBREAK", "CURRENTUSER"].includes(value.name) ? "text" : "number";
   };
   const finiteNumber = (value: RecordValue, context: string): number => {
     const numeric = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(numeric)) throw new RangeError(`${context} expected a finite number, received ${JSON.stringify(value)}.`);
     return numeric;
+  };
+  const finiteResult = (value: number, context: string): number => {
+    if (!Number.isFinite(value)) throw new RangeError(`${context} produced a non-finite result.`);
+    return value;
   };
   const dateParts = (value: RecordValue, context: string): [number, number, number] => {
     const match = String(value ?? "").match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
@@ -162,6 +233,81 @@ export function createCheckCodeRuntime(ast: CheckCodeProgramAst, schema: FormSch
     if (test.getUTCFullYear() !== year || test.getUTCMonth() + 1 !== month || test.getUTCDate() !== day) throw new RangeError(`${context} received an invalid calendar date.`);
     return [year, month, day];
   };
+  const timeParts = (value: RecordValue, context: string): [number, number, number] => {
+    const match = String(value ?? "").match(/^(?:\d{4}-\d{2}-\d{2}T)?(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) throw new RangeError(`${context} requires an ISO time in HH:MM or HH:MM:SS form.`);
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    const second = Number(match[3] ?? 0);
+    if (hour > 23 || minute > 59 || second > 59) throw new RangeError(`${context} received an invalid clock time.`);
+    return [hour, minute, second];
+  };
+  const integerPart = (value: RecordValue, context: string): number => {
+    const numeric = finiteNumber(value, context);
+    if (!Number.isInteger(numeric)) throw new RangeError(`${context} requires integer date/time parts.`);
+    return numeric;
+  };
+  const isoDate = (yearValue: RecordValue, monthValue: RecordValue, dayValue: RecordValue, context: string): string => {
+    let year = integerPart(yearValue, context);
+    const month = integerPart(monthValue, context);
+    const day = integerPart(dayValue, context);
+    if (year >= 0 && year <= 29) year += 2000;
+    else if (year >= 30 && year <= 99) year += 1900;
+    if (year < 1 || year > 9999) throw new RangeError(`${context} year must resolve from 1 through 9999.`);
+    const test = new Date(Date.UTC(year, month - 1, day));
+    if (test.getUTCFullYear() !== year || test.getUTCMonth() + 1 !== month || test.getUTCDate() !== day) throw new RangeError(`${context} received invalid calendar parts.`);
+    return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  };
+  const isoTimestamp = (value: RecordValue, context: string): { timestamp: number; year: number; month: number; day: number } => {
+    const match = String(value ?? "").match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (!match) throw new RangeError(`${context} requires an ISO date or local date-time without a time-zone suffix.`);
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const hour = Number(match[4] ?? 0);
+    const minute = Number(match[5] ?? 0);
+    const second = Number(match[6] ?? 0);
+    const timestamp = Date.UTC(year, month - 1, day, hour, minute, second);
+    const test = new Date(timestamp);
+    if (year < 100 || test.getUTCFullYear() !== year || test.getUTCMonth() + 1 !== month || test.getUTCDate() !== day
+      || test.getUTCHours() !== hour || test.getUTCMinutes() !== minute || test.getUTCSeconds() !== second) {
+      throw new RangeError(`${context} received an invalid ISO date-time.`);
+    }
+    return { timestamp, year, month, day };
+  };
+  const completedLegacyYears = (wholeDays: number): number => {
+    const daysBeforeYear = (year: number): number => {
+      const prior = year - 1;
+      return 365 * prior + Math.floor(prior / 4) - Math.floor(prior / 100) + Math.floor(prior / 400);
+    };
+    let low = 0;
+    let high = 9998;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (daysBeforeYear(middle + 1) <= wholeDays) low = middle;
+      else high = middle - 1;
+    }
+    return low;
+  };
+  const epidemiologicYearStart = (year: number, firstDayOfWeek: number): number => {
+    const januaryFirst = Date.UTC(year, 0, 1);
+    const firstDayOfYear = new Date(januaryFirst).getUTCDay();
+    const offset = firstDayOfYear <= firstDayOfWeek + 3
+      ? firstDayOfWeek - firstDayOfYear
+      : 7 - firstDayOfWeek - firstDayOfYear;
+    return januaryFirst + offset * 86_400_000;
+  };
+  const epidemiologicWeek = (dateValue: RecordValue, firstDayValue?: RecordValue): number => {
+    const date = isoTimestamp(dateValue, "EPIWEEK");
+    const firstDay = firstDayValue === undefined ? 1 : integerPart(firstDayValue, "EPIWEEK first-day argument");
+    if (firstDay < 1 || firstDay > 7) throw new RangeError("EPIWEEK first-day argument must be an integer from 1 through 7.");
+    const firstDayOfWeek = firstDay - 1;
+    const previousStart = epidemiologicYearStart(date.year - 1, firstDayOfWeek);
+    const currentStart = epidemiologicYearStart(date.year, firstDayOfWeek);
+    const nextStart = epidemiologicYearStart(date.year + 1, firstDayOfWeek);
+    const start = date.timestamp < currentStart ? previousStart : date.timestamp >= nextStart ? nextStart : currentStart;
+    return Math.floor((date.timestamp - start) / 86_400_000 / 7) + 1;
+  };
   const roundAwayFromZero = (value: number, places: number): number => {
     if (!Number.isInteger(places) || places < 0 || places > 15) throw new RangeError("ROUND decimal places must be an integer from 0 through 15.");
     const factor = 10 ** places;
@@ -170,6 +316,31 @@ export function createCheckCodeRuntime(ast: CheckCodeProgramAst, schema: FormSch
     const result = rounded / factor;
     if (!Number.isFinite(result)) throw new RangeError("ROUND produced a non-finite result.");
     return result;
+  };
+  const systemClockValue = (functionName: "SYSTEMDATE" | "SYSTEMTIME"): string => {
+    if (!host.readSystemClock) throw new Error(`${functionName} requires an explicit project clock from the Check Code host.`);
+    const reading = host.readSystemClock();
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(reading.instant)) {
+      throw new RangeError(`${functionName} clock instant must be a UTC RFC 3339 value.`);
+    }
+    if (!reading.timeZone || reading.timeZone.length > 64) throw new RangeError(`${functionName} requires a bounded IANA time-zone identifier.`);
+    const instant = new Date(reading.instant);
+    if (Number.isNaN(instant.valueOf())) throw new RangeError(`${functionName} clock instant is invalid.`);
+    let parts: Intl.DateTimeFormatPart[];
+    try {
+      parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: reading.timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+      }).formatToParts(instant);
+    } catch {
+      throw new RangeError(`${functionName} clock time zone ${JSON.stringify(reading.timeZone)} is unavailable.`);
+    }
+    const part = (type: Intl.DateTimeFormatPartTypes): string => parts.find((candidate) => candidate.type === type)?.value ?? "";
+    const date = `${part("year")}-${part("month")}-${part("day")}`;
+    const time = `${part("hour")}:${part("minute")}:${part("second")}`;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}:\d{2}$/.test(time)) throw new RangeError(`${functionName} could not derive a project-local value.`);
+    activeClockReadings?.push({ function: functionName, instant: instant.toISOString(), timeZone: reading.timeZone });
+    return functionName === "SYSTEMDATE" ? date : time;
   };
   const evaluateExpression = (value: CheckCodeExpression): RecordValue => {
     if (value.kind === "literal") return value.value;
@@ -197,10 +368,130 @@ export function createCheckCodeRuntime(ast: CheckCodeProgramAst, schema: FormSch
       if (!Number.isFinite(result)) throw new RangeError(`${value.operator} produced a non-finite result.`);
       return result;
     }
+    if (value.name === "RECORDCOUNT") {
+      if (!host.recordCount) throw new Error("RECORDCOUNT requires active-form record context from the Check Code host.");
+      const count = host.recordCount();
+      if (!Number.isSafeInteger(count) || count < 0) throw new RangeError("RECORDCOUNT host returned an invalid active-record count.");
+      return count;
+    }
+    if (value.name === "ISUNIQUE") {
+      if (!host.isUnique) throw new Error("ISUNIQUE requires active-form record context from the Check Code host.");
+      const fieldNames = value.arguments.map((argument) => {
+        if (argument.kind !== "reference" || !fields.has(key(argument.value))) throw new Error("ISUNIQUE accepts active-form field references only.");
+        return fields.get(key(argument.value))!;
+      });
+      return host.isUnique(fieldNames);
+    }
+    if (value.name === "SYSTEMDATE" || value.name === "SYSTEMTIME") return systemClockValue(value.name);
+    if (value.name === "CURRENTUSER") {
+      const reading = host.readCurrentUser?.() ?? { identity: null, source: "unavailable" as const };
+      const identity = reading.identity?.trim() || null;
+      if (identity && identity.length > 100) throw new RangeError("CURRENTUSER host returned an identity longer than 100 characters.");
+      if (!(["authenticated-account", "local-profile", "unavailable"] as const).includes(reading.source)) {
+        throw new RangeError("CURRENTUSER host returned an invalid identity source.");
+      }
+      if ((identity === null) !== (reading.source === "unavailable")) {
+        throw new RangeError("CURRENTUSER host returned inconsistent identity availability.");
+      }
+      activeIdentityReadings?.push({ function: "CURRENTUSER", source: reading.source, available: identity !== null });
+      return identity;
+    }
+    if (value.name === "SYSALTITUDE" || value.name === "SYSLATITUDE" || value.name === "SYSLONGITUDE") {
+      const reading = host.readLastPosition?.() ?? null;
+      const result = reading === null ? null
+        : value.name === "SYSALTITUDE" ? reading.altitude
+          : value.name === "SYSLATITUDE" ? reading.latitude : reading.longitude;
+      activeDeviceReadings?.push({
+        function: value.name,
+        available: result !== null,
+        source: reading?.source ?? "unavailable",
+        ...(reading ? { acquiredAt: reading.acquiredAt, accuracy: reading.accuracy, altitudeAccuracy: reading.altitudeAccuracy } : {}),
+      });
+      return result;
+    }
     const args = value.arguments.map(evaluateExpression);
     if (args.some((argument) => argument === null)) return null;
+    if (value.name === "RND") {
+      if (!host.randomInteger) throw new Error("RND requires an explicit seeded random generator from the Check Code host.");
+      const bounds = args.map((argument) => finiteNumber(argument, "RND"));
+      if (bounds.some((bound) => !Number.isInteger(bound))) throw new RangeError("RND bounds must be integers.");
+      const minimumInclusive = bounds.length === 1 ? 0 : bounds[0]!;
+      const maximumExclusive = bounds.length === 1 ? bounds[0]! : bounds[1]!;
+      if (bounds.length === 1 && maximumExclusive < 0) throw new RangeError("RND(max) requires a non-negative max.");
+      if (maximumExclusive < minimumInclusive) throw new RangeError("RND upper bound must be greater than or equal to its lower bound.");
+      const result = host.randomInteger(minimumInclusive, maximumExclusive);
+      const valueOutsideBounds = maximumExclusive === minimumInclusive
+        ? result.value !== minimumInclusive
+        : result.value < minimumInclusive || result.value >= maximumExclusive;
+      if (!Number.isSafeInteger(result.value) || valueOutsideBounds
+        || !result.generator || result.generator.length > 64 || !Number.isSafeInteger(result.seed) || result.seed < 0 || result.seed > 0xffff_ffff
+        || !Number.isSafeInteger(result.draw) || result.draw < 1) {
+        throw new RangeError("RND host returned an invalid or out-of-range seeded draw.");
+      }
+      activeRandomDraws?.push({ ...result, minimumInclusive, maximumExclusive });
+      return result.value;
+    }
     if (value.name === "ABS") return Math.abs(finiteNumber(args[0]!, "ABS"));
+    if (value.name === "COS") return finiteResult(Math.cos(finiteNumber(args[0]!, "COS")), "COS");
+    if (value.name === "EXP") return finiteResult(Math.exp(finiteNumber(args[0]!, "EXP")), "EXP");
+    if (value.name === "FINDTEXT") return String(args[1]).toLocaleLowerCase().indexOf(String(args[0]).toLocaleLowerCase()) + 1;
+    if (value.name === "LN") return finiteResult(Math.log(finiteNumber(args[0]!, "LN")), "LN");
+    if (value.name === "LOG") return finiteResult(Math.log10(finiteNumber(args[0]!, "LOG")), "LOG");
+    if (value.name === "PFROMZ") return normalPercentileFromZ(finiteNumber(args[0]!, "PFROMZ"));
+    if (value.name === "ZSCORE") {
+      const result = anthropometricZScore(
+        String(args[0]), String(args[1]), finiteNumber(args[2]!, "ZSCORE"),
+        finiteNumber(args[3]!, "ZSCORE"), finiteNumber(args[4]!, "ZSCORE"),
+      );
+      activeScientificReadings?.push({
+        function: "ZSCORE", available: result.value !== null, reference: result.reference,
+        metric: result.metric, referenceVersion: result.referenceVersion,
+      });
+      return result.value;
+    }
     if (value.name === "ROUND") return roundAwayFromZero(finiteNumber(args[0]!, "ROUND"), args.length === 2 ? finiteNumber(args[1]!, "ROUND") : 0);
+    if (value.name === "SIN") return finiteResult(Math.sin(finiteNumber(args[0]!, "SIN")), "SIN");
+    if (value.name === "SQRT") return finiteResult(Math.sqrt(finiteNumber(args[0]!, "SQRT")), "SQRT");
+    if (value.name === "STEP") return finiteNumber(args[0]!, "STEP") < finiteNumber(args[1]!, "STEP") ? 0 : 1;
+    if (value.name === "TAN") return finiteResult(Math.tan(finiteNumber(args[0]!, "TAN")), "TAN");
+    if (value.name === "TRUNC") return Math.trunc(finiteNumber(args[0]!, "TRUNC"));
+    if (value.name === "TXTTODATE") {
+      const [year, month, day] = dateParts(args[0]!, "TXTTODATE");
+      return isoDate(year, month, day, "TXTTODATE");
+    }
+    if (value.name === "NUMTODATE") return isoDate(args[0]!, args[1]!, args[2]!, "NUMTODATE");
+    if (value.name === "NUMTOTIME") {
+      const hour = integerPart(args[0]!, "NUMTOTIME");
+      const minute = integerPart(args[1]!, "NUMTOTIME");
+      const second = integerPart(args[2]!, "NUMTOTIME");
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) throw new RangeError("NUMTOTIME requires hour 0-23 and minute/second 0-59.");
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
+    }
+    if (["HOUR", "MINUTE", "SECOND"].includes(value.name)) {
+      const [hour, minute, second] = timeParts(args[0]!, value.name);
+      return value.name === "HOUR" ? hour : value.name === "MINUTE" ? minute : second;
+    }
+    if (["DAYS", "HOURS", "MINUTES", "SECONDS", "MONTHS", "YEARS"].includes(value.name)) {
+      const start = isoTimestamp(args[0]!, value.name);
+      const end = isoTimestamp(args[1]!, value.name);
+      const deltaMilliseconds = end.timestamp - start.timestamp;
+      if (value.name === "DAYS") return Math.trunc(deltaMilliseconds / 86_400_000);
+      if (value.name === "HOURS") return Math.trunc(deltaMilliseconds / 3_600_000) % 24;
+      if (value.name === "MINUTES") return deltaMilliseconds / 60_000;
+      if (value.name === "SECONDS") return deltaMilliseconds / 1_000;
+      if (value.name === "MONTHS") {
+        let result = 12 * (end.year - start.year) + end.month - start.month;
+        if (start.timestamp > end.timestamp) {
+          if (start.day < end.day) result += 1;
+        } else if (end.day < start.day) result -= 1;
+        return result;
+      }
+      const sign = Math.sign(deltaMilliseconds);
+      return sign * completedLegacyYears(Math.trunc(Math.abs(deltaMilliseconds) / 86_400_000));
+    }
+    if (value.name === "EPIWEEK") return epidemiologicWeek(args[0]!, args[1]);
+    if (value.name === "FORMAT") return formatCheckCodeValue(args[0]!, args[1]);
+    if (value.name === "LINEBREAK") return "\n";
     if (value.name === "STRLEN") return String(args[0]).length;
     if (value.name === "UPPERCASE") return String(args[0]).toUpperCase();
     if (value.name === "TXTTONUM") {
@@ -349,6 +640,11 @@ export function createCheckCodeRuntime(ast: CheckCodeProgramAst, schema: FormSch
       };
       let status: CheckCodeRuntimeAudit["status"] = "succeeded";
       let diagnostic: string | undefined;
+      activeClockReadings = [];
+      activeRandomDraws = [];
+      activeIdentityReadings = [];
+      activeDeviceReadings = [];
+      activeScientificReadings = [];
       try {
         await execute(statements);
       } catch (error) {
@@ -358,7 +654,17 @@ export function createCheckCodeRuntime(ast: CheckCodeProgramAst, schema: FormSch
       const audit: CheckCodeRuntimeAudit = {
         runtime: CHECK_CODE_RUNTIME_VERSION, scope, event, ...(name ? { name } : {}),
         statements: countStatements(statements), effects, navigationEffects, status, ...(diagnostic ? { diagnostic } : {}),
+        ...(activeClockReadings.length > 0 ? { clockReadings: [...activeClockReadings] } : {}),
+        ...(activeRandomDraws.length > 0 ? { randomDraws: [...activeRandomDraws] } : {}),
+        ...(activeIdentityReadings.length > 0 ? { identityReadings: [...activeIdentityReadings] } : {}),
+        ...(activeDeviceReadings.length > 0 ? { deviceReadings: [...activeDeviceReadings] } : {}),
+        ...(activeScientificReadings.length > 0 ? { scientificReadings: [...activeScientificReadings] } : {}),
       };
+      activeClockReadings = null;
+      activeRandomDraws = null;
+      activeIdentityReadings = null;
+      activeDeviceReadings = null;
+      activeScientificReadings = null;
       host.audit(audit);
       if (status === "failed") throw new Error(diagnostic);
       if (status === "cancelled") throw new DOMException(diagnostic, "AbortError");

@@ -27,6 +27,8 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-conditional-logistic.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-space-time-cluster.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-recordlink.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-check-code-pfromz.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-check-code-zscore.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -41,6 +43,8 @@ CONDITIONAL_LOGISTIC_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-valid
 SPACE_TIME_CLUSTER_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.json"
 SPACE_TIME_CLUSTER_DATA = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/space-time-cluster-synthetic-v0.1.csv"
 TREND_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/chi-square-trend-v0.15.json"
+PFROMZ_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/check-code-pfromz-v0.1.json"
+ZSCORE_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/check-code-zscore-v0.1.json"
 TABLES_FIXTURES = [
     REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status.expected.json",
     REPOSITORY / "wasm/tests/fixtures/classic-command-parity/foodborne-tables-potato-salad-by-status-unstratified.expected.json",
@@ -87,6 +91,55 @@ def verify_notebook() -> None:
     assert "chi-square-trend-v0.15.json" in source
     assert "trend_chi_square" in source
     assert "math.erfc" in source
+
+    pfromz = nbformat.read(NOTEBOOKS[14], as_version=4)
+    source = "\n".join(cell.source for cell in pfromz.cells)
+    assert "check-code-pfromz-v0.1.json" in source
+    assert "math.erf" in source
+    assert "normal percentile" in source
+
+    zscore = nbformat.read(NOTEBOOKS[15], as_version=4)
+    source = "\n".join(cell.source for cell in zscore.cells)
+    assert "check-code-zscore-v0.1.json" in source
+    assert "nchs_spread" in source
+    assert "does not import the TypeScript implementation" in source
+
+
+def verify_check_code_pfromz() -> None:
+    fixture = json.loads(PFROMZ_FIXTURE.read_text(encoding="utf-8"))
+    observed = []
+    for case in fixture["cases"]:
+        raw = 100 * 0.5 * (1 + math.erf(case["z"] / math.sqrt(2)))
+        rounded = round(raw, 2)
+        profiled = 99.99 if rounded >= 99.9999 else (-99.99 if rounded <= -99.9999 else rounded)
+        assert math.isclose(profiled, case["expected"], abs_tol=fixture["tolerance"], rel_tol=0)
+        observed.append(raw)
+    assert all(left < right for left, right in zip(observed, observed[1:]))
+
+
+def verify_check_code_zscore() -> None:
+    fixture = json.loads(ZSCORE_FIXTURE.read_text(encoding="utf-8"))
+    assert fixture["referenceVersion"].startswith("epi-info-7-anthstat-")
+    assert {case["reference"] for case in fixture["cases"]} == {
+        "CDC 2000", "WHO 2006", "WHO 2007", "NCHS 1977"
+    }
+    for case in fixture["cases"]:
+        parameters = case["parameters"]
+        if case["method"] == "lms":
+            observed = ((case["measurement"] / parameters["M"]) ** parameters["L"] - 1) / (
+                parameters["L"] * parameters["S"]
+            )
+        else:
+            lower = ((parameters["p50"] - parameters["p5"]) / 1.65
+                     + (parameters["p50"] - parameters["p10"]) / 1.28
+                     + (parameters["p50"] - parameters["p25"]) / 0.67) / 3
+            upper = ((parameters["p95"] - parameters["p50"]) / 1.65
+                     + (parameters["p90"] - parameters["p50"]) / 1.28
+                     + (parameters["p75"] - parameters["p50"]) / 0.67) / 3
+            observed = (case["measurement"] - parameters["p50"]) / (
+                upper if case["measurement"] > parameters["p50"] else lower
+            )
+        assert math.isclose(observed, case["expected"], abs_tol=fixture["tolerance"], rel_tol=0)
 
     tables = nbformat.read(NOTEBOOKS[9], as_version=4)
     source = "\n".join(cell.source for cell in tables.cells)
@@ -555,6 +608,8 @@ def verify_foodborne_complex_means() -> None:
 
 if __name__ == "__main__":
     verify_notebook()
+    verify_check_code_pfromz()
+    verify_check_code_zscore()
     verify_foodborne_derivation()
     verify_foodborne_frequency()
     verify_foodborne_means()

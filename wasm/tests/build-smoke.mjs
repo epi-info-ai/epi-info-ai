@@ -113,6 +113,8 @@ const requiredFiles = [
   "examples/projects/space-time-cluster-detection.epia.json",
   "examples/projects/gis-defensive-ingestion-teaching.epia.json",
   "examples/projects/gis-defensive-ingestion-test-cases.csv",
+  "examples/projects/environmental-heat-health-candidate.epia.json",
+  "examples/projects/environmental-heat-health-candidate.epia",
   "examples/recordlink/recordlink.runbook.json",
   "examples/recordlink/patient-registry-a-check-code.chk",
   "examples/recordlink/surveillance-b-check-code.chk",
@@ -171,6 +173,17 @@ const requiredFiles = [
   "examples/gis-defensive-ingestion/gis-defensive-ingestion-test-cases.csv",
   "examples/gis-defensive-ingestion/gis-defensive-ingestion.programs.json",
   "examples/gis-defensive-ingestion/gis-defensive-ingestion.runbook.json",
+  "examples/environmental-epidemiology/README.md",
+  "examples/environmental-epidemiology/PROJECT_PLAN.md",
+  "examples/environmental-epidemiology/data/synthetic-heat-health-observations.csv",
+  "examples/environmental-epidemiology/maps/synthetic-heat-health-observations.geojson",
+  "examples/environmental-epidemiology/environmental-heat-health-tour.pgm7",
+  "examples/environmental-epidemiology/environmental-heat-health.programs.json",
+  "examples/environmental-epidemiology/environmental-heat-health.runbook.json",
+  "examples/environmental-epidemiology/package/epi-info-capability.json",
+  "examples/environmental-epidemiology/package/provider-catalog.json",
+  "examples/environmental-epidemiology/package/validation/package-boundary.json",
+  "examples/environmental-epidemiology/package/docs/capability-boundary.md",
   "vendor/leaflet/leaflet.js",
   "vendor/h3-js/h3-js.es.js",
   "setup/supabase-schema.sql",
@@ -192,6 +205,8 @@ const requiredFiles = [
   "validation-fixtures/space-time-cluster-synthetic-v0.1.json",
   "validation-fixtures/space-time-cluster-synthetic-v0.1.csv",
   "validation-fixtures/chi-square-trend-v0.15.json",
+  "validation-fixtures/check-code-pfromz-v0.1.json",
+  "validation-fixtures/check-code-zscore-v0.1.json",
   "validation-fixtures/foodborne-tables-stratified-v0.3.json",
   "validation-fixtures/foodborne-tables-unstratified-v0.3.json",
   "validation-fixtures/foodborne-tables-fisher-v0.5.json",
@@ -224,8 +239,8 @@ assert.equal(createHash("sha256").update(engineBytes).digest("hex"), engineManif
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
-assert.match(html, /src=["']app\.js\?v=126["']/);
-assert.match(html, /href=["']styles\.css\?v=72["']/);
+assert.match(html, /src=["']app\.js\?v=128["']/);
+assert.match(html, /href=["']styles\.css\?v=73["']/);
 assert.match(html, /id=["']app-version["'][^>]*>v0\.2\.0</);
 assert.match(html, /id=["']example-project-dialog["']/);
 assert.match(html, /id=["']teaching-repository-dialog["']/);
@@ -240,6 +255,8 @@ assert.match(html, /id=["']tools-menu["']/);
 assert.match(html, /id=["']tools-options["']/);
 assert.match(html, /id=["']application-options-dialog["']/);
 assert.match(html, /id=["']application-language["']/);
+assert.match(html, /id=["']local-demo-sign-in["']/);
+assert.match(html, /id=["']local-demo-sign-in-dialog["']/);
 assert.match(html, /id=["']help-runbooks["']/);
 assert.match(html, /id=["']runbook-library-dialog["']/);
 assert.match(html, /id=["']runbook-coach["']/);

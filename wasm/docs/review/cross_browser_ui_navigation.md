@@ -1,9 +1,10 @@
 # Cross-browser UI navigation review
 
 Status: initial code and standards review, 2026-09-18; first implementation
-candidate, 2026-09-21. This document records testable compatibility risks and
-implemented gates; it does not claim compatibility until the named CI browser
-runs pass.
+candidate, 2026-09-21; focused multi-engine smoke floor passed, 2026-09-24.
+This document records testable compatibility risks and implemented gates. The
+focused Playwright result is not a claim about every workflow or real Safari
+hardware.
 
 ## First implementation candidate
 
@@ -21,7 +22,17 @@ Enter Data, Classic Analysis, and Program Editor menu surfaces, a menu-opened
 dialog, narrow layout, and enlarged text. Playwright now runs the full suite in
 Chromium and this focused suite in Desktop Firefox, Desktop WebKit, and a
 Mobile WebKit profile. GitHub installs all three engines; the pinned GitLab
-Playwright image supplies them. A successful CI run remains the evidence gate.
+Playwright image supplies them.
+
+GitLab pipeline
+[`300787`](https://git.cdc.gov/epi-info-ai/epi-info-ai/-/pipelines/300787),
+job `706245`, passed the four navigation tests in Chromium, Desktop Firefox,
+Desktop WebKit, and Mobile WebKit at merge commit `88f66540` on 2026-09-24.
+The job completed 158 browser tests overall with no navigation-project failure.
+A follow-up adds Space activation, Tab dismissal, outside-click dismissal, and
+visible Tools-summary focus restoration after the Options dialog closes. That
+follow-up passes locally in Playwright Chromium using the recorded Node 24.19.0
+runtime and awaits the next multi-engine CI run.
 
 ## Compatibility floor
 
@@ -34,10 +45,10 @@ technology in the current stable releases of:
 - Mobile Safari for the responsive shell and essential project workflows.
 
 A successful Chromium run is not sufficient evidence for this floor. The main
-Playwright configuration currently defines only `Desktop Chrome`, and CI
-installs only Chromium. Playwright supports separate Chromium, Firefox, and
-WebKit projects, including a WebKit profile that exercises the engine used by
-Safari: <https://playwright.dev/docs/test-projects>.
+Playwright configuration therefore defines focused Firefox, Desktop WebKit, and
+Mobile WebKit projects in addition to Chromium. WebKit is the CI engine floor
+for Safari behavior; it does not replace final acceptance on current Safari and
+Mobile Safari hardware. See <https://playwright.dev/docs/test-projects>.
 
 ## Initial findings
 
@@ -62,13 +73,13 @@ from its summary button, or use a progressively enhanced Popover implementation
 with an explicit fallback. Do not merely raise `z-index`; stacking order cannot
 escape an ancestor's overflow clip.
 
-### P0: no Firefox or WebKit navigation acceptance gate
+### Resolved smoke-floor gap: no Firefox or WebKit navigation acceptance gate
 
 The original configuration contained one `chromium` project and installed only
-Chromium. The first candidate now adds focused Firefox, Desktop WebKit, and
-Mobile WebKit projects while retaining the full analytical suite in Chromium.
-Disclosure behavior, focus return, hit testing, keyboard activation, native
-form controls, and modal interaction remain unverified until those CI jobs pass.
+Chromium. The first candidate added focused Firefox, Desktop WebKit, and Mobile
+WebKit projects while retaining the full analytical suite in Chromium. Pipeline
+`300787` passed that focused matrix. Real Safari/macOS, Mobile Safari/device,
+Edge, assistive-technology, and wider workflow evidence remain open.
 
 Add a small cross-browser navigation suite before duplicating the complete
 long-running scientific suite. It should cover:

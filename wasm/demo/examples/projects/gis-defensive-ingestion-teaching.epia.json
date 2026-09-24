@@ -41,6 +41,18 @@
               "type": "text",
               "required": false
             }
+          ],
+          "pages": [
+            {
+              "name": "EntryPage",
+              "fields": [
+                "case_id",
+                "asset_file",
+                "asset_kind",
+                "expected_outcome",
+                "review_reason"
+              ]
+            }
           ]
         },
         "records": [
@@ -118,7 +130,7 @@
         "dataset": {
           "id": "gis-defensive-ingestion-test-cases",
           "file": "gis-defensive-ingestion-test-cases.csv",
-          "sha256": "3706e63f5bbe8751c5356595ba2e9b0ce0ad4e8d875e1b1633ff8f00eca1558a"
+          "sha256": "43577a0c382692c6dde39d29d46d46a31a484b6b9d596f8db5ea1bd4671a1fd7"
         }
       }
     ],
