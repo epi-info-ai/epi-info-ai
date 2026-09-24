@@ -239,7 +239,7 @@ assert.equal(createHash("sha256").update(engineBytes).digest("hex"), engineManif
 const html = await requireFile("index.html");
 assert.match(html, /<title>Epi Info AI<\/title>/);
 assert.doesNotMatch(html, /2 x 2 Table Demo/);
-assert.match(html, /src=["']app\.js\?v=128["']/);
+assert.match(html, /src=["']app\.js\?v=129["']/);
 assert.match(html, /href=["']styles\.css\?v=73["']/);
 assert.match(html, /id=["']app-version["'][^>]*>v0\.2\.0</);
 assert.match(html, /id=["']example-project-dialog["']/);

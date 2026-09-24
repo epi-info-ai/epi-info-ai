@@ -2480,6 +2480,9 @@ requiredElement("#help-capability-packages").addEventListener("click", () => {
   renderInstalledCapabilityPackages();
   capabilityPackageDialog.showModal();
 });
+for (const selector of ["#capability-package-close-titlebar", "#capability-package-close-action"]) {
+  requiredElement<HTMLButtonElement>(selector).addEventListener("click", () => capabilityPackageDialog.close("cancel"));
+}
 requiredElement("#capability-package-preview").addEventListener("click", () => void previewCapabilityPackageFrom(capabilityPackageUrl.value));
 capabilityPackagePreset.addEventListener("change", () => {
   capabilityPackageUrl.value = capabilityPackagePreset.value;
@@ -5984,10 +5987,10 @@ function appendSequentialCommandOutput(
   if (output && !output.hidden) {
     const result = document.createElement("div"); result.className = "classic-sequential-command-result";
     result.append(retainedSequentialOutput(output)); article.append(result);
-    // RENDER uses the live CLUSTER document as a staging surface. Once its
-    // retained program result exists, hide that staging copy so the Output
-    // browser presents one static map rather than the original plus its clone.
-    if (statement.type === "EpiAiClusterRenderStatement") output.hidden = true;
+    // RENDER and GRAPH use their live documents as staging surfaces. Once the
+    // retained program result exists, hide the staging copy so Output presents
+    // one visualization rather than the original plus its retained clone.
+    if (statement.type === "EpiAiClusterRenderStatement" || statement.type === "GraphStatement") output.hidden = true;
   }
   requiredElement("#classic-sequential-output-body").append(article);
   requiredElement("#classic-sequential-output-count").textContent = `${index} of ${total} commands retained`;

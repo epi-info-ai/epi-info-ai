@@ -46,7 +46,11 @@ test("environmental capability package and teaching project remain separate impo
   await packages.locator("#capability-package-install").click();
   await expect(packages.locator("#capability-package-status")).toContainText("installed as inert assets");
   await expect(packages.locator("#capability-package-installed-summary")).toContainText("Environmental Epidemiology");
-  await page.keyboard.press("Escape");
+  await packages.getByRole("button", { name: "Close" }).first().click();
+  await expect(packages).not.toBeVisible();
+  await page.locator("#help-menu summary").click();
+  await page.locator("#help-capability-packages").click();
+  await packages.getByRole("button", { name: "Close" }).last().click();
   await expect(packages).not.toBeVisible();
 
   await page.getByRole("navigation", { name: "Application menu" }).getByText("File", { exact: true }).click();
@@ -57,6 +61,9 @@ test("environmental capability package and teaching project remain separate impo
   await expect(page.locator("#main-menu-status")).toContainText("Imported Environmental Heat and Health Candidate");
   await page.getByRole("button", { name: "Create Maps", exact: true }).click();
   await expect(page.locator("#map-status")).toContainText(/project map|point/i);
+  const packagedPointLayer = page.locator('[data-geojson-layer-id="environmental-observation-reference"]');
+  await expect(packagedPointLayer.locator('input[data-geojson-toggle="environmental-observation-reference"]')).toHaveCount(1);
+  await expect(packagedPointLayer.locator('input[data-geojson-label-toggle="environmental-observation-reference"]')).toHaveCount(0);
   await page.getByRole("button", { name: "Classic Analysis", exact: true }).click();
   await page.locator("#classic-program-toolbar-open").click();
   await page.locator("#classic-program-dialog-project").selectOption("environmental-heat-health-tour");
@@ -64,6 +71,7 @@ test("environmental capability package and teaching project remain separate impo
   await expect(page.locator("#classic-program-source .cm-content")).toContainText("TABLES extreme_heat health_event");
   await page.locator("#classic-program-run").click();
   await expect(page.locator("#classic-program-command-status")).toContainText("Program completed");
+  await expect(page.locator('#classic-output-browser svg[data-chart-type="Bar"]:visible')).toHaveCount(1);
 });
 
 test("GIS inspection runs through the imported teaching project and Program Editor", async ({ page }) => {
