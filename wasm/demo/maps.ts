@@ -1137,6 +1137,7 @@ function renderGeoJsonLayerList() {
     const row = document.createElement("span");
     row.className = "map-geojson-layer";
     row.dataset.geojsonLayerId = id;
+    const hasRenderedLabels = entry.labels.length > 0;
     const label = document.createElement("label");
     const toggle = document.createElement("input");
     toggle.type = "checkbox";
@@ -1144,10 +1145,10 @@ function renderGeoJsonLayerList() {
     toggle.dataset.geojsonToggle = id;
     const name = document.createElement("span");
     name.className = "map-geojson-layer-name";
-    name.textContent = `${entry.name} (${entry.featureCount})${entry.labelField ? ` - labels: ${entry.labelField}` : ""}`;
-    name.title = entry.labelField ? `${entry.name}; polygon labels: ${entry.labelField}` : entry.name;
+    name.textContent = `${entry.name} (${entry.featureCount})${hasRenderedLabels ? ` - labels: ${entry.labelField}` : ""}`;
+    name.title = hasRenderedLabels ? `${entry.name}; polygon labels: ${entry.labelField}` : entry.name;
     label.append(toggle, name);
-    if (entry.labelField) {
+    if (hasRenderedLabels) {
       const labelToggleLabel = document.createElement("label");
       labelToggleLabel.className = "map-label-toggle";
       const labelToggle = document.createElement("input");

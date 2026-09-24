@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="styles.css?v=73" />
     <script src="vendor/leaflet/leaflet.js" defer></script>
     <script src="shell.js?v=6" defer></script>
-    <script type="module" src="app.js?v=128"></script>
+    <script type="module" src="app.js?v=129"></script>
   </head>
   <body>
     <a class="skip-link" href="#analysis-workspace">Skip to analysis</a>
@@ -216,7 +216,7 @@
 
     <dialog id="capability-package-dialog" class="legacy-dialog capability-package-dialog" aria-labelledby="capability-package-title">
       <form method="dialog">
-        <div class="legacy-dialog-titlebar"><h2 id="capability-package-title">Capability Packages</h2><button value="cancel" aria-label="Close">&times;</button></div>
+        <div class="legacy-dialog-titlebar"><h2 id="capability-package-title">Capability Packages</h2><button id="capability-package-close-titlebar" type="button" aria-label="Close">&times;</button></div>
         <div class="legacy-dialog-body">
           <p><span class="new-branch-tag">New branch</span> Phase 1 package-manager pilot: preview and integrity-check inert capability assets. Packages cannot install executable code or silently enable a command.</p>
           <label for="capability-package-preset">Demonstration package</label>
@@ -253,7 +253,7 @@
             <p id="capability-package-installed-summary"></p>
           </section>
         </div>
-        <div class="legacy-dialog-actions"><button value="cancel">Close</button></div>
+        <div class="legacy-dialog-actions"><button id="capability-package-close-action" type="button">Close</button></div>
       </form>
     </dialog>
 
