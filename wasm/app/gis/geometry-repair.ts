@@ -28,8 +28,8 @@ function validatePlan(plan: GeometryRepairPlanV01): void {
   if (!plan.planId.trim()) throw new GeometryRepairErrorV01("A geometry-repair plan id is required.");
   if (plan.policy !== "report-only" && plan.policy !== "bounded-repair") throw new GeometryRepairErrorV01("policy must be report-only or bounded-repair.");
   if (plan.preserveSource !== true) throw new GeometryRepairErrorV01("Geometry repair requires preserveSource=true.");
-  if (!Number.isSafeInteger(plan.maxFeatures) || plan.maxFeatures < 1 || plan.maxFeatures > 100_000) throw new GeometryRepairErrorV01("maxFeatures must be an integer from 1 through 100000.");
-  if (!Number.isSafeInteger(plan.maxCoordinates) || plan.maxCoordinates < 1 || plan.maxCoordinates > 10_000_000) throw new GeometryRepairErrorV01("maxCoordinates must be an integer from 1 through 10000000.");
+  if (!Number.isSafeInteger(plan.maxFeatures) || plan.maxFeatures < 1 || plan.maxFeatures > 10_000) throw new GeometryRepairErrorV01("maxFeatures must be an integer from 1 through 10000.");
+  if (!Number.isSafeInteger(plan.maxCoordinates) || plan.maxCoordinates < 1 || plan.maxCoordinates > 1_000_000) throw new GeometryRepairErrorV01("maxCoordinates must be an integer from 1 through 1000000.");
 }
 export function createGeometryRepairPlanV01(input: Omit<GeometryRepairPlanV01, "schema">): GeometryRepairPlanV01 { const plan = { schema: "epi-gis-geometry-repair/0.1", ...input } as GeometryRepairPlanV01; validatePlan(plan); return plan; }
 
@@ -52,12 +52,27 @@ function inspectLine(value: unknown, featureId: string, diagnostics: Array<Geome
   return unique;
 }
 
+function inspectPoint(value: unknown, featureId: string, diagnostics: Array<GeometryRepairResultV01["diagnostics"][number]>): unknown {
+  if (!coordinate(value)) diagnostics.push({ code: "invalid-coordinate", featureId, message: "A Point must contain one finite WGS84 [longitude, latitude] coordinate." });
+  return clone(value);
+}
+
+function inspectMultiPoint(value: unknown, featureId: string, diagnostics: Array<GeometryRepairResultV01["diagnostics"][number]>): unknown {
+  if (!Array.isArray(value)) {
+    diagnostics.push({ code: "invalid-coordinate", featureId, message: "A MultiPoint coordinate sequence must be an array of coordinates." });
+    return clone(value);
+  }
+  return value.map((point) => inspectPoint(point, featureId, diagnostics));
+}
+
 function repairGeometry(feature: GeometryRepairFeatureV01, plan: GeometryRepairPlanV01, diagnostics: Array<GeometryRepairResultV01["diagnostics"][number]>): GeometryRepairFeatureResultV01 {
   if (feature.geometry === null) { diagnostics.push({ code: "missing-geometry", featureId: feature.id, message: "The feature has no geometry." }); return { id: feature.id, original: null, repaired: null, changed: false, valid: false }; }
   const geometry = feature.geometry;
   if (!["Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon"].includes(geometry.type)) { diagnostics.push({ code: "unsupported-geometry", featureId: feature.id, message: `Geometry type ${geometry.type} is not supported by bounded repair.` }); return { id: feature.id, original: clone(geometry) as GeometryValueV01, repaired: clone(geometry) as GeometryValueV01, changed: false, valid: false }; }
   if (countCoordinates(geometry.coordinates) > plan.maxCoordinates) throw new GeometryRepairErrorV01(`Feature ${feature.id} exceeds maxCoordinates.`);
   let repairedCoordinates: unknown = clone(geometry.coordinates);
+  if (geometry.type === "Point") repairedCoordinates = inspectPoint(geometry.coordinates, feature.id, diagnostics);
+  if (geometry.type === "MultiPoint") repairedCoordinates = inspectMultiPoint(geometry.coordinates, feature.id, diagnostics);
   if (geometry.type === "LineString") repairedCoordinates = inspectLine(geometry.coordinates, feature.id, diagnostics, false);
   if (geometry.type === "MultiLineString") repairedCoordinates = (Array.isArray(geometry.coordinates) ? geometry.coordinates : []).map((line) => inspectLine(line, feature.id, diagnostics, false));
   if (geometry.type === "Polygon") repairedCoordinates = (Array.isArray(geometry.coordinates) ? geometry.coordinates : []).map((ring) => inspectLine(ring, feature.id, diagnostics, true));
@@ -65,7 +80,7 @@ function repairGeometry(feature: GeometryRepairFeatureV01, plan: GeometryRepairP
   const repaired = { ...geometry, coordinates: plan.policy === "bounded-repair" ? repairedCoordinates : clone(geometry.coordinates) } as GeometryValueV01;
   const changed = JSON.stringify(repaired) !== JSON.stringify(geometry);
   const featureDiagnostics = diagnostics.filter((diagnostic) => diagnostic.featureId === feature.id);
-  return { id: feature.id, original: clone(geometry) as GeometryValueV01, repaired, changed, valid: featureDiagnostics.every((diagnostic) => diagnostic.code !== "invalid-coordinate" && diagnostic.code !== "ring-too-short") };
+  return { id: feature.id, original: clone(geometry) as GeometryValueV01, repaired, changed, valid: featureDiagnostics.every((diagnostic) => !["invalid-coordinate", "ring-too-short", "ring-not-closed"].includes(diagnostic.code)) };
 }
 
 export function repairGeometryV01(plan: GeometryRepairPlanV01, featuresInput: readonly GeometryRepairFeatureV01[]): GeometryRepairResultV01 {

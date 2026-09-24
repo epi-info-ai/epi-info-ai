@@ -27,8 +27,9 @@ function validatePlan(plan: DensityPlanV01): void {
   if (plan.schema !== "epi-gis-density/0.1") throw new DensityErrorV01("Unsupported density schema.");
   if (!plan.planId.trim()) throw new DensityErrorV01("A density plan id is required.");
   for (const [name, value, maximum] of [["bandwidthMeters", plan.bandwidthMeters, 1_000_000], ["cellSizeMeters", plan.cellSizeMeters, 1_000_000]] as const) if (!Number.isFinite(value) || value <= 0 || value > maximum) throw new DensityErrorV01(`${name} must be greater than zero and no greater than ${maximum}.`);
-  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < 1 || plan.maxObservations > 1_000_000) throw new DensityErrorV01("maxObservations must be an integer from 1 through 1000000.");
-  if (!Number.isSafeInteger(plan.maxCells) || plan.maxCells < 1 || plan.maxCells > 1_000_000) throw new DensityErrorV01("maxCells must be an integer from 1 through 1000000.");
+  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < 1 || plan.maxObservations > 50_000) throw new DensityErrorV01("maxObservations must be an integer from 1 through 50000.");
+  if (!Number.isSafeInteger(plan.maxCells) || plan.maxCells < 1 || plan.maxCells > 100_000) throw new DensityErrorV01("maxCells must be an integer from 1 through 100000.");
+  if (plan.maxObservations * plan.maxCells > 5_000_000) throw new DensityErrorV01("maxObservations multiplied by maxCells must not exceed 5000000.");
 }
 export function createDensityPlanV01(input: Omit<DensityPlanV01, "schema">): DensityPlanV01 { const plan = { schema: "epi-gis-density/0.1", ...input } as DensityPlanV01; validatePlan(plan); return plan; }
 

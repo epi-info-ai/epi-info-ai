@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 
-const bundled = await build({ entryPoints: ["wasm/app/gis/index.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const bundled = await build({ entryPoints: ["wasm/app/gis/advanced-spatial-candidates.ts"], bundle: true, format: "esm", platform: "browser", write: false });
 const gis = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
 const features = [
   { id: "a", centroid: [0, 0], boundary: [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]] },
@@ -16,6 +16,9 @@ assert.equal(result.schema, "epi-gis-getis-ord-result/0.1");
 assert.equal(result.statistic, "getis-ord-gi-star");
 assert.equal(result.entries.length, 3);
 assert(result.entries.every((entry) => Number.isFinite(entry.statistic) && Number.isFinite(entry.zScore) && Number.isFinite(entry.permutationPValue)));
+for (const [id, expected] of [["a", -1.4018260516446992], ["b", -0.5391638660171918], ["c", 0.8626621856275073]]) {
+  assert.ok(Math.abs(result.entries.find((entry) => entry.id === id).statistic - expected) < 1e-12);
+}
 assert.deepEqual(result, gis.calculateGetisOrdGiStarV01(plan, weights, observations));
 const excluded = gis.calculateGetisOrdGiStarV01({ ...plan, missingPolicy: "exclude" }, weights, [{ ...observations[0] }, { ...observations[1], value: null }, observations[2]]);
 assert.equal(excluded.diagnostics[0].code, "missing-value");

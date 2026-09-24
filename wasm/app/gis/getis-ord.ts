@@ -37,11 +37,12 @@ export class GetisOrdErrorV01 extends Error {
 function validatePlan(plan: GetisOrdPlanV01): void {
   if (plan.schema !== "epi-gis-getis-ord/0.1") throw new GetisOrdErrorV01("Unsupported Getis-Ord schema.");
   if (!plan.planId.trim()) throw new GetisOrdErrorV01("A Getis-Ord plan id is required.");
-  if (!Number.isSafeInteger(plan.permutations) || plan.permutations < 0 || plan.permutations > 100_000) throw new GetisOrdErrorV01("permutations must be an integer from 0 through 100000.");
+  if (!Number.isSafeInteger(plan.permutations) || plan.permutations < 0 || plan.permutations > 10_000) throw new GetisOrdErrorV01("permutations must be an integer from 0 through 10000.");
   if (!Number.isSafeInteger(plan.seed) || plan.seed < 0 || plan.seed > 2_147_483_647) throw new GetisOrdErrorV01("seed must be a non-negative 32-bit integer.");
   if (plan.missingPolicy !== "exclude" && plan.missingPolicy !== "fail") throw new GetisOrdErrorV01("missingPolicy must be exclude or fail.");
   if (plan.includeSelf !== true) throw new GetisOrdErrorV01("Getis-Ord Gi* requires includeSelf=true in v0.1.");
-  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < 2 || plan.maxObservations > 100_000) throw new GetisOrdErrorV01("maxObservations must be an integer from 2 through 100000.");
+  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < 2 || plan.maxObservations > 10_000) throw new GetisOrdErrorV01("maxObservations must be an integer from 2 through 10000.");
+  if (plan.permutations * plan.maxObservations > 5_000_000) throw new GetisOrdErrorV01("permutation work exceeds the bounded 5,000,000 observation-permutation budget.");
 }
 
 export function createGetisOrdPlanV01(input: Omit<GetisOrdPlanV01, "schema">): GetisOrdPlanV01 {
@@ -70,9 +71,18 @@ function score(id: string, ids: readonly string[], values: readonly number[], we
   const row = weights.rows.find((candidate) => candidate.id === id);
   if (!row) return null;
   const valueMap = new Map(ids.map((candidate, index) => [candidate, values[index]!]));
-  const weightedSum = values[ids.indexOf(id)]! + row.neighbors.reduce((sum, neighbor) => sum + neighbor.weight * (valueMap.get(neighbor.id) ?? 0), 0);
-  const weightTotal = 1 + row.neighbors.reduce((sum, neighbor) => sum + neighbor.weight, 0);
-  return weightedSum / weightTotal;
+  const weightsForLocation = [{ id, weight: 1 }, ...row.neighbors.map((neighbor) => ({ id: neighbor.id, weight: neighbor.weight }))];
+  const included = weightsForLocation.filter(({ id: candidateId }) => valueMap.has(candidateId));
+  if (included.length === 0) return null;
+  const n = values.length;
+  const mean = values.reduce((sum, value) => sum + value, 0) / n;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / n;
+  if (variance === 0) return null;
+  const weightSum = included.reduce((sum, entry) => sum + entry.weight, 0);
+  const squaredWeightSum = included.reduce((sum, entry) => sum + entry.weight ** 2, 0);
+  const weightedDeviation = included.reduce((sum, entry) => sum + entry.weight * (valueMap.get(entry.id)! - mean), 0);
+  const denominator = Math.sqrt((n * squaredWeightSum - weightSum ** 2) / (n - 1)) * Math.sqrt(variance);
+  return denominator === 0 ? null : weightedDeviation / denominator;
 }
 
 export function calculateGetisOrdGiStarV01(plan: GetisOrdPlanV01, weights: SpatialWeightsResultV01, observationsInput: readonly { id: string; value: number | null }[]): GetisOrdResultV01 {

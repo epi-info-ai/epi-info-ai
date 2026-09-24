@@ -48,10 +48,11 @@ function validatePlan(plan: MoranLisaaPlanV01): void {
   if (plan.schema !== "epi-gis-spatial-statistics/0.1") throw new MoranLisaErrorV01("Unsupported spatial-statistics schema.");
   if (!plan.planId.trim()) throw new MoranLisaErrorV01("A spatial-statistics plan id is required.");
   if (plan.statistic !== "moran" && plan.statistic !== "lisa") throw new MoranLisaErrorV01("Statistic must be moran or lisa.");
-  if (!Number.isSafeInteger(plan.permutations) || plan.permutations < 0 || plan.permutations > 100_000) throw new MoranLisaErrorV01("permutations must be an integer from 0 through 100000.");
+  if (!Number.isSafeInteger(plan.permutations) || plan.permutations < 0 || plan.permutations > 10_000) throw new MoranLisaErrorV01("permutations must be an integer from 0 through 10000.");
   if (!Number.isSafeInteger(plan.seed) || plan.seed < 0 || plan.seed > 2_147_483_647) throw new MoranLisaErrorV01("seed must be a non-negative 32-bit integer.");
   if (plan.missingPolicy !== "exclude" && plan.missingPolicy !== "fail") throw new MoranLisaErrorV01("missingPolicy must be exclude or fail.");
-  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < 2 || plan.maxObservations > 100_000) throw new MoranLisaErrorV01("maxObservations must be an integer from 2 through 100000.");
+  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < 2 || plan.maxObservations > 10_000) throw new MoranLisaErrorV01("maxObservations must be an integer from 2 through 10000.");
+  if (plan.permutations * plan.maxObservations > 5_000_000) throw new MoranLisaErrorV01("permutation work exceeds the bounded 5,000,000 observation-permutation budget.");
 }
 
 export function createMoranLisaPlanV01(input: Omit<MoranLisaaPlanV01, "schema">): MoranLisaaPlanV01 {
@@ -79,9 +80,9 @@ function permutation(values: readonly number[], random: () => number): number[] 
   return result;
 }
 
-function twoSidedPValue(observed: number, simulated: readonly number[]): number | null {
+function twoSidedPValue(observed: number, simulated: readonly number[], nullCenter = 0): number | null {
   if (simulated.length === 0 || !Number.isFinite(observed)) return null;
-  const extreme = simulated.filter((value) => Math.abs(value) >= Math.abs(observed)).length;
+  const extreme = simulated.filter((value) => Math.abs(value - nullCenter) >= Math.abs(observed - nullCenter)).length;
   return (extreme + 1) / (simulated.length + 1);
 }
 
@@ -109,6 +110,17 @@ function neighborValues(rowId: string, weights: SpatialWeightsResultV01, values:
   const row = weights.rows.find((candidate) => candidate.id === rowId);
   if (!row) return [];
   return row.neighbors.flatMap((neighbor) => { const value = values.get(neighbor.id); return value === undefined ? [] : [{ id: neighbor.id, weight: neighbor.weight, value }]; });
+}
+
+function conditionalPermutation(ids: readonly string[], values: readonly number[], focalId: string, random: () => number): number[] {
+  const focalIndex = ids.indexOf(focalId);
+  if (focalIndex < 0) throw new MoranLisaErrorV01(`LISA focal observation ${focalId} is missing.`);
+  const remaining = values.filter((_value, index) => index !== focalIndex);
+  const shuffled = permutation(remaining, random);
+  const output: number[] = [];
+  let cursor = 0;
+  for (let index = 0; index < ids.length; index += 1) output.push(index === focalIndex ? values[focalIndex]! : shuffled[cursor++]!);
+  return output;
 }
 
 function moranValue(ids: readonly string[], values: readonly number[], weights: SpatialWeightsResultV01): number | null {
@@ -151,7 +163,7 @@ export function calculateMoranLisaV01(plan: MoranLisaaPlanV01, weights: SpatialW
     const value = moranValue(ids, observations, weights);
     const expected = value === null ? null : -1 / Math.max(1, observations.length - 1);
     if (value === null) diagnostics.push({ code: "constant-values", message: "Moran's I is undefined for constant values or zero total weight." });
-    return { schema: "epi-gis-spatial-statistics/0.1", planId: plan.planId, statistic: "moran", result: { statistic: "moran", value, expectedUnderRandomization: expected, permutationPValue: twoSidedPValue(value ?? NaN, simulated), observationsUsed: observations.length, permutations: plan.permutations }, diagnostics, validationStatus: "candidate" };
+    return { schema: "epi-gis-spatial-statistics/0.1", planId: plan.planId, statistic: "moran", result: { statistic: "moran", value, expectedUnderRandomization: expected, permutationPValue: twoSidedPValue(value ?? NaN, simulated, expected ?? 0), observationsUsed: observations.length, permutations: plan.permutations }, diagnostics, validationStatus: "candidate" };
   }
   const m2 = variance / observations.length;
   const lisa = ids.map((id) => {
@@ -163,7 +175,7 @@ export function calculateMoranLisaV01(plan: MoranLisaaPlanV01, weights: SpatialW
     const quadrant = centered >= 0 ? (lag >= 0 ? "high-high" : "high-low") : (lag >= 0 ? "low-high" : "low-low");
     const simulated: number[] = [];
     for (let index = 0; index < plan.permutations; index += 1) {
-      const shuffled = permutation(observations, random);
+      const shuffled = conditionalPermutation(ids, observations, id, random);
       const simulatedMean = shuffled.reduce((sum, value) => sum + value, 0) / shuffled.length;
       const simulatedM2 = shuffled.reduce((sum, value) => sum + (value - simulatedMean) ** 2, 0) / shuffled.length;
       const simulatedValues = new Map(ids.map((candidateId, candidateIndex) => [candidateId, shuffled[candidateIndex]!]));

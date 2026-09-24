@@ -27,6 +27,7 @@ NOTEBOOKS = [
     REPOSITORY / "wasm/validation-lab/content/validate-conditional-logistic.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-space-time-cluster.ipynb",
     REPOSITORY / "wasm/validation-lab/content/validate-recordlink.ipynb",
+    REPOSITORY / "wasm/validation-lab/content/validate-spatial-k09.ipynb",
 ]
 FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/foodborne-outbreak-v1-table2x2.json"
 STRATIFIED_OPERATIONAL_FIXTURE = REPOSITORY / "wasm/tests/fixtures/algorithm-validation/stratified-operational-v0.8.json"
@@ -196,6 +197,22 @@ def verify_notebook() -> None:
         "acceptedLinkRows",
         "output_mappings",
         "sourceBFallbackValues",
+    ]:
+        assert required in source
+
+    spatial_k09 = nbformat.read(NOTEBOOKS[14], as_version=4)
+    source = "\n".join(cell.source for cell in spatial_k09.cells)
+    for required in [
+        "independent Python oracle",
+        "Moran's I",
+        "conditional LISA",
+        "standard Getis-Ord Gi*",
+        "-0.14534883720930236",
+        "-1.4018260516446992",
+        "focal value fixed",
+        "WGS84",
+        "5_000_000",
+        "does not import or call the TypeScript implementation",
     ]:
         assert required in source
 

@@ -79,7 +79,7 @@ function validatePlan(plan: SpatialWeightsPlanV01): void {
   if (plan.schema !== "epi-gis-spatial-weights/0.1") throw new SpatialWeightsErrorV01("Unsupported spatial-weights schema.");
   if (!plan.planId.trim()) throw new SpatialWeightsErrorV01("A spatial-weights plan id is required.");
   if (!["queen", "rook", "distance-band", "k-nearest"].includes(plan.method)) throw new SpatialWeightsErrorV01("Unsupported spatial-weights method.");
-  if (!Number.isSafeInteger(plan.maxFeatures) || plan.maxFeatures < 1 || plan.maxFeatures > 100_000) throw new SpatialWeightsErrorV01("maxFeatures must be an integer from 1 through 100000.");
+  if (!Number.isSafeInteger(plan.maxFeatures) || plan.maxFeatures < 1 || plan.maxFeatures > 5_000) throw new SpatialWeightsErrorV01("maxFeatures must be an integer from 1 through 5000.");
   if (plan.method === "distance-band" && (!Number.isFinite(plan.thresholdMeters) || plan.thresholdMeters! <= 0 || plan.thresholdMeters! > 1_000_000)) throw new SpatialWeightsErrorV01("distance-band requires thresholdMeters from greater than zero through 1000000.");
   if (plan.method === "k-nearest" && (!Number.isSafeInteger(plan.neighborCount) || plan.neighborCount! < 1 || plan.neighborCount! > 10_000)) throw new SpatialWeightsErrorV01("k-nearest requires neighborCount from 1 through 10000.");
   if (plan.rowStandardize !== true) throw new SpatialWeightsErrorV01("Spatial weights must use rowStandardize=true in v0.1.");

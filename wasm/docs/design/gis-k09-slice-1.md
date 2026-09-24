@@ -81,6 +81,12 @@ permutation-method review, multiple-testing policy for LISA, numerical
 tolerance policy, Rust/WASM promotion, and experienced-user review remain open
 release gates.
 
+For this corrective follow-up, global Moran permutation comparisons are
+centered on the randomization expectation `-1/(n-1)`. LISA permutations keep
+the focal observation fixed and shuffle only the remaining observations. These
+choices are explicit candidate conventions and still require independent
+statistical review before promotion.
+
 Evidence is in `wasm/tests/gis-k09-s3-spatial-statistics-smoke.mjs`, enforced by
 the standard check, GitLab GIS job, and GitHub Pages workflow.
 
@@ -91,6 +97,12 @@ K09-S4 makes the Gi* self-inclusion rule explicit, uses deterministic seeded
 permutations for z-scores and two-sided p-values, and classifies results as
 hot, cold, or neutral using the disclosed candidate threshold. Missing values,
 constant values, and features with no included neighbors produce diagnostics.
+
+The reported statistic is the standard local Getis-Ord Gi* z-score: the
+self-inclusive weighted sum is centered by the global mean and divided by the
+finite-population variance term derived from the included weights. It is not a
+weighted local mean. The independent validation notebook records the expected
+values for the hand-audited fixture.
 
 This is not yet a validated hotspot method or desktop-parity claim. The exact
 Gi* inferential convention, independent expected results, multiple-testing
@@ -138,7 +150,9 @@ standard check, GitLab GIS job, and GitHub Pages workflow.
 ## K09-S7 — governed spatial clusters
 
 The spatial-cluster candidate supports deterministic DBSCAN-style clusters and
-an explicitly overlapping scan-circle candidate over signed WGS84 points.
+an explicitly overlapping exploratory-circle summary over signed WGS84 points.
+The exploratory method is not a scan statistic and has no likelihood,
+population-denominator, or significance interpretation.
 Radius, minimum-member, and observation limits are explicit; cluster members,
 centers, noise, and invalid-coordinate diagnostics are stably ordered; and no
 source records are mutated.

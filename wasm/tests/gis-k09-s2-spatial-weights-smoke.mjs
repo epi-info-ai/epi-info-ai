@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 
-const bundled = await build({ entryPoints: ["wasm/app/gis/index.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const bundled = await build({ entryPoints: ["wasm/app/gis/advanced-spatial-candidates.ts"], bundle: true, format: "esm", platform: "browser", write: false });
 const gis = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
 const features = [
   { id: "b", centroid: [1.5, 0.5], boundary: [[1, 0], [2, 0], [2, 1], [1, 1], [1, 0]] },
@@ -26,6 +26,7 @@ assert.deepEqual(nearest.rows.find(({ id }) => id === "a").neighbors.map(({ id }
 assert.equal(nearest.rows.find(({ id }) => id === "a").neighbors[0].weight, 1);
 
 assert.throws(() => gis.createSpatialWeightsPlanV01({ planId: "bad", method: "distance-band", maxFeatures: 10 }), /thresholdMeters/);
+assert.throws(() => gis.createSpatialWeightsPlanV01({ planId: "too-many", method: "queen", maxFeatures: 5_001 }), /5000/);
 assert.throws(() => gis.buildSpatialWeightsV01(queen, [{ ...features[0], id: "a" }, { ...features[1], id: "a" }]), /duplicated/);
 assert.equal(gis.buildSpatialWeightsV01(gis.createSpatialWeightsPlanV01({ planId: "isolated", method: "distance-band", thresholdMeters: 1, maxFeatures: 10 }), features).diagnostics.length, 3);
 console.log("GIS-K09-S2 spatial weights smoke passed.");

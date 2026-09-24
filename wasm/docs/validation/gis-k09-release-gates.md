@@ -22,6 +22,24 @@ substitute for the gates above. In particular, a passing candidate smoke test
 must not be relabeled as desktop Epi Info, GDAL, rasterio, H3, SaTScan, or
 Rust/WASM equivalence.
 
+The independent `validate-spatial-k09.ipynb` JupyterLite notebook is the
+self-correction oracle for the corrective follow-up. It re-derives standard
+Getis-Ord Gi*, Moran's I, conditional LISA permutation behavior, coordinate
+validity, and the bounded-work policy without importing TypeScript. It is
+evidence for correction, not a promotion artifact.
+
+## Corrective K09 constraints
+
+- The public GIS barrel exports contracts, registry, gates, and a rejecting
+  execution boundary only. Candidate algorithms live behind an internal
+  candidate barrel and cannot be invoked through the application API while
+  `executionAllowed` is false.
+- `exploratory-circle` is an explicitly labeled overlapping-neighborhood
+  summary. It does not claim scan-statistic, likelihood, denominator, or
+  significance parity.
+- Resource validation rejects excessive permutation, cell-observation, input,
+  coordinate, feature, and timeout budgets before execution planning.
+
 ## Objective blockers cleared in this review
 
 - Targeted `.gitattributes` rules declare LF for integrity-pinned text assets,

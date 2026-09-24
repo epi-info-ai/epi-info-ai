@@ -1,6 +1,6 @@
 /** K09-S7: deterministic candidate spatial cluster methods. */
 
-export type SpatialClusterMethodV01 = "dbscan" | "scan-circle";
+export type SpatialClusterMethodV01 = "dbscan" | "exploratory-circle";
 export interface SpatialClusterPlanV01 {
   schema: "epi-gis-spatial-cluster/0.1";
   planId: string;
@@ -17,7 +17,7 @@ export interface SpatialClusterResultV01 {
   method: SpatialClusterMethodV01;
   clusters: readonly SpatialClusterV01[];
   noiseIds: readonly string[];
-  diagnostics: readonly { code: "missing-coordinate" | "invalid-coordinate"; observationId: string; message: string }[];
+  diagnostics: readonly { code: "missing-coordinate" | "invalid-coordinate" | "exploratory-method"; observationId?: string; message: string }[];
   validationStatus: "candidate";
 }
 export class SpatialClusterErrorV01 extends Error { constructor(message: string) { super(message); this.name = "SpatialClusterErrorV01"; } }
@@ -35,17 +35,17 @@ function distanceMeters(left: SpatialClusterObservationV01, right: SpatialCluste
 function validatePlan(plan: SpatialClusterPlanV01): void {
   if (plan.schema !== "epi-gis-spatial-cluster/0.1") throw new SpatialClusterErrorV01("Unsupported spatial-cluster schema.");
   if (!plan.planId.trim()) throw new SpatialClusterErrorV01("A spatial-cluster plan id is required.");
-  if (plan.method !== "dbscan" && plan.method !== "scan-circle") throw new SpatialClusterErrorV01("method must be dbscan or scan-circle.");
+  if (plan.method !== "dbscan" && plan.method !== "exploratory-circle") throw new SpatialClusterErrorV01("method must be dbscan or exploratory-circle.");
   if (!Number.isFinite(plan.radiusMeters) || plan.radiusMeters <= 0 || plan.radiusMeters > 1_000_000) throw new SpatialClusterErrorV01("radiusMeters must be greater than zero and no greater than 1000000.");
   if (!Number.isSafeInteger(plan.minPoints) || plan.minPoints < 2 || plan.minPoints > 100_000) throw new SpatialClusterErrorV01("minPoints must be an integer from 2 through 100000.");
-  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < plan.minPoints || plan.maxObservations > 1_000_000) throw new SpatialClusterErrorV01("maxObservations must be an integer from minPoints through 1000000.");
+  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < plan.minPoints || plan.maxObservations > 5_000) throw new SpatialClusterErrorV01("maxObservations must be an integer from minPoints through 5000.");
 }
 export function createSpatialClusterPlanV01(input: Omit<SpatialClusterPlanV01, "schema">): SpatialClusterPlanV01 { const plan = { schema: "epi-gis-spatial-cluster/0.1", ...input } as SpatialClusterPlanV01; validatePlan(plan); return plan; }
 
 export function detectSpatialClustersV01(plan: SpatialClusterPlanV01, observationsInput: readonly SpatialClusterObservationV01[]): SpatialClusterResultV01 {
   validatePlan(plan);
   if (observationsInput.length > plan.maxObservations) throw new SpatialClusterErrorV01("The observation count exceeds maxObservations.");
-  const diagnostics: Array<{ code: "missing-coordinate" | "invalid-coordinate"; observationId: string; message: string }> = [];
+  const diagnostics: Array<{ code: "missing-coordinate" | "invalid-coordinate" | "exploratory-method"; observationId?: string; message: string }> = [];
   const seen = new Set<string>();
   const observations: SpatialClusterObservationV01[] = [];
   for (const observation of [...observationsInput].sort((left, right) => left.id.localeCompare(right.id))) {
@@ -88,6 +88,7 @@ export function detectSpatialClustersV01(plan: SpatialClusterPlanV01, observatio
     }
     for (let index = 0; index < observations.length; index += 1) if (!clusters.some((cluster) => cluster.memberIds.includes(observations[index]!.id))) noise.add(index);
   } else {
+    diagnostics.push({ code: "exploratory-method", message: "Exploratory circles are overlapping neighborhood summaries only; no population denominator, likelihood test, or scan-statistic significance is computed." });
     const candidates = observations.map((observation, index) => ({ center: observation, members: neighbors(index).map((member) => observations[member]!) })).filter((candidate) => candidate.members.length >= plan.minPoints).sort((left, right) => right.members.length - left.members.length || left.center.id.localeCompare(right.center.id));
     for (const candidate of candidates) clusters.push({ id: `circle-${clusters.length + 1}`, memberIds: candidate.members.map((member) => member.id).sort(), centerId: candidate.center.id, center: [candidate.center.longitude!, candidate.center.latitude!], memberCount: candidate.members.length, overlapping: true });
     const memberIds = new Set(clusters.flatMap((cluster) => cluster.memberIds));

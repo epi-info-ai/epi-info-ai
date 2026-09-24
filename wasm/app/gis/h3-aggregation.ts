@@ -31,8 +31,8 @@ function validatePlan(plan: H3AggregatePlanV01): void {
   if (!plan.planId.trim()) throw new H3AggregationErrorV01("An H3 aggregation plan id is required.");
   if (!Number.isSafeInteger(plan.resolution) || plan.resolution < 0 || plan.resolution > 15) throw new H3AggregationErrorV01("resolution must be an integer from 0 through 15.");
   if (!["count", "sum", "mean"].includes(plan.aggregation)) throw new H3AggregationErrorV01("aggregation must be count, sum, or mean.");
-  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < 1 || plan.maxObservations > 1_000_000) throw new H3AggregationErrorV01("maxObservations must be an integer from 1 through 1000000.");
-  if (!Number.isSafeInteger(plan.maxCells) || plan.maxCells < 1 || plan.maxCells > 1_000_000) throw new H3AggregationErrorV01("maxCells must be an integer from 1 through 1000000.");
+  if (!Number.isSafeInteger(plan.maxObservations) || plan.maxObservations < 1 || plan.maxObservations > 100_000) throw new H3AggregationErrorV01("maxObservations must be an integer from 1 through 100000.");
+  if (!Number.isSafeInteger(plan.maxCells) || plan.maxCells < 1 || plan.maxCells > 100_000) throw new H3AggregationErrorV01("maxCells must be an integer from 1 through 100000.");
 }
 
 export function createH3AggregatePlanV01(input: Omit<H3AggregatePlanV01, "schema">): H3AggregatePlanV01 {

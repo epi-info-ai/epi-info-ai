@@ -49,7 +49,7 @@ export type AdvancedSpatialParametersV01 =
   | { operation: "moran" | "lisa" | "getisOrd"; valueField: string; weightsPlanId: string; permutations: number; seed: number; missingPolicy: "exclude" | "fail" }
   | { operation: "h3Aggregate"; latitudeField: string; longitudeField: string; resolution: number; aggregation: "count" | "sum" | "mean"; valueField?: string }
   | { operation: "density"; latitudeField: string; longitudeField: string; bandwidthMeters: number; maxCells: number }
-  | { operation: "cluster"; method: "dbscan" | "scan-circle"; latitudeField: string; longitudeField: string; radiusMeters: number; minPoints: number }
+  | { operation: "cluster"; method: "dbscan" | "exploratory-circle"; latitudeField: string; longitudeField: string; radiusMeters: number; minPoints: number }
   | { operation: "repair"; policy: "report-only" | "bounded-repair"; preserveSource: true }
   | { operation: "zonalStatistics"; statistic: "count" | "sum" | "mean" | "minimum" | "maximum"; noDataPolicy: "exclude" | "fail"; zoneField: string };
 
@@ -124,7 +124,7 @@ function validateParameters(value: unknown, issues: { path: string; message: str
   if (["moran", "lisa", "getisOrd"].includes(value.operation)) {
     exactKeys(value, ["operation", "valueField", "weightsPlanId", "permutations", "seed", "missingPolicy"], path, issues);
     nonEmpty(value.valueField, `${path}.valueField`, issues); nonEmpty(value.weightsPlanId, `${path}.weightsPlanId`, issues);
-    integer(value.permutations, `${path}.permutations`, 0, 100_000, issues); integer(value.seed, `${path}.seed`, 0, 2_147_483_647, issues);
+    integer(value.permutations, `${path}.permutations`, 0, 10_000, issues); integer(value.seed, `${path}.seed`, 0, 2_147_483_647, issues);
     if (!["exclude", "fail"].includes(String(value.missingPolicy))) issues.push({ path: `${path}.missingPolicy`, message: "must be exclude or fail" });
     return;
   }
@@ -137,11 +137,11 @@ function validateParameters(value: unknown, issues: { path: string; message: str
   }
   if (value.operation === "density") {
     exactKeys(value, ["operation", "latitudeField", "longitudeField", "bandwidthMeters", "maxCells"], path, issues);
-    nonEmpty(value.latitudeField, `${path}.latitudeField`, issues); nonEmpty(value.longitudeField, `${path}.longitudeField`, issues); positiveNumber(value.bandwidthMeters, `${path}.bandwidthMeters`, 1_000_000, issues); integer(value.maxCells, `${path}.maxCells`, 1, 1_000_000, issues); return;
+    nonEmpty(value.latitudeField, `${path}.latitudeField`, issues); nonEmpty(value.longitudeField, `${path}.longitudeField`, issues); positiveNumber(value.bandwidthMeters, `${path}.bandwidthMeters`, 1_000_000, issues); integer(value.maxCells, `${path}.maxCells`, 1, 100_000, issues); return;
   }
   if (value.operation === "cluster") {
     exactKeys(value, ["operation", "method", "latitudeField", "longitudeField", "radiusMeters", "minPoints"], path, issues);
-    if (!["dbscan", "scan-circle"].includes(String(value.method))) issues.push({ path: `${path}.method`, message: "is not supported" }); nonEmpty(value.latitudeField, `${path}.latitudeField`, issues); nonEmpty(value.longitudeField, `${path}.longitudeField`, issues); positiveNumber(value.radiusMeters, `${path}.radiusMeters`, 1_000_000, issues); integer(value.minPoints, `${path}.minPoints`, 1, 100_000, issues); return;
+    if (!["dbscan", "exploratory-circle"].includes(String(value.method))) issues.push({ path: `${path}.method`, message: "is not supported; use dbscan or exploratory-circle" }); nonEmpty(value.latitudeField, `${path}.latitudeField`, issues); nonEmpty(value.longitudeField, `${path}.longitudeField`, issues); positiveNumber(value.radiusMeters, `${path}.radiusMeters`, 1_000_000, issues); integer(value.minPoints, `${path}.minPoints`, 1, 5_000, issues); return;
   }
   if (value.operation === "repair") { exactKeys(value, ["operation", "policy", "preserveSource"], path, issues); if (!["report-only", "bounded-repair"].includes(String(value.policy))) issues.push({ path: `${path}.policy`, message: "is not supported" }); if (value.preserveSource !== true) issues.push({ path: `${path}.preserveSource`, message: "must be true" }); return; }
   if (value.operation === "zonalStatistics") { exactKeys(value, ["operation", "statistic", "noDataPolicy", "zoneField"], path, issues); if (!["count", "sum", "mean", "minimum", "maximum"].includes(String(value.statistic))) issues.push({ path: `${path}.statistic`, message: "is not supported" }); if (!["exclude", "fail"].includes(String(value.noDataPolicy))) issues.push({ path: `${path}.noDataPolicy`, message: "must be exclude or fail" }); nonEmpty(value.zoneField, `${path}.zoneField`, issues); return; }
@@ -160,8 +160,17 @@ export function validateAdvancedSpatialPlanV01(value: unknown): AdvancedSpatialP
   validateParameters(value.parameters, issues);
   if (!isObject(value.limits)) issues.push({ path: "limits", message: "must be an object" }); else {
     exactKeys(value.limits, ["maxInputBytes", "maxOutputBytes", "maxFeatures", "maxCoordinates", "maxCells", "maxPermutations", "timeoutMilliseconds"], "limits", issues);
-    for (const key of ["maxInputBytes", "maxOutputBytes", "maxFeatures", "maxCoordinates", "maxCells", "timeoutMilliseconds"]) integer(value.limits[key], `limits.${key}`, 1, Number.MAX_SAFE_INTEGER, issues);
-    integer(value.limits.maxPermutations, "limits.maxPermutations", 0, Number.MAX_SAFE_INTEGER, issues);
+    integer(value.limits.maxInputBytes, "limits.maxInputBytes", 1, 100_000_000, issues);
+    integer(value.limits.maxOutputBytes, "limits.maxOutputBytes", 1, 100_000_000, issues);
+    integer(value.limits.maxFeatures, "limits.maxFeatures", 1, 10_000, issues);
+    integer(value.limits.maxCoordinates, "limits.maxCoordinates", 1, 1_000_000, issues);
+    integer(value.limits.maxCells, "limits.maxCells", 1, 100_000, issues);
+    integer(value.limits.maxPermutations, "limits.maxPermutations", 0, 10_000, issues);
+    integer(value.limits.timeoutMilliseconds, "limits.timeoutMilliseconds", 1, 120_000, issues);
+    const parameters = value.parameters as Record<string, unknown>;
+    const limits = value.limits;
+    if (["moran", "lisa", "getisOrd"].includes(String(parameters.operation)) && typeof limits.maxPermutations === "number" && typeof limits.maxFeatures === "number" && limits.maxPermutations * limits.maxFeatures > 5_000_000) issues.push({ path: "limits", message: "permutation work exceeds the bounded 5,000,000 observation-permutation budget" });
+    if (parameters.operation === "density" && typeof limits.maxCells === "number" && typeof limits.maxFeatures === "number" && limits.maxCells * limits.maxFeatures > 5_000_000) issues.push({ path: "limits", message: "density work exceeds the bounded 5,000,000 cell-observation budget" });
   }
   if (!isObject(value.privacy)) issues.push({ path: "privacy", message: "must be an object" }); else { exactKeys(value.privacy, ["recordValuesStayLocal", "outputDisclosure", "allowRecordLevelExport"], "privacy", issues); if (value.privacy.recordValuesStayLocal !== true) issues.push({ path: "privacy.recordValuesStayLocal", message: "must be true" }); if (!["aggregate", "record-level", "renderer-only"].includes(String(value.privacy.outputDisclosure))) issues.push({ path: "privacy.outputDisclosure", message: "is not supported" }); if (typeof value.privacy.allowRecordLevelExport !== "boolean") issues.push({ path: "privacy.allowRecordLevelExport", message: "must be boolean" }); if (value.privacy.outputDisclosure === "record-level" && value.privacy.allowRecordLevelExport !== true) issues.push({ path: "privacy.allowRecordLevelExport", message: "must be true for record-level output" }); }
   if (!Array.isArray(value.requestedOutputs)) issues.push({ path: "requestedOutputs", message: "must be an array" }); else { const ids = new Set<string>(); value.requestedOutputs.forEach((output, index) => { const path = `requestedOutputs[${index}]`; if (!isObject(output)) { issues.push({ path, message: "must be an object" }); return; } exactKeys(output, ["id", "mediaType", "disclosure"], path, issues); nonEmpty(output.id, `${path}.id`, issues); if (ids.has(String(output.id))) issues.push({ path: `${path}.id`, message: "must be unique" }); ids.add(String(output.id)); nonEmpty(output.mediaType, `${path}.mediaType`, issues); if (!["aggregate", "record-level", "renderer-only"].includes(String(output.disclosure))) issues.push({ path: `${path}.disclosure`, message: "is not supported" }); }); }

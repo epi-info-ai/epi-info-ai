@@ -126,6 +126,7 @@ validation-lab-build:
     - test -f wasm/dist/validation-lab/files/validate-conditional-logistic.ipynb
     - test -f wasm/dist/validation-lab/files/validate-space-time-cluster.ipynb
     - test -f wasm/dist/validation-lab/files/validate-recordlink.ipynb
+    - test -f wasm/dist/validation-lab/files/validate-spatial-k09.ipynb
   artifacts:
     paths:
       - wasm/dist

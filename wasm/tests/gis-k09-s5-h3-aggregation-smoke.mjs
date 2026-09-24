@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 
-const bundled = await build({ entryPoints: ["wasm/app/gis/index.ts"], bundle: true, format: "esm", platform: "browser", write: false });
+const bundled = await build({ entryPoints: ["wasm/app/gis/advanced-spatial-candidates.ts"], bundle: true, format: "esm", platform: "browser", write: false });
 const gis = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
 const indexer = (latitude, longitude, resolution) => `r${resolution}-${Math.floor(latitude)}-${Math.floor(longitude)}`;
 const observations = [
@@ -26,4 +26,6 @@ assert.equal(count.cells[0].sum, null);
 assert.equal(gis.aggregateH3V01(plan, [{ ...observations[0], latitude: 91 }], indexer).diagnostics[0].code, "invalid-coordinate");
 assert(gis.aggregateH3V01({ ...plan, maxCells: 1 }, observations, indexer).diagnostics.some(({ code }) => code === "cell-limit"));
 assert.throws(() => gis.createH3AggregatePlanV01({ ...plan, resolution: 16 }), /resolution/);
+assert.throws(() => gis.createH3AggregatePlanV01({ ...plan, maxObservations: 100_001 }), /100000/);
+assert.throws(() => gis.createH3AggregatePlanV01({ ...plan, maxCells: 100_001 }), /100000/);
 console.log("GIS-K09-S5 H3 aggregation smoke passed.");

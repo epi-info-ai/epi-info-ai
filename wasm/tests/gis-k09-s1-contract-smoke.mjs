@@ -21,4 +21,6 @@ assert.throws(() => gis.createAdvancedSpatialPlanV01({ ...plan, operation: "gis.
 assert.throws(() => gis.createAdvancedSpatialPlanV01({ ...plan, privacy: { ...plan.privacy, recordValuesStayLocal: false } }), /recordValuesStayLocal/);
 assert.throws(() => gis.createAdvancedSpatialPlanV01({ ...plan, parameters: { operation: "weights", method: "distance-band" } }), /thresholdMeters/);
 assert.throws(() => gis.createAdvancedSpatialPlanV01({ ...plan, limits: { ...plan.limits, maxCells: 0 } }), /maxCells/);
+assert.throws(() => gis.createAdvancedSpatialPlanV01({ ...plan, limits: { ...plan.limits, maxFeatures: 10_001 } }), /maxFeatures/);
+assert.throws(() => gis.createAdvancedSpatialPlanV01({ ...plan, operation: "gis.spatial.moran", parameters: { operation: "moran", valueField: "value", weightsPlanId: "weights", permutations: 10_000, seed: 1, missingPolicy: "fail" }, limits: { ...plan.limits, maxFeatures: 10_000, maxPermutations: 10_000 } }), /permutation work/);
 console.log("GIS-K09-S1 contract smoke passed.");
