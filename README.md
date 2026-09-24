@@ -15,6 +15,8 @@ Project materials are collected under [`wasm/docs/`](wasm/docs/):
 - [`validation-lab.md`](wasm/docs/validation-lab.md) - validation-corpus governance, executable-notebook contract, and foodborne-outbreak validation roadmap;
 - [`docs/design/ui-compatibility-strategy.md`](wasm/docs/design/ui-compatibility-strategy.md) - familiar-but-modern UI strategy;
 - [`docs/design/accessibility-testing.md`](wasm/docs/design/accessibility-testing.md) - WCAG 2.2 AA and Section 508 testing plan, assistive-technology matrix, release gates, and phased implementation backlog;
+- [`docs/review/security_privacy.md`](wasm/docs/review/security_privacy.md) - code-backed browser security, privacy, network-egress, storage, AI, and geoprivacy review with production blockers and a phased hardening roadmap;
+- [`desktop-spike/README.md`](wasm/desktop-spike/README.md) - CI-only Linux Tauri and local browser-container packaging spike, trust boundary, and production-signing path;
 - [`docs/design/legacy-capability-register.md`](wasm/docs/design/legacy-capability-register.md) - compatibility floor, backlog gap IDs, new branches, and deprecation/retirement log;
 - [`docs/design/menu-compatibility-registry.md`](wasm/docs/design/menu-compatibility-registry.md) - item-level menu paths, command-state/function parity, and lifecycle gaps;
 - [`docs/design/classic-command-compatibility-registry.md`](wasm/docs/design/classic-command-compatibility-registry.md) - all 49 legacy Classic Analysis command entries and their independent syntax/dialog/execution/output parity dimensions;

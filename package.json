@@ -29,9 +29,10 @@
     "test:gis:k08:package": "node wasm/tests/gis-k08-package-smoke.mjs",
     "test:build": "node wasm/tests/build-smoke.mjs",
     "test:browser": "playwright test",
+    "test:desktop-spike": "node wasm/tests/desktop-spike-smoke.mjs",
     "build": "node wasm/scripts/build.mjs",
     "preview": "node wasm/scripts/preview.mjs",
-    "check": "tsc --project tsconfig.json --noEmit && node wasm/tests/phase0-smoke.mjs && node wasm/tests/gis-contract-smoke.mjs && node wasm/tests/gis-defensive-ingestion-smoke.mjs && node wasm/tests/epi-ai-gis-command-smoke.mjs && node wasm/tests/reference-layer-archive-smoke.mjs && node wasm/tests/gis-point-layer-smoke.mjs && node wasm/tests/gis-choropleth-smoke.mjs && node wasm/tests/gis-choropleth-fixture-smoke.mjs && node wasm/tests/gis-dot-density-smoke.mjs && node wasm/tests/gis-k08-layer-lifecycle-smoke.mjs && node wasm/tests/gis-k08-map-document-smoke.mjs && node wasm/tests/gis-k08-named-result-smoke.mjs && node wasm/tests/gis-k08-annotations-smoke.mjs && node wasm/tests/gis-k08-background-smoke.mjs && node wasm/tests/gis-k08-time-lapse-smoke.mjs && node wasm/tests/gis-k08-export-smoke.mjs && node wasm/tests/gis-k08-package-smoke.mjs && node wasm/scripts/build.mjs && node wasm/tests/build-smoke.mjs"
+    "check": "tsc --project tsconfig.json --noEmit && node wasm/tests/phase0-smoke.mjs && node wasm/tests/desktop-spike-smoke.mjs && node wasm/tests/gis-contract-smoke.mjs && node wasm/tests/gis-defensive-ingestion-smoke.mjs && node wasm/tests/epi-ai-gis-command-smoke.mjs && node wasm/tests/reference-layer-archive-smoke.mjs && node wasm/tests/gis-point-layer-smoke.mjs && node wasm/tests/gis-choropleth-smoke.mjs && node wasm/tests/gis-choropleth-fixture-smoke.mjs && node wasm/tests/gis-dot-density-smoke.mjs && node wasm/tests/gis-k08-layer-lifecycle-smoke.mjs && node wasm/tests/gis-k08-map-document-smoke.mjs && node wasm/tests/gis-k08-named-result-smoke.mjs && node wasm/tests/gis-k08-annotations-smoke.mjs && node wasm/tests/gis-k08-background-smoke.mjs && node wasm/tests/gis-k08-time-lapse-smoke.mjs && node wasm/tests/gis-k08-export-smoke.mjs && node wasm/tests/gis-k08-package-smoke.mjs && node wasm/scripts/build.mjs && node wasm/tests/build-smoke.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.0",

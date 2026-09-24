@@ -654,6 +654,29 @@ wasm/
     receives ambient DOM/storage/network authority, and never runs without a
     separate user action.
 
+### Optional delivery shells
+
+The validated `wasm/dist` artifact remains the application. Pages, a local
+static server, a containerized static server, and a future desktop WebView are
+delivery shells around that artifact; none may fork epidemiologic, project,
+package, GIS, or programming-language semantics.
+
+The first desktop packaging spike is deliberately Linux-first. GitHub-hosted CI
+produces an experimental Tauri WebKitGTK AppImage/DEB without giving the web
+frontend Tauri IPC capabilities. A sibling Linux container serves the same web
+artifact locally so a Windows, macOS, or Linux browser can access it when Docker
+is already approved. A Linux GUI binary inside a container is not represented as
+a Windows desktop application. Windows WebView2 and macOS WKWebView packaging
+remain later compatibility targets.
+
+Native authority is opt-in, not inherited from the shell. Any filesystem,
+process, shell, updater, networking, or operating-system dialog capability needs
+a separately reviewed typed adapter, least-privilege Tauri capability, threat
+model, audit behavior, and platform tests. Production installers also require
+organization-controlled signing, release provenance, vulnerability review, and
+platform distribution approval. See the
+[desktop packaging spike](../desktop-spike/README.md).
+
 ## Local AI boundary
 
 The Epi Assist V0.1 new branch runs IBM Granite 4.0 350M Instruct through

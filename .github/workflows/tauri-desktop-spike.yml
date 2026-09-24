@@ -1,0 +1,155 @@
+name: Linux desktop and Docker spike
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Artifact channel (production signing is intentionally unavailable)
+        required: true
+        type: choice
+        options:
+          - engineering
+        default: engineering
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: tauri-desktop-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-desktop:
+    name: Linux x64 DEB and AppImage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.19.0
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache Rust build outputs
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: wasm/desktop-spike/src-tauri
+
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Install browser and Tauri dependencies
+        shell: bash
+        run: |
+          corepack enable
+          corepack install
+          pnpm install --frozen-lockfile
+
+      - name: Validate and build the browser application
+        shell: bash
+        run: |
+          pnpm run typecheck
+          pnpm run test:desktop-spike
+          pnpm run build
+          pnpm run test:build
+
+      - name: Generate platform icons in the runner
+        shell: bash
+        run: pnpm dlx @tauri-apps/cli@2 icon wasm/desktop-spike/app-icon.svg --output wasm/desktop-spike/src-tauri/icons
+
+      - name: Build engineering desktop artifact
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: wasm/desktop-spike
+          args: --bundles deb,appimage
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: epi-info-ai-desktop-spike-[platform]-[arch]-[bundle]
+
+      - name: Attest DEB build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: wasm/desktop-spike/src-tauri/target/release/bundle/deb/*.deb
+
+      - name: Attest AppImage build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: wasm/desktop-spike/src-tauri/target/release/bundle/appimage/*.AppImage
+
+      - name: Record artifact checksums
+        run: |
+          sha256sum wasm/desktop-spike/src-tauri/target/release/bundle/deb/*.deb >> "$GITHUB_STEP_SUMMARY"
+          sha256sum wasm/desktop-spike/src-tauri/target/release/bundle/appimage/*.AppImage >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record trust status
+        shell: bash
+        run: |
+          echo "Engineering artifact only." >> "$GITHUB_STEP_SUMMARY"
+          echo "Linux has no release signature or signed repository metadata." >> "$GITHUB_STEP_SUMMARY"
+          echo "GitHub records signed build provenance for both bundles; this is not an OS publisher signature." >> "$GITHUB_STEP_SUMMARY"
+          echo "Do not redistribute as an approved CDC desktop release." >> "$GITHUB_STEP_SUMMARY"
+
+  browser-container:
+    name: Publish browser application container
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/epi-info-ai/epi-info-ai-browser-spike
+          tags: |
+            type=raw,value=demo
+            type=sha,prefix=sha-
+
+      - name: Build and publish browser container
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: wasm/desktop-spike/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Attest container build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ghcr.io/epi-info-ai/epi-info-ai-browser-spike
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Record container usage
+        run: |
+          echo "Container digest: \`${{ steps.push.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run: \`docker run --rm -p 8765:8080 ghcr.io/epi-info-ai/epi-info-ai-browser-spike:demo\`" >> "$GITHUB_STEP_SUMMARY"
